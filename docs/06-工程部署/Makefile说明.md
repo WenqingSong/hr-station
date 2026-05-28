@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-28（阶段 1-2 创建 Makefile）
+> 最后更新：2026-05-28（阶段 1-4 编写 docker-compose.yml）
 
 ## 1. 设计目标
 
@@ -21,7 +21,7 @@ make doctor
 # 2. 初始化（幂等，可重复执行）
 make init
 
-# 3. 启动 Docker 服务
+# 3. 启动 Docker 服务（MySQL）
 make up
 
 # 4. 启动前端开发（在新终端）
@@ -120,11 +120,21 @@ make restart     # 重启服务
 
 ### `make up`
 
-启动 Docker Compose 服务。如果 `docker-compose.yml` 不存在或为空，输出清晰提示。
+启动 Docker Compose 服务。当前包含 MySQL 服务。
+
+执行：`docker compose up -d`
+
+前置条件：
+- `docker-compose.yml` 存在且有效
+- `.env` 存在或 `docker-compose.yml` 中有默认值
 
 ### `make down`
 
-停止 Docker Compose 服务，**不删除数据卷**。数据保留在 `mysql_data` 卷中。
+停止 Docker Compose 服务，**不删除数据卷**。
+
+执行：`docker compose down`
+
+数据保留在 `mysql_data` 卷中，下次 `make up` 数据仍在。
 
 ### `make restart`
 
@@ -132,11 +142,14 @@ make restart     # 重启服务
 
 ### `make status`
 
-查看容器运行状态。
+查看容器运行状态。执行 `docker compose ps`。
 
 ### `make logs` / `make logs-mysql`
 
 查看服务日志，支持实时跟踪（-f）。
+
+- `make logs`：查看全部服务日志
+- `make logs-mysql`：查看 MySQL 服务日志
 
 ## 7. 前端开发命令
 
@@ -206,6 +219,8 @@ docker compose down -v
 
 用户需手动确认后执行。执行后 MySQL 中所有数据将被删除。
 
+**注意**：`make reset` 会删除 `mysql_data` 数据卷，MySQL 中所有表和数据将丢失。
+
 ## 11. 常见问题
 
 ### Q: CNB 环境重启后如何恢复？
@@ -213,7 +228,7 @@ docker compose down -v
 ```bash
 make doctor    # 检查环境状态
 make init      # 补齐 .env 等基础文件
-make up        # 启动 Docker 服务
+make up        # 启动 MySQL Docker 服务
 make dev-web   # 启动前端（新终端）
 make dev-server # 启动后端（新终端）
 ```
@@ -222,9 +237,17 @@ make dev-server # 启动后端（新终端）
 
 `.env.example` 已在阶段 1-3 创建。执行 `make init` 时，如果 `.env` 不存在且 `.env.example` 存在，会自动复制 `.env.example` 为 `.env`。`.env` 不应提交到代码仓库，LLM API Key 等敏感信息需手动在 `.env` 中填写。
 
-### Q: `make up` 提示 `docker-compose.yml` 为空？
+### Q: `make up` 现在会启动什么？
 
-`docker-compose.yml` 在阶段 1-4 编写。当前 MySQL 服务尚未配置。
+`docker-compose.yml` 已在阶段 1-4 编写，`make up` 会启动 MySQL 服务。MySQL 数据通过 `mysql_data` 卷持久化，`make down` 不会删除数据。
+
+### Q: `make down` 会删除数据库数据吗？
+
+不会。`make down` 执行 `docker compose down`，只停止和删除容器，不删除数据卷。MySQL 数据保留在 `mysql_data` 卷中。
+
+### Q: 如何完全清理数据库数据？
+
+执行 `docker compose down -v` 或 `make reset`（只输出提示，需手动确认）。这会删除所有数据卷，MySQL 数据将全部丢失。
 
 ### Q: `make dev-server` 提示 `server/go.mod` 不存在？
 
