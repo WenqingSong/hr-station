@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-28（阶段 1-4 编写 docker-compose.yml）
+> 最后更新：2026-05-28（阶段 1-6 编写前后端运行说明）
 
 ## 1. 设计目标
 
@@ -24,10 +24,13 @@ make init
 # 3. 启动 Docker 服务（MySQL）
 make up
 
-# 4. 启动前端开发（在新终端）
+# 4. 确认 MySQL 就绪
+make status
+
+# 5. 启动前端开发（在新终端）
 make dev-web
 
-# 5. 启动后端开发（在新终端）
+# 6. 启动后端开发（在新终端）
 make dev-server
 ```
 
@@ -40,6 +43,17 @@ make logs-mysql  # 查看 MySQL 日志
 make down        # 停止服务（不删卷）
 make restart     # 重启服务
 ```
+
+### 恢复流程说明
+
+1. `make doctor` 用来确认工具链、`.env`、`docker-compose.yml`、server、web 是否存在
+2. `make init` 用于恢复 `.env`（从 `.env.example` 复制）
+3. `make up` 用于重新启动 MySQL，数据卷 `mysql_data` 保留之前的数据
+4. `make status` 用于查看容器健康状态
+5. `make dev-web` 和 `make dev-server` 需要分别在不同终端启动
+6. 如果 `node_modules` 丢失，根据 `make init` 提示执行 `cd web && npm install`
+7. 如果 MySQL 数据卷还在，`make down` / `make restart` 不会删除数据
+8. 如果需要重建数据库环境，后续使用 `make reset`，但它是危险命令
 
 ## 3. 命令总览
 
@@ -111,6 +125,7 @@ make restart     # 重启服务
 3. **检查后端依赖**：如果 `server/go.mod` 不存在，提示待阶段 1-5 初始化
 
 **关键特性**：
+
 - 幂等：重复执行不会破坏已有环境
 - 不删除任何数据
 - 不启动任何服务
@@ -120,7 +135,7 @@ make restart     # 重启服务
 
 ### `make up`
 
-启动 Docker Compose 服务。当前包含 MySQL 服务。
+启动 Docker Compose 服务。当前只包含 MySQL 服务。
 
 执行：`docker compose up -d`
 
@@ -175,7 +190,16 @@ make restart     # 重启服务
 启动后端开发服务。执行 `cd server && go run ./cmd/server`。
 
 前置条件：
-- `server/go.mod` 存在（如不存在，提示待阶段 1-5 初始化）
+- `server/go.mod` 存在（已在阶段 1-5 初始化）
+
+Go 后端启动后监听 8080 端口（可通过 `.env` 中 `SERVER_PORT` 修改），提供 `/healthz` 健康检查接口。
+
+验证：
+
+```bash
+curl http://localhost:8080/healthz
+# 期望响应：{"status":"ok","service":"offer-catcher-server"}
+```
 
 ### `make dev`
 
@@ -226,10 +250,11 @@ docker compose down -v
 ### Q: CNB 环境重启后如何恢复？
 
 ```bash
-make doctor    # 检查环境状态
-make init      # 补齐 .env 等基础文件
-make up        # 启动 MySQL Docker 服务
-make dev-web   # 启动前端（新终端）
+make doctor     # 检查环境状态
+make init       # 补齐 .env 等基础文件
+make up         # 启动 MySQL Docker 服务
+make status     # 确认 MySQL 就绪
+make dev-web    # 启动前端（新终端）
 make dev-server # 启动后端（新终端）
 ```
 
@@ -239,7 +264,7 @@ make dev-server # 启动后端（新终端）
 
 ### Q: `make up` 现在会启动什么？
 
-`docker-compose.yml` 已在阶段 1-4 编写，`make up` 会启动 MySQL 服务。MySQL 数据通过 `mysql_data` 卷持久化，`make down` 不会删除数据。
+`docker-compose.yml` 已在阶段 1-4 编写，`make up` 会启动 MySQL 服务。MySQL 数据通过 `mysql_data` 卷持久化，`make down` 不会删除数据。当前 Docker Compose 不包含前端和后端服务。
 
 ### Q: `make down` 会删除数据库数据吗？
 
@@ -251,7 +276,16 @@ make dev-server # 启动后端（新终端）
 
 ### Q: `make dev-server` 现在可以运行吗？
 
-Go 后端已在阶段 1-5 初始化。`make dev-server` 执行 `cd server && go run ./cmd/server`，启动 HTTP Server 监听 8080 端口。`/healthz` 返回 `{"status":"ok","service":"offer-catcher-server"}`。
+Go 后端已在阶段 1-5 初始化。`make dev-server` 执行 `cd server && go run ./cmd/server`，启动 HTTP Server 监听 8080 端口。`/healthz` 返回 `{"status":"ok","service":"offer-catcher-server"}`。当前后端不连接数据库、不实现业务接口。
+
+### Q: `make dev-web` 和 `make dev-server` 需要同时运行吗？
+
+是的。前端和后端需要分别在不同终端运行：
+
+- 终端 1：`make dev-web`（前端，端口 5173）
+- 终端 2：`make dev-server`（后端，端口 8080）
+
+当前阶段前端和后端不联通，分别运行用于独立验证。
 
 ### Q: 前端依赖丢失怎么办？
 

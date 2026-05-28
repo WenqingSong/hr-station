@@ -1,6 +1,6 @@
 # Docker 说明
 
-> 最后更新：2026-05-28（阶段 1-4 编写 docker-compose.yml）
+> 最后更新：2026-05-28（阶段 1-6 编写前后端运行说明）
 
 ## 1. 当前 Docker Compose 目标
 
@@ -176,6 +176,20 @@ make status
 2. `make init` 在 `.env` 不存在时从 `.env.example` 复制生成
 3. `make up` 启动 MySQL，数据卷 `mysql_data` 保留之前的数据
 4. MySQL 有 healthcheck，启动后约 30 秒内变为 healthy
+
+### 查看 MySQL 状态与日志
+
+```bash
+make status       # 查看容器状态（healthy 表示就绪）
+make logs-mysql   # 查看 MySQL 日志（实时跟踪）
+```
+
+### 避免误删数据卷
+
+1. `make down` 只停止容器，不删除数据卷
+2. `make restart` 只重启容器，不删除数据卷
+3. `make reset` 会删除数据卷，但不会自动执行（需手动运行 `docker compose down -v`）
+4. 日常操作使用 `make down` / `make up` 即可，数据不会丢失
 
 ## 9. 不包含前端和后端的原因
 
