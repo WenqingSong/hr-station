@@ -1,6 +1,6 @@
 # Docker 说明
 
-> 最后更新：2026-05-28（阶段 1-6 编写前后端运行说明）
+> 最后更新：2026-05-28（阶段 2-5 接入 MySQL 数据库连接）
 
 ## 1. 当前 Docker Compose 目标
 
@@ -210,10 +210,14 @@ make logs-mysql   # 查看 MySQL 日志（实时跟踪）
 
 ### 本地 Go 后端连接 MySQL
 
+阶段 2-5 后，Go 后端启动时会连接 MySQL。本地开发使用 `127.0.0.1`：
+
 ```env
 DB_HOST=127.0.0.1
 DB_PORT=3306
 ```
+
+如果 MySQL 未启动，后端启动会失败（这是预期行为）。
 
 ### Docker Compose 内 Go 后端连接 MySQL
 
@@ -230,7 +234,7 @@ DB_DSN=root:password@tcp(mysql:3306)/offer_catcher?charset=utf8mb4&parseTime=Tru
 | 阶段 | 新增服务 | 说明 |
 |------|---------|------|
 | 阶段 1 | mysql | ✅ 已完成 |
-| 阶段 2 | 无 | 后端连接已有 MySQL |
+| 阶段 2 | 无 | ✅ 后端已连接 MySQL（2-5 完成） |
 | 阶段 3 | 无 | 业务接口 |
 | 阶段 4 | 无 | Agent / 模型 |
 | 阶段 7 | redis、web、server | 完整容器化部署 |
