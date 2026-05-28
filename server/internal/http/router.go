@@ -14,6 +14,7 @@ type RouterDeps struct {
 	HealthService  *health.Service
 	AuthHandler    *AuthHandler
 	AuthMiddleware func(http.Handler) http.Handler
+	ResumeHandler  *ResumeHandler
 }
 
 // NewRouter creates and returns the main HTTP handler with all routes registered
@@ -33,6 +34,13 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	// Protected auth routes
 	mux.Handle("/api/auth/me", deps.AuthMiddleware(http.HandlerFunc(deps.AuthHandler.Me)))
+
+	// Resume routes (all require auth)
+	mux.Handle("/api/resumes", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Create)))
+	mux.Handle("/api/resumes/current", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Current)))
+	mux.Handle("/api/resumes/detail", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Detail)))
+	mux.Handle("/api/resumes/versions", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Versions)))
+	mux.Handle("/api/resumes/versions/", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.VersionDetail)))
 
 	// Apply middleware chain (outermost first)
 	handler := middleware.RequestLogger(mux)

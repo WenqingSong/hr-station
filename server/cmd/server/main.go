@@ -45,11 +45,17 @@ func main() {
 	authHandler := httpserver.NewAuthHandler(authService)
 	authMiddleware := middleware.Auth(authService)
 
+	// Initialize resume module
+	resumeRepo := repository.NewResumeRepository(mysqlDB.DB)
+	resumeService := service.NewResumeService(resumeRepo)
+	resumeHandler := httpserver.NewResumeHandler(resumeService)
+
 	// Initialize router with all dependencies
 	router := httpserver.NewRouter(httpserver.RouterDeps{
 		HealthService:  healthService,
 		AuthHandler:    authHandler,
 		AuthMiddleware: authMiddleware,
+		ResumeHandler:  resumeHandler,
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
