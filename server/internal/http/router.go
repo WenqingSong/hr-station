@@ -3,25 +3,38 @@ package httpserver
 import (
 	"net/http"
 
-	"offer-catcher/server/internal/errors"
+	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/health"
 	"offer-catcher/server/internal/middleware"
 	"offer-catcher/server/internal/response"
 )
 
+// RouterDeps holds all dependencies needed by the router.
+type RouterDeps struct {
+	HealthService  *health.Service
+	AuthHandler    *AuthHandler
+	AuthMiddleware func(http.Handler) http.Handler
+}
+
 // NewRouter creates and returns the main HTTP handler with all routes registered
 // and middleware chain applied.
 // Middleware order: Recover → CORS → RequestLogger → handler
-func NewRouter(healthService *health.Service) http.Handler {
+func NewRouter(deps RouterDeps) http.Handler {
 	mux := http.NewServeMux()
+
+	// Health check
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		healthzHandler(w, r, healthService)
+		healthzHandler(w, r, deps.HealthService)
 	})
 
+	// Auth routes (public)
+	mux.HandleFunc("/api/auth/register", deps.AuthHandler.Register)
+	mux.HandleFunc("/api/auth/login", deps.AuthHandler.Login)
+
+	// Protected auth routes
+	mux.Handle("/api/auth/me", deps.AuthMiddleware(http.HandlerFunc(deps.AuthHandler.Me)))
+
 	// Apply middleware chain (outermost first)
-	// Recover catches panics from all inner handlers
-	// CORS handles cross-origin and preflight requests
-	// RequestLogger logs method/path/status/duration for each request
 	handler := middleware.RequestLogger(mux)
 	handler = middleware.CORS(handler)
 	handler = middleware.Recover(handler)

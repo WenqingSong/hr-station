@@ -152,11 +152,12 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- -----------------------------------------------------------
 -- 3.1 种子用户
--- 密码哈希为 Demo 占位值，3-3 实现 bcrypt 后更新
+-- Demo 密码统一为 123456，password_hash 使用 bcrypt 生成
+-- 注意：Demo 密码不应在生产环境使用
 -- -----------------------------------------------------------
 INSERT INTO `users` (`id`, `email`, `password_hash`, `name`) VALUES
-(1, 'arthur@example.com',       'mock_hash_arthur_123456', 'Arthur'),
-(2, 'demo@offer-catcher.com',   'mock_hash_demo_123456',   'Demo用户');
+(1, 'arthur@example.com',       '$2a$10$hUKwISi3F6uHLRj.cFkUkO23HNLW9nH60me2O9fm7q2Hr/Z1nTG3u', 'Arthur'),
+(2, 'demo@offer-catcher.com',   '$2a$10$hUKwISi3F6uHLRj.cFkUkO23HNLW9nH60me2O9fm7q2Hr/Z1nTG3u', 'Demo用户');
 
 -- -----------------------------------------------------------
 -- 3.2 种子简历版本

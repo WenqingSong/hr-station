@@ -11,7 +11,10 @@ import (
 	"offer-catcher/server/internal/config"
 	"offer-catcher/server/internal/database"
 	"offer-catcher/server/internal/health"
-	"offer-catcher/server/internal/http"
+	httpserver "offer-catcher/server/internal/http"
+	"offer-catcher/server/internal/middleware"
+	"offer-catcher/server/internal/repository"
+	"offer-catcher/server/internal/service"
 )
 
 func main() {
@@ -33,9 +36,21 @@ func main() {
 	}
 	log.Println("[offer-catcher-server] MySQL connected")
 
+	// Initialize health check
 	healthService := health.NewService(cfg.App.Name, cfg.App.Env, mysqlDB)
 
-	router := httpserver.NewRouter(healthService)
+	// Initialize auth module
+	userRepo := repository.NewUserRepository(mysqlDB.DB)
+	authService := service.NewAuthService(userRepo, cfg.JWT.Secret, cfg.JWT.ExpireHours)
+	authHandler := httpserver.NewAuthHandler(authService)
+	authMiddleware := middleware.Auth(authService)
+
+	// Initialize router with all dependencies
+	router := httpserver.NewRouter(httpserver.RouterDeps{
+		HealthService:  healthService,
+		AuthHandler:    authHandler,
+		AuthMiddleware: authMiddleware,
+	})
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
 
