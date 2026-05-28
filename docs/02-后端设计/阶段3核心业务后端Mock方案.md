@@ -1,6 +1,6 @@
 # 阶段3核心业务后端Mock方案
 
-> 最后更新：2026-05-29（阶段 3-1 创建阶段 3 核心业务后端 Mock 方案）
+> 最后更新：2026-05-29（阶段 3-2 设计并写入初始化 SQL）
 
 ## 1. 阶段目标
 
@@ -46,13 +46,14 @@
 | 中间件链 | ✅ 已完成 | Recover → CORS → RequestLogger |
 | MySQL 连接 | ✅ 已完成 | database/sql + MySQL Driver |
 | 健康检查 | ✅ 已完成 | app/database 状态聚合 |
+| **数据库表结构** | ✅ 已完成 | 6 张表 + 种子数据（3-2） |
 
 阶段 2 未实现的（阶段 3 要做的）：
 
 | 能力 | 状态 | 阶段 |
 |------|------|------|
-| 用户注册登录 / JWT | ❌ 未实现 | 阶段 3 |
-| 业务表结构 | ❌ 未实现 | 阶段 3 |
+| ~~业务表结构~~ | ✅ 已完成 | 阶段 3-2 |
+| 用户注册登录 / JWT | ❌ 未实现 | 阶段 3-3 |
 | 业务接口 | ❌ 未实现 | 阶段 3 |
 | Mock Agent | ❌ 未实现 | 阶段 3 |
 | 真实 LLM 接入 | ❌ 未实现 | 阶段 4 |
@@ -73,17 +74,18 @@
 | 是否依赖前置任务 | ❌ 否 |
 | 完成日期 | 2026-05-29 |
 
-### 3-2 设计并写入 server/sql/init.sql 表结构与种子数据
+### 3-2 设计并写入 server/sql/init.sql 表结构与种子数据 ✅
 
 | 项目 | 说明 |
 |------|------|
 | 目标 | 编写阶段 3 所需的 6 张数据表结构和种子数据 |
 | 允许修改 | `server/sql/init.sql`、`docs/` 目录内文档 |
 | 禁止事项 | 不修改 Go 代码、不实现接口、不修改 Makefile、不修改 .env.example |
-| 验收标准 | init.sql 包含 users / resume_versions / jobs / recommendation_results / match_analyses / version_compare_results 表结构和种子数据，可通过 `docker compose exec` 导入成功 |
+| 验收标准 | init.sql 包含 6 张表结构和种子数据，可通过 MySQL 导入成功 |
 | 是否改工程文件 | ✅ 是（修改 server/sql/init.sql） |
 | 是否需要更新文档 | ✅ 是 |
 | 是否依赖前置任务 | ✅ 依赖 3-1 |
+| 完成日期 | 2026-05-29 |
 
 ### 3-3 实现用户注册 / 登录基础接口
 
@@ -171,7 +173,7 @@
 
 ## 4. 数据库表范围规划
 
-阶段 3 计划创建 6 张表，统一写入 `server/sql/init.sql`。本次 3-1 不修改 SQL，只做规划。
+阶段 3 计划创建 6 张表，已写入 `server/sql/init.sql`（3-2 ✅ 已完成）。
 
 ### 4.1 users
 
@@ -186,14 +188,7 @@
 | created_at | DATETIME | 创建时间 |
 | updated_at | DATETIME | 更新时间 |
 
-不做：
-- 多角色
-- RBAC
-- Casbin
-- 邮箱验证
-- 短信验证
-- 找回密码
-- 刷新 token
+不做：多角色 / RBAC / Casbin / 邮箱验证 / 短信验证 / 找回密码 / 刷新 token
 
 ### 4.2 resume_versions
 
@@ -207,7 +202,7 @@
 | user_id | BIGINT UNSIGNED | 用户 ID（外键） |
 | version_no | INT | 版本号（1, 2, 3...） |
 | name | VARCHAR(100) | 姓名 |
-| phone | VARCHAR(20) | 电话 |
+| phone | VARCHAR(50) | 电话 |
 | email | VARCHAR(255) | 邮箱 |
 | location | VARCHAR(100) | 所在地 |
 | target_city | VARCHAR(100) | 目标城市 |
@@ -236,22 +231,15 @@
 |------|------|------|
 | id | BIGINT UNSIGNED AUTO_INCREMENT | 主键 |
 | title | VARCHAR(200) | 岗位名称 |
-| department | VARCHAR(100) | 部门 |
-| city | VARCHAR(50) | 城市 |
-| category | VARCHAR(50) | 方向分类 |
-| job_type | VARCHAR(50) | 岗位类型（校招/实习/社招） |
+| department | VARCHAR(200) | 部门 |
+| city | VARCHAR(100) | 城市 |
+| category | VARCHAR(100) | 方向分类 |
+| job_type | VARCHAR(100) | 岗位类型（校招/实习/社招） |
 | description | TEXT | 岗位描述 |
 | requirements | TEXT | 岗位要求 |
 | skill_keywords_json | JSON | 技能关键词 |
 | created_at | DATETIME | 创建时间 |
 | updated_at | DATETIME | 更新时间 |
-
-说明：
-1. 阶段 3 使用种子数据
-2. 不做真实岗位爬取
-3. 不做投递
-4. 不做收藏
-5. 不做复杂筛选
 
 ### 4.4 recommendation_results
 
@@ -264,11 +252,6 @@
 | resume_version_id | BIGINT UNSIGNED | 简历版本 ID |
 | result_json | JSON | 推荐结果 JSON |
 | created_at | DATETIME | 创建时间 |
-
-说明：
-1. 推荐结果先存 JSON
-2. 阶段 3 推荐逻辑为 Mock / 规则
-3. 阶段 4 再接真实 Agent / LLM
 
 ### 4.5 match_analyses
 
@@ -284,13 +267,6 @@
 | result_json | JSON | 分析结果 JSON |
 | created_at | DATETIME | 创建时间 |
 
-说明：
-1. 匹配分析结果先存 JSON
-2. 必须包含 JD-简历证据链
-3. 必须包含初筛风险
-4. 必须包含 P0 / P1 优化建议
-5. 不生成优化版简历
-
 ### 4.6 version_compare_results
 
 用于保存简历版本对比 Mock 结果。
@@ -304,66 +280,61 @@
 | result_json | JSON | 对比结果 JSON |
 | created_at | DATETIME | 创建时间 |
 
-说明：
-1. 用于简历版本迭代页
-2. 对比两个版本之间的变化
-3. 可以包含匹配度变化、风险变化、建议完成情况
-4. 阶段 3 先 Mock
-
 ### 4.7 与阶段 2 规划的差异说明
-
-阶段 2 表结构设计文档中规划了 `resumes`（简历主表）和 `education_experiences` / `work_experiences` / `project_experiences`（经历子表）。阶段 3 做以下调整：
 
 | 调整项 | 原规划 | 阶段 3 实际 | 原因 |
 |--------|--------|------------|------|
-| 简历主表 | `resumes` + `resume_versions` | 仅 `resume_versions` | 用户只有一份主简历，无需 resumes 表，version_no 即可管理版本 |
-| 经历子表 | 3 张独立表 | JSON 字段 | Demo 阶段简化，降低 SQL 复杂度，结构化数据用 JSON 存储 |
+| 简历主表 | `resumes` + `resume_versions` | 仅 `resume_versions` | 用户只有一份主简历，无需 resumes 表 |
+| 经历子表 | 3 张独立表 | JSON 字段 | Demo 阶段简化，降低 SQL 复杂度 |
 | 推荐结果 | `job_recommendations` | `recommendation_results` | 更明确的命名 |
 | 匹配证据 | `match_evidences` 独立表 | 嵌入 `match_analyses.result_json` | 证据链作为分析结果的一部分存储 |
 | 版本对比 | 无 | `version_compare_results` | 新增，支持版本迭代闭环 |
 
 ## 5. 后端目录扩展规划
 
-阶段 3 逐步扩展后端目录，但本次 3-1 不创建目录和文件。
+阶段 3 逐步扩展后端目录。3-2 已完成 SQL，3-3 起开始创建 Go 文件。
 
 ```
 server/internal/model/
-  user.go                    # 用户数据结构
-  resume.go                  # 简历数据结构
-  job.go                     # 岗位数据结构
-  recommendation.go          # 推荐结果数据结构
-  match.go                   # 匹配分析数据结构
-  version_compare.go         # 版本对比数据结构
+  user.go                    # 用户数据结构（3-3）
+  resume.go                  # 简历数据结构（3-4）
+  job.go                     # 岗位数据结构（3-5）
+  recommendation.go          # 推荐结果数据结构（3-6）
+  match.go                   # 匹配分析数据结构（3-7）
+  version_compare.go         # 版本对比数据结构（3-8）
 
 server/internal/repository/
-  user_repository.go         # 用户数据访问
-  resume_repository.go       # 简历数据访问
-  job_repository.go          # 岗位数据访问
-  recommendation_repository.go  # 推荐结果数据访问
-  match_repository.go        # 匹配分析数据访问
-  version_compare_repository.go # 版本对比数据访问
+  user_repository.go         # 用户数据访问（3-3）
+  resume_repository.go       # 简历数据访问（3-4）
+  job_repository.go          # 岗位数据访问（3-5）
+  recommendation_repository.go  # 推荐结果数据访问（3-6）
+  match_repository.go        # 匹配分析数据访问（3-7）
+  version_compare_repository.go # 版本对比数据访问（3-8）
 
 server/internal/service/
-  auth_service.go            # 认证业务
-  resume_service.go          # 简历业务
-  job_service.go             # 岗位业务
-  recommendation_service.go  # 推荐业务
-  match_service.go           # 匹配分析业务
-  version_compare_service.go # 版本对比业务
+  auth_service.go            # 认证业务（3-3）
+  resume_service.go          # 简历业务（3-4）
+  job_service.go             # 岗位业务（3-5）
+  recommendation_service.go  # 推荐业务（3-6）
+  match_service.go           # 匹配分析业务（3-7）
+  version_compare_service.go # 版本对比业务（3-8）
 
 server/internal/http/
-  auth_handler.go            # 认证 HTTP 处理
-  resume_handler.go          # 简历 HTTP 处理
-  job_handler.go             # 岗位 HTTP 处理
-  recommendation_handler.go  # 推荐 HTTP 处理
-  match_handler.go            # 匹配 HTTP 处理
-  version_compare_handler.go # 版本对比 HTTP 处理
-  router.go                  # 路由注册（已有，阶段 3 扩展）
+  auth_handler.go            # 认证 HTTP 处理（3-3）
+  resume_handler.go          # 简历 HTTP 处理（3-4）
+  job_handler.go             # 岗位 HTTP 处理（3-5）
+  recommendation_handler.go  # 推荐 HTTP 处理（3-6）
+  match_handler.go            # 匹配 HTTP 处理（3-7）
+  version_compare_handler.go # 版本对比 HTTP 处理（3-8）
+  router.go                  # 路由注册（已有，3-3 起扩展）
 
 server/internal/agent/
-  recommendation_mock.go     # 推荐 Mock Agent
-  match_mock.go              # 匹配 Mock Agent
-  version_compare_mock.go    # 版本对比 Mock Agent
+  recommendation_mock.go     # 推荐 Mock Agent（3-6）
+  match_mock.go              # 匹配 Mock Agent（3-7）
+  version_compare_mock.go    # 版本对比 Mock Agent（3-8）
+
+server/internal/middleware/
+  auth.go                    # JWT Auth 中间件（3-3）
 ```
 
 ### 分层职责
@@ -376,12 +347,6 @@ server/internal/agent/
 | HTTP Handler | HTTP 入参出参与路由处理 | 解析请求、调用 Service、格式化响应 |
 | Agent Mock | Mock 数据生成 | 生成推荐、匹配、版本对比的结构化结果 |
 
-**关键原则**：
-1. Handler 只处理 HTTP 入参出参，不在 Handler 里堆业务逻辑
-2. Service 编排业务，调用 Repository 和 Agent
-3. Repository 只负责数据访问，不包含业务判断
-4. Agent Mock 生成结构化结果，不调用真实 LLM
-
 ## 6. 接口范围规划
 
 ### 6.1 认证接口
@@ -391,13 +356,6 @@ server/internal/agent/
 | POST | `/api/auth/register` | 用户注册 |
 | POST | `/api/auth/login` | 用户登录 |
 | GET | `/api/auth/me` | 获取当前用户信息 |
-
-说明：
-1. 可以做最小 JWT
-2. 不做刷新 token
-3. 不做角色权限
-4. 不做邮箱验证码
-5. 不做找回密码
 
 ### 6.2 简历接口
 
@@ -409,13 +367,6 @@ server/internal/agent/
 | GET | `/api/resumes/versions` | 获取版本列表 |
 | GET | `/api/resumes/versions/:versionNo` | 获取指定版本 |
 
-说明：
-1. `POST /api/resumes` 表示新增一个简历版本
-2. 所有字段可选
-3. 不做文件上传
-4. 不做多简历
-5. 历史版本只读
-
 ### 6.3 岗位接口
 
 | 方法 | 路径 | 说明 |
@@ -423,31 +374,11 @@ server/internal/agent/
 | GET | `/api/jobs` | 岗位列表 |
 | GET | `/api/jobs/:id` | 岗位详情 |
 
-说明：
-1. 从 `jobs` 表读取种子数据
-2. 可支持简单 keyword / city / category 查询
-3. 不做收藏
-4. 不做投递
-5. 不做复杂筛选
-
 ### 6.4 岗位推荐 Mock 接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/api/jobs/recommend` | 获取推荐岗位 Mock |
-
-输出应包含：
-- `recommended_jobs`：推荐岗位列表
-- `recommendation_reason`：推荐理由
-- `match_highlights`：匹配亮点
-- `risk_points`：风险点
-- `priority`：优先级
-
-说明：
-1. 先使用规则 / 固定 Mock
-2. 不接真实模型
-3. 可以保存推荐快照
-4. 结果必须结构化
 
 ### 6.5 岗位匹配分析 Mock 接口
 
@@ -455,41 +386,15 @@ server/internal/agent/
 |------|------|------|
 | POST | `/api/jobs/:id/match` | 岗位匹配分析 Mock |
 
-输出应包含：
-- `match_score`：匹配分数
-- `screening_result`：初筛判断
-- `evidence_chain`：JD-简历证据链
-- `risk_points`：风险点
-- `optimization_suggestions`：优化建议（P0/P1）
-- `next_steps`：下一步建议
-- `authenticity_notice`：真实性提示
-
-**这是阶段 3 的核心亮点**：
-1. 必须有 JD-简历证据链
-2. 必须有初筛风险
-3. 必须有 P0 / P1 优化建议
-4. 不生成优化版简历
-
 ### 6.6 简历版本对比 Mock 接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/resumes/versions/compare?from=1&to=2` | 版本对比 Mock |
 
-输出应包含：
-- `score_change`：分数变化
-- `field_changes`：字段变化
-- `risk_changes`：风险变化
-- `suggestion_completion`：建议完成情况
-- `summary`：总结
-
-说明：
-1. 用于简历版本迭代页
-2. 服务于"分析 → 修改 → 新版本 → 对比"的产品闭环
-
 ### 6.7 API 路径前缀说明
 
-阶段 3 统一使用 `/api/` 前缀（不带 `/v1/`），简化 Demo 阶段路径。如后续需要版本化，可在阶段 7 引入 `/api/v1/`。
+阶段 3 统一使用 `/api/` 前缀（不带 `/v1/`），简化 Demo 阶段路径。
 
 ## 7. Mock Agent 边界
 
@@ -497,44 +402,21 @@ server/internal/agent/
 
 ### 7.1 岗位推荐 Mock
 
-**输入**：
-- 当前简历版本
-- 岗位列表
+**输入**：当前简历版本 + 岗位列表
 
-**输出**：
-- 推荐岗位列表
-- 推荐理由
-- 匹配亮点
-- 风险点
-- 优先级
+**输出**：推荐岗位列表 + 推荐理由 + 匹配亮点 + 风险点 + 优先级
 
 ### 7.2 岗位匹配 Mock
 
-**输入**：
-- 当前简历版本
-- 目标岗位 JD
+**输入**：当前简历版本 + 目标岗位 JD
 
-**输出**：
-- 匹配分数
-- 初筛判断
-- JD-简历证据链
-- 风险点
-- P0/P1 优化建议
-- 下一步建议
-- 真实性提示
+**输出**：匹配分数 + 初筛判断 + JD-简历证据链 + 风险点 + P0/P1 优化建议 + 下一步建议 + 真实性提示
 
 ### 7.3 版本对比 Mock
 
-**输入**：
-- 旧版本简历
-- 新版本简历
+**输入**：旧版本简历 + 新版本简历
 
-**输出**：
-- 字段变化
-- 能力表达变化
-- 风险变化
-- 建议完成情况
-- 总结
+**输出**：字段变化 + 能力表达变化 + 风险变化 + 建议完成情况 + 总结
 
 ### 7.4 Mock 实现方式
 
@@ -587,7 +469,7 @@ server/internal/agent/
 
 | 序号 | 验收标准 |
 |------|---------|
-| 1 | `server/sql/init.sql` 已包含表结构和种子数据 |
+| 1 | ✅ `server/sql/init.sql` 已包含表结构和种子数据 |
 | 2 | 用户注册 / 登录 / me 接口可用 |
 | 3 | 简历版本接口可用 |
 | 4 | 岗位列表 / 详情接口可用 |

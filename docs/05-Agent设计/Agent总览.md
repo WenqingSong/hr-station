@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-29（阶段 3-1 创建阶段 3 核心业务后端 Mock 方案）
+> 最后更新：2026-05-29（阶段 3-2 设计并写入初始化 SQL）
 
 ## 当前状态
 
-阶段 3 方案已创建。阶段 3 使用 Mock Agent，不调用真实 LLM。阶段 4 才接真实 Agent / LLM。Mock Agent 的职责是生成结构化结果，不读取真实 LLM 配置。
+阶段 3-2 已完成，Mock 结果存储表（recommendation_results / match_analyses / version_compare_results）已准备。阶段 3 使用 Mock Agent，不调用真实 LLM。阶段 4 才接真实 Agent / LLM。Mock Agent 的职责是生成结构化结果，不读取真实 LLM 配置。
 
 ## Agent 列表
 
