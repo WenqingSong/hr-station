@@ -15,6 +15,7 @@ type RouterDeps struct {
 	AuthHandler    *AuthHandler
 	AuthMiddleware func(http.Handler) http.Handler
 	ResumeHandler  *ResumeHandler
+	JobHandler     *JobHandler
 }
 
 // NewRouter creates and returns the main HTTP handler with all routes registered
@@ -41,6 +42,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("/api/resumes/detail", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Detail)))
 	mux.Handle("/api/resumes/versions", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Versions)))
 	mux.Handle("/api/resumes/versions/", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.VersionDetail)))
+
+	// Job routes (all require auth)
+	mux.Handle("/api/jobs", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.List)))
+	mux.Handle("/api/jobs/", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.Detail)))
 
 	// Apply middleware chain (outermost first)
 	handler := middleware.RequestLogger(mux)

@@ -50,12 +50,18 @@ func main() {
 	resumeService := service.NewResumeService(resumeRepo)
 	resumeHandler := httpserver.NewResumeHandler(resumeService)
 
+	// Initialize job module
+	jobRepo := repository.NewJobRepository(mysqlDB.DB)
+	jobService := service.NewJobService(jobRepo)
+	jobHandler := httpserver.NewJobHandler(jobService)
+
 	// Initialize router with all dependencies
 	router := httpserver.NewRouter(httpserver.RouterDeps{
 		HealthService:  healthService,
 		AuthHandler:    authHandler,
 		AuthMiddleware: authMiddleware,
 		ResumeHandler:  resumeHandler,
+		JobHandler:     jobHandler,
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
