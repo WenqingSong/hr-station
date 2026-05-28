@@ -62,6 +62,12 @@ func main() {
 	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent)
 	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
 
+	// Initialize match module
+	matchRepo := repository.NewMatchRepository(mysqlDB.DB)
+	matchMockAgent := agent.NewMatchMockAgent()
+	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent)
+	matchHandler := httpserver.NewMatchHandler(matchService)
+
 	// Initialize router with all dependencies
 	router := httpserver.NewRouter(httpserver.RouterDeps{
 		HealthService:         healthService,
@@ -70,6 +76,7 @@ func main() {
 		ResumeHandler:         resumeHandler,
 		JobHandler:            jobHandler,
 		RecommendationHandler: recommendationHandler,
+		MatchHandler:          matchHandler,
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)

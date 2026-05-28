@@ -1,13 +1,21 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
+	"strconv"
+	"strings"
 
 	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/health"
 	"offer-catcher/server/internal/middleware"
 	"offer-catcher/server/internal/response"
 )
+
+// contextKey is a custom type for context keys to avoid collisions.
+type contextKey string
+
+const jobIDContextKey contextKey = "job_id"
 
 // RouterDeps holds all dependencies needed by the router.
 type RouterDeps struct {
@@ -17,6 +25,7 @@ type RouterDeps struct {
 	ResumeHandler         *ResumeHandler
 	JobHandler            *JobHandler
 	RecommendationHandler *RecommendationHandler
+	MatchHandler          *MatchHandler
 }
 
 // NewRouter creates and returns the main HTTP handler with all routes registered
@@ -47,7 +56,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 	// Job routes (all require auth)
 	mux.Handle("/api/jobs", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.List)))
 	mux.Handle("/api/jobs/recommend", deps.AuthMiddleware(http.HandlerFunc(deps.RecommendationHandler.Recommend)))
-	mux.Handle("/api/jobs/", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.Detail)))
+	mux.Handle("/api/jobs/", deps.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dispatchJobRoutes(w, r, deps)
+	})))
 
 	// Apply middleware chain (outermost first)
 	handler := middleware.RequestLogger(mux)
@@ -70,4 +81,33 @@ func healthzHandler(w http.ResponseWriter, r *http.Request, healthService *healt
 	} else {
 		response.OKWithMessage(w, "degraded", status)
 	}
+}
+
+// dispatchJobRoutes dispatches /api/jobs/ sub-routes based on path pattern.
+// - /api/jobs/{id}       → JobHandler.Detail (GET)
+// - /api/jobs/{id}/match → MatchHandler.Analyze (POST)
+func dispatchJobRoutes(w http.ResponseWriter, r *http.Request, deps RouterDeps) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/jobs/")
+	if path == "" {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "job id is required")
+		return
+	}
+
+	// Check if path matches /api/jobs/{id}/match
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) == 2 && parts[1] == "match" {
+		// This is a match analysis request: /api/jobs/{id}/match
+		jobID, err := strconv.ParseUint(parts[0], 10, 64)
+		if err != nil || jobID == 0 {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid job id")
+			return
+		}
+		// Inject jobID into context
+		ctx := context.WithValue(r.Context(), jobIDContextKey, jobID)
+		deps.MatchHandler.Analyze(w, r.WithContext(ctx))
+		return
+	}
+
+	// Default: treat as job detail request: /api/jobs/{id}
+	deps.JobHandler.Detail(w, r)
 }

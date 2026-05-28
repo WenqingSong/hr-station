@@ -1,0 +1,474 @@
+package agent
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"offer-catcher/server/internal/model"
+)
+
+// MatchMockAgent generates mock match analysis using simple rule-based scoring.
+// It does NOT call any real LLM or read LLM_API_KEY.
+type MatchMockAgent struct{}
+
+// NewMatchMockAgent creates a new MatchMockAgent.
+func NewMatchMockAgent() *MatchMockAgent {
+	return &MatchMockAgent{}
+}
+
+// Analyze generates a mock match analysis based on the resume and target job.
+func (a *MatchMockAgent) Analyze(resume *model.ResumeVersion, job *model.Job) (*model.MatchAnalysisResult, error) {
+	score := calculateMatchScore(resume, job)
+	screeningResult := getScreeningResult(score)
+	evidenceChain := generateEvidenceChain(resume, job)
+	highlights := generateMatchHighlights(resume, job)
+	risks := generateRiskPoints(resume, job)
+	suggestions := generateOptimizationSuggestions(resume, job)
+	nextSteps := generateNextSteps(suggestions)
+	notice := "以下建议仅用于表达优化，请只补充真实经历，不要虚构项目或能力。"
+
+	return &model.MatchAnalysisResult{
+		JobID:                   job.ID,
+		JobTitle:                job.Title,
+		ResumeVersionID:         resume.ID,
+		ResumeVersionNo:         resume.VersionNo,
+		MatchScore:              score,
+		ScreeningResult:         screeningResult,
+		EvidenceChain:           evidenceChain,
+		MatchHighlights:         highlights,
+		RiskPoints:              risks,
+		OptimizationSuggestions: suggestions,
+		NextSteps:               nextSteps,
+		AuthenticityNotice:      notice,
+	}, nil
+}
+
+// calculateMatchScore computes a match score (0-100) based on simple rules.
+func calculateMatchScore(resume *model.ResumeVersion, job *model.Job) int {
+	score := 0
+
+	targetCity := strings.ToLower(strings.TrimSpace(resume.TargetCity))
+	targetRole := strings.ToLower(strings.TrimSpace(resume.TargetRole))
+	jobCity := strings.ToLower(job.City)
+	jobCategory := strings.ToLower(job.Category)
+	jobTitle := strings.ToLower(job.Title)
+
+	// City match (+15)
+	if targetCity != "" && jobCity == targetCity {
+		score += 15
+	}
+
+	// Role/category match (+25)
+	if targetRole != "" {
+		if containsAny(targetRole, jobCategory, jobTitle) {
+			score += 25
+		}
+		roleKeywords := strings.Fields(targetRole)
+		for _, kw := range roleKeywords {
+			if len(kw) >= 2 && (strings.Contains(jobCategory, kw) || strings.Contains(jobTitle, kw)) {
+				score += 8
+				break
+			}
+		}
+	}
+
+	// Skill overlap (+5 per matched skill, max 35)
+	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
+	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+	resumeSkillSet := toLowerSet(resumeSkills)
+	jobSkillSet := toLowerSet(jobSkills)
+	overlap := 0
+	for skill := range resumeSkillSet {
+		if jobSkillSet[skill] {
+			overlap++
+		}
+	}
+	score += overlap * 5
+	if overlap > 5 {
+		score += 5 // bonus for high overlap
+	}
+
+	// Key technology bonus (+3 each, max 15)
+	keywords := []string{"go", "mysql", "redis", "docker", "kubernetes", "云", "分布式", "微服务", "grpc", "etcd"}
+	bonus := 0
+	for _, kw := range keywords {
+		if resumeSkillSet[kw] && jobSkillSet[kw] {
+			bonus += 3
+			if bonus >= 15 {
+				break
+			}
+		}
+	}
+	score += bonus
+
+	// Experience/project mention bonus (+5 each, max 10)
+	if len(resume.ExperienceJSON) > 0 {
+		var experiences []map[string]interface{}
+		if json.Unmarshal(resume.ExperienceJSON, &experiences) == nil && len(experiences) > 0 {
+			score += 5
+		}
+	}
+	if len(resume.ProjectJSON) > 0 {
+		var projects []map[string]interface{}
+		if json.Unmarshal(resume.ProjectJSON, &projects) == nil && len(projects) > 0 {
+			score += 5
+		}
+	}
+
+	// Cap at 100
+	if score > 100 {
+		score = 100
+	}
+
+	return score
+}
+
+// getScreeningResult returns the screening result based on the match score.
+func getScreeningResult(score int) string {
+	if score >= 85 {
+		return "highly_likely"
+	}
+	if score >= 70 {
+		return "likely"
+	}
+	if score >= 55 {
+		return "possible"
+	}
+	return "risky"
+}
+
+// generateEvidenceChain creates JD-resume evidence chain entries.
+func generateEvidenceChain(resume *model.ResumeVersion, job *model.Job) []model.MatchEvidence {
+	var chain []model.MatchEvidence
+
+	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
+	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+	resumeSkillSet := toLowerSet(resumeSkills)
+
+	// Check each job skill requirement against resume
+	for _, req := range jobSkills {
+		if resumeSkillSet[strings.ToLower(req)] {
+			chain = append(chain, model.MatchEvidence{
+				Requirement: fmt.Sprintf("岗位要求 %s 相关经验", req),
+				ResumePoint: getResumeEvidenceForSkill(resume, req),
+				Judgement:   "strong_match",
+			})
+		} else {
+			chain = append(chain, model.MatchEvidence{
+				Requirement: fmt.Sprintf("岗位要求 %s 相关经验", req),
+				ResumePoint: getResumeEvidenceForSkill(resume, req),
+				Judgement:   "missing",
+			})
+		}
+	}
+
+	// Check city match
+	targetCity := strings.TrimSpace(resume.TargetCity)
+	if targetCity != "" {
+		judgement := "missing"
+		resumePoint := "简历中未体现该城市的工作经历"
+		if job.City == targetCity {
+			judgement = "strong_match"
+			resumePoint = fmt.Sprintf("目标城市为%s，与岗位所在城市一致", targetCity)
+		}
+		chain = append(chain, model.MatchEvidence{
+			Requirement: fmt.Sprintf("工作地点为%s", job.City),
+			ResumePoint: resumePoint,
+			Judgement:   judgement,
+		})
+	}
+
+	// Check role/direction match
+	targetRole := strings.TrimSpace(resume.TargetRole)
+	if targetRole != "" {
+		jobText := strings.ToLower(job.Category + " " + job.Title)
+		if containsAny(strings.ToLower(targetRole), jobText) {
+			chain = append(chain, model.MatchEvidence{
+				Requirement: fmt.Sprintf("岗位方向为%s", job.Category),
+				ResumePoint: fmt.Sprintf("目标岗位为%s，方向一致", targetRole),
+				Judgement:   "strong_match",
+			})
+		} else {
+			chain = append(chain, model.MatchEvidence{
+				Requirement: fmt.Sprintf("岗位方向为%s", job.Category),
+				ResumePoint: fmt.Sprintf("目标岗位为%s，方向不完全一致", targetRole),
+				Judgement:   "partial_match",
+			})
+		}
+	}
+
+	// Ensure at least 3 evidence entries
+	if len(chain) < 3 {
+		chain = append(chain, model.MatchEvidence{
+			Requirement: "具备相关项目或实习经历",
+			ResumePoint: getExperienceSummary(resume),
+			Judgement:   getExperienceJudgement(resume),
+		})
+	}
+
+	return chain
+}
+
+// getResumeEvidenceForSkill returns evidence from the resume for a specific skill.
+func getResumeEvidenceForSkill(resume *model.ResumeVersion, skill string) string {
+	skillLower := strings.ToLower(skill)
+
+	// Check in skills list
+	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
+	for _, s := range resumeSkills {
+		if strings.ToLower(s) == skillLower {
+			return fmt.Sprintf("技能列表中包含%s", s)
+		}
+	}
+
+	// Check in raw text
+	if resume.RawText != "" && strings.Contains(strings.ToLower(resume.RawText), skillLower) {
+		return fmt.Sprintf("简历内容中提及了%s相关内容", skill)
+	}
+
+	// Check in project JSON
+	if len(resume.ProjectJSON) > 0 {
+		var projects []map[string]interface{}
+		if json.Unmarshal(resume.ProjectJSON, &projects) == nil {
+			for _, p := range projects {
+				if desc, ok := p["description"].(string); ok {
+					if strings.Contains(strings.ToLower(desc), skillLower) {
+						return fmt.Sprintf("项目经历中涉及%s", skill)
+					}
+				}
+			}
+		}
+	}
+
+	// Check in experience JSON
+	if len(resume.ExperienceJSON) > 0 {
+		var experiences []map[string]interface{}
+		if json.Unmarshal(resume.ExperienceJSON, &experiences) == nil {
+			for _, e := range experiences {
+				if desc, ok := e["description"].(string); ok {
+					if strings.Contains(strings.ToLower(desc), skillLower) {
+						return fmt.Sprintf("实习/工作经历中涉及%s", skill)
+					}
+				}
+			}
+		}
+	}
+
+	return "简历中未体现该技能相关经验"
+}
+
+// getExperienceSummary returns a summary of the resume's experience.
+func getExperienceSummary(resume *model.ResumeVersion) string {
+	if len(resume.ExperienceJSON) > 0 {
+		var experiences []map[string]interface{}
+		if json.Unmarshal(resume.ExperienceJSON, &experiences) == nil && len(experiences) > 0 {
+			return fmt.Sprintf("简历中包含%d段实习/工作经历", len(experiences))
+		}
+	}
+	if len(resume.ProjectJSON) > 0 {
+		var projects []map[string]interface{}
+		if json.Unmarshal(resume.ProjectJSON, &projects) == nil && len(projects) > 0 {
+			return fmt.Sprintf("简历中包含%d段项目经历", len(projects))
+		}
+	}
+	return "简历中未体现相关项目或实习经历"
+}
+
+// getExperienceJudgement returns the judgement for the experience evidence.
+func getExperienceJudgement(resume *model.ResumeVersion) string {
+	if len(resume.ExperienceJSON) > 0 {
+		var experiences []map[string]interface{}
+		if json.Unmarshal(resume.ExperienceJSON, &experiences) == nil && len(experiences) > 0 {
+			return "partial_match"
+		}
+	}
+	return "missing"
+}
+
+// generateMatchHighlights creates match highlight strings.
+func generateMatchHighlights(resume *model.ResumeVersion, job *model.Job) []string {
+	var highlights []string
+
+	// City match
+	if strings.TrimSpace(resume.TargetCity) != "" && job.City == strings.TrimSpace(resume.TargetCity) {
+		highlights = append(highlights, fmt.Sprintf("目标城市与岗位所在城市一致（%s）", job.City))
+	}
+
+	// Role match
+	targetRole := strings.TrimSpace(resume.TargetRole)
+	if targetRole != "" {
+		jobText := strings.ToLower(job.Category + " " + job.Title)
+		if containsAny(strings.ToLower(targetRole), jobText) {
+			highlights = append(highlights, fmt.Sprintf("目标岗位与岗位方向高度一致（%s）", job.Category))
+		}
+	}
+
+	// Skill overlap
+	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
+	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+	jobSkillSet := toLowerSet(jobSkills)
+	var matchedSkills []string
+	for _, s := range resumeSkills {
+		if jobSkillSet[strings.ToLower(s)] {
+			matchedSkills = append(matchedSkills, s)
+		}
+	}
+	if len(matchedSkills) > 0 {
+		highlights = append(highlights, fmt.Sprintf("技能关键词与岗位要求存在交集（%s）", strings.Join(matchedSkills[:min(3, len(matchedSkills))], "、")))
+	}
+
+	// Experience mention
+	if len(resume.ExperienceJSON) > 0 {
+		var experiences []map[string]interface{}
+		if json.Unmarshal(resume.ExperienceJSON, &experiences) == nil && len(experiences) > 0 {
+			highlights = append(highlights, "具备相关实习或工作经验")
+		}
+	}
+
+	if len(highlights) == 0 {
+		highlights = append(highlights, "岗位方向与求职目标部分相关")
+	}
+
+	return highlights
+}
+
+// generateRiskPoints creates risk point strings.
+func generateRiskPoints(resume *model.ResumeVersion, job *model.Job) []string {
+	var risks []string
+
+	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
+	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+	resumeSkillSet := toLowerSet(resumeSkills)
+
+	// Find missing skills
+	var missing []string
+	for _, s := range jobSkills {
+		if !resumeSkillSet[strings.ToLower(s)] {
+			missing = append(missing, s)
+		}
+	}
+	if len(missing) > 0 {
+		top := missing[:min(2, len(missing))]
+		risks = append(risks, fmt.Sprintf("%s 经验表达仍可进一步强化", strings.Join(top, " 或 ")))
+	}
+
+	// City mismatch
+	if strings.TrimSpace(resume.TargetCity) != "" && job.City != strings.TrimSpace(resume.TargetCity) {
+		risks = append(risks, fmt.Sprintf("工作地点为%s，与目标城市不一致", job.City))
+	}
+
+	// Direction mismatch
+	targetRole := strings.TrimSpace(resume.TargetRole)
+	if targetRole != "" {
+		jobText := strings.ToLower(job.Category + " " + job.Title)
+		if !containsAny(strings.ToLower(targetRole), jobText) {
+			risks = append(risks, fmt.Sprintf("目标岗位与%s方向不完全一致", job.Category))
+		}
+	}
+
+	if len(risks) == 0 {
+		risks = append(risks, "项目经历偏校园级别，企业级项目深度可进一步提升")
+	}
+
+	return risks
+}
+
+// generateOptimizationSuggestions creates P0/P1 optimization suggestions.
+func generateOptimizationSuggestions(resume *model.ResumeVersion, job *model.Job) []model.MatchSuggestion {
+	var suggestions []model.MatchSuggestion
+
+	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
+	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+	resumeSkillSet := toLowerSet(resumeSkills)
+
+	// P0: Missing critical skills
+	var missingCritical []string
+	for _, s := range jobSkills {
+		if !resumeSkillSet[strings.ToLower(s)] {
+			missingCritical = append(missingCritical, s)
+		}
+	}
+	if len(missingCritical) > 0 {
+		topMissing := missingCritical[:min(2, len(missingCritical))]
+		suggestions = append(suggestions, model.MatchSuggestion{
+			Priority: "P0",
+			Title:    fmt.Sprintf("强化%s相关经验", strings.Join(topMissing, "、")),
+			Reason:   fmt.Sprintf("岗位要求中明确提及%s，当前简历中相关证据不足", strings.Join(topMissing, "、")),
+			Action:   fmt.Sprintf("如果真实参与过相关内容，可在项目经历中补充%s的使用场景和具体成果", strings.Join(topMissing, "、")),
+		})
+	}
+
+	// P0: Missing teamwork/communication
+	if job.Requirements != "" && (strings.Contains(strings.ToLower(job.Requirements), "沟通") || strings.Contains(strings.ToLower(job.Requirements), "团队")) {
+		suggestions = append(suggestions, model.MatchSuggestion{
+			Priority: "P0",
+			Title:    "补充团队协作和沟通能力的具体实例",
+			Reason:   "岗位明确要求沟通能力和团队协作精神",
+			Action:   "在实习或项目经历中补充跨团队协作、技术分享、代码评审等具体实例",
+		})
+	}
+
+	// P1: Quantify project results
+	if len(resume.ProjectJSON) > 0 {
+		suggestions = append(suggestions, model.MatchSuggestion{
+			Priority: "P1",
+			Title:    "在项目描述中增加更多量化指标",
+			Reason:   "当前部分项目描述缺乏具体技术指标，量化数据能提升说服力",
+			Action:   "补充接口数量、性能指标（QPS、响应时间）、数据库表设计职责等量化成果",
+		})
+	}
+
+	// P1: City/region if mismatch
+	if strings.TrimSpace(resume.TargetCity) != "" && job.City != strings.TrimSpace(resume.TargetCity) {
+		suggestions = append(suggestions, model.MatchSuggestion{
+			Priority: "P1",
+			Title:    fmt.Sprintf("确认是否接受%s工作地点", job.City),
+			Reason:   fmt.Sprintf("目标城市为%s，岗位位于%s", resume.TargetCity, job.City),
+			Action:   "如果可接受异地，可在自我评价中补充对工作地点的灵活性说明",
+		})
+	}
+
+	// Ensure at least P0 and P1
+	if len(suggestions) == 0 {
+		suggestions = append(suggestions, model.MatchSuggestion{
+			Priority: "P0",
+			Title:    "强化项目经历中的后端职责",
+			Reason:   "岗位强调后端接口设计和数据库能力，当前简历已有基础但证据仍可量化",
+			Action:   "在项目经历中补充接口数量、性能指标或数据库表设计职责",
+		})
+	}
+	if len(suggestions) == 1 {
+		suggestions = append(suggestions, model.MatchSuggestion{
+			Priority: "P1",
+			Title:    "补充缓存与并发场景表达",
+			Reason:   "岗位可能涉及 Redis、并发或高可用场景",
+			Action:   "如果真实参与过相关内容，可补充缓存穿透、限流、幂等或并发处理经验",
+		})
+	}
+
+	return suggestions
+}
+
+// generateNextSteps creates next step suggestions.
+func generateNextSteps(suggestions []model.MatchSuggestion) []string {
+	var steps []string
+
+	hasP0 := false
+	for _, s := range suggestions {
+		if s.Priority == "P0" {
+			steps = append(steps, fmt.Sprintf("根据 P0 建议：%s", s.Action))
+			hasP0 = true
+			break
+		}
+	}
+
+	if hasP0 {
+		steps = append(steps, "优化简历后添加新版本")
+	}
+
+	steps = append(steps, "新版本创建后可再次进行匹配分析，查看匹配度变化")
+	steps = append(steps, "确认岗位详情中的核心技术要求，逐条对照简历内容")
+
+	return steps
+}
