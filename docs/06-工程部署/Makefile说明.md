@@ -249,9 +249,9 @@ make dev-server # 启动后端（新终端）
 
 执行 `docker compose down -v` 或 `make reset`（只输出提示，需手动确认）。这会删除所有数据卷，MySQL 数据将全部丢失。
 
-### Q: `make dev-server` 提示 `server/go.mod` 不存在？
+### Q: `make dev-server` 现在可以运行吗？
 
-Go 后端在阶段 1-5 初始化。当前 server 目录为空。
+Go 后端已在阶段 1-5 初始化。`make dev-server` 执行 `cd server && go run ./cmd/server`，启动 HTTP Server 监听 8080 端口。`/healthz` 返回 `{"status":"ok","service":"offer-catcher-server"}`。
 
 ### Q: 前端依赖丢失怎么办？
 
