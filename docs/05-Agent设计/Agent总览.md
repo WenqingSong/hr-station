@@ -1,33 +1,77 @@
 # Agent 总览
 
+> 最后更新：2026-05-29（阶段 3-1 创建阶段 3 核心业务后端 Mock 方案）
+
 ## 当前状态
 
-待设计（前期使用 Mock Agent）
+阶段 3 方案已创建。阶段 3 使用 Mock Agent，不调用真实 LLM。阶段 4 才接真实 Agent / LLM。Mock Agent 的职责是生成结构化结果，不读取真实 LLM 配置。
 
 ## Agent 列表
 
 | Agent | 说明 | 当前状态 | 详细文档 |
 |-------|------|---------|---------|
-| 简历提取 Agent | 从结构化简历中提取关键信息 | Mock | [简历提取Agent.md](./简历提取Agent.md) |
-| 岗位推荐 Agent | 基于简历推荐匹配岗位 | Mock | [岗位推荐Agent.md](./岗位推荐Agent.md) |
-| 岗位匹配 Agent | 分析简历与岗位的匹配度 | Mock | [岗位匹配Agent.md](./岗位匹配Agent.md) |
-| 版本对比 Agent | 对比两个版本的差异 | Mock | [版本对比Agent.md](./版本对比Agent.md) |
+| 简历提取 Agent | 从结构化简历中提取关键信息 | 阶段 3 暂不独立实现 | [简历提取Agent.md](./简历提取Agent.md) |
+| 岗位推荐 Agent | 基于简历推荐匹配岗位 | Mock（阶段 3）/ 真实（阶段 4） | [岗位推荐Agent.md](./岗位推荐Agent.md) |
+| 岗位匹配 Agent | 分析简历与岗位的匹配度 | Mock（阶段 3）/ 真实（阶段 4） | [岗位匹配Agent.md](./岗位匹配Agent.md) |
+| 版本对比 Agent | 对比两个版本的差异 | Mock（阶段 3）/ 真实（阶段 4） | [版本对比Agent.md](./版本对比Agent.md) |
 
 ## 设计原则
 
-1. **先 Mock 后接模型**：前期使用硬编码/规则引擎的 Mock Agent，跑通产品闭环
+1. **先 Mock 后接模型**：阶段 3 使用 Mock Agent 跑通闭环，阶段 4 接真实 LLM（参见 ADR-003）
 2. **统一接口**：所有 Agent 遵循统一的输入输出接口，方便后续替换
 3. **Prompt 管理**：Prompt 模板独立管理，便于调优和版本控制
 4. **真实性保护**：Agent 不虚构经历，不替用户编造内容
 
+## 阶段 3 Mock Agent 约束
+
+| 约束 | 说明 |
+|------|------|
+| 不调用真实 LLM | Mock Agent 使用固定 JSON 或简单规则生成结果 |
+| 不读取 LLM_API_KEY | 不访问 LLM 配置 |
+| 不使用真实 Prompt | Prompt 仅作为结构化输出参考 |
+| 结果必须结构化 | 输出为固定格式的 JSON 结构 |
+| 阶段 4 替换 | 真实 LLM 接入时只需替换 Agent 实现 |
+
+## 阶段 3 Mock Agent 实现
+
+### 岗位推荐 Mock（3-6 实现）
+
+- 文件：`server/internal/agent/recommendation_mock.go`
+- 输入：简历版本 + 岗位列表
+- 输出：推荐岗位列表 + 推荐理由 + 匹配亮点 + 风险点 + 优先级
+- 方式：固定 JSON 或简单规则匹配
+
+### 岗位匹配 Mock（3-7 实现）
+
+- 文件：`server/internal/agent/match_mock.go`
+- 输入：简历版本 + 目标岗位 JD
+- 输出：匹配分数 + 初筛判断 + JD-简历证据链 + 风险点 + P0/P1 优化建议 + 下一步建议 + 真实性提示
+- 方式：固定 JSON 或简单规则生成
+
+### 版本对比 Mock（3-8 实现）
+
+- 文件：`server/internal/agent/version_compare_mock.go`
+- 输入：旧版本简历 + 新版本简历
+- 输出：分数变化 + 字段变化 + 风险变化 + 建议完成情况 + 总结
+- 方式：字段差异对比 + 固定评价
+
+### 简历提取 Agent（阶段 3 暂不独立实现）
+
+- 简历信息提取功能（关键技能标签、求职方向、表达风险）在阶段 3 暂不独立实现
+- 阶段 3 简历详情页直接展示结构化数据
+- 阶段 4 接入真实 LLM 后再实现简历提取 Agent
+
 ## 后续待补充
 
 - Agent 统一接口定义
-- Mock Agent 实现方案
 - 真实模型接入方案
 
 ## 关联文档
 
 - [模型接入.md](./模型接入.md)
 - [Prompt模板.md](./Prompt模板.md)
+- [岗位推荐Agent.md](./岗位推荐Agent.md)
+- [岗位匹配Agent.md](./岗位匹配Agent.md)
+- [版本对比Agent.md](./版本对比Agent.md)
 - [../08-架构决策记录/ADR-003-先Mock后接模型.md](../08-架构决策记录/ADR-003-先Mock后接模型.md)
+- [../02-后端设计/阶段3核心业务后端Mock方案.md](../02-后端设计/阶段3核心业务后端Mock方案.md)

@@ -1,8 +1,10 @@
 # Prompt 模板
 
+> 最后更新：2026-05-29（阶段 3-1 创建阶段 3 核心业务后端 Mock 方案）
+
 ## 当前状态
 
-待设计
+阶段 3 方案已创建。阶段 3 Prompt 仅作为结构化 Mock 输出参考，不调用真实 LLM。阶段 4 再完善真实 Prompt。
 
 ## 模板管理规范
 
@@ -12,10 +14,10 @@
 
 ```
 server/internal/agent/prompts/
-├── resume_extract.md
-├── job_recommend.md
-├── job_match.md
-└── version_compare.md
+├── resume_extract.md     # 简历提取 Prompt（阶段 4）
+├── job_recommend.md      # 岗位推荐 Prompt（阶段 4）
+├── job_match.md          # 岗位匹配 Prompt（阶段 4）
+└── version_compare.md    # 版本对比 Prompt（阶段 4）
 ```
 
 ### 模板格式
@@ -29,9 +31,49 @@ server/internal/agent/prompts/
 3. **可追溯**：每条建议都要指出对应的简历原文
 4. **有建设性**：不仅指出问题，还给出改进方向
 
+## 阶段 3 Prompt 定位
+
+阶段 3 不使用真实 Prompt。Prompt 模板仅作为：
+
+1. **结构化输出参考**：定义 Mock Agent 应返回的 JSON 结构
+2. **接口契约文档**：明确各 Agent 的输入输出规范
+3. **阶段 4 准备**：为阶段 4 真实 Prompt 提供基础框架
+
+阶段 3 Mock Agent 实现时：
+- 不读取 Prompt 文件
+- 不调用 LLM API
+- 不使用 `{{.Variable}}` 模板渲染
+- 直接在 Go 代码中生成固定 JSON 或简单规则结果
+
+## 各 Agent Prompt 方向（阶段 4 完善）
+
+### 简历提取 Prompt
+
+- 输入：结构化简历数据
+- 输出：关键技能标签、求职方向推断、表达风险列表
+- 阶段 3 暂不实现
+
+### 岗位推荐 Prompt
+
+- 输入：简历提取结果 + 岗位列表
+- 输出：推荐岗位列表 + 推荐理由 + 推荐等级
+- 阶段 4 完善
+
+### 岗位匹配 Prompt
+
+- 输入：简历数据 + 目标岗位 JD
+- 输出：匹配分数 + 证据链 + 风险点 + 优化建议
+- **核心 Prompt**，阶段 4 重点调优
+
+### 版本对比 Prompt
+
+- 输入：旧版本 + 新版本简历
+- 输出：差异分析 + 改进评价 + 仍需改进
+- 阶段 4 完善
+
 ## 后续待补充
 
-- 各 Agent 的 Prompt 模板内容
+- 各 Agent 的真实 Prompt 模板内容（阶段 4）
 - 模板版本管理方案
 - Prompt 调优记录
 
@@ -39,3 +81,4 @@ server/internal/agent/prompts/
 
 - [Agent总览.md](./Agent总览.md)
 - [模型接入.md](./模型接入.md)
+- [../02-后端设计/阶段3核心业务后端Mock方案.md](../02-后端设计/阶段3核心业务后端Mock方案.md)
