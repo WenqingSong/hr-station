@@ -1,8 +1,10 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"offer-catcher/server/internal/errors"
+	"offer-catcher/server/internal/response"
 )
 
 // NewRouter creates and returns the main HTTP handler with all routes registered.
@@ -14,18 +16,14 @@ func NewRouter() http.Handler {
 
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	resp := map[string]string{
+	data := map[string]string{
 		"status":  "ok",
 		"service": "offer-catcher-server",
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	response.OK(w, data)
 }
