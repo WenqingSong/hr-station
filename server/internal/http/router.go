@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"offer-catcher/server/internal/errors"
+	"offer-catcher/server/internal/health"
 	"offer-catcher/server/internal/middleware"
 	"offer-catcher/server/internal/response"
 )
@@ -11,9 +12,11 @@ import (
 // NewRouter creates and returns the main HTTP handler with all routes registered
 // and middleware chain applied.
 // Middleware order: Recover → CORS → RequestLogger → handler
-func NewRouter() http.Handler {
+func NewRouter(healthService *health.Service) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", healthzHandler)
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		healthzHandler(w, r, healthService)
+	})
 
 	// Apply middleware chain (outermost first)
 	// Recover catches panics from all inner handlers
@@ -26,16 +29,17 @@ func NewRouter() http.Handler {
 	return handler
 }
 
-func healthzHandler(w http.ResponseWriter, r *http.Request) {
+func healthzHandler(w http.ResponseWriter, r *http.Request, healthService *health.Service) {
 	if r.Method != http.MethodGet {
 		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
 		return
 	}
 
-	data := map[string]string{
-		"status":  "ok",
-		"service": "offer-catcher-server",
-	}
+	status, healthy := healthService.Check(r.Context())
 
-	response.OK(w, data)
+	if healthy {
+		response.OK(w, status)
+	} else {
+		response.OKWithMessage(w, "degraded", status)
+	}
 }

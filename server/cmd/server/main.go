@@ -10,6 +10,7 @@ import (
 
 	"offer-catcher/server/internal/config"
 	"offer-catcher/server/internal/database"
+	"offer-catcher/server/internal/health"
 	"offer-catcher/server/internal/http"
 )
 
@@ -32,7 +33,9 @@ func main() {
 	}
 	log.Println("[offer-catcher-server] MySQL connected")
 
-	router := httpserver.NewRouter()
+	healthService := health.NewService(cfg.App.Name, cfg.App.Env, mysqlDB)
+
+	router := httpserver.NewRouter(healthService)
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
 

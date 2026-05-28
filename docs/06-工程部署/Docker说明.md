@@ -1,6 +1,6 @@
 # Docker 说明
 
-> 最后更新：2026-05-28（阶段 2-5 接入 MySQL 数据库连接）
+> 最后更新：2026-05-28（阶段 2-6 增强健康检查接口）
 
 ## 1. 当前 Docker Compose 目标
 
@@ -196,6 +196,8 @@ make logs-mysql   # 查看 MySQL 日志（实时跟踪）
 第一版 Docker Compose 不包含 web / server 服务，原因：
 
 1. **开发体验**：前端本地 `npm run dev` 有热更新，后端本地 `go run` 有自动重载
+2. MySQL 不仅用于后续业务，也已用于 `/healthz` 数据库状态检查
+3. `make up` 后可通过 `/healthz` 间接验证数据库连接
 2. **调试便利**：本地运行便于断点调试、日志查看
 3. **降低复杂度**：阶段 1 先稳定 MySQL，避免同时管理多个服务
 4. **阶段规划**：阶段 7 交付部署时再考虑完整容器化
@@ -234,7 +236,7 @@ DB_DSN=root:password@tcp(mysql:3306)/offer_catcher?charset=utf8mb4&parseTime=Tru
 | 阶段 | 新增服务 | 说明 |
 |------|---------|------|
 | 阶段 1 | mysql | ✅ 已完成 |
-| 阶段 2 | 无 | ✅ 后端已连接 MySQL（2-5 完成） |
+| 阶段 2 | 无 | ✅ 后端已连接 MySQL（2-5 完成），健康检查已增强（2-6 完成） |
 | 阶段 3 | 无 | 业务接口 |
 | 阶段 4 | 无 | Agent / 模型 |
 | 阶段 7 | redis、web、server | 完整容器化部署 |
