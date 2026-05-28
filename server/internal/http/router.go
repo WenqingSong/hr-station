@@ -11,11 +11,12 @@ import (
 
 // RouterDeps holds all dependencies needed by the router.
 type RouterDeps struct {
-	HealthService  *health.Service
-	AuthHandler    *AuthHandler
-	AuthMiddleware func(http.Handler) http.Handler
-	ResumeHandler  *ResumeHandler
-	JobHandler     *JobHandler
+	HealthService         *health.Service
+	AuthHandler           *AuthHandler
+	AuthMiddleware        func(http.Handler) http.Handler
+	ResumeHandler         *ResumeHandler
+	JobHandler            *JobHandler
+	RecommendationHandler *RecommendationHandler
 }
 
 // NewRouter creates and returns the main HTTP handler with all routes registered
@@ -45,6 +46,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	// Job routes (all require auth)
 	mux.Handle("/api/jobs", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.List)))
+	mux.Handle("/api/jobs/recommend", deps.AuthMiddleware(http.HandlerFunc(deps.RecommendationHandler.Recommend)))
 	mux.Handle("/api/jobs/", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.Detail)))
 
 	// Apply middleware chain (outermost first)

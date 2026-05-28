@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"offer-catcher/server/internal/agent"
 	"offer-catcher/server/internal/config"
 	"offer-catcher/server/internal/database"
 	"offer-catcher/server/internal/health"
@@ -55,13 +56,20 @@ func main() {
 	jobService := service.NewJobService(jobRepo)
 	jobHandler := httpserver.NewJobHandler(jobService)
 
+	// Initialize recommendation module
+	recommendationRepo := repository.NewRecommendationRepository(mysqlDB.DB)
+	mockAgent := agent.NewRecommendationMockAgent()
+	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent)
+	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
+
 	// Initialize router with all dependencies
 	router := httpserver.NewRouter(httpserver.RouterDeps{
-		HealthService:  healthService,
-		AuthHandler:    authHandler,
-		AuthMiddleware: authMiddleware,
-		ResumeHandler:  resumeHandler,
-		JobHandler:     jobHandler,
+		HealthService:         healthService,
+		AuthHandler:           authHandler,
+		AuthMiddleware:        authMiddleware,
+		ResumeHandler:         resumeHandler,
+		JobHandler:            jobHandler,
+		RecommendationHandler: recommendationHandler,
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
