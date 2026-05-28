@@ -218,9 +218,9 @@ make dev-web   # 启动前端（新终端）
 make dev-server # 启动后端（新终端）
 ```
 
-### Q: `make init` 提示 `.env.example` 不存在？
+### Q: `make init` 如何恢复 `.env`？
 
-`.env.example` 在阶段 1-3 创建。当前可先手动创建 `.env` 文件，或等 1-3 完成后再执行 `make init`。
+`.env.example` 已在阶段 1-3 创建。执行 `make init` 时，如果 `.env` 不存在且 `.env.example` 存在，会自动复制 `.env.example` 为 `.env`。`.env` 不应提交到代码仓库，LLM API Key 等敏感信息需手动在 `.env` 中填写。
 
 ### Q: `make up` 提示 `docker-compose.yml` 为空？
 

@@ -1,5 +1,7 @@
 # Docker 说明
 
+> 最后更新：2026-05-28（阶段 1-3 补充 MySQL 环境变量说明）
+
 ## 当前状态
 
 待编写（docker-compose.yml 存在但内容为空，阶段 1-4 执行）
@@ -27,10 +29,10 @@ services:
     container_name: offer-catcher-mysql
     restart: unless-stopped
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-password}
-      MYSQL_DATABASE: ${DB_NAME:-offer_catcher}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-offer_catcher}
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
     volumes:
@@ -45,6 +47,18 @@ volumes:
   mysql_data:
 ```
 
+### MySQL 环境变量
+
+Docker Compose 中 MySQL 服务使用以下环境变量（来自 `.env`）：
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `MYSQL_ROOT_PASSWORD` | `password` | MySQL root 密码，应与 DB_PASSWORD 保持一致 |
+| `MYSQL_DATABASE` | `offer_catcher` | MySQL 初始化数据库名，应与 DB_NAME 保持一致 |
+| `MYSQL_PORT` | `3306` | MySQL 暴露到宿主机的端口 |
+
+这些变量已在 `.env.example` 中定义，阶段 1-4 编写 `docker-compose.yml` 时将通过 `${VAR:-default}` 语法引用。
+
 ### MySQL 服务配置
 
 | 项目 | 值 |
@@ -54,7 +68,7 @@ volumes:
 | 容器名 | offer-catcher-mysql |
 | 数据库 | offer_catcher |
 | 用户名 | root |
-| 密码 | 从 .env 读取 DB_PASSWORD，默认 password |
+| 密码 | 从 .env 读取 MYSQL_ROOT_PASSWORD，默认 password |
 | 端口 | 3306:3306 |
 | 数据卷 | mysql_data |
 | 字符集 | utf8mb4 |
