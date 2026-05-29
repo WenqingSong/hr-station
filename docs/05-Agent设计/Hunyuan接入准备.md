@@ -120,6 +120,17 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 - curl 测试时使用本地 .env 中的 LLM_API_KEY
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 
+### 4-1.4.2 手动调用验收记录
+
+- 已执行一次匹配分析 Prompt 手动调用验收
+- 使用 TokenHub（腾讯混元代理）+ hy3-preview 模型
+- 首次调用 max_tokens=4096 导致截断，二次调用 max_tokens=8192 成功
+- prompt_tokens=6604, completion_tokens=3618, total_tokens=10222
+- LLM_MAX_OUTPUT_TOKENS 生产环境建议设置为 ≥8192
+- 不记录 API Key
+- 不记录完整模型原始输出
+- 验收报告见 `docs/05-Agent设计/匹配分析Prompt首轮输出验收报告.md`
+
 ## 关联文档
 
 - [阶段4Agent与模型接入方案.md](./阶段4Agent与模型接入方案.md)

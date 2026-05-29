@@ -127,8 +127,15 @@
 - 当前该 Prompt Template 已登记（4-1.4.1A 人工定稿，4-1.4.1B CodeBuddy 登记）
 - 模板包含 HR 初筛 + 技术面试官双视角、Offer鹅语气、证据链、P0/P1/P2 优化建议、面试追问预测和真实性提醒
 - 当前仍使用 Mock Agent
-- 后续 4-1.4.2 将固定匹配分析 JSON Schema
-- 后续 4-1.4.3 将进行匹配分析 Prompt 首轮输出验收
+- **4-1.4.2 已完成：匹配分析 Prompt 首轮输出验收**
+  - 验收结论：partial_pass
+  - 模型输出 JSON 合法，17 个顶层字段完整，枚举值全部合法
+  - 发现问题：rewrite_example 中少量具体数字超出简历事实，证据链缺少 missing 判断
+  - 问题不阻塞进入 4-1.4.3A JSON Schema 定稿
+  - 验收报告见 `docs/05-Agent设计/匹配分析Prompt首轮输出验收报告.md`
+- 后续 4-1.4.3A 将人工定稿匹配分析 JSON Schema
+- 当前仍使用 Mock Agent
+- 后续 4-2 将实现 LLM Client 接入
 
 ## 12. 后续真实 Agent 设计方向
 

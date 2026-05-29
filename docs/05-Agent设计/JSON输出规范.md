@@ -243,6 +243,11 @@ LLM 输出文本
 - `match_analysis_v1.md` 已包含匹配分析 JSON 输出结构草案（4-1.4.1B 登记）
 - 正式 JSON Schema 将在 4-1.4.3 固定
 - 当前 4-1.4.1B 只登记 Prompt 中的输出结构，不创建 schema 文件
+- **4-1.4.2 首轮输出验收已完成，结论：partial_pass**
+  - 模型输出 JSON 合法，17 个顶层字段完整
+  - 验收报告见 `docs/05-Agent设计/匹配分析Prompt首轮输出验收报告.md`
+  - 验收结果将作为 match_analysis_schema.json 的依据
+- 4-1.4.3A 将人工定稿正式 Schema
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 
 ## 关联文档
