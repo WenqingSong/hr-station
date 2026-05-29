@@ -26,7 +26,9 @@ DEV_SCRIPT := scripts/dev
         clean clean-logs clean-pids clean-volume \
         jobs-help jobs-check jobs-source-check \
         jobs-fetch-list jobs-fetch-detail jobs-fetch-details \
-        jobs-fetch-dictionary jobs-fetch jobs-sample jobs-status jobs-clean
+        jobs-fetch-dictionary jobs-fetch jobs-sample jobs-status jobs-clean \
+        jobs-import-help jobs-import-check jobs-import-preview jobs-import-sql \
+        jobs-import jobs-import-status jobs-db-status jobs-import-clean
 
 # ============================================================
 # 帮助
@@ -117,6 +119,16 @@ help: ## 查看所有可用命令
 	@echo "  make jobs-sample            查看本地岗位样本摘要"
 	@echo "  make jobs-status            查看本地原始数据文件状态"
 	@echo "  make jobs-clean             清理本地腾讯岗位原始 JSON"
+	@echo ""
+	@echo "腾讯岗位入库:"
+	@echo "  make jobs-import-help       查看腾讯岗位入库命令帮助"
+	@echo "  make jobs-import-check      检查 raw JSON、MySQL、输出目录"
+	@echo "  make jobs-import-preview    预览将导入的腾讯岗位"
+	@echo "  make jobs-import-sql        生成腾讯岗位导入 SQL"
+	@echo "  make jobs-import            执行腾讯岗位导入 MySQL"
+	@echo "  make jobs-import-status     查看腾讯岗位导入状态"
+	@echo "  make jobs-db-status         同 jobs-import-status"
+	@echo "  make jobs-import-clean      清理 generated 目录中的预览和 SQL"
 	@echo ""
 
 # ============================================================
@@ -422,3 +434,31 @@ jobs-status: ## 查看本地原始数据文件状态
 
 jobs-clean: ## 清理本地腾讯岗位原始 JSON
 	@$(DEV_SCRIPT)/tencent_jobs.sh clean
+
+# ============================================================
+# 腾讯岗位入库
+# ============================================================
+
+jobs-import-help: ## 查看腾讯岗位入库命令帮助
+	@$(DEV_SCRIPT)/tencent_jobs_import.sh help
+
+jobs-import-check: ## 检查 raw JSON、MySQL、输出目录
+	@$(DEV_SCRIPT)/tencent_jobs_import.sh check
+
+jobs-import-preview: ## 预览将导入的腾讯岗位
+	@$(DEV_SCRIPT)/tencent_jobs_import.sh preview
+
+jobs-import-sql: ## 生成腾讯岗位导入 SQL
+	@$(DEV_SCRIPT)/tencent_jobs_import.sh generate-sql
+
+jobs-import: ## 执行腾讯岗位导入 MySQL
+	@$(DEV_SCRIPT)/tencent_jobs_import.sh import
+
+jobs-import-status: ## 查看腾讯岗位导入状态
+	@$(DEV_SCRIPT)/tencent_jobs_import.sh status
+
+jobs-db-status: ## 同 jobs-import-status
+	@$(DEV_SCRIPT)/tencent_jobs_import.sh status
+
+jobs-import-clean: ## 清理 generated 目录中的预览和 SQL
+	@$(DEV_SCRIPT)/tencent_jobs_import.sh clean-generated

@@ -547,9 +547,22 @@ cmd_help() {
   check             检查 raw JSON、MySQL、输出目录、依赖工具
   preview           预览将导入的岗位数量和字段映射，生成 preview JSON
   generate-sql      根据 raw JSON 生成导入 SQL
+  generate          generate-sql 的别名
   import            执行 generate-sql，然后导入 MySQL
   status            查看数据库中腾讯岗位数量和数据质量分布
+  db-status         status 的别名
   clean-generated   清理生成的 SQL 和 preview JSON
+  clean             clean-generated 的别名
+
+Makefile 入口（推荐）：
+  make jobs-import-help       查看帮助
+  make jobs-import-check      检查环境
+  make jobs-import-preview    预览
+  make jobs-import-sql        生成 SQL
+  make jobs-import            执行导入
+  make jobs-import-status     查看状态
+  make jobs-db-status         同 jobs-import-status
+  make jobs-import-clean      清理生成文件
 
 说明：
   - 从本地 data/tencent-jobs/raw/ 读取原始 JSON
@@ -557,6 +570,7 @@ cmd_help() {
   - 使用 ON DUPLICATE KEY UPDATE 实现幂等导入
   - 不删除本地 Mock 岗位
   - 不清空 jobs 表
+  - 当前只导入 jobs 表，不修改后端接口
 
 字段映射核心：
   title          <- detail.title 优先，list.positionTitle 兜底
@@ -569,8 +583,6 @@ cmd_help() {
   external_id    <- postId
   source_url     <- https://join.qq.com/post_detail.html?postid={postId}
   data_quality   <- full_jd（有详情）或 summary_only（无详情）
-
-当前尚未接入 Makefile，4-1.3.3 后才有 make jobs-import-* 命令。
 EOF
 }
 
@@ -910,16 +922,16 @@ main() {
         preview)
             cmd_preview
             ;;
-        generate-sql)
+        generate-sql|generate)
             cmd_generate_sql
             ;;
         import)
             cmd_import
             ;;
-        status)
+        status|db-status)
             cmd_status
             ;;
-        clean-generated)
+        clean-generated|clean)
             cmd_clean_generated
             ;;
         *)

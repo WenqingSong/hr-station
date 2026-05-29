@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-29（阶段 4-1.3.2 腾讯岗位清洗与入库脚本）
+> 最后更新：2026-05-29（阶段 4-1.3.3 Makefile 接入腾讯岗位入库命令）
 
 ## 1. 设计目标
 
@@ -313,23 +313,36 @@ make web-install
 5. 原始数据用于 4-1.3 适配前的本地缓存
 6. 测试时可临时覆盖：`TENCENT_JOBS_PAGE_SIZE=5 TENCENT_JOBS_MAX_PAGES=1 make jobs-fetch`
 
-### 腾讯岗位入库命令（4-1.3.3 接入）
+### 腾讯岗位入库命令
 
-当前清洗与入库脚本已编写完成（`scripts/dev/tencent_jobs_import.sh`），但尚未接入 Makefile。
-
-4-1.3.3 将新增以下命令：
+以下命令用于将本地 raw JSON 清洗后导入 MySQL。
 
 | 命令 | 说明 | 是否请求外部接口 | 是否入库 |
 |------|------|-----------------|---------|
+| make jobs-import-help | 查看帮助 | 否 | 否 |
 | make jobs-import-check | 检查 raw JSON 和 MySQL | 否 | 否 |
 | make jobs-import-preview | 预览将导入的岗位 | 否 | 否 |
 | make jobs-import-sql | 生成导入 SQL | 否 | 否 |
 | make jobs-import | 执行导入 | 否 | 是 |
-| make jobs-db-status | 查看岗位统计 | 否 | 否 |
+| make jobs-import-status | 查看岗位统计 | 否 | 否 |
+| make jobs-db-status | 同 jobs-import-status | 否 | 否 |
+| make jobs-import-clean | 清理 generated 文件 | 否 | 否 |
 
-当前可直接使用脚本：
+重要说明：
+
+1. jobs-fetch 负责拉取腾讯公开岗位原始 JSON
+2. jobs-import 负责把本地 raw JSON 导入 MySQL
+3. jobs-import 不请求腾讯接口
+4. jobs-import 不修改后端接口
+5. jobs-import 不修改前端页面
+6. jobs-import 不会自动出现在 make up / make ci 中
+
+推荐流程：
+
 ```bash
-scripts/dev/tencent_jobs_import.sh check
-scripts/dev/tencent_jobs_import.sh import
-scripts/dev/tencent_jobs_import.sh status
+make jobs-import-check     # 1. 检查环境
+make jobs-import-preview   # 2. 预览数据
+make jobs-import-sql       # 3. 生成 SQL（可选，import 会自动执行）
+make jobs-import           # 4. 执行导入
+make jobs-import-status    # 5. 查看结果
 ```
