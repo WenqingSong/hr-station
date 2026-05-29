@@ -1,10 +1,16 @@
 # Agent 总览
 
-> 最后更新：2026-05-29（阶段 3-7 实现岗位匹配分析 Mock 接口）
+> 最后更新：2026-05-29（阶段 3-9 阶段 3 汇总）
 
 ## 当前状态
 
-阶段 3-7 已完成，岗位匹配 Mock Agent 已实现（`server/internal/agent/match_mock.go`）。Mock Agent 使用简单规则打分生成结构化匹配分析结果，包含 JD-简历证据链、初筛判断、风险点、P0/P1 优化建议、下一步建议和真实性提示。不调用真实 LLM。阶段 4 才接真实 Agent / LLM。
+阶段 3 已全部完成，三个 Mock Agent 已实现：
+
+- **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
+- **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
+- **VersionCompareMockAgent**（`server/internal/agent/version_compare_mock.go`）：基于规则打分生成版本对比结果
+
+当前不调用真实模型，不读取 LLM_API_KEY，不使用真实 Prompt，Mock Agent 只生成结构化结果。阶段 5 或后续再接真实 Agent / LLM。
 
 ## Agent 列表
 

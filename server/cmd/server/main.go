@@ -68,6 +68,12 @@ func main() {
 	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent)
 	matchHandler := httpserver.NewMatchHandler(matchService)
 
+	// Initialize version compare module
+	versionCompareRepo := repository.NewVersionCompareRepository(mysqlDB.DB)
+	versionCompareMockAgent := agent.NewVersionCompareMockAgent()
+	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent)
+	versionCompareHandler := httpserver.NewVersionCompareHandler(versionCompareService)
+
 	// Initialize router with all dependencies
 	router := httpserver.NewRouter(httpserver.RouterDeps{
 		HealthService:         healthService,
@@ -77,6 +83,7 @@ func main() {
 		JobHandler:            jobHandler,
 		RecommendationHandler: recommendationHandler,
 		MatchHandler:          matchHandler,
+		VersionCompareHandler: versionCompareHandler,
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
