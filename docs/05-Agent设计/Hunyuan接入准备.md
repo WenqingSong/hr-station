@@ -155,6 +155,14 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
 - 后续简历优化 Prompt 的模型调用也建议 max_tokens >= 8192
 
+### 4-1.4.9B 简历优化 JSON Schema 登记记录
+
+- 简历优化 JSON Schema 已登记：`server/prompts/schema/resume_optimization_schema.json`
+- Schema 验证结果：JSON 合法，15 个顶层 required 字段完整，10 个 $defs 子结构完整
+- Schema 已吸收 4-1.4.8 首轮验收问题（允许 rewrite_examples 全部 can_use_directly=false、涉及数字/指标等时必须 requires_user_verification=true、不得编造具体数字/指标/系统规模/职责或成果、p2 允许 0-4 项）
+- 当前 4-1.4.9B 只登记 Schema，不再次调用 Hunyuan
+- 后续简历优化 Prompt 的模型调用建议 LLM_MAX_OUTPUT_TOKENS ≥8192
+
 ### 4-1.4.7B 简历优化 Agent 指令模板登记记录
 
 - 简历优化 Prompt 已登记：`server/prompts/resume_optimization_v1.md`

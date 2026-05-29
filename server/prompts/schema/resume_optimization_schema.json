@@ -1,0 +1,617 @@
+{
+"$schema": "https://json-schema.org/draft/2020-12/schema",
+"$id": "server/prompts/schema/resume_optimization_schema.json",
+"title": "Resume Optimization Agent Output Schema",
+"description": "Schema for ResumeOptimizationAgent LLM output. The output must be a strict JSON object used to optimize a student's resume for a target job JD. It supports HR screening perspective, technical interviewer perspective, resume expression optimization, P0/P1/P2 prioritized suggestions, keyword alignment, project optimization, skill section optimization, summary optimization, missing evidence plan, rewrite examples, authenticity notice, and anti-hallucination constraints.",
+"type": "object",
+"additionalProperties": false,
+"required": [
+"optimization_summary",
+"offer_go_summary",
+"target_job",
+"screening_focus",
+"priority_suggestions",
+"keyword_alignment",
+"project_optimization",
+"skill_section_optimization",
+"summary_optimization",
+"missing_evidence_plan",
+"rewrite_examples",
+"next_actions",
+"authenticity_notice",
+"analysis_basis",
+"generated_by"
+],
+"properties": {
+"optimization_summary": {
+"type": "string",
+"minLength": 30,
+"maxLength": 600,
+"description": "Overall resume optimization summary for the target job. It should explain the main optimization direction, priority, and screening focus. It must not promise that the user will pass screening."
+},
+"offer_go_summary": {
+"type": "string",
+"minLength": 30,
+"maxLength": 360,
+"description": "A concise user-facing summary in OfferGo tone. It should be friendly but not childish, professional but not cold. It should explain the most important resume optimization direction and next action. It must not include absolute promises such as '改完一定通过初筛'."
+},
+"target_job": {
+"$ref": "#/$defs/target_job"
+},
+"screening_focus": {
+"type": "array",
+"minItems": 1,
+"maxItems": 5,
+"description": "Key screening focus areas for the target job. These should come from the job description or job requirements.",
+"items": {
+"$ref": "#/$defs/screening_focus_item"
+}
+},
+"priority_suggestions": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"p0",
+"p1",
+"p2"
+],
+"description": "Resume optimization suggestions grouped by priority. P0 means critical for screening, P1 means important for competitiveness, P2 means optional improvement.",
+"properties": {
+"p0": {
+"type": "array",
+"minItems": 1,
+"maxItems": 4,
+"description": "Critical resume optimization suggestions. These issues may significantly affect screening if not addressed.",
+"items": {
+"$ref": "#/$defs/priority_suggestion_item"
+}
+},
+"p1": {
+"type": "array",
+"minItems": 1,
+"maxItems": 4,
+"description": "Important resume optimization suggestions. These changes can significantly improve competitiveness.",
+"items": {
+"$ref": "#/$defs/priority_suggestion_item"
+}
+},
+"p2": {
+"type": "array",
+"minItems": 0,
+"maxItems": 4,
+"description": "Optional resume optimization suggestions. These are helpful but not critical. It is acceptable to output 0 items if no meaningful P2 suggestion exists.",
+"items": {
+"$ref": "#/$defs/priority_suggestion_item"
+}
+}
+}
+},
+"keyword_alignment": {
+"type": "array",
+"minItems": 3,
+"maxItems": 8,
+"description": "Target job keyword alignment analysis. It should distinguish present, partial, and missing evidence.",
+"items": {
+"$ref": "#/$defs/keyword_alignment_item"
+}
+},
+"project_optimization": {
+"type": "array",
+"minItems": 1,
+"maxItems": 5,
+"description": "Project-level optimization suggestions for the target job. Project names must come from the input resume. Do not invent projects or project achievements.",
+"items": {
+"$ref": "#/$defs/project_optimization_item"
+}
+},
+"skill_section_optimization": {
+"type": "array",
+"minItems": 1,
+"maxItems": 4,
+"description": "Skill section optimization suggestions. It should identify present, partial, missing, or overstated skills.",
+"items": {
+"$ref": "#/$defs/skill_section_optimization_item"
+}
+},
+"summary_optimization": {
+"type": "array",
+"minItems": 1,
+"maxItems": 3,
+"description": "Resume summary or target role optimization suggestions.",
+"items": {
+"$ref": "#/$defs/summary_optimization_item"
+}
+},
+"missing_evidence_plan": {
+"type": "array",
+"minItems": 0,
+"maxItems": 5,
+"description": "Plan for building missing evidence through real learning, real projects, open-source practice, experiments, or verifiable preparation. It must not teach users to fabricate experience.",
+"items": {
+"$ref": "#/$defs/missing_evidence_plan_item"
+}
+},
+"rewrite_examples": {
+"type": "array",
+"minItems": 2,
+"maxItems": 6,
+"description": "Concrete rewrite examples or rewrite directions. It is acceptable for all items to require user verification if the input does not provide enough facts. Do not invent metrics, scale, responsibilities, or outcomes.",
+"items": {
+"$ref": "#/$defs/rewrite_example_item"
+}
+},
+"next_actions": {
+"type": "array",
+"minItems": 3,
+"maxItems": 6,
+"description": "Concrete next actions for the user before applying or updating the resume.",
+"items": {
+"$ref": "#/$defs/next_action"
+}
+},
+"authenticity_notice": {
+"type": "string",
+"minLength": 20,
+"maxLength": 420,
+"description": "A professional authenticity reminder. It must remind the user not to fabricate experiences, project metrics, system scale, responsibilities, or achievements. It should encourage strengthening truthful project expression and building real evidence."
+},
+"analysis_basis": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"resume_used",
+"job_description_used",
+"job_requirements_used",
+"match_analysis_used",
+"data_quality"
+],
+"properties": {
+"resume_used": {
+"type": "boolean",
+"description": "Whether resume information was used."
+},
+"job_description_used": {
+"type": "boolean",
+"description": "Whether job description was used."
+},
+"job_requirements_used": {
+"type": "boolean",
+"description": "Whether job requirements were used."
+},
+"match_analysis_used": {
+"type": "boolean",
+"description": "Whether previous match analysis result was used."
+},
+"data_quality": {
+"type": "string",
+"enum": [
+"full_jd",
+"summary_only",
+"manual_enriched",
+"unknown"
+],
+"description": "Data quality of the target job used in the optimization."
+}
+}
+},
+"generated_by": {
+"type": "string",
+"enum": [
+"llm_agent"
+],
+"description": "For normal LLM output, this must be llm_agent. Fallback labels such as mock_agent or llm_agent_fallback are assigned by backend fallback logic, not by this LLM output schema."
+}
+},
+"$defs": {
+"target_job": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"job_id",
+"title",
+"department",
+"category",
+"data_quality"
+],
+"properties": {
+"job_id": {
+"type": "integer",
+"minimum": 1,
+"description": "Internal job ID. It must come from the input target job. Do not invent job_id."
+},
+"title": {
+"type": "string",
+"minLength": 1,
+"maxLength": 160,
+"description": "Target job title from the input target job. Do not invent or rewrite the title."
+},
+"department": {
+"type": "string",
+"minLength": 0,
+"maxLength": 160,
+"description": "Department or business group from the input target job."
+},
+"category": {
+"type": "string",
+"minLength": 0,
+"maxLength": 120,
+"description": "Job category from the input target job."
+},
+"data_quality": {
+"type": "string",
+"enum": [
+"full_jd",
+"summary_only",
+"manual_enriched",
+"unknown"
+],
+"description": "Data quality of the target job."
+}
+}
+},
+"screening_focus_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"focus",
+"why_it_matters",
+"related_jd_requirement"
+],
+"properties": {
+"focus": {
+"type": "string",
+"minLength": 4,
+"maxLength": 160,
+"description": "A screening focus for the target job."
+},
+"why_it_matters": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Why this focus matters for HR screening or technical evaluation."
+},
+"related_jd_requirement": {
+"type": "string",
+"minLength": 4,
+"maxLength": 240,
+"description": "The related requirement from the target job JD."
+}
+}
+},
+"priority_suggestion_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"issue",
+"related_jd_requirement",
+"current_resume_evidence",
+"why_it_matters",
+"optimization_goal",
+"rewrite_example",
+"action",
+"authenticity_rule"
+],
+"properties": {
+"issue": {
+"type": "string",
+"minLength": 4,
+"maxLength": 220,
+"description": "The current resume issue or missing evidence."
+},
+"related_jd_requirement": {
+"type": "string",
+"minLength": 4,
+"maxLength": 260,
+"description": "The related job requirement from the target JD."
+},
+"current_resume_evidence": {
+"type": "string",
+"minLength": 4,
+"maxLength": 300,
+"description": "Current resume evidence. If there is no direct evidence, use '简历中暂未看到直接证据'. Do not invent evidence."
+},
+"why_it_matters": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Why this issue affects screening, matching, or technical interview evaluation."
+},
+"optimization_goal": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "The intended optimization goal."
+},
+"rewrite_example": {
+"type": "string",
+"minLength": 8,
+"maxLength": 520,
+"description": "A possible rewrite direction or example. It must be based on truthful input evidence. If the input does not provide specific numbers, metrics, system scale, responsibilities, or achievements, use conditional wording such as '如果该项目确实有相关数据，可以补充……'. Do not directly invent specific numbers, metrics, system scale, responsibilities, or achievements."
+},
+"action": {
+"type": "string",
+"minLength": 8,
+"maxLength": 360,
+"description": "Concrete next action for the user."
+},
+"authenticity_rule": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Authenticity constraint for this suggestion. It should explicitly remind the user not to fabricate or exaggerate."
+}
+}
+},
+"keyword_alignment_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"keyword",
+"status",
+"resume_evidence",
+"suggested_action"
+],
+"properties": {
+"keyword": {
+"type": "string",
+"minLength": 1,
+"maxLength": 120,
+"description": "A target job keyword or capability."
+},
+"status": {
+"type": "string",
+"enum": [
+"present",
+"partial",
+"missing"
+],
+"description": "present means clearly reflected in the resume, partial means indirectly or insufficiently reflected, missing means no direct evidence is found."
+},
+"resume_evidence": {
+"type": "string",
+"minLength": 4,
+"maxLength": 260,
+"description": "Resume evidence for this keyword. If no evidence exists, use '简历中暂未看到直接证据'. Do not invent evidence."
+},
+"suggested_action": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Suggested action for improving keyword alignment truthfully."
+}
+}
+},
+"project_optimization_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"project_name",
+"current_problem",
+"targeted_improvement",
+"jd_relevance",
+"rewrite_direction",
+"interview_risk"
+],
+"properties": {
+"project_name": {
+"type": "string",
+"minLength": 1,
+"maxLength": 160,
+"description": "Project name from the input resume. Do not invent project names."
+},
+"current_problem": {
+"type": "string",
+"minLength": 4,
+"maxLength": 260,
+"description": "Current problem in the project description."
+},
+"targeted_improvement": {
+"type": "string",
+"minLength": 8,
+"maxLength": 360,
+"description": "Targeted improvement direction for the project description."
+},
+"jd_relevance": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "How this project relates to the target job JD."
+},
+"rewrite_direction": {
+"type": "string",
+"minLength": 8,
+"maxLength": 420,
+"description": "How to rewrite or expand the project description. Do not invent project achievements."
+},
+"interview_risk": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Possible interview risk or follow-up question based on this project."
+}
+}
+},
+"skill_section_optimization_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"skill",
+"current_status",
+"suggested_positioning",
+"evidence_needed"
+],
+"properties": {
+"skill": {
+"type": "string",
+"minLength": 1,
+"maxLength": 120,
+"description": "A skill related to the target job or resume."
+},
+"current_status": {
+"type": "string",
+"enum": [
+"present",
+"partial",
+"missing",
+"overstated"
+],
+"description": "present means the skill is clearly supported, partial means weakly supported, missing means absent, overstated means listed but lacking evidence."
+},
+"suggested_positioning": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Suggested truthful positioning of this skill in the resume."
+},
+"evidence_needed": {
+"type": "string",
+"minLength": 4,
+"maxLength": 320,
+"description": "Evidence needed to support this skill. If evidence is absent, explicitly state what real evidence should be built or added."
+}
+}
+},
+"summary_optimization_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"current_problem",
+"rewrite_direction",
+"example"
+],
+"properties": {
+"current_problem": {
+"type": "string",
+"minLength": 4,
+"maxLength": 240,
+"description": "Current problem in the resume summary or target role expression."
+},
+"rewrite_direction": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Suggested rewrite direction based on truthful resume information."
+},
+"example": {
+"type": "string",
+"minLength": 8,
+"maxLength": 420,
+"description": "Example summary direction. It must not invent identity, experience, metrics, or results."
+}
+}
+},
+"missing_evidence_plan_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"missing_evidence",
+"why_needed",
+"realistic_way_to_build",
+"should_not_fake"
+],
+"properties": {
+"missing_evidence": {
+"type": "string",
+"minLength": 4,
+"maxLength": 220,
+"description": "Missing evidence required by the target job or useful for screening."
+},
+"why_needed": {
+"type": "string",
+"minLength": 8,
+"maxLength": 300,
+"description": "Why this evidence matters."
+},
+"realistic_way_to_build": {
+"type": "string",
+"minLength": 8,
+"maxLength": 420,
+"description": "A realistic way to build this evidence through real learning, real practice, experiment projects, open-source work, or verifiable preparation."
+},
+"should_not_fake": {
+"type": "boolean",
+"const": true,
+"description": "This must be true. Missing evidence must be built through real action, not fabricated."
+}
+}
+},
+"rewrite_example_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"section",
+"before_problem",
+"after_example",
+"can_use_directly",
+"requires_user_verification",
+"verification_note"
+],
+"properties": {
+"section": {
+"type": "string",
+"minLength": 1,
+"maxLength": 120,
+"description": "Resume section such as project experience, skill section, summary, internship, or education."
+},
+"before_problem": {
+"type": "string",
+"minLength": 4,
+"maxLength": 260,
+"description": "Problem in the current expression."
+},
+"after_example": {
+"type": "string",
+"minLength": 8,
+"maxLength": 620,
+"description": "A possible rewrite example or direction. If it contains numbers, metrics, system scale, responsibilities, or achievements not explicitly present in the input, it must be conditional and requires_user_verification must be true. Do not invent specific numbers, metrics, system scale, responsibilities, or achievements."
+},
+"can_use_directly": {
+"type": "boolean",
+"description": "True only when the input already provides enough facts to use this rewrite directly. It is acceptable for all rewrite examples to have can_use_directly=false."
+},
+"requires_user_verification": {
+"type": "boolean",
+"description": "True when the user must verify facts before using the rewrite. This should be true for any rewrite involving metrics, scale, responsibilities, outcomes, or details not explicitly present in the input."
+},
+"verification_note": {
+"type": "string",
+"minLength": 4,
+"maxLength": 360,
+"description": "What the user must verify before using the rewrite. If no verification is needed, explain that the rewrite is based on existing resume evidence."
+}
+}
+},
+"next_action": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"action",
+"priority",
+"expected_effect"
+],
+"properties": {
+"action": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Concrete next action for truthful resume improvement."
+},
+"priority": {
+"type": "string",
+"enum": [
+"p0",
+"p1",
+"p2"
+],
+"description": "Priority of this action."
+},
+"expected_effect": {
+"type": "string",
+"minLength": 8,
+"maxLength": 300,
+"description": "Expected effect on screening, job matching, or interview preparation."
+}
+}
+}
+}
+}

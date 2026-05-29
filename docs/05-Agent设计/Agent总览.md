@@ -172,10 +172,18 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
     - keyword_alignment 正确区分 present/partial/missing
     - rewrite_examples 全部 requires_user_verification=true
     - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
-  - 当前仍未接 Hunyuan
-  - 当前仍未实现 LLM Client
-  - 当前仍未替换 Mock Agent
-  - 下一步为 4-1.4.9A 人工定稿简历优化 JSON Schema
+  - **4-1.4.9A/B 已完成：简历优化 JSON Schema 定稿与登记**
+    - 简历优化 Agent 当前已有完整 Prompt + Schema 资产组合：
+      - `resume_optimization_v1.md`
+      - `resume_optimization_schema.json`
+    - 当前已有：
+      - 匹配分析 Prompt + Schema（match_analysis_v1.md + match_analysis_schema.json）
+      - 岗位推荐 Prompt + Schema（recommendation_v1.md + recommendation_schema.json）
+      - 简历优化 Prompt + Schema（resume_optimization_v1.md + resume_optimization_schema.json）
+    - 当前仍未接 Hunyuan
+    - 当前仍未实现 LLM Client
+    - 当前仍未替换 Mock Agent
+    - 下一步为 4-1.4.10A 人工定稿 JSON 修复 Agent 指令模板
 
 ## 关联文档
 

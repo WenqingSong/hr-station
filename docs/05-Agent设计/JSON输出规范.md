@@ -264,8 +264,27 @@ LLM 输出文本
 - **4-1.4.8 已完成：简历优化 Prompt 首轮输出验收（partial_pass）**
   - 模型输出 JSON 合法，15 个顶层字段完整
   - 验收结果将作为 resume_optimization_schema.json 的依据
-  - 正式简历优化 JSON Schema 将在 4-1.4.9A/B 固定
   - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
+- **4-1.4.9A/B 已完成：简历优化 JSON Schema 定稿与登记**
+  - Schema 路径：`server/prompts/schema/resume_optimization_schema.json`
+  - 该 Schema 约束 ResumeOptimizationAgent 的 LLM 输出
+  - 当前 Schema 包含 15 个顶层 required 字段
+  - 当前 Schema 禁止 additionalProperties
+  - 当前 Schema 已固定：
+    - P0 / P1 / P2 优先级建议
+    - keyword_alignment
+    - project_optimization
+    - skill_section_optimization
+    - summary_optimization
+    - missing_evidence_plan
+    - rewrite_examples
+    - next_actions
+    - authenticity_notice
+  - 当前 Schema 已吸收 4-1.4.8 首轮验收问题：
+    - 允许 rewrite_examples 全部 can_use_directly=false
+    - 涉及数字/指标/规模/职责/成果时，输入无明确事实则必须 requires_user_verification=true
+    - 不得编造具体数字、指标、系统规模、职责或成果
+    - p2 允许 0-4 项
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 - **4-1.4.4A/B 已完成：岗位推荐 Agent 指令模板定稿与登记**
   - recommendation_v1.md 已包含推荐输出结构草案

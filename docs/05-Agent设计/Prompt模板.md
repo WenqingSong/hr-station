@@ -64,7 +64,13 @@ Prompt 将作为独立产品资产管理：
     - 发现轻微问题：rewrite_examples 全部需要用户确认，无直接可用示例
     - 问题不阻塞进入 4-1.4.9A 简历优化 Schema 定稿
     - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
-  - 当前仍未接入 Go 后端和 Hunyuan
+  - **4-1.4.9A/B 已完成：简历优化 JSON Schema 定稿与登记**
+    - Schema 路径：`server/prompts/schema/resume_optimization_schema.json`
+    - Prompt 与 Schema 当前关系：
+      - Prompt 定义任务、角色、简历优化原则、P0/P1/P2 优先级、改写约束和输出结构草案
+      - Schema 固定输出字段、类型、枚举、数组长度和真实性约束
+    - Schema 已吸收 4-1.4.8 首轮验收问题（允许 rewrite_examples 全部 can_use_directly=false、涉及数字/指标等时必须 requires_user_verification=true、不得编造具体数字/指标/系统规模/职责或成果、p2 允许 0-4 项）
+    - 当前仍未接入 Go 后端和 Hunyuan
 - JSON 修复 Prompt `json_repair_v1.md` 为 P2 优先级，后续按需创建
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
