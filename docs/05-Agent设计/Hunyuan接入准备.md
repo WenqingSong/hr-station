@@ -143,6 +143,18 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
 - 后续推荐 Prompt 的模型调用也建议 max_tokens >= 8192
 
+### 4-1.4.8 简历优化 Prompt 首轮输出验收记录
+
+- 已执行一次简历优化 Prompt 手动调用验收
+- 使用 TokenHub（腾讯混元代理）+ hy3-preview 模型
+- max_tokens=8192，调用成功（finish_reason=stop）
+- prompt_tokens=6723, completion_tokens=4032, total_tokens=10755
+- 模型输出 JSON 合法，15 个顶层字段完整
+- 不记录 API Key
+- 不记录完整模型原始输出
+- 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
+- 后续简历优化 Prompt 的模型调用也建议 max_tokens >= 8192
+
 ### 4-1.4.7B 简历优化 Agent 指令模板登记记录
 
 - 简历优化 Prompt 已登记：`server/prompts/resume_optimization_v1.md`

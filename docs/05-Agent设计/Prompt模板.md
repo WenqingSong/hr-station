@@ -55,6 +55,16 @@ Prompt 将作为独立产品资产管理：
   - 模板支持简历 + 目标岗位 JD + 可选匹配分析结果输入
   - 模板输出 P0/P1/P2 优化建议、关键词对齐、项目优化、技能栏优化、摘要优化、缺失证据补足计划、改写示例和真实性提醒
   - 当前尚未接入 Go 后端和 Hunyuan
+  - **4-1.4.8 首轮输出验收结论：partial_pass**
+    - JSON 输出合法，15 个顶层字段完整，枚举值全部合法
+    - P0/P1/P2 优化建议具体且围绕目标岗位（p0=2, p1=2, p2=1）
+    - keyword_alignment 正确区分 present/partial/missing（7 项）
+    - rewrite_examples 全部 requires_user_verification=true，保守但正确
+    - Offer鹅语气亲和专业，真实性提醒完整
+    - 发现轻微问题：rewrite_examples 全部需要用户确认，无直接可用示例
+    - 问题不阻塞进入 4-1.4.9A 简历优化 Schema 定稿
+    - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
+  - 当前仍未接入 Go 后端和 Hunyuan
 - JSON 修复 Prompt `json_repair_v1.md` 为 P2 优先级，后续按需创建
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`

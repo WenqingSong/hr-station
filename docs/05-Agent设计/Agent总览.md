@@ -166,7 +166,16 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
     - 当前仍未接 Hunyuan
     - 当前仍未实现 LLM Client
     - 当前仍未替换 Mock Agent
-  - 下一步为 4-1.4.8 简历优化 Prompt 首轮输出验收
+  - **4-1.4.8 已完成：简历优化 Prompt 首轮输出验收（partial_pass）**
+    - 模型输出 JSON 合法，15 个顶层字段完整
+    - P0/P1/P2 优化建议具体且围绕目标岗位
+    - keyword_alignment 正确区分 present/partial/missing
+    - rewrite_examples 全部 requires_user_verification=true
+    - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
+  - 当前仍未接 Hunyuan
+  - 当前仍未实现 LLM Client
+  - 当前仍未替换 Mock Agent
+  - 下一步为 4-1.4.9A 人工定稿简历优化 JSON Schema
 
 ## 关联文档
 
