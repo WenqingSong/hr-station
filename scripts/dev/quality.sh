@@ -11,42 +11,46 @@ source "${SCRIPT_DIR}/common.sh"
 
 ACTION="${1:-lint}"
 
+do_lint() {
+    log_step "代码风格检查"
+
+    # Go 格式检查
+    if [ -f "${PROJECT_ROOT}/server/go.mod" ]; then
+        log_info "检查 Go 代码格式..."
+        local unformatted
+        unformatted=$(cd "${PROJECT_ROOT}/server" && gofmt -l . 2>/dev/null || true)
+        if [ -n "$unformatted" ]; then
+            log_warn "以下 Go 文件需要格式化:"
+            echo "$unformatted"
+            echo "  修复: cd server && gofmt -w ."
+        else
+            log_info "Go 代码格式检查通过"
+        fi
+    else
+        log_warn "server/go.mod 不存在，跳过 Go 检查"
+    fi
+
+    # Shell 脚本检查
+    if [ -d "${PROJECT_ROOT}/scripts/dev" ]; then
+        log_info "检查 Shell 脚本语法..."
+        local shell_errors=0
+        for f in "${PROJECT_ROOT}/scripts/dev"/*.sh; do
+            if [ -f "$f" ]; then
+                if ! bash -n "$f" 2>/dev/null; then
+                    log_warn "Shell 语法错误: $f"
+                    shell_errors=$((shell_errors + 1))
+                fi
+            fi
+        done
+        if [ $shell_errors -eq 0 ]; then
+            log_info "Shell 脚本语法检查通过"
+        fi
+    fi
+}
+
 case "$ACTION" in
     lint)
-        log_step "代码风格检查"
-
-        # Go 格式检查
-        if [ -f "${PROJECT_ROOT}/server/go.mod" ]; then
-            log_info "检查 Go 代码格式..."
-            local unformatted
-            unformatted=$(cd "${PROJECT_ROOT}/server" && gofmt -l . 2>/dev/null || true)
-            if [ -n "$unformatted" ]; then
-                log_warn "以下 Go 文件需要格式化:"
-                echo "$unformatted"
-                echo "  修复: cd server && gofmt -w ."
-            else
-                log_info "Go 代码格式检查通过"
-            fi
-        else
-            log_warn "server/go.mod 不存在，跳过 Go 检查"
-        fi
-
-        # Shell 脚本检查
-        if [ -d "${PROJECT_ROOT}/scripts/dev" ]; then
-            log_info "检查 Shell 脚本语法..."
-            local shell_errors=0
-            for f in "${PROJECT_ROOT}/scripts/dev"/*.sh; do
-                if [ -f "$f" ]; then
-                    if ! bash -n "$f" 2>/dev/null; then
-                        log_warn "Shell 语法错误: $f"
-                        shell_errors=$((shell_errors + 1))
-                    fi
-                fi
-            done
-            if [ $shell_errors -eq 0 ]; then
-                log_info "Shell 脚本语法检查通过"
-            fi
-        fi
+        do_lint
         ;;
 
     test)

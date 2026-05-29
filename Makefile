@@ -14,7 +14,7 @@ DEV_SCRIPT := scripts/dev
 # 命令声明
 # ============================================================
 
-.PHONY: help doctor init check status \
+.PHONY: help doctor init check status health \
         up stop down restart rebuild \
         infra-up infra-down infra-status infra-logs \
         db-import db-reset db-shell db-check \
@@ -40,6 +40,7 @@ help: ## 查看所有可用命令
 	@echo "  make init          初始化开发环境（创建目录、复制 .env、提示依赖安装）"
 	@echo "  make check         执行 doctor + 轻量检查"
 	@echo "  make status        查看所有服务运行状态"
+	@echo "  make health        查看所有服务健康状态"
 	@echo ""
 	@echo "完整生命周期:"
 	@echo "  make up            一键启动完整开发环境"
@@ -112,10 +113,10 @@ doctor: ## 检查开发环境
 init: ## 初始化开发环境
 	@$(DEV_SCRIPT)/env.sh init
 
-check: doctor ## 执行 doctor + 轻量检查
+check: doctor ## 执行 doctor + 健康检查
 	@echo ""
-	@echo "--- 后端健康检查 ---"
-	@$(DEV_SCRIPT)/backend.sh health || true
+	@echo "--- 健康检查 ---"
+	@$(MAKE) --no-print-directory health
 
 status: ## 查看所有服务运行状态
 	@echo ""
@@ -129,6 +130,22 @@ status: ## 查看所有服务运行状态
 	@echo ""
 	@echo "--- 前端 ---"
 	@$(DEV_SCRIPT)/web.sh status || true
+
+health: ## 查看所有服务健康状态
+	@echo ""
+	@echo "=== 健康检查 ==="
+	@echo ""
+	@echo "--- 基础设施 ---"
+	@$(DEV_SCRIPT)/infra.sh status || true
+	@echo ""
+	@echo "--- 后端 ---"
+	@$(DEV_SCRIPT)/backend.sh health || true
+	@echo ""
+	@echo "--- 前端 ---"
+	@$(DEV_SCRIPT)/web.sh health || true
+	@echo ""
+	@echo "--- 数据库 ---"
+	@$(DEV_SCRIPT)/mysql.sh check || true
 
 # ============================================================
 # 完整生命周期

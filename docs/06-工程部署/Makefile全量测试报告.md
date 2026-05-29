@@ -349,3 +349,16 @@ health: ## 查看所有服务健康状态
 1. `backend-status`、`backend-health`、`db-check`、`lint` 全部失败，开发者无法正常使用这些命令
 2. `backend-restart` 失败会导致开发循环受阻
 3. 这些问题修复难度低，应优先修复
+
+## 23. 修复结果
+
+> 修复时间：2026-05-29（阶段 4-1.1.3）
+
+| 问题 | 修复状态 | 修复说明 | 验证命令 | 验证结果 |
+|------|---------|---------|---------|---------|
+| P0：`local` 在 case 块中使用 | ✅ 已修复 | 将 check/status/health/lint 分支封装为函数 | `make db-check` `make backend-status` `make backend-health` `make lint` `make ci` | ✅ 全部通过 |
+| P0：`go run` 子进程未被终止 | ✅ 已修复 | 增强 `stop_pid_file` 增加子进程清理；`stop_backend` 增加端口兜底清理 | `make backend-stop` `make backend-restart` | ✅ 端口释放，restart 成功 |
+| P1：`make health` 遗漏 | ✅ 已修复 | 新增 `health` target，聚合 infra/backend/web/db 健康检查 | `make health` | ✅ 通过 |
+| P1：`backend-up` 首次超时 | ✅ 已修复 | 等待时间 15s → 30s | `make backend-up` | ✅ 通过 |
+
+**修复结论：所有 P0/P1 问题已修复，验证通过，可以进入 4-2。**

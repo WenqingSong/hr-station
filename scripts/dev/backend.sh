@@ -49,9 +49,9 @@ start_backend() {
     local pid=$!
     echo "$pid" > "$PID_FILE"
 
-    # 等待启动
+    # 等待启动（首次 go run 可能需要下载依赖，给予 30 秒）
     local wait_count=0
-    while ! check_port "$SERVER_PORT" && [ $wait_count -lt 15 ]; do
+    while ! check_port "$SERVER_PORT" && [ $wait_count -lt 30 ]; do
         sleep 1
         wait_count=$((wait_count + 1))
     done
@@ -70,6 +70,61 @@ start_backend() {
 
 stop_backend() {
     stop_pid_file "$PID_FILE" "后端"
+
+    # 兜底：检查端口是否仍有 go/server 相关残留进程
+    if check_port "$SERVER_PORT"; then
+        local port_pid=""
+        if command -v lsof >/dev/null 2>&1; then
+            port_pid=$(lsof -t -i ":${SERVER_PORT}" -sTCP:LISTEN 2>/dev/null || true)
+        fi
+        if [ -n "$port_pid" ]; then
+            local cmd
+            cmd=$(ps -p "$port_pid" -o args= 2>/dev/null || true)
+            if echo "$cmd" | grep -qi "go\|server"; then
+                log_warn "端口 ${SERVER_PORT} 仍有残留进程 (PID: ${port_pid})，正在清理..."
+                kill "$port_pid" 2>/dev/null || true
+                sleep 1
+                if kill -0 "$port_pid" 2>/dev/null; then
+                    kill -9 "$port_pid" 2>/dev/null || true
+                fi
+            fi
+        fi
+    fi
+}
+
+do_status() {
+    if is_process_running "$PID_FILE"; then
+        local pid
+        pid=$(cat "$PID_FILE")
+        log_info "后端运行中 (PID: ${pid}, 端口: ${SERVER_PORT})"
+    else
+        log_info "后端未运行"
+    fi
+}
+
+do_health() {
+    local health_url="http://localhost:${SERVER_PORT}/healthz"
+    log_step "后端健康检查: ${health_url}"
+    if command -v curl >/dev/null 2>&1; then
+        local response
+        response=$(curl -s -w "\n%{http_code}" "$health_url" 2>/dev/null || echo "000")
+        local http_code
+        http_code=$(echo "$response" | tail -1)
+        local body
+        body=$(echo "$response" | head -n -1)
+
+        if [ "$http_code" = "200" ]; then
+            log_info "后端健康检查通过 (HTTP 200)"
+            echo "  响应: $body"
+        else
+            log_error "后端健康检查失败 (HTTP ${http_code})"
+            if [ -n "$body" ]; then
+                echo "  响应: $body"
+            fi
+        fi
+    else
+        log_warn "curl 不可用，无法检查"
+    fi
 }
 
 case "$ACTION" in
@@ -96,38 +151,11 @@ case "$ACTION" in
         ;;
 
     status)
-        if is_process_running "$PID_FILE"; then
-            local pid
-            pid=$(cat "$PID_FILE")
-            log_info "后端运行中 (PID: ${pid}, 端口: ${SERVER_PORT})"
-        else
-            log_info "后端未运行"
-        fi
+        do_status
         ;;
 
     health)
-        local health_url="http://localhost:${SERVER_PORT}/healthz"
-        log_step "后端健康检查: ${health_url}"
-        if command -v curl >/dev/null 2>&1; then
-            local response
-            response=$(curl -s -w "\n%{http_code}" "$health_url" 2>/dev/null || echo "000")
-            local http_code
-            http_code=$(echo "$response" | tail -1)
-            local body
-            body=$(echo "$response" | head -n -1)
-
-            if [ "$http_code" = "200" ]; then
-                log_info "后端健康检查通过 (HTTP 200)"
-                echo "  响应: $body"
-            else
-                log_error "后端健康检查失败 (HTTP ${http_code})"
-                if [ -n "$body" ]; then
-                    echo "  响应: $body"
-                fi
-            fi
-        else
-            log_warn "curl 不可用，无法检查"
-        fi
+        do_health
         ;;
 
     *)

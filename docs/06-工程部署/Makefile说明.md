@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-29（阶段 4-1.1 升级 Makefile 与开发脚本体系）
+> 最后更新：2026-05-29（阶段 4-1.1.3 修复 Makefile 全量测试问题）
 
 ## 1. 设计目标
 
@@ -69,6 +69,7 @@ make db-reset CONFIRM=yes
 | `make init` | 初始化开发环境 | ❌ | ⚠️ |
 | `make check` | doctor + 健康检查 | ✅ | ❌ |
 | `make status` | 查看所有服务运行状态 | ✅ | ❌ |
+| `make health` | 查看所有服务健康状态 | ✅ | ❌ |
 
 ## 5. 生命周期命令
 
@@ -134,6 +135,11 @@ make db-reset CONFIRM=yes
 - 启动命令：`cd server && SERVER_PORT=$SERVER_PORT go run ./cmd/server`
 - 不产生 `server/server` 编译产物
 - 健康检查：`http://localhost:${SERVER_PORT}/healthz`
+
+后端停止逻辑（4-1.1.3 修复）：
+- 先终止子进程（`pgrep -P`），再终止主进程
+- 兜底：如果端口仍有 go/server 相关残留进程，自动清理
+- 停止后端口应完全释放，`backend-restart` 不再因端口残留失败
 
 ## 9. 前端命令
 

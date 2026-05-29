@@ -25,6 +25,38 @@ MYSQL_ROOT_PASSWORD=$(get_env_value "MYSQL_ROOT_PASSWORD" "password")
 # SQL 文件路径
 INIT_SQL="${PROJECT_ROOT}/server/sql/init.sql"
 
+do_check() {
+    log_step "数据库检查"
+    if ! docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps mysql 2>/dev/null | grep -q "Up\|healthy"; then
+        log_error "MySQL 容器未运行，请先执行 make infra-up"
+        exit 1
+    fi
+
+    # 检查核心表是否存在
+    local tables="users resume_versions jobs recommendation_results match_analyses version_compare_results"
+    local all_ok=true
+
+    for table in $tables; do
+        local count
+        count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+            -s -N -e "SELECT COUNT(*) FROM ${table};" 2>/dev/null || echo "ERROR")
+
+        if [ "$count" = "ERROR" ] || [ -z "$count" ]; then
+            echo -e "  ${RED}❌${NC} ${table}: 不存在或查询失败"
+            all_ok=false
+        else
+            echo -e "  ${GREEN}✅${NC} ${table}: ${count} 条记录"
+        fi
+    done
+
+    echo ""
+    if [ "$all_ok" = true ]; then
+        log_info "所有核心表检查通过"
+    else
+        log_warn "部分表缺失，请执行 make db-import 导入初始化 SQL"
+    fi
+}
+
 case "$ACTION" in
     import)
         log_step "导入数据库初始化 SQL"
@@ -88,35 +120,7 @@ case "$ACTION" in
         ;;
 
     check)
-        log_step "数据库检查"
-        if ! docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps mysql 2>/dev/null | grep -q "Up\|healthy"; then
-            log_error "MySQL 容器未运行，请先执行 make infra-up"
-            exit 1
-        fi
-
-        # 检查核心表是否存在
-        local tables="users resume_versions jobs recommendation_results match_analyses version_compare_results"
-        local all_ok=true
-
-        for table in $tables; do
-            local count
-            count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
-                -s -N -e "SELECT COUNT(*) FROM ${table};" 2>/dev/null || echo "ERROR")
-
-            if [ "$count" = "ERROR" ] || [ -z "$count" ]; then
-                echo -e "  ${RED}❌${NC} ${table}: 不存在或查询失败"
-                all_ok=false
-            else
-                echo -e "  ${GREEN}✅${NC} ${table}: ${count} 条记录"
-            fi
-        done
-
-        echo ""
-        if [ "$all_ok" = true ]; then
-            log_info "所有核心表检查通过"
-        else
-            log_warn "部分表缺失，请执行 make db-import 导入初始化 SQL"
-        fi
+        do_check
         ;;
 
     *)

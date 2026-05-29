@@ -122,7 +122,7 @@ is_process_running() {
     fi
 }
 
-# 停止通过 PID 文件管理的进程
+# 停止通过 PID 文件管理的进程（含子进程清理）
 stop_pid_file() {
     local pid_file="$1"
     local name="$2"
@@ -143,7 +143,19 @@ stop_pid_file() {
 
     if kill -0 "$pid" 2>/dev/null; then
         log_info "${name}: 正在停止进程 (PID: ${pid})..."
+
+        # 先查找并终止子进程（处理 go run 等产生子进程的情况）
+        local child_pids
+        child_pids=$(pgrep -P "$pid" 2>/dev/null || true)
+        if [ -n "$child_pids" ]; then
+            for child_pid in $child_pids; do
+                kill "$child_pid" 2>/dev/null || true
+            done
+        fi
+
+        # 终止主进程
         kill "$pid" 2>/dev/null
+
         # 等待进程退出
         local wait_count=0
         while kill -0 "$pid" 2>/dev/null && [ $wait_count -lt 10 ]; do
@@ -152,6 +164,12 @@ stop_pid_file() {
         done
         if kill -0 "$pid" 2>/dev/null; then
             kill -9 "$pid" 2>/dev/null
+            # 也强制终止残留子进程
+            if [ -n "$child_pids" ]; then
+                for child_pid in $child_pids; do
+                    kill -9 "$child_pid" 2>/dev/null || true
+                done
+            fi
             log_warn "${name}: 强制停止进程"
         fi
         log_info "${name}: 已停止"
