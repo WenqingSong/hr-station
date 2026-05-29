@@ -1,17 +1,32 @@
 # ============================================================
 # Offer Catcher - Makefile
 # 适配 CNB 云原生开发环境反复重启场景
+# Makefile = 统一入口 / 命令编排层
+# scripts/dev/*.sh = 具体执行逻辑
 # ============================================================
 
-.PHONY: help doctor init \
-        up down restart status logs logs-mysql \
-        dev-web dev-server dev \
-        build-web build-server build \
-        test-server check \
-        clean reset
+SHELL := /usr/bin/env bash
+.DEFAULT_GOAL := help
+
+DEV_SCRIPT := scripts/dev
 
 # ============================================================
-# 默认目标
+# 命令声明
+# ============================================================
+
+.PHONY: help doctor init check status \
+        up stop down restart rebuild \
+        infra-up infra-down infra-status infra-logs \
+        db-import db-reset db-shell db-check \
+        backend-up backend-stop backend-restart backend-logs backend-status backend-health \
+        web-install web-up web-stop web-restart web-logs web-status web-health \
+        agent-env agent-check agent-test \
+        logs logs-backend logs-web logs-mysql logs-agent \
+        lint test build ci \
+        clean clean-logs clean-pids clean-volume
+
+# ============================================================
+# 帮助
 # ============================================================
 
 help: ## 查看所有可用命令
@@ -19,267 +34,321 @@ help: ## 查看所有可用命令
 	@echo "Offer Catcher - Makefile 命令"
 	@echo "=============================="
 	@echo ""
-	@echo "环境管理:"
-	@echo "  make doctor       只读检查开发环境"
-	@echo "  make init         初始化开发环境（幂等，可重复执行）"
+	@echo "基础命令:"
+	@echo "  make help          查看所有可用命令"
+	@echo "  make doctor        检查开发环境（Docker/Go/Node/npm/.env/端口/目录）"
+	@echo "  make init          初始化开发环境（创建目录、复制 .env、提示依赖安装）"
+	@echo "  make check         执行 doctor + 轻量检查"
+	@echo "  make status        查看所有服务运行状态"
 	@echo ""
-	@echo "Docker 服务:"
-	@echo "  make up           启动 Docker Compose 服务"
-	@echo "  make down         停止 Docker Compose 服务（不删卷）"
-	@echo "  make restart      重启 Docker Compose 服务"
-	@echo "  make status       查看容器状态"
-	@echo "  make logs         查看全部服务日志"
-	@echo "  make logs-mysql   查看 MySQL 日志"
+	@echo "完整生命周期:"
+	@echo "  make up            一键启动完整开发环境"
+	@echo "  make stop          停止本地前后端进程，保留 Docker 数据"
+	@echo "  make down          停止服务，保留数据库 volume，不清空数据"
+	@echo "  make restart       stop + up"
+	@echo "  make rebuild       ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes"
 	@echo ""
-	@echo "开发运行:"
-	@echo "  make dev-web      启动前端开发服务"
-	@echo "  make dev-server   启动后端开发服务"
-	@echo "  make dev          输出开发启动提示"
+	@echo "基础设施:"
+	@echo "  make infra-up      启动 Docker Compose 基础设施（MySQL）"
+	@echo "  make infra-down    停止 Docker Compose 服务，保留 volume"
+	@echo "  make infra-status  查看 Docker Compose 状态"
+	@echo "  make infra-logs    查看 Docker Compose 日志"
 	@echo ""
-	@echo "构建:"
-	@echo "  make build-web    构建前端"
-	@echo "  make build-server 构建后端"
-	@echo "  make build        构建前后端"
+	@echo "数据库:"
+	@echo "  make db-import     导入 server/sql/init.sql"
+	@echo "  make db-reset      ⚠️ 危险：重新导入初始化 SQL，需要 CONFIRM=yes"
+	@echo "  make db-shell      进入 MySQL shell"
+	@echo "  make db-check      检查核心表是否存在、记录数是否正常"
 	@echo ""
-	@echo "测试与检查:"
-	@echo "  make test-server  运行后端测试"
-	@echo "  make check        执行基础检查"
+	@echo "后端:"
+	@echo "  make backend-up       后台启动 Go 后端"
+	@echo "  make backend-stop     停止 Go 后端"
+	@echo "  make backend-restart  重启 Go 后端"
+	@echo "  make backend-logs     查看后端日志"
+	@echo "  make backend-status   查看后端进程状态"
+	@echo "  make backend-health   curl /healthz"
+	@echo ""
+	@echo "前端:"
+	@echo "  make web-install      在 web/ 下执行 npm install"
+	@echo "  make web-up           后台启动前端开发服务"
+	@echo "  make web-stop         停止前端服务"
+	@echo "  make web-restart      重启前端服务"
+	@echo "  make web-logs         查看前端日志"
+	@echo "  make web-status       查看前端进程状态"
+	@echo "  make web-health       检查前端端口"
+	@echo ""
+	@echo "Agent / LLM:"
+	@echo "  make agent-env        检查 LLM 相关环境变量（不打印真实 Key）"
+	@echo "  make agent-check      检查 ENABLE_LLM_AGENT / LLM_PROVIDER / LLM_MODEL"
+	@echo "  make agent-test       当前只输出提示：LLM Client 尚未实现"
+	@echo ""
+	@echo "日志:"
+	@echo "  make logs           查看日志入口提示"
+	@echo "  make logs-backend   查看后端日志"
+	@echo "  make logs-web       查看前端日志"
+	@echo "  make logs-mysql     查看 MySQL 日志"
+	@echo "  make logs-agent     查看 Agent 相关日志"
+	@echo ""
+	@echo "质量检查:"
+	@echo "  make lint           代码风格检查"
+	@echo "  make test           运行后端测试"
+	@echo "  make build          构建检查（前端 + 后端）"
+	@echo "  make ci             doctor + lint + test + build"
 	@echo ""
 	@echo "清理:"
-	@echo "  make clean        清理构建产物"
-	@echo "  make reset        ⚠️ 危险：停止并清理容器卷（删除数据）"
+	@echo "  make clean          清理本地运行文件和构建产物，不删除数据库 volume"
+	@echo "  make clean-logs     删除 .logs"
+	@echo "  make clean-pids     删除 .run"
+	@echo "  make clean-volume   ⚠️ 危险：删除 Docker volume，需要 CONFIRM=yes"
 	@echo ""
 
 # ============================================================
-# 环境检查
+# 基础命令
 # ============================================================
 
-doctor: ## 只读检查开发环境
-	@echo "=========================================="
-	@echo "  开发环境检查 (只读，不修改任何文件)"
-	@echo "=========================================="
+doctor: ## 检查开发环境
+	@$(DEV_SCRIPT)/doctor.sh
+
+init: ## 初始化开发环境
+	@$(DEV_SCRIPT)/env.sh init
+
+check: doctor ## 执行 doctor + 轻量检查
 	@echo ""
-	@echo "--- 工作目录 ---"
-	@echo "当前目录: $$(pwd)"
+	@echo "--- 后端健康检查 ---"
+	@$(DEV_SCRIPT)/backend.sh health || true
+
+status: ## 查看所有服务运行状态
 	@echo ""
-	@echo "--- 工具检查 ---"
-	@command -v node >/dev/null 2>&1 && echo "✅ node: $$(node --version)" || echo "❌ node: 未安装"
-	@command -v npm >/dev/null 2>&1 && echo "✅ npm: $$(npm --version)" || echo "❌ npm: 未安装"
-	@command -v go >/dev/null 2>&1 && echo "✅ go: $$(go version | awk '{print $$3}')" || echo "❌ go: 未安装"
-	@command -v docker >/dev/null 2>&1 && echo "✅ docker: $$(docker --version | awk '{print $$3}' | tr -d ',')" || echo "❌ docker: 未安装"
-	@command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 && echo "✅ docker compose: 可用" || echo "❌ docker compose: 不可用"
+	@echo "=== 服务运行状态 ==="
 	@echo ""
-	@echo "--- 项目文件检查 ---"
-	@test -f .env && echo "✅ .env: 存在" || echo "⚠️  .env: 不存在（执行 make init 可创建）"
-	@test -f .env.example && echo "✅ .env.example: 存在" || echo "⚠️  .env.example: 不存在（待阶段 1-3 创建）"
-	@test -f docker-compose.yml && echo "✅ docker-compose.yml: 存在" || echo "❌ docker-compose.yml: 不存在"
-	@test -f web/package.json && echo "✅ web/package.json: 存在" || echo "❌ web/package.json: 不存在"
-	@test -d web/node_modules && echo "✅ web/node_modules: 存在" || echo "⚠️  web/node_modules: 不存在（需安装前端依赖）"
-	@test -f server/go.mod && echo "✅ server/go.mod: 存在" || echo "⚠️  server/go.mod: 不存在（待阶段 1-5 初始化）"
+	@echo "--- 基础设施 ---"
+	@$(DEV_SCRIPT)/infra.sh status || true
 	@echo ""
-	@echo "--- Docker 服务状态 ---"
-	@docker compose ps 2>/dev/null || echo "⚠️  docker compose 不可用或 docker-compose.yml 为空"
+	@echo "--- 后端 ---"
+	@$(DEV_SCRIPT)/backend.sh status || true
 	@echo ""
-	@echo "--- 端口占用检查 ---"
-	@lsof -i :3306 >/dev/null 2>&1 && echo "⚠️  端口 3306: 已占用" || echo "✅ 端口 3306: 可用"
-	@lsof -i :5173 >/dev/null 2>&1 && echo "⚠️  端口 5173: 已占用" || echo "✅ 端口 5173: 可用"
-	@lsof -i :8080 >/dev/null 2>&1 && echo "⚠️  端口 8080: 已占用" || echo "✅ 端口 8080: 可用"
-	@echo ""
-	@echo "=========================================="
-	@echo "  检查完成"
-	@echo "=========================================="
+	@echo "--- 前端 ---"
+	@$(DEV_SCRIPT)/web.sh status || true
 
 # ============================================================
-# 初始化开发环境
+# 完整生命周期
 # ============================================================
 
-init: ## 初始化开发环境（幂等，可重复执行）
-	@echo "=========================================="
-	@echo "  初始化开发环境"
-	@echo "=========================================="
-	@echo ""
-	@echo "--- 1. 检查 .env ---"
-	@if [ -f .env ]; then \
-		echo "✅ .env 已存在，跳过"; \
-	elif [ -f .env.example ]; then \
-		cp .env.example .env; \
-		echo "✅ 已从 .env.example 复制创建 .env"; \
-	else \
-		echo "⚠️  .env.example 不存在（待阶段 1-3 创建），请稍后手动创建 .env"; \
-	fi
-	@echo ""
-	@echo "--- 2. 检查前端依赖 ---"
-	@if [ -f web/package.json ]; then \
-		if [ -d web/node_modules ]; then \
-			echo "✅ web/node_modules 已存在，跳过安装"; \
-		else \
-			echo "⚠️  web/node_modules 不存在，请执行: cd web && npm install"; \
-		fi; \
-	else \
-		echo "⚠️  web/package.json 不存在，跳过前端依赖检查"; \
-	fi
-	@echo ""
-	@echo "--- 3. 检查后端依赖 ---"
-	@if [ -f server/go.mod ]; then \
-		echo "✅ server/go.mod 已存在"; \
-		echo "   如需下载依赖，请执行: cd server && go mod download"; \
-	else \
-		echo "⚠️  server/go.mod 不存在（待阶段 1-5 初始化 Go 工程）"; \
-	fi
+up: ## 一键启动完整开发环境
 	@echo ""
 	@echo "=========================================="
-	@echo "  初始化完成"
-	@echo "  下一步: make up    (启动 Docker 服务)"
-	@echo "          make dev   (查看开发启动方式)"
+	@echo "  Offer Catcher - 一键启动开发环境"
 	@echo "=========================================="
+	@echo ""
+	@echo "--- 1. 环境检查 ---"
+	@$(DEV_SCRIPT)/doctor.sh
+	@echo ""
+	@echo "--- 2. 环境初始化 ---"
+	@$(DEV_SCRIPT)/env.sh init
+	@echo ""
+	@echo "--- 3. 启动基础设施 ---"
+	@$(DEV_SCRIPT)/infra.sh up
+	@echo ""
+	@echo "--- 4. 等待 MySQL 就绪 ---"
+	@sleep 5
+	@$(DEV_SCRIPT)/mysql.sh check || echo "  提示：如果数据库为空，请执行 make db-import"
+	@echo ""
+	@echo "--- 5. 启动后端 ---"
+	@$(DEV_SCRIPT)/backend.sh up || echo "  ⚠️ 后端启动失败，可能是 MySQL 尚未就绪，稍后重试"
+	@echo ""
+	@echo "--- 6. 启动前端 ---"
+	@$(DEV_SCRIPT)/web.sh up || echo "  ⚠️ 前端启动失败，可能需要先执行 make web-install"
+	@echo ""
+	@echo "--- 7. 健康检查 ---"
+	@sleep 3
+	@$(DEV_SCRIPT)/backend.sh health || true
+	@$(DEV_SCRIPT)/web.sh health || true
+	@echo ""
+	@echo "=========================================="
+	@echo "  ✅ 开发环境启动完成"
+	@echo "=========================================="
+	@echo ""
+	@echo "  后端:  http://localhost:8080/healthz"
+	@echo "  前端:  http://localhost:5173"
+	@echo "  MySQL: localhost:3306"
+	@echo ""
+	@echo "  查看日志: make logs"
+	@echo "  查看状态: make backend-status / make web-status"
+	@echo ""
 
-# ============================================================
-# Docker Compose 服务管理
-# ============================================================
+stop: ## 停止本地前后端进程，保留 Docker 数据
+	@echo "停止本地进程..."
+	@$(DEV_SCRIPT)/backend.sh stop
+	@$(DEV_SCRIPT)/web.sh stop
+	@echo ""
+	@echo "✅ 前后端进程已停止（Docker 数据保留）"
 
-up: ## 启动 Docker Compose 服务
-	@if [ ! -f docker-compose.yml ]; then \
-		echo "❌ docker-compose.yml 不存在，无法启动"; \
+down: ## 停止服务，保留数据库 volume
+	@$(DEV_SCRIPT)/backend.sh stop || true
+	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/infra.sh down
+
+restart: ## stop + up
+	@$(DEV_SCRIPT)/backend.sh stop || true
+	@$(DEV_SCRIPT)/web.sh stop || true
+	@sleep 1
+	@$(MAKE) up
+
+rebuild: ## ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes
+	@if [ "$(CONFIRM)" != "yes" ]; then \
+		echo ""; \
+		echo "危险操作：该命令会重置本地开发环境。"; \
+		echo "如确认执行，请使用：make rebuild CONFIRM=yes"; \
+		echo ""; \
 		exit 1; \
 	fi
-	@if [ ! -s docker-compose.yml ]; then \
-		echo "⚠️  docker-compose.yml 为空（待阶段 1-4 编写），无法启动服务"; \
-		echo "   请先完成阶段 1-4：编写 docker-compose.yml"; \
-		exit 0; \
-	fi
-	docker compose up -d
+	@echo "清理运行态..."
+	@$(DEV_SCRIPT)/backend.sh stop || true
+	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/clean.sh clean
+	@$(DEV_SCRIPT)/infra.sh down
 	@echo ""
-	@echo "✅ Docker Compose 服务已启动"
-	@echo "   查看状态: make status"
+	@$(MAKE) up
 
-down: ## 停止 Docker Compose 服务（不删卷）
-	docker compose down
-	@echo ""
-	@echo "✅ Docker Compose 服务已停止（数据卷保留）"
+# ============================================================
+# 基础设施
+# ============================================================
 
-restart: ## 重启 Docker Compose 服务
-	docker compose down
-	docker compose up -d
-	@echo ""
-	@echo "✅ Docker Compose 服务已重启"
+infra-up: ## 启动 Docker Compose 基础设施
+	@$(DEV_SCRIPT)/infra.sh up
 
-status: ## 查看容器状态
-	docker compose ps
+infra-down: ## 停止 Docker Compose 服务
+	@$(DEV_SCRIPT)/infra.sh down
 
-logs: ## 查看全部服务日志
-	docker compose logs -f
+infra-status: ## 查看 Docker Compose 状态
+	@$(DEV_SCRIPT)/infra.sh status
+
+infra-logs: ## 查看 Docker Compose 日志
+	@$(DEV_SCRIPT)/infra.sh logs
+
+# ============================================================
+# 数据库
+# ============================================================
+
+db-import: ## 导入 server/sql/init.sql
+	@$(DEV_SCRIPT)/mysql.sh import
+
+db-reset: ## ⚠️ 危险：重新导入初始化 SQL，需要 CONFIRM=yes
+	@$(DEV_SCRIPT)/mysql.sh reset
+
+db-shell: ## 进入 MySQL shell
+	@$(DEV_SCRIPT)/mysql.sh shell
+
+db-check: ## 检查核心表
+	@$(DEV_SCRIPT)/mysql.sh check
+
+# ============================================================
+# 后端
+# ============================================================
+
+backend-up: ## 后台启动 Go 后端
+	@$(DEV_SCRIPT)/backend.sh up
+
+backend-stop: ## 停止 Go 后端
+	@$(DEV_SCRIPT)/backend.sh stop
+
+backend-restart: ## 重启 Go 后端
+	@$(DEV_SCRIPT)/backend.sh restart
+
+backend-logs: ## 查看后端日志
+	@$(DEV_SCRIPT)/backend.sh logs
+
+backend-status: ## 查看后端进程状态
+	@$(DEV_SCRIPT)/backend.sh status
+
+backend-health: ## curl /healthz
+	@$(DEV_SCRIPT)/backend.sh health
+
+# ============================================================
+# 前端
+# ============================================================
+
+web-install: ## 在 web/ 下执行 npm install
+	@$(DEV_SCRIPT)/web.sh install
+
+web-up: ## 后台启动前端开发服务
+	@$(DEV_SCRIPT)/web.sh up
+
+web-stop: ## 停止前端服务
+	@$(DEV_SCRIPT)/web.sh stop
+
+web-restart: ## 重启前端服务
+	@$(DEV_SCRIPT)/web.sh restart
+
+web-logs: ## 查看前端日志
+	@$(DEV_SCRIPT)/web.sh logs
+
+web-status: ## 查看前端进程状态
+	@$(DEV_SCRIPT)/web.sh status
+
+web-health: ## 检查前端端口
+	@$(DEV_SCRIPT)/web.sh health
+
+# ============================================================
+# Agent / LLM
+# ============================================================
+
+agent-env: ## 检查 LLM 相关环境变量
+	@$(DEV_SCRIPT)/agent.sh env
+
+agent-check: ## 检查 Agent/LLM 配置
+	@$(DEV_SCRIPT)/agent.sh check
+
+agent-test: ## 当前只输出提示
+	@$(DEV_SCRIPT)/agent.sh test
+
+# ============================================================
+# 日志
+# ============================================================
+
+logs: ## 查看日志入口提示
+	@$(DEV_SCRIPT)/logs.sh all
+
+logs-backend: ## 查看后端日志
+	@$(DEV_SCRIPT)/logs.sh backend
+
+logs-web: ## 查看前端日志
+	@$(DEV_SCRIPT)/logs.sh web
 
 logs-mysql: ## 查看 MySQL 日志
-	docker compose logs -f mysql
+	@$(DEV_SCRIPT)/logs.sh mysql
+
+logs-agent: ## 查看 Agent 相关日志
+	@$(DEV_SCRIPT)/logs.sh agent
 
 # ============================================================
-# 开发运行
+# 质量检查
 # ============================================================
 
-dev-web: ## 启动前端开发服务
-	@if [ ! -f web/package.json ]; then \
-		echo "❌ web/package.json 不存在"; \
-		exit 1; \
-	fi
-	@if [ ! -d web/node_modules ]; then \
-		echo "⚠️  web/node_modules 不存在，请先安装依赖: cd web && npm install"; \
-		exit 1; \
-	fi
-	cd web && npm run dev
+lint: ## 代码风格检查
+	@$(DEV_SCRIPT)/quality.sh lint
 
-dev-server: ## 启动后端开发服务
-	@if [ ! -f server/go.mod ]; then \
-		echo "⚠️  server/go.mod 不存在（待阶段 1-5 初始化 Go 工程）"; \
-		echo "   请先完成阶段 1-5：初始化 Go 后端工程目录"; \
-		exit 1; \
-	fi
-	cd server && go run ./cmd/server
+test: ## 运行后端测试
+	@$(DEV_SCRIPT)/quality.sh test
 
-dev: ## 输出开发启动提示
-	@echo ""
-	@echo "=========================================="
-	@echo "  Offer Catcher 开发环境启动"
-	@echo "=========================================="
-	@echo ""
-	@echo "请分别在不同终端运行以下命令："
-	@echo ""
-	@echo "  终端 1 - 启动 Docker 服务:"
-	@echo "    make up"
-	@echo ""
-	@echo "  终端 2 - 启动前端:"
-	@echo "    make dev-web"
-	@echo ""
-	@echo "  终端 3 - 启动后端:"
-	@echo "    make dev-server"
-	@echo ""
-	@echo "CNB 环境重启恢复流程:"
-	@echo "    make doctor → make init → make up → make dev-web → make dev-server"
-	@echo ""
-	@echo "=========================================="
+build: ## 构建检查
+	@$(DEV_SCRIPT)/quality.sh build
+
+ci: ## doctor + lint + test + build
+	@$(DEV_SCRIPT)/quality.sh ci
 
 # ============================================================
-# 构建
+# 清理
 # ============================================================
 
-build-web: ## 构建前端
-	@if [ ! -f web/package.json ]; then \
-		echo "❌ web/package.json 不存在"; \
-		exit 1; \
-	fi
-	@if [ ! -d web/node_modules ]; then \
-		echo "⚠️  web/node_modules 不存在，请先安装依赖: cd web && npm install"; \
-		exit 1; \
-	fi
-	cd web && npm run build
-	@echo "✅ 前端构建完成"
+clean: ## 清理本地运行文件和构建产物
+	@$(DEV_SCRIPT)/clean.sh clean
 
-build-server: ## 构建后端
-	@if [ ! -f server/go.mod ]; then \
-		echo "⚠️  server/go.mod 不存在（待阶段 1-5 初始化 Go 工程）"; \
-		exit 1; \
-	fi
-	cd server && go build -o bin/server ./cmd/server
-	@echo "✅ 后端构建完成: server/bin/server"
+clean-logs: ## 删除 .logs
+	@$(DEV_SCRIPT)/clean.sh logs
 
-build: build-web build-server ## 构建前后端
+clean-pids: ## 删除 .run
+	@$(DEV_SCRIPT)/clean.sh pids
 
-# ============================================================
-# 测试与检查
-# ============================================================
-
-test-server: ## 运行后端测试
-	@if [ ! -f server/go.mod ]; then \
-		echo "⚠️  server/go.mod 不存在（待阶段 1-5 初始化 Go 工程）"; \
-		exit 1; \
-	fi
-	cd server && go test ./...
-
-check: doctor ## 执行基础检查（环境检查）
-	@echo ""
-	@echo "--- 后端测试 ---"
-	@if [ -f server/go.mod ]; then \
-		cd server && go test ./...; \
-	else \
-		echo "⚠️  server/go.mod 不存在，跳过后端测试"; \
-	fi
-
-# ============================================================
-# 清理与重置
-# ============================================================
-
-clean: ## 清理构建产物
-	@echo "清理构建产物..."
-	rm -rf web/dist
-	rm -rf server/bin
-	@echo "✅ 构建产物已清理"
-
-reset: ## ⚠️ 危险：停止并清理容器卷（删除数据）
-	@echo "=========================================="
-	@echo "  ⚠️  危险操作：即将停止所有容器并删除数据卷"
-	@echo "  这将清除 MySQL 中的所有数据！"
-	@echo "=========================================="
-	@echo ""
-	@echo "如果确定要执行，请运行:"
-	@echo "  docker compose down -v"
-	@echo ""
-	@echo "该命令不会自动执行，请手动确认后运行。"
+clean-volume: ## ⚠️ 危险：删除 Docker volume，需要 CONFIRM=yes
+	@$(DEV_SCRIPT)/clean.sh volume
