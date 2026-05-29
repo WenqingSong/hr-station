@@ -1,6 +1,6 @@
 # JSON 输出规范
 
-> 最后更新：2026-05-29（阶段 4-1.4.0 Prompt / Agent 真实接入方案）
+> 最后更新：2026-05-29（阶段 4-1.4.3B 登记匹配分析 JSON Schema）
 
 ## 1. 为什么必须强制 JSON
 
@@ -247,7 +247,16 @@ LLM 输出文本
   - 模型输出 JSON 合法，17 个顶层字段完整
   - 验收报告见 `docs/05-Agent设计/匹配分析Prompt首轮输出验收报告.md`
   - 验收结果将作为 match_analysis_schema.json 的依据
-- 4-1.4.3A 将人工定稿正式 Schema
+- **4-1.4.3A 已完成：人工定稿 match_analysis_schema.json**
+- **4-1.4.3B 已完成：CodeBuddy 登记匹配分析 JSON Schema**
+- Schema 路径：`server/prompts/schema/match_analysis_schema.json`
+- 该 Schema 约束 MatchAnalysisAgent 的 LLM 输出
+- 当前 Schema 包含 17 个顶层 required 字段
+- 当前 Schema 禁止 additionalProperties
+- 当前 Schema 已吸收 4-1.4.2 首轮验收问题：
+  - rewrite_example 禁止编造具体数字，建议条件式表达
+  - evidence_chain 支持 missing 判断
+  - 后续 LLM_MAX_OUTPUT_TOKENS 建议 ≥8192
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 
 ## 关联文档

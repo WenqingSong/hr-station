@@ -1,6 +1,6 @@
 # 岗位匹配Agent
 
-> 最后更新：2026-05-29（阶段 4-1.4.1B 登记匹配分析 Agent 指令模板）
+> 最后更新：2026-05-29（阶段 4-1.4.3B 登记匹配分析 JSON Schema）
 
 ## 1. 当前实现状态
 
@@ -133,9 +133,15 @@
   - 发现问题：rewrite_example 中少量具体数字超出简历事实，证据链缺少 missing 判断
   - 问题不阻塞进入 4-1.4.3A JSON Schema 定稿
   - 验收报告见 `docs/05-Agent设计/匹配分析Prompt首轮输出验收报告.md`
-- 后续 4-1.4.3A 将人工定稿匹配分析 JSON Schema
-- 当前仍使用 Mock Agent
-- 后续 4-2 将实现 LLM Client 接入
+- **4-1.4.3A/B 已完成：匹配分析 JSON Schema 定稿与登记**
+  - Schema 路径：`server/prompts/schema/match_analysis_schema.json`
+  - 当前匹配分析 Agent 后续将使用：
+    - Prompt Template：`server/prompts/match_analysis_v1.md`
+    - Output Schema：`server/prompts/schema/match_analysis_schema.json`
+  - 当前 Prompt 和 Schema 均已登记
+  - 当前仍使用 Mock Agent
+  - 当前仍未接入 LLM Client
+  - 后续推荐 Prompt 将继续采用人工定稿 + CodeBuddy 登记模式
 
 ## 12. 后续真实 Agent 设计方向
 

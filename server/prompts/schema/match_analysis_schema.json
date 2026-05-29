@@ -1,0 +1,540 @@
+{
+"$schema": "https://json-schema.org/draft/2020-12/schema",
+"$id": "server/prompts/schema/match_analysis_schema.json",
+"title": "Match Analysis Agent Output Schema",
+"description": "Schema for MatchAnalysisAgent LLM output. The output must be a strict JSON object used to analyze the match between a student resume and a target job JD. It supports HR screening perspective, technical interviewer perspective, evidence chain, resume optimization priorities, interview question prediction, authenticity notice, and OfferGo user-facing summary.",
+"type": "object",
+"additionalProperties": false,
+"required": [
+"match_score",
+"match_level",
+"match_label",
+"screening_result",
+"offer_go_summary",
+"jd_key_requirements",
+"resume_evidence_summary",
+"evidence_chain",
+"matched_points",
+"gap_points",
+"risk_points",
+"resume_optimization",
+"interview_questions",
+"authenticity_notice",
+"next_actions",
+"analysis_basis",
+"generated_by"
+],
+"properties": {
+"match_score": {
+"type": "integer",
+"minimum": 0,
+"maximum": 100,
+"description": "A conservative auxiliary score from 0 to 100. The score is for sorting and reference only; it must not be treated as the main user-facing conclusion. Scores above 90 should be rare and only used when resume evidence strongly supports the job's core requirements."
+},
+"match_level": {
+"type": "string",
+"enum": [
+"strong_match",
+"potential_match",
+"explore_first",
+"not_recommended"
+],
+"description": "Structured match level. It must be consistent with match_label and match_score."
+},
+"match_label": {
+"type": "string",
+"enum": [
+"优先投递",
+"建议尝试",
+"先了解再决定",
+"暂不建议"
+],
+"description": "User-facing match label. This is more important than the score for user understanding."
+},
+"screening_result": {
+"type": "string",
+"enum": [
+"likely",
+"uncertain",
+"unlikely"
+],
+"description": "Estimated resume screening result. Do not promise that the user will pass screening."
+},
+"offer_go_summary": {
+"type": "string",
+"minLength": 20,
+"maxLength": 260,
+"description": "A concise user-facing summary in OfferGo tone. It should be friendly but not childish, professional but not cold. It should give a conclusion, explain why, and suggest next steps. It must not include absolute promises such as '一定通过初筛' or exaggerated praise."
+},
+"jd_key_requirements": {
+"type": "array",
+"minItems": 3,
+"maxItems": 6,
+"description": "Key requirements extracted from the job description and requirements.",
+"items": {
+"$ref": "#/$defs/jd_key_requirement"
+}
+},
+"resume_evidence_summary": {
+"type": "array",
+"minItems": 2,
+"maxItems": 5,
+"description": "Summary of resume evidence that supports the match. Do not invent evidence.",
+"items": {
+"$ref": "#/$defs/resume_evidence"
+}
+},
+"evidence_chain": {
+"type": "array",
+"minItems": 3,
+"maxItems": 6,
+"description": "Evidence chain connecting job requirements with resume evidence. It must include matched, partial, or missing judgments where appropriate. If resume evidence is absent, use '简历中暂未看到直接证据' and judgement='missing'.",
+"items": {
+"$ref": "#/$defs/evidence_chain_item"
+}
+},
+"matched_points": {
+"type": "array",
+"minItems": 2,
+"maxItems": 5,
+"description": "Matched strengths based on actual resume evidence.",
+"items": {
+"$ref": "#/$defs/matched_point"
+}
+},
+"gap_points": {
+"type": "array",
+"minItems": 2,
+"maxItems": 5,
+"description": "Gaps between the job requirements and the resume. Each gap must be related to the JD.",
+"items": {
+"$ref": "#/$defs/gap_point"
+}
+},
+"risk_points": {
+"type": "array",
+"minItems": 2,
+"maxItems": 5,
+"description": "Risks that may affect resume screening or technical interview performance.",
+"items": {
+"$ref": "#/$defs/risk_point"
+}
+},
+"resume_optimization": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"p0",
+"p1",
+"p2"
+],
+"description": "Resume optimization suggestions grouped by priority. P0 means critical for screening, P1 means important for competitiveness, P2 means optional improvement.",
+"properties": {
+"p0": {
+"type": "array",
+"minItems": 1,
+"maxItems": 3,
+"items": {
+"$ref": "#/$defs/resume_optimization_item"
+}
+},
+"p1": {
+"type": "array",
+"minItems": 1,
+"maxItems": 3,
+"items": {
+"$ref": "#/$defs/resume_optimization_item"
+}
+},
+"p2": {
+"type": "array",
+"minItems": 0,
+"maxItems": 3,
+"items": {
+"$ref": "#/$defs/resume_optimization_item"
+}
+}
+}
+},
+"interview_questions": {
+"type": "array",
+"minItems": 3,
+"maxItems": 6,
+"description": "Predicted interview questions based on job requirements, resume projects, and potential risks.",
+"items": {
+"$ref": "#/$defs/interview_question"
+}
+},
+"authenticity_notice": {
+"type": "string",
+"minLength": 20,
+"maxLength": 320,
+"description": "A professional authenticity reminder. It must remind the user not to fabricate experiences, project metrics, responsibilities, or results. It should encourage strengthening truthful project expression and gaining real practice."
+},
+"next_actions": {
+"type": "array",
+"minItems": 3,
+"maxItems": 5,
+"description": "Concrete next actions before applying to the job.",
+"items": {
+"$ref": "#/$defs/next_action"
+}
+},
+"analysis_basis": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"job_description_used",
+"job_requirements_used",
+"resume_used",
+"data_quality"
+],
+"properties": {
+"job_description_used": {
+"type": "boolean",
+"description": "Whether job description was used in the analysis."
+},
+"job_requirements_used": {
+"type": "boolean",
+"description": "Whether job requirements were used in the analysis."
+},
+"resume_used": {
+"type": "boolean",
+"description": "Whether resume information was used in the analysis."
+},
+"data_quality": {
+"type": "string",
+"enum": [
+"full_jd",
+"summary_only",
+"manual_enriched",
+"unknown"
+],
+"description": "Data quality of the job information used in analysis."
+}
+}
+},
+"generated_by": {
+"type": "string",
+"enum": [
+"llm_agent"
+],
+"description": "For normal LLM output, this must be llm_agent. Fallback labels such as mock_agent or llm_agent_fallback are assigned by backend fallback logic, not by this LLM output schema."
+}
+},
+"$defs": {
+"jd_key_requirement": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"requirement",
+"importance",
+"source",
+"reason"
+],
+"properties": {
+"requirement": {
+"type": "string",
+"minLength": 4,
+"maxLength": 180,
+"description": "A job requirement from the JD, either quoted briefly or accurately summarized."
+},
+"importance": {
+"type": "string",
+"enum": [
+"core",
+"important",
+"optional"
+],
+"description": "Importance of this requirement for screening."
+},
+"source": {
+"type": "string",
+"enum": [
+"description",
+"requirements"
+],
+"description": "Whether the requirement comes from job description or job requirements."
+},
+"reason": {
+"type": "string",
+"minLength": 8,
+"maxLength": 220,
+"description": "Why this requirement matters for the target job."
+}
+}
+},
+"resume_evidence": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"evidence",
+"related_requirement",
+"strength_level"
+],
+"properties": {
+"evidence": {
+"type": "string",
+"minLength": 4,
+"maxLength": 260,
+"description": "Evidence from the resume. It must be based on actual input resume content."
+},
+"related_requirement": {
+"type": "string",
+"minLength": 4,
+"maxLength": 180,
+"description": "The related job requirement."
+},
+"strength_level": {
+"type": "string",
+"enum": [
+"strong",
+"medium",
+"weak"
+],
+"description": "Strength of this evidence for the related requirement."
+}
+}
+},
+"evidence_chain_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"jd_requirement",
+"resume_evidence",
+"judgement",
+"explanation"
+],
+"properties": {
+"jd_requirement": {
+"type": "string",
+"minLength": 4,
+"maxLength": 180,
+"description": "The job requirement being evaluated."
+},
+"resume_evidence": {
+"type": "string",
+"minLength": 4,
+"maxLength": 260,
+"description": "The corresponding resume evidence. If there is no direct evidence, use '简历中暂未看到直接证据'."
+},
+"judgement": {
+"type": "string",
+"enum": [
+"matched",
+"partial",
+"missing"
+],
+"description": "matched means direct evidence exists, partial means indirect or incomplete evidence exists, missing means no direct resume evidence exists."
+},
+"explanation": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Explain why the judgement is matched, partial, or missing. Do not invent resume evidence."
+}
+}
+},
+"matched_point": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"point",
+"why_it_matters",
+"evidence"
+],
+"properties": {
+"point": {
+"type": "string",
+"minLength": 4,
+"maxLength": 160,
+"description": "A matched strength relevant to this job."
+},
+"why_it_matters": {
+"type": "string",
+"minLength": 8,
+"maxLength": 240,
+"description": "Why this point matters for the target job."
+},
+"evidence": {
+"type": "string",
+"minLength": 4,
+"maxLength": 240,
+"description": "Resume evidence supporting this matched point."
+}
+}
+},
+"gap_point": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"gap",
+"impact",
+"how_to_improve"
+],
+"properties": {
+"gap": {
+"type": "string",
+"minLength": 4,
+"maxLength": 180,
+"description": "A specific gap between the resume and the job requirement."
+},
+"impact": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "How this gap may affect resume screening or interview evaluation."
+},
+"how_to_improve": {
+"type": "string",
+"minLength": 8,
+"maxLength": 300,
+"description": "Concrete improvement direction. It must not tell the user to fabricate experience."
+}
+}
+},
+"risk_point": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"risk",
+"severity",
+"reason",
+"mitigation"
+],
+"properties": {
+"risk": {
+"type": "string",
+"minLength": 4,
+"maxLength": 180,
+"description": "A screening or interview risk."
+},
+"severity": {
+"type": "string",
+"enum": [
+"high",
+"medium",
+"low"
+],
+"description": "Severity of the risk."
+},
+"reason": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Why this risk exists."
+},
+"mitigation": {
+"type": "string",
+"minLength": 8,
+"maxLength": 300,
+"description": "How to reduce this risk using truthful resume improvements or real preparation."
+}
+}
+},
+"resume_optimization_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"problem",
+"why_it_matters",
+"rewrite_example",
+"action"
+],
+"properties": {
+"problem": {
+"type": "string",
+"minLength": 4,
+"maxLength": 220,
+"description": "The resume expression problem or missing evidence."
+},
+"why_it_matters": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Why this issue affects screening or job matching."
+},
+"rewrite_example": {
+"type": "string",
+"minLength": 8,
+"maxLength": 420,
+"description": "A possible rewrite direction based on truthful experience. It must not directly invent specific numbers, metrics, system scale, responsibilities, or achievements that are absent from the input. If metrics are needed but not present, use conditional wording such as '如果该项目确实有相关数据，可以补充……'."
+},
+"action": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Concrete next action the user can take."
+}
+}
+},
+"interview_question": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"question",
+"why_ask",
+"how_to_prepare",
+"related_jd_requirement"
+],
+"properties": {
+"question": {
+"type": "string",
+"minLength": 4,
+"maxLength": 180,
+"description": "A likely interview question based on JD, resume, or risk points."
+},
+"why_ask": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Why the interviewer may ask this question."
+},
+"how_to_prepare": {
+"type": "string",
+"minLength": 8,
+"maxLength": 300,
+"description": "Concrete preparation direction."
+},
+"related_jd_requirement": {
+"type": "string",
+"minLength": 4,
+"maxLength": 180,
+"description": "The related job requirement."
+}
+}
+},
+"next_action": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"action",
+"priority",
+"expected_effect"
+],
+"properties": {
+"action": {
+"type": "string",
+"minLength": 4,
+"maxLength": 220,
+"description": "A concrete next action before applying."
+},
+"priority": {
+"type": "string",
+"enum": [
+"p0",
+"p1",
+"p2"
+],
+"description": "Priority of the action."
+},
+"expected_effect": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Expected effect of this action on screening or interview preparation."
+}
+}
+}
+}
+}

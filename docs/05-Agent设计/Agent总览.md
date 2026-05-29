@@ -1,6 +1,6 @@
 # Agent 总览
 
-> 最后更新：2026-05-29（阶段 4-1.4.2 匹配分析 Prompt 首轮输出验收）
+> 最后更新：2026-05-29（阶段 4-1.4.3B 登记匹配分析 JSON Schema）
 
 ## 当前状态
 
@@ -121,11 +121,19 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 - 失败兜底策略已设计：LLM 失败回退 Mock Agent，generated_by 区分来源
 - 不接 Hunyuan / LLM Client（4-2 才实现）
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
-- 下一步为 4-1.4.3A 人工定稿匹配分析 JSON Schema
 - **4-1.4.2 已完成：匹配分析 Prompt 首轮输出验收（partial_pass）**
   - 模型输出 JSON 合法，17 个顶层字段完整，枚举值全部合法
   - 发现问题：rewrite_example 中少量具体数字超出简历事实，证据链缺少 missing 判断
   - 问题不阻塞进入 4-1.4.3A JSON Schema 定稿
+- **4-1.4.3A/B 已完成：匹配分析 JSON Schema 定稿与登记**
+  - 匹配分析 Agent 当前已有第一个完整 Prompt + Schema 资产组合：
+    - `match_analysis_v1.md`
+    - `match_analysis_schema.json`
+  - Schema 已吸收 4-1.4.2 首轮验收问题
+  - 当前仍未接 Hunyuan
+  - 当前仍未实现 LLM Client
+  - 当前仍未替换 Mock Agent
+  - 下一步为 4-1.4.4A 人工定稿岗位推荐 Agent 指令模板
 
 ## 关联文档
 

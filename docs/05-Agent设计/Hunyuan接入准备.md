@@ -131,6 +131,14 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 - 不记录完整模型原始输出
 - 验收报告见 `docs/05-Agent设计/匹配分析Prompt首轮输出验收报告.md`
 
+### 4-1.4.3B Schema 登记记录
+
+- 匹配分析 JSON Schema 已登记：`server/prompts/schema/match_analysis_schema.json`
+- Schema 验证结果：JSON 合法，17 个顶层 required 字段完整，9 个 $defs 子结构完整
+- Schema 已吸收 4-1.4.2 首轮验收问题（rewrite_example 禁止编造数字、evidence_chain 支持 missing）
+- 当前 4-1.4.3B 只登记 Schema，不再次调用 Hunyuan
+- 后续 Hunyuan 调用建议 LLM_MAX_OUTPUT_TOKENS ≥8192
+
 ## 关联文档
 
 - [阶段4Agent与模型接入方案.md](./阶段4Agent与模型接入方案.md)
