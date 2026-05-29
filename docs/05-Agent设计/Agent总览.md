@@ -157,7 +157,16 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
     - 当前仍未接 Hunyuan
     - 当前仍未实现 LLM Client
     - 当前仍未替换 Mock Agent
-  - 下一步为 4-1.4.7A 人工定稿简历优化 Agent 指令模板
+  - **4-1.4.7A/B 已完成：简历优化 Agent 指令模板定稿与登记**
+    - 第三个正式 Agent Prompt Template 已登记：`server/prompts/resume_optimization_v1.md`
+    - 当前已有：
+      - 匹配分析 Prompt + Schema（match_analysis_v1.md + match_analysis_schema.json）
+      - 岗位推荐 Prompt + Schema（recommendation_v1.md + recommendation_schema.json）
+      - 简历优化 Prompt（resume_optimization_v1.md）
+    - 当前仍未接 Hunyuan
+    - 当前仍未实现 LLM Client
+    - 当前仍未替换 Mock Agent
+  - 下一步为 4-1.4.8 简历优化 Prompt 首轮输出验收
 
 ## 关联文档
 

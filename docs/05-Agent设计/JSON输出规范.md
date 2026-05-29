@@ -257,6 +257,10 @@ LLM 输出文本
   - rewrite_example 禁止编造具体数字，建议条件式表达
   - evidence_chain 支持 missing 判断
   - 后续 LLM_MAX_OUTPUT_TOKENS 建议 ≥8192
+- **4-1.4.7A/B 已完成：简历优化 Agent 指令模板定稿与登记**
+  - resume_optimization_v1.md 已包含简历优化输出结构草案
+  - 正式简历优化 JSON Schema 将在 4-1.4.9A/B 固定
+  - 当前 4-1.4.7B 只登记 Prompt 中的输出结构，不创建简历优化 schema 文件
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 - **4-1.4.4A/B 已完成：岗位推荐 Agent 指令模板定稿与登记**
   - recommendation_v1.md 已包含推荐输出结构草案
