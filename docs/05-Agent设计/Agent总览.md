@@ -111,10 +111,13 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 - 4-1.3.1 已完成：jobs 表已扩展，数据库层已为腾讯岗位适配准备字段
 - 4-1.3.6 已完成：推荐/匹配接口已适配腾讯完整 JD
 - 推荐候选池已纳入 tencent_join 岗位，匹配分析已使用 description/requirements
+- 4-1.3.7 已完成：阶段 4-1.3 汇总，腾讯岗位后端适配闭环已形成
 - 不接 Hunyuan / LLM Client
 - 不实现 LLM Client 抽象
 - 不写 Prompt 模板最终版
 - 适配方案见 `docs/02-后端设计/阶段4-1.3腾讯招聘信息适配方案.md`
+- 阶段汇总见 `docs/00-项目总览/阶段4-1.3腾讯招聘信息适配汇总.md`
+- 下一步进入 4-1.4 Prompt / Agent 真实接入方案
 
 ## 关联文档
 
