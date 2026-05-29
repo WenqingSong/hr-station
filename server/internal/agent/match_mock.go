@@ -28,6 +28,12 @@ func (a *MatchMockAgent) Analyze(resume *model.ResumeVersion, job *model.Job) (*
 	nextSteps := generateNextSteps(suggestions)
 	notice := "以下建议仅用于表达优化，请只补充真实经历，不要虚构项目或能力。"
 
+	// For summary_only jobs, add degradation notice
+	if job.DataQuality == "summary_only" {
+		notice = "当前岗位详情信息不足（data_quality=summary_only），匹配分析结果可能不够完整。建议查看岗位完整 JD 后再进行深度分析。" + notice
+		risks = append([]string{"岗位详情信息不足，匹配分析可能不够准确"}, risks...)
+	}
+
 	return &model.MatchAnalysisResult{
 		JobID:                   job.ID,
 		JobTitle:                job.Title,
@@ -41,6 +47,11 @@ func (a *MatchMockAgent) Analyze(resume *model.ResumeVersion, job *model.Job) (*
 		OptimizationSuggestions: suggestions,
 		NextSteps:               nextSteps,
 		AuthenticityNotice:      notice,
+		ExternalSource:          job.ExternalSource,
+		ExternalID:              job.ExternalID,
+		DataQuality:             job.DataQuality,
+		SourceURL:               job.SourceURL,
+		IsFeatured:              job.IsFeatured,
 	}, nil
 }
 
@@ -55,7 +66,7 @@ func calculateMatchScore(resume *model.ResumeVersion, job *model.Job) int {
 	jobTitle := strings.ToLower(job.Title)
 
 	// City match (+15)
-	if targetCity != "" && jobCity == targetCity {
+	if targetCity != "" && strings.Contains(jobCity, targetCity) {
 		score += 15
 	}
 
@@ -76,6 +87,12 @@ func calculateMatchScore(resume *model.ResumeVersion, job *model.Job) int {
 	// Skill overlap (+5 per matched skill, max 35)
 	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
 	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+
+	// If skill_keywords is empty, extract from description/requirements
+	if len(jobSkills) == 0 && (job.Description != "" || job.Requirements != "") {
+		jobSkills = extractKeywordsFromJD(job.Description, job.Requirements)
+	}
+
 	resumeSkillSet := toLowerSet(resumeSkills)
 	jobSkillSet := toLowerSet(jobSkills)
 	overlap := 0
@@ -116,9 +133,22 @@ func calculateMatchScore(resume *model.ResumeVersion, job *model.Job) int {
 		}
 	}
 
+	// data_quality=full_jd bonus (+5)
+	if job.DataQuality == "full_jd" {
+		score += 5
+	}
+
+	// summary_only penalty (-10)
+	if job.DataQuality == "summary_only" {
+		score -= 10
+	}
+
 	// Cap at 100
 	if score > 100 {
 		score = 100
+	}
+	if score < 0 {
+		score = 0
 	}
 
 	return score
@@ -144,6 +174,12 @@ func generateEvidenceChain(resume *model.ResumeVersion, job *model.Job) []model.
 
 	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
 	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+
+	// If skill_keywords_json is empty, extract from description/requirements
+	if len(jobSkills) == 0 && (job.Description != "" || job.Requirements != "") {
+		jobSkills = extractKeywordsFromJD(job.Description, job.Requirements)
+	}
+
 	resumeSkillSet := toLowerSet(resumeSkills)
 
 	// Check each job skill requirement against resume
@@ -163,12 +199,42 @@ func generateEvidenceChain(resume *model.ResumeVersion, job *model.Job) []model.
 		}
 	}
 
+	// If no skills were extracted, generate evidence from description/requirements directly
+	if len(chain) == 0 && job.Requirements != "" {
+		// Check for key concepts in requirements text
+		reqLower := strings.ToLower(job.Requirements)
+		keyConcepts := []string{"本科", "硕士", "计算机", "编程", "开发", "算法", "数据结构", "沟通", "团队"}
+		for _, concept := range keyConcepts {
+			if strings.Contains(reqLower, concept) {
+				judgement := "missing"
+				resumePoint := "简历中未体现相关内容"
+				if concept == "计算机" || concept == "编程" || concept == "开发" {
+					if resume.TargetRole != "" {
+						judgement = "partial_match"
+						resumePoint = fmt.Sprintf("目标岗位为%s，可能与要求相关", resume.TargetRole)
+					}
+				}
+				if concept == "沟通" || concept == "团队" {
+					if len(resume.ExperienceJSON) > 0 {
+						judgement = "partial_match"
+						resumePoint = "简历中包含实习或项目经历，可能涉及团队协作"
+					}
+				}
+				chain = append(chain, model.MatchEvidence{
+					Requirement: fmt.Sprintf("岗位要求具备%s能力", concept),
+					ResumePoint: resumePoint,
+					Judgement:   judgement,
+				})
+			}
+		}
+	}
+
 	// Check city match
 	targetCity := strings.TrimSpace(resume.TargetCity)
 	if targetCity != "" {
 		judgement := "missing"
 		resumePoint := "简历中未体现该城市的工作经历"
-		if job.City == targetCity {
+		if strings.Contains(strings.ToLower(job.City), strings.ToLower(targetCity)) {
 			judgement = "strong_match"
 			resumePoint = fmt.Sprintf("目标城市为%s，与岗位所在城市一致", targetCity)
 		}
@@ -208,6 +274,28 @@ func generateEvidenceChain(resume *model.ResumeVersion, job *model.Job) []model.
 	}
 
 	return chain
+}
+
+// extractKeywordsFromJD extracts common tech keywords from job description and requirements text.
+func extractKeywordsFromJD(description, requirements string) []string {
+	commonKeywords := []string{
+		"go", "python", "java", "c++", "javascript", "typescript",
+		"mysql", "redis", "mongodb", "postgresql", "elasticsearch",
+		"docker", "kubernetes", "微服务", "分布式", "高并发", "高可用",
+		"linux", "git", "grpc", "restful", "api",
+		"算法", "数据结构", "机器学习", "深度学习",
+		"hadoop", "spark", "flink", "kafka",
+		"云计算", "网络", "安全", "数据库", "缓存", "消息队列",
+	}
+
+	text := strings.ToLower(description + " " + requirements)
+	var found []string
+	for _, kw := range commonKeywords {
+		if strings.Contains(text, kw) {
+			found = append(found, kw)
+		}
+	}
+	return found
 }
 
 // getResumeEvidenceForSkill returns evidence from the resume for a specific skill.
@@ -380,6 +468,12 @@ func generateOptimizationSuggestions(resume *model.ResumeVersion, job *model.Job
 
 	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
 	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+
+	// If skill_keywords is empty, extract from description/requirements
+	if len(jobSkills) == 0 && (job.Description != "" || job.Requirements != "") {
+		jobSkills = extractKeywordsFromJD(job.Description, job.Requirements)
+	}
+
 	resumeSkillSet := toLowerSet(resumeSkills)
 
 	// P0: Missing critical skills

@@ -43,4 +43,16 @@ type MatchAnalysisResult struct {
 	OptimizationSuggestions []MatchSuggestion `json:"optimization_suggestions"`
 	NextSteps               []string          `json:"next_steps"`
 	AuthenticityNotice      string            `json:"authenticity_notice"`
+	ExternalSource          string            `json:"external_source"`
+	ExternalID              *string           `json:"external_id,omitempty"`
+	DataQuality             string            `json:"data_quality"`
+	SourceURL               *string           `json:"source_url,omitempty"`
+	IsFeatured              bool              `json:"is_featured"`
+}
+
+// AnalysisBasis describes what data was used to generate the match analysis.
+type AnalysisBasis struct {
+	JobDescriptionUsed  bool   `json:"job_description_used"`
+	JobRequirementsUsed bool   `json:"job_requirements_used"`
+	DataQuality         string `json:"data_quality"`
 }

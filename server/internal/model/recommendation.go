@@ -26,4 +26,9 @@ type RecommendedJob struct {
 	MatchHighlights      []string `json:"match_highlights"`
 	RiskPoints           []string `json:"risk_points"`
 	SuggestedAction      string   `json:"suggested_action"`
+	ExternalSource       string   `json:"external_source"`
+	ExternalID           *string  `json:"external_id,omitempty"`
+	DataQuality          string   `json:"data_quality"`
+	SourceURL            *string  `json:"source_url,omitempty"`
+	IsFeatured           bool     `json:"is_featured"`
 }

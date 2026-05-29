@@ -1,6 +1,6 @@
 # 岗位推荐 Agent
 
-> 最后更新：2026-05-29（阶段 4-1.3.0 腾讯招聘信息适配方案）
+> 最后更新：2026-05-29（阶段 4-1.3.6 推荐/匹配接口适配腾讯完整 JD）
 
 ## 1. 当前实现状态
 
@@ -102,13 +102,16 @@
 
 ## 7. 4-1.3 适配方向
 
-4-1.3 只让推荐 Mock Agent 使用更真实的岗位数据，不接 Hunyuan：
+4-1.3.6 已完成，推荐候选池已纳入 tencent_join 岗位：
 
 1. 推荐候选池从 8 条种子岗位扩展到 8+186 条（含腾讯岗位）
-2. data_quality=full_jd 的岗位优先参与推荐
-3. summary_only 岗位降权或仅做轻量推荐
+2. data_quality=full_jd 的岗位优先参与推荐，基于 data_quality 评分
+3. summary_only 岗位降权（-10）
 4. 推荐服务仍只读取本地 jobs 表
-5. 适配方案见 `docs/02-后端设计/阶段4-1.3腾讯招聘信息适配方案.md`
+5. JD keyword matching 已适配 description/requirements
+6. 推荐结果新增 external_source / external_id / data_quality / source_url 响应字段
+7. generated_by 仍为 mock_agent
+8. 适配方案见 `docs/02-后端设计/阶段4-1.3腾讯招聘信息适配方案.md`
 
 ## 8. 后续真实 Agent 设计方向
 

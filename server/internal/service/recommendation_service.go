@@ -83,8 +83,8 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 		}
 	}
 
-	// Get all jobs as candidates
-	jobs, _, err := s.jobRepo.List(ctx, repository.JobQuery{Limit: 50, Offset: 0})
+	// Get all jobs as candidates (local_mock + tencent_join, prioritizing full_jd and featured)
+	jobs, err := s.jobRepo.ListRecommendCandidates(ctx, 50)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list jobs: %w", err)
 	}
@@ -151,10 +151,14 @@ func generateSummary(resume *model.ResumeVersion, jobs []*model.RecommendedJob) 
 
 	var categories []string
 	seen := make(map[string]bool)
+	hasTencent := false
 	for _, j := range jobs {
 		if !seen[j.Category] {
 			categories = append(categories, j.Category)
 			seen[j.Category] = true
+		}
+		if j.ExternalSource == "tencent_join" {
+			hasTencent = true
 		}
 	}
 
@@ -165,7 +169,12 @@ func generateSummary(resume *model.ResumeVersion, jobs []*model.RecommendedJob) 
 		targetDesc = "基于当前简历版本，"
 	}
 
-	return fmt.Sprintf("%s系统优先推荐%s方向岗位。", targetDesc, stringsJoin(categories, "、"))
+	sourceDesc := "系统优先推荐%s方向岗位。"
+	if hasTencent {
+		sourceDesc = "系统从本地岗位库与腾讯招聘公开岗位中优先推荐%s方向岗位。"
+	}
+
+	return fmt.Sprintf(targetDesc+sourceDesc, stringsJoin(categories, "、"))
 }
 
 func stringsJoin(ss []string, sep string) string {

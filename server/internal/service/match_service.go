@@ -19,10 +19,11 @@ type MatchRequest struct {
 
 // MatchResponse represents the response for job match analysis.
 type MatchResponse struct {
-	AnalysisID  uint64                     `json:"analysis_id"`
-	GeneratedBy string                     `json:"generated_by"`
-	Result      *model.MatchAnalysisResult `json:"result"`
-	CreatedAt   string                     `json:"created_at"`
+	AnalysisID    uint64                     `json:"analysis_id"`
+	GeneratedBy   string                     `json:"generated_by"`
+	Result        *model.MatchAnalysisResult `json:"result"`
+	AnalysisBasis *model.AnalysisBasis       `json:"analysis_basis"`
+	CreatedAt     string                     `json:"created_at"`
 }
 
 // MatchService handles job match analysis business logic.
@@ -91,7 +92,12 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 	resp := &MatchResponse{
 		GeneratedBy: "mock_agent",
 		Result:      result,
-		CreatedAt:   now.Format("2006-01-02T15:04:05Z07:00"),
+		AnalysisBasis: &model.AnalysisBasis{
+			JobDescriptionUsed:  job.Description != "",
+			JobRequirementsUsed: job.Requirements != "",
+			DataQuality:         job.DataQuality,
+		},
+		CreatedAt: now.Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	// Save match analysis snapshot

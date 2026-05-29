@@ -1,6 +1,6 @@
 # Agent 总览
 
-> 最后更新：2026-05-29（阶段 4-1.3.1 扩展 jobs 表与 init.sql）
+> 最后更新：2026-05-29（阶段 4-1.3.6 推荐/匹配接口适配腾讯完整 JD）
 
 ## 当前状态
 
@@ -109,6 +109,8 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 - 推荐候选池纳入腾讯岗位（full_jd 优先）
 - 匹配分析使用腾讯岗位完整 JD，支持深度证据链
 - 4-1.3.1 已完成：jobs 表已扩展，数据库层已为腾讯岗位适配准备字段
+- 4-1.3.6 已完成：推荐/匹配接口已适配腾讯完整 JD
+- 推荐候选池已纳入 tencent_join 岗位，匹配分析已使用 description/requirements
 - 不接 Hunyuan / LLM Client
 - 不实现 LLM Client 抽象
 - 不写 Prompt 模板最终版

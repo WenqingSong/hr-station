@@ -1,6 +1,6 @@
 # 岗位匹配Agent
 
-> 最后更新：2026-05-29（阶段 4-1.3.0 腾讯招聘信息适配方案）
+> 最后更新：2026-05-29（阶段 4-1.3.6 推荐/匹配接口适配腾讯完整 JD）
 
 ## 1. 当前实现状态
 
@@ -112,13 +112,14 @@
 
 ## 10. 4-1.3 适配方向
 
-4-1.3 只让匹配 Mock Agent 使用更真实的岗位数据，不接 Hunyuan：
+4-1.3.6 已完成，匹配分析已使用腾讯岗位 description/requirements：
 
-1. 匹配分析可使用腾讯岗位完整 JD（description / requirements）
-2. data_quality=full_jd 的岗位支持深度证据链
-3. summary_only 岗位返回轻量分析或提示信息不足
+1. 匹配分析已使用腾讯岗位完整 JD（description / requirements）
+2. data_quality=full_jd 的岗位支持深度证据链，匹配结果包含 analysis_basis
+3. summary_only 岗位返回降级提示，建议补充完整 JD 后再分析
 4. 匹配服务仍只读取本地 jobs 表
 5. 适配方案见 `docs/02-后端设计/阶段4-1.3腾讯招聘信息适配方案.md`
+6. generated_by 仍为 mock_agent
 
 ## 11. 后续真实 Agent 设计方向
 

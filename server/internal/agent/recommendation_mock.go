@@ -37,31 +37,31 @@ func (a *RecommendationMockAgent) Recommend(resume *model.ResumeVersion, jobs []
 	targetRole := strings.ToLower(strings.TrimSpace(resume.TargetRole))
 
 	for _, job := range jobs {
-		score := 0
+		score := 60 // base score
 
-		// City match (+25)
-		if targetCity != "" && strings.ToLower(job.City) == targetCity {
-			score += 25
+		// City match (+5)
+		if targetCity != "" && strings.Contains(strings.ToLower(job.City), targetCity) {
+			score += 5
 		}
 
-		// Category/role match (+30)
+		// Category/role match (+5~+10)
 		jobCategoryLower := strings.ToLower(job.Category)
 		jobTitleLower := strings.ToLower(job.Title)
 		if targetRole != "" {
 			if containsAny(targetRole, jobCategoryLower, jobTitleLower) {
-				score += 30
+				score += 10
 			}
 			// Check if target role keywords appear in category or title
 			roleKeywords := strings.Fields(targetRole)
 			for _, kw := range roleKeywords {
 				if len(kw) >= 2 && (strings.Contains(jobCategoryLower, kw) || strings.Contains(jobTitleLower, kw)) {
-					score += 10
+					score += 5
 					break
 				}
 			}
 		}
 
-		// Skill overlap (+5 per matched skill, max 30)
+		// Skill overlap from skill_keywords_json (+5 per matched skill, max 20)
 		jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
 		jobSkillSet := toLowerSet(jobSkills)
 		overlap := 0
@@ -71,16 +71,43 @@ func (a *RecommendationMockAgent) Recommend(resume *model.ResumeVersion, jobs []
 			}
 		}
 		score += overlap * 5
-		if overlap > 6 {
+		if overlap > 4 {
 			score += 5 // bonus for high overlap
 		}
 
-		// Key technology bonus: Go, MySQL, Redis, Docker, Kubernetes, 云计算, 分布式
-		keywords := []string{"go", "mysql", "redis", "docker", "kubernetes", "云", "分布式", "微服务", "grpc", "etcd"}
-		for _, kw := range keywords {
-			if resumeSkillSet[kw] && jobSkillSet[kw] {
-				score += 3
+		// JD keyword matching from description/requirements (+5 per match, max 20)
+		if job.Description != "" || job.Requirements != "" {
+			jobText := strings.ToLower(job.Description + " " + job.Requirements)
+			descMatches := 0
+			for skill := range resumeSkillSet {
+				if !jobSkillSet[skill] && strings.Contains(jobText, skill) {
+					descMatches++
+				}
 			}
+			score += min(20, descMatches*5)
+		}
+
+		// data_quality=full_jd bonus (+5)
+		if job.DataQuality == "full_jd" {
+			score += 5
+		}
+
+		// is_featured bonus (+5)
+		if job.IsFeatured {
+			score += 5
+		}
+
+		// summary_only penalty (-10)
+		if job.DataQuality == "summary_only" {
+			score -= 10
+		}
+
+		// Cap at 95
+		if score > 95 {
+			score = 95
+		}
+		if score < 0 {
+			score = 0
 		}
 
 		scored = append(scored, scoredJob{job: job, score: score})
@@ -119,6 +146,11 @@ func (a *RecommendationMockAgent) Recommend(resume *model.ResumeVersion, jobs []
 			MatchHighlights:      highlights,
 			RiskPoints:           risks,
 			SuggestedAction:      action,
+			ExternalSource:       sj.job.ExternalSource,
+			ExternalID:           sj.job.ExternalID,
+			DataQuality:          sj.job.DataQuality,
+			SourceURL:            sj.job.SourceURL,
+			IsFeatured:           sj.job.IsFeatured,
 		})
 	}
 
@@ -131,10 +163,10 @@ func (a *RecommendationMockAgent) Recommend(resume *model.ResumeVersion, jobs []
 }
 
 func getPriority(score int) string {
-	if score >= 50 {
+	if score >= 80 {
 		return "strong_recommend"
 	}
-	if score >= 30 {
+	if score >= 65 {
 		return "recommend"
 	}
 	return "try"
@@ -184,7 +216,7 @@ func generateReason(resume *model.ResumeVersion, job *model.Job, score int) stri
 	}
 
 	if len(parts) == 0 {
-		if score >= 30 {
+		if score >= 65 {
 			return fmt.Sprintf("你的简历与该岗位的%s方向有一定匹配度。", job.Category)
 		}
 		return fmt.Sprintf("该岗位属于%s方向，可作为求职参考。", job.Category)
