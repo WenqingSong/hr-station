@@ -204,6 +204,19 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
     - 当前仍未实现 LLM Client
     - 当前仍未替换 Mock Agent
     - 下一步为 4-1.4.12 阶段 4-1.4 总验收
+  - **4-1.4.12 已完成：阶段 4-1.4 总验收**
+    - Prompt 资产、Schema 资产、首轮输出验收、JSON Repair、fallback 策略均已通过总验收
+    - 当前已有：
+      - MatchAnalysisAgent Prompt + Schema
+      - RecommendationAgent Prompt + Schema
+      - ResumeOptimizationAgent Prompt + Schema
+      - JSONRepairAgent Prompt
+      - 失败兜底与 Mock 回退策略
+    - 验收报告见 `docs/05-Agent设计/阶段4-1.4总验收报告.md`
+    - 当前仍未接 Hunyuan
+    - 当前仍未实现 LLM Client
+    - 当前仍未替换 Mock Agent
+    - 下一步为 4-1.4.13 阶段 4-1.4 汇总
 
 ## 关联文档
 

@@ -251,6 +251,12 @@ fallback_reason：fallback 原因
 
 策略文档见 `docs/05-Agent设计/失败兜底与Mock回退策略.md`
 
+### 4-1.4.12 阶段总验收更新
+
+4-1.4 总验收已完成。后续 4-2 实现 LLM Client 时，应按 4-1.4 产出的 Prompt / Schema / fallback 策略接入。
+
+验收报告见 `docs/05-Agent设计/阶段4-1.4总验收报告.md`
+
 4-1.4 不实现 LLM Client，4-2 才实现 LLM Client 与 Hunyuan Client：
 
 - LLM Client 将依赖 4-1.4 固定的 Prompt 与 Schema

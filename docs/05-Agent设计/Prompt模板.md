@@ -86,6 +86,12 @@ Prompt 将作为独立产品资产管理：
     - repair 成功后业务 generated_by 仍保持 llm_agent
     - repair 失败后进入 Mock Agent fallback
     - 策略文档见 `docs/05-Agent设计/失败兜底与Mock回退策略.md`
+  - **4-1.4.12 已完成：阶段 4-1.4 总验收**
+    - 四个 Prompt 资产均已登记：match_analysis_v1.md、recommendation_v1.md、resume_optimization_v1.md、json_repair_v1.md
+    - 三个 Schema 资产均已登记且 JSON 合法
+    - 三个首轮输出验收均为 partial_pass，问题已被 Schema 吸收
+    - 失败兜底与 Mock 回退策略已通过验收
+    - 验收报告见 `docs/05-Agent设计/阶段4-1.4总验收报告.md`
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 

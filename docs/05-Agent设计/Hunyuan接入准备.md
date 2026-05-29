@@ -155,6 +155,16 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
 - 后续简历优化 Prompt 的模型调用也建议 max_tokens >= 8192
 
+### 4-1.4.12 阶段总验收记录
+
+- 阶段 4-1.4 总验收已完成，验收报告见 `docs/05-Agent设计/阶段4-1.4总验收报告.md`
+- 4 个 Prompt 文件全部存在且已登记
+- 3 个 Schema 文件全部存在且 JSON 合法
+- 3 个首轮输出验收均为 partial_pass，问题已被 Schema 吸收
+- 失败兜底与 Mock 回退策略已通过验收
+- 后续 Hunyuan 接入需要加载 Prompt / Schema，并接入 JSON repair once + Mock fallback 链路
+- 当前 4-1.4.12 只做总验收，不调用 Hunyuan
+
 ### 4-1.4.11 失败兜底与 Mock 回退策略记录
 
 - 失败兜底策略已设计，文档见 `docs/05-Agent设计/失败兜底与Mock回退策略.md`

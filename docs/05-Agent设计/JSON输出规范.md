@@ -314,6 +314,11 @@ LLM 输出文本
   - 不使用 llm_agent_fallback 作为 generated_by 值
   - fallback 状态由外层 agent_status / fallback_reason 表达
   - 策略文档见 `docs/05-Agent设计/失败兜底与Mock回退策略.md`
+- **4-1.4.12 已完成：阶段 4-1.4 总验收**
+  - 三个业务 Schema 均已登记且 JSON 合法：match_analysis_schema.json、recommendation_schema.json、resume_optimization_schema.json
+  - 三个首轮输出验收均为 partial_pass，问题已被 Schema 吸收
+  - 失败兜底链路已通过总验收
+  - 验收报告见 `docs/05-Agent设计/阶段4-1.4总验收报告.md`
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 - **4-1.4.4A/B 已完成：岗位推荐 Agent 指令模板定稿与登记**
   - recommendation_v1.md 已包含推荐输出结构草案
