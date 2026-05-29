@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-29（阶段 4-1.2.4 Makefile 接入岗位同步命令）
+> 最后更新：2026-05-29（阶段 4-1.3.2 腾讯岗位清洗与入库脚本）
 
 ## 1. 设计目标
 
@@ -312,3 +312,24 @@ make web-install
 4. jobs-fetch 不会自动出现在 make up 中
 5. 原始数据用于 4-1.3 适配前的本地缓存
 6. 测试时可临时覆盖：`TENCENT_JOBS_PAGE_SIZE=5 TENCENT_JOBS_MAX_PAGES=1 make jobs-fetch`
+
+### 腾讯岗位入库命令（4-1.3.3 接入）
+
+当前清洗与入库脚本已编写完成（`scripts/dev/tencent_jobs_import.sh`），但尚未接入 Makefile。
+
+4-1.3.3 将新增以下命令：
+
+| 命令 | 说明 | 是否请求外部接口 | 是否入库 |
+|------|------|-----------------|---------|
+| make jobs-import-check | 检查 raw JSON 和 MySQL | 否 | 否 |
+| make jobs-import-preview | 预览将导入的岗位 | 否 | 否 |
+| make jobs-import-sql | 生成导入 SQL | 否 | 否 |
+| make jobs-import | 执行导入 | 否 | 是 |
+| make jobs-db-status | 查看岗位统计 | 否 | 否 |
+
+当前可直接使用脚本：
+```bash
+scripts/dev/tencent_jobs_import.sh check
+scripts/dev/tencent_jobs_import.sh import
+scripts/dev/tencent_jobs_import.sh status
+```

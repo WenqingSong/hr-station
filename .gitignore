@@ -66,8 +66,10 @@ Thumbs.db
 docker-data/
 mysql-data/
 
-# Tencent recruitment raw data
+# Tencent recruitment data
 data/tencent-jobs/raw/*.json
+data/tencent-jobs/generated/*.sql
+data/tencent-jobs/generated/*.json
 
 # ============================================================
 # 保留说明
