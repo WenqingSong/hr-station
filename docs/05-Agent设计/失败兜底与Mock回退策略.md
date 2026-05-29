@@ -1,0 +1,433 @@
+# 失败兜底与 Mock 回退策略
+
+> 创建时间：2026-05-29
+> 所属阶段：4-1.4.11
+> 依据文档：阶段4-1.4方案、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、json_repair_v1.md、match_analysis_v1.md、recommendation_v1.md、resume_optimization_v1.md
+
+## 1. 设计目标
+
+目标不是让 LLM 永远成功，而是让系统在 LLM 不稳定时仍然可演示、可返回、可解释、可追踪。
+
+核心原则：
+
+1. **Demo 稳定性优先**：用户始终能拿到业务结果，不会因为模型波动导致接口崩溃或前端无结果
+2. **不返回坏 JSON**：任何不合 Schema 或非法 JSON 都不会直接返回给前端
+3. **不把底层错误暴露给用户**：用户不会看到"模型报错""JSON 解析失败""Schema 校验失败"等技术错误
+4. **不因为 Hunyuan 波动导致接口失败**：模型不可用时自动回退 Mock Agent
+5. **不让 JSON repair 变成二次业务生成**：JSONRepairAgent 只修结构，不重做业务分析
+6. **失败后可回退 Mock Agent**：Mock Agent 是最终兜底，保证接口结构稳定
+
+## 2. 适用范围
+
+本策略覆盖以下 Agent：
+
+| Agent | 用途 | Mock 兜底 |
+|-------|------|----------|
+| MatchAnalysisAgent | 岗位匹配分析 | match_mock.go |
+| RecommendationAgent | 岗位推荐 | recommendation_mock.go |
+| ResumeOptimizationAgent | 简历优化 | 需后续实现确定性 Mock |
+| JSONRepairAgent | JSON 结构修复 | 不直接面向用户，不直接作为业务结果来源 |
+
+说明：JSONRepairAgent 只服务于结构修复，不直接面向用户，不直接作为业务结果来源。
+
+## 3. 当前前提
+
+- 当前阶段仍未接 Hunyuan
+- 当前阶段仍未实现 LLM Client
+- 当前阶段仍未替换 Mock Agent
+- 当前阶段只做策略设计
+- 真实工程实现放到后续 4-2 / 4-3 阶段
+
+## 4. 总体链路
+
+推荐链路：
+
+```
+业务请求
+→ 组装业务上下文
+→ 选择业务 Prompt
+→ 选择对应 Output Schema
+→ 判断 LLM 是否启用
+  → 如果 LLM 未启用：直接 Mock Agent
+→ 调用 LLM
+→ 提取 raw output
+→ JSON parse
+  → 如果 parse 失败：调用 JSONRepairAgent 一次
+    → repair output JSON parse
+    → repair output Schema validate
+    → 如果通过：返回 repaired LLM 结果
+    → 如果仍失败：回退 Mock Agent
+→ Schema validate
+  → 如果 validate 失败：调用 JSONRepairAgent 一次
+    → repair output JSON parse
+    → repair output Schema validate
+    → 如果通过：返回 repaired LLM 结果
+    → 如果仍失败：回退 Mock Agent
+→ 如果通过：返回 LLM 结果
+→ 返回稳定结果
+```
+
+核心约束：
+
+- **JSON repair 只尝试一次**
+- **Repair 失败后不继续递归修复**
+- **不允许无限重试**
+- **LLM 调用本身不重试（JSON parse/validate 失败才进入 repair）**
+
+## 5. 失败场景分类
+
+| 错误码 | 触发条件 | 是否进入 JSON repair | 是否直接 Mock fallback | 是否记录日志 | 是否暴露给用户 |
+|--------|---------|--------------------|-----------------------|------------|---------------|
+| LLM_DISABLED | ENABLE_LLM_AGENT=false | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| LLM_CONFIG_MISSING | LLM_BASE_URL / LLM_MODEL 为空 | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| LLM_API_KEY_MISSING | LLM_API_KEY 为空 | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| LLM_TIMEOUT | 请求超过 LLM_TIMEOUT_SECONDS | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| LLM_HTTP_ERROR | HTTP 5xx / 网络错误 | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| LLM_RATE_LIMIT | HTTP 429 / 配额超限 | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| LLM_EMPTY_RESPONSE | LLM 输出为空字符串 | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| LLM_CONTEXT_TOO_LONG | prompt_tokens 超出模型上限 | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| LLM_OUTPUT_TRUNCATED | finish_reason=length，输出被截断 | ✅ 尝试 repair | 看 repair 结果 | ✅ | ❌ |
+| JSON_PARSE_FAILED | json.Unmarshal 失败 | ✅ | 看 repair 结果 | ✅ | ❌ |
+| JSON_MARKDOWN_WRAPPED | 输出被 ```json 包裹 | ✅ | 看 repair 结果 | ✅ | ❌ |
+| SCHEMA_VALIDATION_FAILED | Schema 校验失败 | ✅ | 看 repair 结果 | ✅ | ❌ |
+| SCHEMA_REQUIRED_FIELD_MISSING | 必填字段缺失 | ✅ | 看 repair 结果 | ✅ | ❌ |
+| SCHEMA_ENUM_INVALID | 枚举值不合法 | ✅ | 看 repair 结果 | ✅ | ❌ |
+| SCHEMA_TYPE_INVALID | 字段类型错误 | ✅ | 看 repair 结果 | ✅ | ❌ |
+| SCHEMA_ADDITIONAL_PROPERTY | 存在 Schema 不允许的额外字段 | ✅ | 看 repair 结果 | ✅ | ❌ |
+| JSON_REPAIR_FAILED | JSONRepairAgent 输出仍无法 parse | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| JSON_REPAIR_SCHEMA_FAILED | JSONRepairAgent 输出不符合 Schema | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+| BUSINESS_SAFETY_RISK | 输出包含虚构经历、建议造假等 | ❌ | ✅ Mock 或安全降级 | ✅ | ❌ |
+| UNKNOWN_ERROR | 未知异常 | ❌ | ✅ 直接 Mock | ✅ | ❌ |
+
+## 6. 兜底决策表
+
+| 失败阶段 | 错误码 | 触发条件 | 是否调用 JSONRepairAgent | 是否回退 Mock | 用户侧表现 | 日志记录 |
+|---------|--------|---------|------------------------|-------------|-----------|---------|
+| LLM 配置 | LLM_DISABLED | LLM 未启用 | ❌ | ✅ | 正常业务结果（Mock） | llm_enabled=false |
+| LLM 配置 | LLM_CONFIG_MISSING | 配置缺失 | ❌ | ✅ | 正常业务结果（Mock） | 缺失配置项 |
+| LLM 配置 | LLM_API_KEY_MISSING | API Key 缺失 | ❌ | ✅ | 正常业务结果（Mock） | api_key_missing=true |
+| LLM 调用 | LLM_TIMEOUT | 超时 | ❌ | ✅ | 正常业务结果（Mock） | timeout=true |
+| LLM 调用 | LLM_HTTP_ERROR | HTTP 错误 | ❌ | ✅ | 正常业务结果（Mock） | http_status=5xx |
+| LLM 调用 | LLM_RATE_LIMIT | 限流 | ❌ | ✅ | 正常业务结果（Mock） | rate_limited=true |
+| LLM 调用 | LLM_EMPTY_RESPONSE | 空响应 | ❌ | ✅ | 正常业务结果（Mock） | empty_response=true |
+| LLM 调用 | LLM_CONTEXT_TOO_LONG | 上下文过长 | ❌ | ✅ | 正常业务结果（Mock） | context_too_long=true |
+| LLM 调用 | LLM_OUTPUT_TRUNCATED | 输出截断 | ✅ | 看结果 | 正常业务结果（repair 或 Mock） | truncated=true |
+| JSON 解析 | JSON_PARSE_FAILED | 解析失败 | ✅ | 看结果 | 正常业务结果（repair 或 Mock） | parse_failed=true |
+| JSON 解析 | JSON_MARKDOWN_WRAPPED | Markdown 包裹 | ✅ | 看结果 | 正常业务结果（repair 或 Mock） | markdown_wrapped=true |
+| Schema 校验 | SCHEMA_VALIDATION_FAILED | 校验失败 | ✅ | 看结果 | 正常业务结果（repair 或 Mock） | validation_errors=... |
+| Schema 校验 | SCHEMA_REQUIRED_FIELD_MISSING | 必填字段缺失 | ✅ | 看结果 | 正常业务结果（repair 或 Mock） | missing_fields=... |
+| Schema 校验 | SCHEMA_ENUM_INVALID | 枚举不合法 | ✅ | 看结果 | 正常业务结果（repair 或 Mock） | invalid_enums=... |
+| Schema 校验 | SCHEMA_TYPE_INVALID | 类型错误 | ✅ | 看结果 | 正常业务结果（repair 或 Mock） | type_errors=... |
+| Schema 校验 | SCHEMA_ADDITIONAL_PROPERTY | 额外字段 | ✅ | 看结果 | 正常业务结果（repair 或 Mock） | additional_props=... |
+| JSON Repair | JSON_REPAIR_FAILED | repair 输出 parse 失败 | ❌ | ✅ | 正常业务结果（Mock） | repair_failed=true |
+| JSON Repair | JSON_REPAIR_SCHEMA_FAILED | repair 输出 Schema 失败 | ❌ | ✅ | 正常业务结果（Mock） | repair_schema_failed=true |
+| 业务安全 | BUSINESS_SAFETY_RISK | 虚构/造假内容 | ❌ | ✅ | 正常业务结果（Mock） | safety_risk=true |
+| 未知 | UNKNOWN_ERROR | 未知异常 | ❌ | ✅ | 正常业务结果（Mock） | unknown_error=true |
+
+核心决策总结：
+
+- **LLM 未启用 / 配置缺失 / API Key 缺失**：直接 Mock
+- **LLM timeout / HTTP error / rate limit**：直接 Mock
+- **LLM 输出为空**：直接 Mock
+- **LLM 输出被 Markdown 包裹**：先 repair
+- **JSON parse failed**：先 repair 一次
+- **Schema validation failed**：先 repair 一次
+- **Repair parse failed**：Mock
+- **Repair schema failed**：Mock
+- **业务安全风险**：Mock 或安全降级
+- **未知异常**：Mock
+
+## 7. JSON Repair 策略
+
+### 7.1 定位
+
+JSONRepairAgent 只修复结构，不重新做业务分析。
+
+### 7.2 核心规则
+
+- JSONRepairAgent 不改变业务结果来源
+- JSONRepairAgent 只执行一次
+- JSONRepairAgent 输入包括：
+  - `TARGET_OUTPUT_TYPE`：match_analysis / recommendation / resume_optimization
+  - `TARGET_SCHEMA_JSON`：对应业务 Schema
+  - `BROKEN_MODEL_OUTPUT`：原始异常输出
+  - `VALIDATION_ERRORS`：解析/校验错误信息
+  - `REPAIR_CONTEXT`：可选上下文（resume_id、job_id 等）
+- JSONRepairAgent 输出仍必须符合对应业务 Schema
+
+### 7.3 repair 成功
+
+如果 repair 成功：
+
+- 业务结果 `generated_by` 仍为 `llm_agent`
+- 系统日志记录 `repair_applied=true`
+- 可在内部 meta 中记录 `repaired=true`
+- 不改变业务结果的来源标记
+
+### 7.4 repair 失败
+
+如果 repair 失败：
+
+- 不再继续 repair
+- 不允许递归修复
+- 进入 Mock fallback
+- 系统日志记录 `repair_failed=true`
+
+### 7.5 repair 不做的事
+
+- 不重新做业务分析
+- 不编造岗位、经历、项目指标、系统规模、职责范围
+- 不把 `generated_by` 改成 `json_repair_agent`
+- 不创造原始输出和上下文中都没有的业务事实
+
+## 8. Mock Agent 回退策略
+
+### 8.1 Mock Agent 定位
+
+Mock Agent 是最终兜底，不是低质量替代。
+
+### 8.2 Mock fallback 基本原则
+
+- Mock fallback 需要保证接口结构稳定
+- Mock fallback 结果应尽量基于当前本地数据、已有规则和现有 Mock Agent
+- Mock fallback 不请求外部接口
+- Mock fallback 不调用 Hunyuan
+
+### 8.3 各 Agent 的 Mock fallback
+
+#### MatchAnalysisAgent fallback
+
+- 使用现有 `match_mock.go` 逻辑
+- 输入：简历版本 + 目标岗位 JD
+- 输出：匹配分数 + 证据链 + 风险点 + P0/P1 建议 + 真实性提示
+- 回退后 `generated_by = "mock_agent"`
+
+#### RecommendationAgent fallback
+
+- 使用现有 `recommendation_mock.go` 逻辑
+- 输入：简历版本 + 候选岗位列表
+- 输出：推荐岗位列表 + 推荐理由 + 风险点 + 优先级
+- 回退后 `generated_by = "mock_agent"`
+
+#### ResumeOptimizationAgent fallback
+
+- 当前项目尚未实现 resume_optimization_mock.go
+- 后续实现时需要设计确定性 Mock 输出
+- 当前阶段仅策略预留
+- 回退后 `generated_by = "mock_agent"`
+
+## 9. generated_by 与 fallback 标记策略
+
+### 9.1 generated_by 约定
+
+| 场景 | generated_by 值 | 说明 |
+|------|----------------|------|
+| LLM 输出合法且通过 Schema 校验 | `llm_agent` | 正常 LLM 结果 |
+| LLM 输出经 JSONRepairAgent 修复后通过 | `llm_agent` | repair 不改变业务来源标记 |
+| Mock Agent 正常兜底（LLM 未启用或失败） | `mock_agent` | Mock 结果 |
+
+### 9.2 不使用的值
+
+以下值不应作为业务 Schema 内 `generated_by`：
+
+- ❌ `llm_agent_fallback`：不建议使用。fallback 状态应由外层 `agent_status` / `fallback_reason` 表达
+- ❌ `json_repair_agent`：JSONRepairAgent 不改变业务结果来源
+- ❌ `repair_agent`：同上
+
+### 9.3 历史文档处理
+
+已有文档中出现的 `llm_agent_fallback`：
+
+- 不建议作为业务 Schema 内 `generated_by`
+- fallback 状态应由外层 `agent_status` / `fallback_reason` 表达
+- Mock fallback 的业务结果仍用 `mock_agent`
+
+### 9.4 后续 API meta 层建议
+
+后续 API 响应中建议增加 meta 字段：
+
+```json
+{
+  "agent_status": "success | repaired | fallback",
+  "fallback_reason": "",
+  "error_code": "",
+  "repair_applied": false,
+  "llm_enabled": true
+}
+```
+
+注意：本阶段只写策略，不修改接口结构。如果当前接口模型暂时没有 meta 字段，只在文档中写"后续实现建议"。
+
+## 10. error_code 设计
+
+| error_code | 含义 | 触发阶段 | 处理方式 | 是否用户可见 |
+|-----------|------|---------|---------|------------|
+| LLM_DISABLED | LLM 未启用 | 配置检查 | 直接 Mock | ❌ |
+| LLM_CONFIG_MISSING | LLM 配置缺失 | 配置检查 | 直接 Mock | ❌ |
+| LLM_TIMEOUT | LLM 请求超时 | LLM 调用 | 直接 Mock | ❌ |
+| LLM_HTTP_ERROR | LLM HTTP 错误 | LLM 调用 | 直接 Mock | ❌ |
+| LLM_RATE_LIMIT | LLM 限流 | LLM 调用 | 直接 Mock | ❌ |
+| LLM_EMPTY_RESPONSE | LLM 空响应 | LLM 调用 | 直接 Mock | ❌ |
+| LLM_OUTPUT_TRUNCATED | LLM 输出截断 | LLM 调用 | 尝试 repair | ❌ |
+| JSON_PARSE_FAILED | JSON 解析失败 | JSON 解析 | 尝试 repair | ❌ |
+| SCHEMA_VALIDATION_FAILED | Schema 校验失败 | Schema 校验 | 尝试 repair | ❌ |
+| JSON_REPAIR_FAILED | JSON repair 输出仍无法 parse | JSON repair | 直接 Mock | ❌ |
+| MOCK_FALLBACK_USED | Mock fallback 已使用 | 兜底 | 正常返回 | ❌ |
+| UNKNOWN_ERROR | 未知异常 | 任意 | 直接 Mock | ❌ |
+
+用户可见策略：
+
+- 默认不直接暴露技术错误码给普通用户
+- 可以在调试模式或日志中展示
+- Demo 用户侧只看到正常业务结果
+
+## 11. 日志记录策略
+
+### 11.1 日志字段
+
+| 字段 | 说明 | 是否记录 |
+|------|------|---------|
+| request_id | 请求唯一 ID | ✅ |
+| agent_name | 业务 Agent 名称 | ✅ |
+| target_output_type | 目标输出类型 | ✅ |
+| llm_enabled | LLM 是否启用 | ✅ |
+| llm_model | 使用的模型名称 | ✅ |
+| prompt_version | Prompt 版本 | ✅ |
+| schema_version | Schema 版本 | ✅ |
+| call_started_at | 调用开始时间 | ✅ |
+| call_duration_ms | 调用耗时（毫秒） | ✅ |
+| raw_output_length | 原始输出长度 | ✅ |
+| json_parse_success | JSON 解析是否成功 | ✅ |
+| schema_validate_success | Schema 校验是否成功 | ✅ |
+| repair_attempted | 是否尝试 repair | ✅ |
+| repair_success | repair 是否成功 | ✅ |
+| fallback_used | 是否使用 fallback | ✅ |
+| fallback_reason | fallback 原因 | ✅ |
+| error_code | 错误码 | ✅ |
+
+### 11.2 安全约束
+
+- ❌ 不要记录 API Key
+- ❌ 不要记录完整简历
+- ❌ 不要记录完整 JD
+- ❌ 不要记录完整模型输出
+- ✅ 可以记录长度、摘要、错误类型
+
+## 12. 用户侧展示策略
+
+### 12.1 核心原则
+
+- 用户不应看到"模型报错""JSON 解析失败""Schema 校验失败"等底层技术错误
+- 用户应看到稳定的业务结果
+- 如果是 fallback，可以在内部调试信息中标记，但 Demo 正常展示
+
+### 12.2 展示策略
+
+| 用户类型 | 展示内容 |
+|---------|---------|
+| 普通用户 | 不展示 fallback 细节，只展示正常业务结果 |
+| 开发调试模式 | 展示 agent_status / fallback_reason / error_code |
+
+### 12.3 前端展示建议
+
+- 前端不根据 `generated_by` 展示不同 UI
+- 前端始终按照统一业务结构渲染
+- 调试模式下可在页面底部展示 agent_status 信息
+
+## 13. 三类业务 Agent 的回退边界
+
+### 13.1 MatchAnalysisAgent
+
+```
+优先使用 LLM + match_analysis_schema.json
+→ 失败后 JSON repair 一次
+→ 仍失败后使用 match_mock.go
+```
+
+回退后：
+- `generated_by = "mock_agent"`
+- 日志记录 `fallback_reason` 和 `error_code`
+- 用户看到稳定匹配分析结果
+
+### 13.2 RecommendationAgent
+
+```
+优先使用 LLM + recommendation_schema.json
+→ 失败后 JSON repair 一次
+→ 仍失败后使用 recommendation_mock.go
+```
+
+回退后：
+- `generated_by = "mock_agent"`
+- 日志记录 `fallback_reason` 和 `error_code`
+- 用户看到稳定推荐结果
+
+### 13.3 ResumeOptimizationAgent
+
+```
+优先使用 LLM + resume_optimization_schema.json
+→ 失败后 JSON repair 一次
+→ 仍失败后使用确定性 Mock 输出
+```
+
+当前项目可能尚未实现该 Mock，后续接入时需要补齐。
+
+回退后：
+- `generated_by = "mock_agent"`
+- 日志记录 `fallback_reason` 和 `error_code`
+- 用户看到稳定简历优化结果
+
+## 14. JSONRepairAgent 边界
+
+- JSONRepairAgent 不直接面向用户
+- JSONRepairAgent 不生成业务结论
+- JSONRepairAgent 不修改岗位匹配判断
+- JSONRepairAgent 不重新推荐岗位
+- JSONRepairAgent 不重新优化简历
+- JSONRepairAgent 不改变 `generated_by`
+- JSONRepairAgent 只在 JSON parse / Schema validate 失败后触发
+- JSONRepairAgent 只执行一次，不递归修复
+- JSONRepairAgent 不编造岗位、经历、项目指标、系统规模、职责范围
+
+## 15. 后续实现建议
+
+后续落地步骤：
+
+1. 4-2 实现 LLM Client 抽象
+2. 4-2 实现 Hunyuan Client
+3. 加载 Prompt 文件（server/prompts/*.md）
+4. 加载 Schema 文件（server/prompts/schema/*.json）
+5. 业务 Agent 调用 LLM
+6. JSON parse
+7. Schema validate
+8. JSON repair 一次（调用 JSONRepairAgent）
+9. Mock fallback（调用对应 Mock Agent）
+10. 记录日志和 agent_status
+
+## 16. 验收标准
+
+未来实现时的验收标准：
+
+1. LLM 成功时返回 `generated_by = "llm_agent"`
+2. LLM 返回 Markdown 包裹 JSON 时可修复
+3. LLM 返回缺字段 JSON 时可修复或 fallback
+4. JSON repair 成功时 `repair_applied = true`
+5. JSON repair 失败时 `fallback_used = true`
+6. Mock fallback 不崩溃
+7. 用户侧始终有稳定业务结果
+8. 日志不泄露 API Key、完整简历、完整 JD
+9. `generated_by` 只有 `llm_agent` 和 `mock_agent` 两种值
+10. JSON repair 不改变业务结果来源标记
+11. LLM 配置缺失时直接 Mock，不报错
+12. LLM 超时/HTTP 错误时直接 Mock，不报错
+
+## 17. 当前不做事项
+
+- 本阶段不写 Go 代码
+- 本阶段不实现 LLM Client
+- 本阶段不调用 Hunyuan
+- 本阶段不修改 Prompt
+- 本阶段不修改 Schema
+- 本阶段不修改接口结构
+- 本阶段不修改前端
+- 本阶段不做真实 fallback 验收

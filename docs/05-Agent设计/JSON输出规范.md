@@ -301,6 +301,19 @@ LLM 输出文本
     - 不编造岗位、经历、项目指标、系统规模、职责范围
     - generated_by 仍保持 llm_agent
     - 修复失败后后端进入 Mock fallback
+- **4-1.4.11 已完成：失败兜底与 Mock 回退策略**
+  - 新增失败兜底链路：
+    1. 业务 Agent 输出
+    2. JSON parse
+    3. Schema validate
+    4. 如果失败，调用 JSONRepairAgent 一次
+    5. repair 后重新 parse + validate
+    6. 仍失败则 Mock fallback
+  - 明确 JSONRepairAgent 不改变 generated_by，不创造业务事实
+  - generated_by 只有 llm_agent 和 mock_agent 两种值
+  - 不使用 llm_agent_fallback 作为 generated_by 值
+  - fallback 状态由外层 agent_status / fallback_reason 表达
+  - 策略文档见 `docs/05-Agent设计/失败兜底与Mock回退策略.md`
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 - **4-1.4.4A/B 已完成：岗位推荐 Agent 指令模板定稿与登记**
   - recommendation_v1.md 已包含推荐输出结构草案

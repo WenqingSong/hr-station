@@ -233,6 +233,24 @@ func (s *MatchService) Analyze(ctx context.Context, ...) (*MatchAnalysis, error)
 
 ## 阶段 4-1.4 更新
 
+### 4-1.4.11 失败兜底与 Mock 回退策略更新
+
+后续 LLM Client 需要支持以下能力：
+
+```text
+timeout：超时控制
+error_code：错误码返回
+raw_output_length：原始输出长度记录
+json_parse_result：JSON 解析结果
+schema_validate_result：Schema 校验结果
+repair_attempted：是否尝试 repair
+repair_success：repair 是否成功
+fallback_used：是否使用 fallback
+fallback_reason：fallback 原因
+```
+
+策略文档见 `docs/05-Agent设计/失败兜底与Mock回退策略.md`
+
 4-1.4 不实现 LLM Client，4-2 才实现 LLM Client 与 Hunyuan Client：
 
 - LLM Client 将依赖 4-1.4 固定的 Prompt 与 Schema

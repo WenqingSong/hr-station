@@ -155,6 +155,16 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
 - 后续简历优化 Prompt 的模型调用也建议 max_tokens >= 8192
 
+### 4-1.4.11 失败兜底与 Mock 回退策略记录
+
+- 失败兜底策略已设计，文档见 `docs/05-Agent设计/失败兜底与Mock回退策略.md`
+- Hunyuan 接入后必须接入失败兜底策略
+- Hunyuan 超时、HTTP 错误、限流、空响应直接 Mock fallback
+- Hunyuan 输出 JSON 不合法或 Schema 不合法时先 JSON repair 一次
+- JSON repair 只执行一次，repair 仍失败后 Mock fallback
+- 当前 4-1.4.11 只做策略设计，不调用 Hunyuan
+- 策略覆盖 20 种错误码，6 种直接 Mock 场景，6 种先 repair 场景
+
 ### 4-1.4.10B JSON 修复 Agent 指令模板登记记录
 
 - JSON 修复 Prompt 已登记：`server/prompts/json_repair_v1.md`

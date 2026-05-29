@@ -80,6 +80,12 @@ Prompt 将作为独立产品资产管理：
   - 模板输入 TARGET_OUTPUT_TYPE / TARGET_SCHEMA_JSON / BROKEN_MODEL_OUTPUT / VALIDATION_ERRORS / REPAIR_CONTEXT
   - 模板只修复结构，不重新做业务分析，不改变业务结果来源
   - 当前尚未接入 Go 后端和 Hunyuan
+  - **4-1.4.11 已完成：失败兜底与 Mock 回退策略**
+    - JSONRepairAgent 已纳入失败兜底链路
+    - json_repair_v1.md 只负责结构修复，不重新做业务分析
+    - repair 成功后业务 generated_by 仍保持 llm_agent
+    - repair 失败后进入 Mock Agent fallback
+    - 策略文档见 `docs/05-Agent设计/失败兜底与Mock回退策略.md`
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 
