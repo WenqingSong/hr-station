@@ -1,25 +1,25 @@
 # Agent 总览
 
-> 最后更新：2026-05-29（阶段 3-9 阶段 3 汇总）
+> 最后更新：2026-05-29（阶段 4-1 Hunyuan API 接入准备）
 
 ## 当前状态
 
-阶段 3 已全部完成，三个 Mock Agent 已实现：
+阶段 3 已全部完成，三个 Mock Agent 已实现。阶段 4 开始接入真实 LLM。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
 - **VersionCompareMockAgent**（`server/internal/agent/version_compare_mock.go`）：基于规则打分生成版本对比结果
 
-当前不调用真实模型，不读取 LLM_API_KEY，不使用真实 Prompt，Mock Agent 只生成结构化结果。阶段 5 或后续再接真实 Agent / LLM。
+阶段 4 目标：在保留 Mock Agent 兜底的基础上，引入 Hunyuan API 作为 LLM Provider，让推荐、匹配分析、版本对比逐步从 Mock 输出升级为真实模型生成的结构化 JSON 输出。推荐 / 匹配 / 版本对比按顺序逐步接入。LLM 调用失败时自动回退 Mock Agent。
 
 ## Agent 列表
 
 | Agent | 说明 | 当前状态 | 详细文档 |
 |-------|------|---------|---------|
 | 简历提取 Agent | 从结构化简历中提取关键信息 | 阶段 3 暂不独立实现 | [简历提取Agent.md](./简历提取Agent.md) |
-| 岗位推荐 Agent | 基于简历推荐匹配岗位 | Mock（阶段 3）/ 真实（阶段 4） | [岗位推荐Agent.md](./岗位推荐Agent.md) |
-| 岗位匹配 Agent | 分析简历与岗位的匹配度 | Mock（阶段 3）/ 真实（阶段 4） | [岗位匹配Agent.md](./岗位匹配Agent.md) |
-| 版本对比 Agent | 对比两个版本的差异 | Mock（阶段 3）/ 真实（阶段 4） | [版本对比Agent.md](./版本对比Agent.md) |
+| 岗位推荐 Agent | 基于简历推荐匹配岗位 | Mock（阶段 3 ✅）/ 真实 LLM（阶段 4-5） | [岗位推荐Agent.md](./岗位推荐Agent.md) |
+| 岗位匹配 Agent | 分析简历与岗位的匹配度 | Mock（阶段 3 ✅）/ 真实 LLM（阶段 4-4） | [岗位匹配Agent.md](./岗位匹配Agent.md) |
+| 版本对比 Agent | 对比两个版本的差异 | Mock（阶段 3 ✅）/ 真实 LLM（阶段 4-6） | [版本对比Agent.md](./版本对比Agent.md) |
 
 ## 设计原则
 
@@ -27,6 +27,40 @@
 2. **统一接口**：所有 Agent 遵循统一的输入输出接口，方便后续替换
 3. **Prompt 管理**：Prompt 模板独立管理，便于调优和版本控制
 4. **真实性保护**：Agent 不虚构经历，不替用户编造内容
+5. **失败兜底**：LLM 调用失败时自动回退 Mock Agent，不阻断用户操作
+
+## 阶段 4 LLM Agent 接入方向
+
+### 接入策略
+
+- Provider 首选 Hunyuan（腾讯云混元）
+- 使用 OpenAI-compatible API，降低接入复杂度
+- 低温度（0.2）确保输出稳定
+- 强制 JSON 输出 + 字段校验
+- 失败自动回退 Mock Agent
+
+### Agent 改造顺序
+
+| 顺序 | Agent | 原因 |
+|------|-------|------|
+| 1 | 岗位匹配分析 | 核心亮点功能，输入输出最明确 |
+| 2 | 岗位推荐 | 与匹配分析逻辑相似 |
+| 3 | 简历版本对比 | 输入最复杂，需更精细的 Prompt |
+
+### 开关控制
+
+```
+ENABLE_LLM_AGENT=false → 始终使用 Mock Agent
+ENABLE_LLM_AGENT=true → 优先使用真实 LLM
+ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
+```
+
+### 来源标识
+
+响应中通过 `generated_by` 字段区分：
+- `"mock_agent"`：Mock Agent 生成
+- `"llm_agent"`：真实 LLM 生成
+- `"llm_agent_fallback"`：LLM 失败后回退 Mock
 
 ## 阶段 3 Mock Agent 约束
 
@@ -67,15 +101,14 @@
 - 阶段 3 简历详情页直接展示结构化数据
 - 阶段 4 接入真实 LLM 后再实现简历提取 Agent
 
-## 后续待补充
-
-- Agent 统一接口定义
-- 真实模型接入方案
-
 ## 关联文档
 
-- [模型接入.md](./模型接入.md)
+- [阶段4Agent与模型接入方案.md](./阶段4Agent与模型接入方案.md)
+- [Hunyuan接入准备.md](./Hunyuan接入准备.md)
+- [LLMClient设计.md](./LLMClient设计.md)
+- [JSON输出规范.md](./JSON输出规范.md)
 - [Prompt模板.md](./Prompt模板.md)
+- [模型接入.md](./模型接入.md)
 - [岗位推荐Agent.md](./岗位推荐Agent.md)
 - [岗位匹配Agent.md](./岗位匹配Agent.md)
 - [版本对比Agent.md](./版本对比Agent.md)

@@ -1,0 +1,239 @@
+# JSON 输出规范
+
+> 最后更新：2026-05-29（阶段 4-1 Hunyuan API 接入准备）
+
+## 1. 为什么必须强制 JSON
+
+1. **结构化消费**：前端和后端必须以结构化方式消费 Agent 输出，不能解析自由文本
+2. **字段校验**：只有 JSON 才能做字段完整性、分数范围、真实性校验
+3. **稳定替换**：阶段 3 Mock Agent 已定义 JSON 结构，真实 LLM 必须输出相同结构
+4. **兜底判断**：只有 JSON 才能判断输出是否合规，决定是否回退 Mock
+
+## 2. 通用输出要求
+
+所有 Agent 的 LLM 输出必须满足：
+
+1. **只输出 JSON**：不要 Markdown、不要解释性前后缀、不要代码块包裹
+2. **合法 JSON**：必须是可被 `json.Unmarshal` 解析的合法 JSON
+3. **分数为 0-100 整数**：所有分数字段必须是 0-100 之间的整数
+4. **必填字段不可缺**：每个 Agent 有明确的必填字段列表
+5. **不虚构经历**：不允许输出用户简历中不存在的经历或能力
+6. **不自动生成简历**：不允许输出优化版简历内容
+7. **包含真实性提示**：必须包含 `authenticity_notice` 字段
+
+## 3. 推荐 Agent JSON 结构
+
+```json
+{
+  "recommended_jobs": [
+    {
+      "job_id": 1,
+      "title": "Go 后端开发工程师",
+      "department": "技术部",
+      "city": "深圳",
+      "category": "后端开发",
+      "job_type": "校招",
+      "priority": "strong_recommend",
+      "recommendation_score": 85,
+      "recommendation_reason": "...",
+      "match_highlights": ["...", "..."],
+      "risk_points": ["..."],
+      "suggested_action": "..."
+    }
+  ],
+  "summary": "..."
+}
+```
+
+### 必填字段
+
+| 字段 | 类型 | 约束 |
+|------|------|------|
+| `recommended_jobs` | array | 至少 1 个元素 |
+| `recommended_jobs[].job_id` | int | 必须与输入岗位 ID 一致 |
+| `recommended_jobs[].priority` | string | 只允许 `strong_recommend` / `recommend` / `try` |
+| `recommended_jobs[].recommendation_score` | int | 0-100 |
+| `recommended_jobs[].recommendation_reason` | string | 非空 |
+| `recommended_jobs[].match_highlights` | array | 至少 1 个元素 |
+| `recommended_jobs[].risk_points` | array | 可为空 |
+| `recommended_jobs[].suggested_action` | string | 非空 |
+| `summary` | string | 非空 |
+
+## 4. 匹配分析 Agent JSON 结构
+
+```json
+{
+  "job_id": 1,
+  "job_title": "Go 后端开发工程师",
+  "resume_version_id": 2,
+  "resume_version_no": 2,
+  "match_score": 78,
+  "screening_result": "likely",
+  "evidence_chain": [
+    {
+      "requirement": "岗位要求 Go 相关经验",
+      "resume_point": "技能列表中包含Go",
+      "judgement": "strong_match"
+    }
+  ],
+  "match_highlights": ["...", "..."],
+  "risk_points": ["..."],
+  "optimization_suggestions": [
+    {
+      "priority": "P0",
+      "title": "...",
+      "reason": "...",
+      "action": "..."
+    }
+  ],
+  "next_steps": ["...", "..."],
+  "authenticity_notice": "以下建议仅用于表达优化，请只补充真实经历，不要虚构项目或能力。"
+}
+```
+
+### 必填字段
+
+| 字段 | 类型 | 约束 |
+|------|------|------|
+| `match_score` | int | 0-100 |
+| `screening_result` | string | 只允许 `highly_likely` / `likely` / `possible` / `risky` |
+| `evidence_chain` | array | 至少 1 个元素 |
+| `evidence_chain[].requirement` | string | 非空 |
+| `evidence_chain[].resume_point` | string | 非空 |
+| `evidence_chain[].judgement` | string | 只允许 `strong_match` / `partial_match` / `missing` |
+| `match_highlights` | array | 至少 1 个元素 |
+| `risk_points` | array | 可为空 |
+| `optimization_suggestions` | array | 至少 1 个元素 |
+| `optimization_suggestions[].priority` | string | 只允许 `P0` / `P1` |
+| `optimization_suggestions[].title` | string | 非空 |
+| `optimization_suggestions[].reason` | string | 非空 |
+| `optimization_suggestions[].action` | string | 非空 |
+| `next_steps` | array | 至少 1 个元素 |
+| `authenticity_notice` | string | 必须包含"真实经历"相关提示 |
+
+## 5. 版本对比 Agent JSON 结构
+
+```json
+{
+  "from_version_no": 1,
+  "to_version_no": 2,
+  "score_before": 65,
+  "score_after": 78,
+  "score_change": 13,
+  "field_changes": [
+    {
+      "field": "skills",
+      "before": "...",
+      "after": "...",
+      "change_type": "modified",
+      "impact": "..."
+    }
+  ],
+  "risk_changes": [
+    {
+      "risk": "...",
+      "before": "...",
+      "after": "...",
+      "trend": "reduced"
+    }
+  ],
+  "suggestion_completion": [
+    {
+      "suggestion": "...",
+      "status": "partially_completed",
+      "evidence": "..."
+    }
+  ],
+  "key_improvements": ["...", "..."],
+  "remaining_risks": ["..."],
+  "summary": "...",
+  "authenticity_notice": "版本对比仅用于呈现表达变化，请只补充真实经历，不要虚构项目或能力。"
+}
+```
+
+### 必填字段
+
+| 字段 | 类型 | 约束 |
+|------|------|------|
+| `score_before` | int | 0-100 |
+| `score_after` | int | 0-100 |
+| `score_change` | int | = score_after - score_before |
+| `field_changes` | array | 至少 1 个元素 |
+| `field_changes[].field` | string | 非空 |
+| `field_changes[].change_type` | string | 只允许 `added` / `modified` / `removed` / `unchanged` |
+| `risk_changes` | array | 可为空 |
+| `risk_changes[].trend` | string | 只允许 `reduced` / `unchanged` / `stable` / `increased` |
+| `suggestion_completion` | array | 可为空 |
+| `suggestion_completion[].status` | string | 只允许 `completed` / `partially_completed` / `not_started` |
+| `key_improvements` | array | 至少 1 个元素 |
+| `remaining_risks` | array | 可为空 |
+| `summary` | string | 非空 |
+| `authenticity_notice` | string | 必须包含"真实经历"相关提示 |
+
+## 6. 字段校验规则
+
+### 6.1 校验流程
+
+```
+LLM 输出文本
+  → 提取 JSON（去除可能的 Markdown 包裹）
+  → json.Unmarshal
+  → 必填字段检查
+  → 枚举值检查
+  → 分数范围检查
+  → 真实性检查
+  → 通过 / 失败
+```
+
+### 6.2 校验失败处理
+
+| 校验类型 | 失败处理 |
+|---------|---------|
+| JSON 解析失败 | 回退 Mock |
+| 缺必填字段 | 回退 Mock |
+| 枚举值不在允许范围 | 忽略该条目或回退 Mock |
+| 分数超范围 | 截断到 0-100 |
+
+## 7. 分数范围规则
+
+1. 所有分数字段必须为整数
+2. 分数范围为 0-100
+3. 小于 0 的分数截断为 0
+4. 大于 100 的分数截断为 100
+5. 非整数分数截断为整数
+6. 版本对比的 `score_change` 必须等于 `score_after - score_before`
+
+## 8. 禁止输出内容
+
+以下内容如果出现在 LLM 输出中，该输出视为无效，触发回退 Mock：
+
+1. 自动生成优化版简历（如"优化后的简历为：..."）
+2. 虚构不存在的经历（如"你在XX公司实习期间..."但简历中无此经历）
+3. 与用户简历无关的内容
+4. Markdown 格式（如 `# 标题`、`**加粗**` 等）
+5. 解释性前后缀（如"以下是分析结果："、"希望对你有帮助！"）
+6. 代码块包裹（如 ` ```json ... ``` `）
+
+## 9. 解析失败处理
+
+1. 尝试直接解析 JSON
+2. 如果失败，尝试去除 Markdown 代码块标记后再解析
+3. 如果仍失败，记录原始输出到日志（便于调试 Prompt）
+4. 回退 Mock Agent
+5. 响应中 `generated_by` 字段标记为 `llm_agent_fallback`
+
+## 10. 回退 Mock 策略
+
+| 条件 | 行为 |
+|------|------|
+| `ENABLE_LLM_AGENT=false` | 始终使用 Mock Agent |
+| `ENABLE_LLM_AGENT=true` 且 LLM 成功 | 使用 LLM 结果，`generated_by="llm_agent"` |
+| `ENABLE_LLM_AGENT=true` 且 LLM 失败 且 `ENABLE_LLM_FALLBACK=true` | 回退 Mock，`generated_by="llm_agent_fallback"` |
+| `ENABLE_LLM_AGENT=true` 且 LLM 失败 且 `ENABLE_LLM_FALLBACK=false` | 返回错误 |
+
+## 关联文档
+
+- [阶段4Agent与模型接入方案.md](./阶段4Agent与模型接入方案.md)
+- [LLMClient设计.md](./LLMClient设计.md)
+- [Agent总览.md](./Agent总览.md)
+- [Prompt模板.md](./Prompt模板.md)
