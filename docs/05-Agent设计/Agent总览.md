@@ -184,6 +184,18 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
     - 当前仍未实现 LLM Client
     - 当前仍未替换 Mock Agent
     - 下一步为 4-1.4.10A 人工定稿 JSON 修复 Agent 指令模板
+  - **4-1.4.10A/B 已完成：JSON 修复 Agent 指令模板定稿与登记**
+    - 第四个正式 Agent Prompt Template 已登记：`server/prompts/json_repair_v1.md`
+    - JSONRepairAgent 定位为结构修复器，不是业务生成器
+    - 当前已有：
+      - 匹配分析 Prompt + Schema（match_analysis_v1.md + match_analysis_schema.json）
+      - 岗位推荐 Prompt + Schema（recommendation_v1.md + recommendation_schema.json）
+      - 简历优化 Prompt + Schema（resume_optimization_v1.md + resume_optimization_schema.json）
+      - JSON 修复 Prompt（json_repair_v1.md）
+    - 当前仍未接 Hunyuan
+    - 当前仍未实现 LLM Client
+    - 当前仍未替换 Mock Agent
+    - 下一步为 4-1.4.11 失败兜底与 Mock 回退策略
 
 ## 关联文档
 

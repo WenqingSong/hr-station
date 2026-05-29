@@ -71,7 +71,15 @@ Prompt 将作为独立产品资产管理：
       - Schema 固定输出字段、类型、枚举、数组长度和真实性约束
     - Schema 已吸收 4-1.4.8 首轮验收问题（允许 rewrite_examples 全部 can_use_directly=false、涉及数字/指标等时必须 requires_user_verification=true、不得编造具体数字/指标/系统规模/职责或成果、p2 允许 0-4 项）
     - 当前仍未接入 Go 后端和 Hunyuan
-- JSON 修复 Prompt `json_repair_v1.md` 为 P2 优先级，后续按需创建
+- JSON 修复 Prompt `json_repair_v1.md`
+  - **4-1.4.10A/B 已完成：JSON 修复 Agent 指令模板定稿与登记**
+  - json_repair_v1.md 是 JSONRepairAgent 的 Agent Prompt Template
+  - 该模板由人工定稿，CodeBuddy 只登记和检查，不重写核心 Prompt
+  - 模板面向"LLM JSON 输出结构修复"场景
+  - 模板支持 match_analysis / recommendation / resume_optimization 三类业务输出修复
+  - 模板输入 TARGET_OUTPUT_TYPE / TARGET_SCHEMA_JSON / BROKEN_MODEL_OUTPUT / VALIDATION_ERRORS / REPAIR_CONTEXT
+  - 模板只修复结构，不重新做业务分析，不改变业务结果来源
+  - 当前尚未接入 Go 后端和 Hunyuan
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 

@@ -155,6 +155,15 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`
 - 后续简历优化 Prompt 的模型调用也建议 max_tokens >= 8192
 
+### 4-1.4.10B JSON 修复 Agent 指令模板登记记录
+
+- JSON 修复 Prompt 已登记：`server/prompts/json_repair_v1.md`
+- 模板面向"LLM JSON 输出结构修复"场景，支持 match_analysis / recommendation / resume_optimization 三类业务输出修复
+- 模板只修复结构，不重新做业务分析，不编造业务事实
+- 当前 4-1.4.10B 只登记 Prompt，不调用 Hunyuan
+- 后续 JSON repair 调用建议只执行一次
+- 如果 JSON repair 仍失败，应进入 Mock Agent fallback
+
 ### 4-1.4.9B 简历优化 JSON Schema 登记记录
 
 - 简历优化 JSON Schema 已登记：`server/prompts/schema/resume_optimization_schema.json`

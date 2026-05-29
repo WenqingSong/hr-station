@@ -285,6 +285,22 @@ LLM 输出文本
     - 涉及数字/指标/规模/职责/成果时，输入无明确事实则必须 requires_user_verification=true
     - 不得编造具体数字、指标、系统规模、职责或成果
     - p2 允许 0-4 项
+- **4-1.4.10A/B 已完成：JSON 修复 Agent 指令模板定稿与登记**
+  - json_repair_v1.md 已登记为 JSON 修复 Prompt
+  - 用途：当业务 Agent 输出不合法 JSON 或不符合 Schema 时，尝试进行一次保守修复
+  - 修复范围：
+    - Markdown / code fence 包裹
+    - JSON 语法错误
+    - 字段缺失
+    - 字段类型错误
+    - 枚举不合法
+    - 额外字段
+    - 数组/对象结构错误
+  - 边界：
+    - 不重新做业务分析
+    - 不编造岗位、经历、项目指标、系统规模、职责范围
+    - generated_by 仍保持 llm_agent
+    - 修复失败后后端进入 Mock fallback
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 - **4-1.4.4A/B 已完成：岗位推荐 Agent 指令模板定稿与登记**
   - recommendation_v1.md 已包含推荐输出结构草案
