@@ -238,8 +238,11 @@ LLM 输出文本
 - 所有模型输出必须可解析为合法 JSON
 - 失败时回退 Mock Agent（generated_by=llm_agent_fallback）
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录
-- 匹配分析 Schema 优先固定（4-1.4.2）
+- 匹配分析 Schema 优先固定（4-1.4.3）
 - Schema 与 Prompt 配套，每个 Prompt 对应一个 JSON Schema
+- `match_analysis_v1.md` 已包含匹配分析 JSON 输出结构草案（4-1.4.1B 登记）
+- 正式 JSON Schema 将在 4-1.4.3 固定
+- 当前 4-1.4.1B 只登记 Prompt 中的输出结构，不创建 schema 文件
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 
 ## 关联文档

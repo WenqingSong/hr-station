@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-29（阶段 4-1.4.0 Prompt / Agent 真实接入方案）
+> 最后更新：2026-05-29（阶段 4-1.4.1B 登记匹配分析 Agent 指令模板）
 
 ## 当前状态
 
-阶段 4-1.3 已完成，阶段 4-1.4 已开始。三个 Mock Agent 仍正常运行。4-1.4 将基于腾讯真实岗位 JD 设计和测试 Prompt / Agent 方案，不做 MCP 记忆，不做多轮 Agent。
+阶段 4-1.4 进行中，4-1.4.1B 已完成。三个 Mock Agent 仍正常运行。第一个正式 Agent Prompt Template 已登记（`server/prompts/match_analysis_v1.md`），后续将通过离线测试确定真实 Agent 输出质量，不做 MCP 记忆，不做多轮 Agent。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
@@ -110,15 +110,18 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 4-1.4 开始设计 Prompt 和 Agent 的真实接入方案：
 
 - 4-1.4.0 已完成：Prompt / Agent 真实接入方案已确定
-- 当前 Agent 仍为 Mock Agent，后续将通过 Prompt + Schema + 离线测试确定真实 Agent 输出结构
+- 4-1.4.1A 已完成：人工定稿匹配分析 Agent 指令模板
+- 4-1.4.1B 已完成：CodeBuddy 登记匹配分析 Agent 指令模板
+- 第一个正式 Agent Prompt Template 已登记：`server/prompts/match_analysis_v1.md`
+- 当前 Agent 仍为 Mock Agent，当前仍未接 Hunyuan，当前仍未实现 LLM Client，当前仍未替换 Mock Agent
 - Agent 采用 Stateless 单次请求模式，不做 MCP 记忆，不做多轮 Agent
-- Prompt 将作为独立产品资产管理，建议目录 `server/prompts/`
+- Prompt 将作为独立产品资产管理，目录 `server/prompts/`
 - 4-1.4 优先打磨匹配分析 Prompt（P0），再设计推荐 Prompt（P1）
 - 离线测试使用真实腾讯岗位 JD + 简历样本
 - 失败兜底策略已设计：LLM 失败回退 Mock Agent，generated_by 区分来源
 - 不接 Hunyuan / LLM Client（4-2 才实现）
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
-- 下一步为 4-1.4.1 设计匹配分析 Prompt
+- 下一步为 4-1.4.2 匹配分析 Prompt 首轮输出验收
 
 ## 关联文档
 

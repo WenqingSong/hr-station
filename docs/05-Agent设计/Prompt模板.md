@@ -1,18 +1,21 @@
 # Prompt 模板
 
-> 最后更新：2026-05-29（阶段 4-1.4.0 Prompt / Agent 真实接入方案）
+> 最后更新：2026-05-29（阶段 4-1.4.1B 登记匹配分析 Agent 指令模板）
 
 ## 当前状态
 
-阶段 4-1.4.0 已完成，Prompt / Agent 真实接入方案已确定。后续将逐步创建具体 Prompt 文件。
+阶段 4-1.4.1B 已完成，匹配分析 Agent 指令模板已登记。
 
 Prompt 将作为独立产品资产管理：
-- 建议目录 `server/prompts/`（替代原 `server/internal/agent/prompts/` 规划）
-- 4-1.4.1 开始创建匹配分析 Prompt 文件 `match_analysis_v1.md`
+- 目录 `server/prompts/`（替代原 `server/internal/agent/prompts/` 规划）
+- ✅ `match_analysis_v1.md` 已登记 — Match Analysis Agent Prompt Template（4-1.4.1A 人工定稿，4-1.4.1B CodeBuddy 登记）
+  - 模板包含 HR 初筛 + 技术面试官双视角
+  - 模板包含 Offer鹅展示语气、证据链、P0/P1/P2 优化建议、面试追问预测和真实性提醒
+  - 模板要求严格 JSON 输出，包含完整 JSON 结构定义和枚举约束
+  - 当前尚未接入 Go 后端和 Hunyuan
 - 4-1.4.4 开始创建推荐 Prompt 文件 `recommendation_v1.md`
-- 4-1.4.5 开始创建简历优化 Prompt 文件 `resume_optimization_v1.md`
+- 4-1.4.7 开始创建简历优化 Prompt 文件 `resume_optimization_v1.md`
 - JSON 修复 Prompt `json_repair_v1.md` 为 P2 优先级，后续按需创建
-- 当前 4-1.4.0 只定方案，不创建 Prompt 文件
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 

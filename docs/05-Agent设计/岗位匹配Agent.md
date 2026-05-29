@@ -1,6 +1,6 @@
 # 岗位匹配Agent
 
-> 最后更新：2026-05-29（阶段 4-1.3.6 推荐/匹配接口适配腾讯完整 JD）
+> 最后更新：2026-05-29（阶段 4-1.4.1B 登记匹配分析 Agent 指令模板）
 
 ## 1. 当前实现状态
 
@@ -121,7 +121,16 @@
 5. 适配方案见 `docs/02-后端设计/阶段4-1.3腾讯招聘信息适配方案.md`
 6. generated_by 仍为 mock_agent
 
-## 11. 后续真实 Agent 设计方向
+## 11. Prompt Template 登记状态
+
+- 匹配分析 Agent 后续将使用 `server/prompts/match_analysis_v1.md`
+- 当前该 Prompt Template 已登记（4-1.4.1A 人工定稿，4-1.4.1B CodeBuddy 登记）
+- 模板包含 HR 初筛 + 技术面试官双视角、Offer鹅语气、证据链、P0/P1/P2 优化建议、面试追问预测和真实性提醒
+- 当前仍使用 Mock Agent
+- 后续 4-1.4.2 将固定匹配分析 JSON Schema
+- 后续 4-1.4.3 将进行匹配分析 Prompt 首轮输出验收
+
+## 12. 后续真实 Agent 设计方向
 
 1. 基于真实 Prompt 的深度分析
 2. 更精准的证据链构建
