@@ -319,6 +319,11 @@ LLM 输出文本
   - 三个首轮输出验收均为 partial_pass，问题已被 Schema 吸收
   - 失败兜底链路已通过总验收
   - 验收报告见 `docs/05-Agent设计/阶段4-1.4总验收报告.md`
+- **4-1.4.13 已完成：阶段 4-1.4 汇总**
+  - 阶段 4-1.4 已正式闭环
+  - 三个业务 Schema 均已定稿并登记：match_analysis_schema.json、recommendation_schema.json、resume_optimization_schema.json
+  - 下一阶段需要实现 Schema Loader、JSON parse、Schema validate、JSON repair once
+  - 汇总文档见 `docs/00-项目总览/阶段4-1.4Prompt与Agent真实接入汇总.md`
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 - **4-1.4.4A/B 已完成：岗位推荐 Agent 指令模板定稿与登记**
   - recommendation_v1.md 已包含推荐输出结构草案

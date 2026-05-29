@@ -92,6 +92,12 @@ Prompt 将作为独立产品资产管理：
     - 三个首轮输出验收均为 partial_pass，问题已被 Schema 吸收
     - 失败兜底与 Mock 回退策略已通过验收
     - 验收报告见 `docs/05-Agent设计/阶段4-1.4总验收报告.md`
+  - **4-1.4.13 已完成：阶段 4-1.4 汇总**
+    - 阶段 4-1.4 已正式闭环
+    - 四个 Prompt 资产均已定稿并登记：match_analysis_v1.md、recommendation_v1.md、resume_optimization_v1.md、json_repair_v1.md
+    - 当前均未接入 Go 后端
+    - 下一阶段需要实现 Prompt Loader
+    - 汇总文档见 `docs/00-项目总览/阶段4-1.4Prompt与Agent真实接入汇总.md`
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 

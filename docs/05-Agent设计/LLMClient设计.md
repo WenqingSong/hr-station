@@ -257,6 +257,20 @@ fallback_reason：fallback 原因
 
 验收报告见 `docs/05-Agent设计/阶段4-1.4总验收报告.md`
 
+### 4-1.4.13 阶段汇总更新
+
+阶段 4-1.4 已正式闭环。下一阶段进入 4-2 实现 LLM Client 抽象与 Hunyuan Client。
+
+4-2 重点：
+- LLM Client 抽象接口
+- Hunyuan Client 实现
+- Prompt Loader + Schema Loader
+- JSON parse + Schema validate
+- JSON repair 调用链路
+- Mock fallback 集成
+
+汇总文档见 `docs/00-项目总览/阶段4-1.4Prompt与Agent真实接入汇总.md`
+
 4-1.4 不实现 LLM Client，4-2 才实现 LLM Client 与 Hunyuan Client：
 
 - LLM Client 将依赖 4-1.4 固定的 Prompt 与 Schema
