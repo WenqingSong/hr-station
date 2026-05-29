@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-29（阶段 4-1.3.6 推荐/匹配接口适配腾讯完整 JD）
+> 最后更新：2026-05-29（阶段 4-1.4.0 Prompt / Agent 真实接入方案）
 
 ## 当前状态
 
-阶段 3 已全部完成，三个 Mock Agent 已实现。阶段 4 开始接入真实 LLM。
+阶段 4-1.3 已完成，阶段 4-1.4 已开始。三个 Mock Agent 仍正常运行。4-1.4 将基于腾讯真实岗位 JD 设计和测试 Prompt / Agent 方案，不做 MCP 记忆，不做多轮 Agent。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
@@ -101,23 +101,24 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 - 阶段 3 简历详情页直接展示结构化数据
 - 阶段 4 接入真实 LLM 后再实现简历提取 Agent
 
-## 阶段 4-1.3 腾讯岗位数据适配
+## 阶段 4-1.3 腾讯岗位数据适配（已完成）
 
-4-1.3 只让现有 Mock Agent 使用更真实的岗位数据：
+4-1.3 已完成，腾讯岗位后端适配闭环已形成。
 
-- 数据来源从 8 条种子岗位扩展到 8+186 条
-- 推荐候选池纳入腾讯岗位（full_jd 优先）
-- 匹配分析使用腾讯岗位完整 JD，支持深度证据链
-- 4-1.3.1 已完成：jobs 表已扩展，数据库层已为腾讯岗位适配准备字段
-- 4-1.3.6 已完成：推荐/匹配接口已适配腾讯完整 JD
-- 推荐候选池已纳入 tencent_join 岗位，匹配分析已使用 description/requirements
-- 4-1.3.7 已完成：阶段 4-1.3 汇总，腾讯岗位后端适配闭环已形成
-- 不接 Hunyuan / LLM Client
-- 不实现 LLM Client 抽象
-- 不写 Prompt 模板最终版
-- 适配方案见 `docs/02-后端设计/阶段4-1.3腾讯招聘信息适配方案.md`
-- 阶段汇总见 `docs/00-项目总览/阶段4-1.3腾讯招聘信息适配汇总.md`
-- 下一步进入 4-1.4 Prompt / Agent 真实接入方案
+## 阶段 4-1.4 Prompt / Agent 真实接入（进行中）
+
+4-1.4 开始设计 Prompt 和 Agent 的真实接入方案：
+
+- 4-1.4.0 已完成：Prompt / Agent 真实接入方案已确定
+- 当前 Agent 仍为 Mock Agent，后续将通过 Prompt + Schema + 离线测试确定真实 Agent 输出结构
+- Agent 采用 Stateless 单次请求模式，不做 MCP 记忆，不做多轮 Agent
+- Prompt 将作为独立产品资产管理，建议目录 `server/prompts/`
+- 4-1.4 优先打磨匹配分析 Prompt（P0），再设计推荐 Prompt（P1）
+- 离线测试使用真实腾讯岗位 JD + 简历样本
+- 失败兜底策略已设计：LLM 失败回退 Mock Agent，generated_by 区分来源
+- 不接 Hunyuan / LLM Client（4-2 才实现）
+- 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
+- 下一步为 4-1.4.1 设计匹配分析 Prompt
 
 ## 关联文档
 

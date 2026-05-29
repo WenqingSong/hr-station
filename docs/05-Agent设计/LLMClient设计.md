@@ -1,6 +1,6 @@
 # LLM Client 设计
 
-> 最后更新：2026-05-29（阶段 4-1 Hunyuan API 接入准备）
+> 最后更新：2026-05-29（阶段 4-1.4.0 Prompt / Agent 真实接入方案）
 
 ## 1. 设计目标
 
@@ -230,6 +230,15 @@ func (s *MatchService) Analyze(ctx context.Context, ...) (*MatchAnalysis, error)
 | 6 | 在 main.go 中初始化 LLM Client | `server/cmd/server/main.go` |
 | 7 | 改造各 Agent Service | `server/internal/service/*.go` |
 | 8 | 编写 Prompt 模板 | `server/internal/agent/prompts/*.md` |
+
+## 阶段 4-1.4 更新
+
+4-1.4 不实现 LLM Client，4-2 才实现 LLM Client 与 Hunyuan Client：
+
+- LLM Client 将依赖 4-1.4 固定的 Prompt 与 Schema
+- config.go 需在 4-2 中增加 EnableLLMAgent / EnableLLMFallback / LLMProvider / LLMTimeoutSeconds / LLMMaxRetries / LLMMaxOutputTokens / LLMTemperature 等 7 个字段
+- server/internal/llm/ 当前仅存在 .gitkeep，4-2 从零实现
+- 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 
 ## 关联文档
 

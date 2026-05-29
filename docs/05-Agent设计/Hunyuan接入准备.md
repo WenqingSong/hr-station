@@ -1,6 +1,6 @@
 # Hunyuan 接入准备
 
-> 最后更新：2026-05-29（阶段 4-1 Hunyuan API 接入准备）
+> 最后更新：2026-05-29（阶段 4-1.4.0 Prompt / Agent 真实接入方案）
 
 ## 1. 用户需要准备的信息
 
@@ -109,6 +109,16 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 3. **API Key 应妥善保管，不要分享给他人**
 4. **注意 API 调用费用，建议关注免费额度使用情况**
 5. **生产环境应使用更严格的密钥管理方案**
+
+## 阶段 4-1.4 更新
+
+4-1.4 只允许手动 curl 或离线方式测试 Prompt：
+
+- 不在 Go 后端中接入 Hunyuan
+- 不记录 API Key 到文档
+- .env.example 中 LLM_API_KEY 应保持为空
+- curl 测试时使用本地 .env 中的 LLM_API_KEY
+- 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 
 ## 关联文档
 

@@ -1,6 +1,6 @@
 # JSON 输出规范
 
-> 最后更新：2026-05-29（阶段 4-1 Hunyuan API 接入准备）
+> 最后更新：2026-05-29（阶段 4-1.4.0 Prompt / Agent 真实接入方案）
 
 ## 1. 为什么必须强制 JSON
 
@@ -230,6 +230,17 @@ LLM 输出文本
 | `ENABLE_LLM_AGENT=true` 且 LLM 成功 | 使用 LLM 结果，`generated_by="llm_agent"` |
 | `ENABLE_LLM_AGENT=true` 且 LLM 失败 且 `ENABLE_LLM_FALLBACK=true` | 回退 Mock，`generated_by="llm_agent_fallback"` |
 | `ENABLE_LLM_AGENT=true` 且 LLM 失败 且 `ENABLE_LLM_FALLBACK=false` | 返回错误 |
+
+## 阶段 4-1.4 更新
+
+4-1.4 将固定推荐 / 匹配 / 简历优化 JSON Schema：
+
+- 所有模型输出必须可解析为合法 JSON
+- 失败时回退 Mock Agent（generated_by=llm_agent_fallback）
+- JSON Schema 文件将存放在 `server/prompts/schema/` 目录
+- 匹配分析 Schema 优先固定（4-1.4.2）
+- Schema 与 Prompt 配套，每个 Prompt 对应一个 JSON Schema
+- 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
 
 ## 关联文档
 
