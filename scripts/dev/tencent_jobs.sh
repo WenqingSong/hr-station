@@ -380,13 +380,26 @@ cmd_help() {
 命令：
   help              查看帮助
   check             检查配置项、URL、输出目录、依赖工具
+  source-check      check 的别名
   fetch-list        拉取岗位列表原始 JSON
   fetch-details     基于 positions.json 中的 postId 拉取岗位详情原始 JSON
+  fetch-detail      fetch-details 的别名
   fetch-dictionary  拉取字典原始 JSON
   fetch-all         依次执行 fetch-list、fetch-details、fetch-dictionary
   sample            打印本地岗位样本摘要
   status            查看本地原始数据文件状态
   clean             清理 data/tencent-jobs/raw 下生成的 JSON 文件
+
+Makefile 入口：
+  make jobs-help              查看帮助
+  make jobs-check             检查配置
+  make jobs-fetch-list        拉取列表
+  make jobs-fetch-detail      拉取详情
+  make jobs-fetch-dictionary  拉取字典
+  make jobs-fetch             一键拉取
+  make jobs-sample            查看样本
+  make jobs-status            查看状态
+  make jobs-clean             清理
 
 环境变量覆盖：
   TENCENT_JOBS_PAGE_SIZE=5 TENCENT_JOBS_MAX_PAGES=1 $(basename "$0") fetch-all
@@ -396,6 +409,7 @@ cmd_help() {
   - 低频请求（默认间隔 500ms）
   - 出现 403/429/验证码时立即停止
   - 完整岗位数据默认不提交仓库
+  - 当前只保存原始 JSON，不入库
 EOF
 }
 
@@ -952,13 +966,13 @@ main() {
         help)
             cmd_help
             ;;
-        check)
+        check|source-check)
             cmd_check
             ;;
         fetch-list)
             cmd_fetch_list
             ;;
-        fetch-details)
+        fetch-details|fetch-detail)
             cmd_fetch_details
             ;;
         fetch-dictionary)

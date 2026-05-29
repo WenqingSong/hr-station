@@ -23,7 +23,10 @@ DEV_SCRIPT := scripts/dev
         agent-env agent-check agent-test \
         logs logs-backend logs-web logs-mysql logs-agent \
         lint test build ci \
-        clean clean-logs clean-pids clean-volume
+        clean clean-logs clean-pids clean-volume \
+        jobs-help jobs-check jobs-source-check \
+        jobs-fetch-list jobs-fetch-detail jobs-fetch-details \
+        jobs-fetch-dictionary jobs-fetch jobs-sample jobs-status jobs-clean
 
 # ============================================================
 # 帮助
@@ -101,6 +104,19 @@ help: ## 查看所有可用命令
 	@echo "  make clean-logs     删除 .logs"
 	@echo "  make clean-pids     删除 .run"
 	@echo "  make clean-volume   ⚠️ 危险：删除 Docker volume，需要 CONFIRM=yes"
+	@echo ""
+	@echo "腾讯岗位数据源:"
+	@echo "  make jobs-help              查看腾讯岗位数据源命令帮助"
+	@echo "  make jobs-check             检查腾讯岗位数据源配置"
+	@echo "  make jobs-source-check      同 jobs-check"
+	@echo "  make jobs-fetch-list        拉取腾讯岗位列表原始 JSON"
+	@echo "  make jobs-fetch-detail      拉取腾讯岗位详情原始 JSON"
+	@echo "  make jobs-fetch-details     同 jobs-fetch-detail"
+	@echo "  make jobs-fetch-dictionary  拉取腾讯招聘字典原始 JSON"
+	@echo "  make jobs-fetch             一键拉取列表 + 详情 + 字典"
+	@echo "  make jobs-sample            查看本地岗位样本摘要"
+	@echo "  make jobs-status            查看本地原始数据文件状态"
+	@echo "  make jobs-clean             清理本地腾讯岗位原始 JSON"
 	@echo ""
 
 # ============================================================
@@ -369,3 +385,40 @@ clean-pids: ## 删除 .run
 
 clean-volume: ## ⚠️ 危险：删除 Docker volume，需要 CONFIRM=yes
 	@$(DEV_SCRIPT)/clean.sh volume
+
+# ============================================================
+# 腾讯岗位数据源
+# ============================================================
+
+jobs-help: ## 查看腾讯岗位数据源命令帮助
+	@$(DEV_SCRIPT)/tencent_jobs.sh help
+
+jobs-check: ## 检查腾讯岗位数据源配置
+	@$(DEV_SCRIPT)/tencent_jobs.sh check
+
+jobs-source-check: ## 同 jobs-check
+	@$(DEV_SCRIPT)/tencent_jobs.sh check
+
+jobs-fetch-list: ## 拉取腾讯岗位列表原始 JSON
+	@$(DEV_SCRIPT)/tencent_jobs.sh fetch-list
+
+jobs-fetch-detail: ## 拉取腾讯岗位详情原始 JSON
+	@$(DEV_SCRIPT)/tencent_jobs.sh fetch-details
+
+jobs-fetch-details: ## 同 jobs-fetch-detail
+	@$(DEV_SCRIPT)/tencent_jobs.sh fetch-details
+
+jobs-fetch-dictionary: ## 拉取腾讯招聘字典原始 JSON
+	@$(DEV_SCRIPT)/tencent_jobs.sh fetch-dictionary
+
+jobs-fetch: ## 一键拉取列表 + 详情 + 字典
+	@$(DEV_SCRIPT)/tencent_jobs.sh fetch-all
+
+jobs-sample: ## 查看本地岗位样本摘要
+	@$(DEV_SCRIPT)/tencent_jobs.sh sample
+
+jobs-status: ## 查看本地原始数据文件状态
+	@$(DEV_SCRIPT)/tencent_jobs.sh status
+
+jobs-clean: ## 清理本地腾讯岗位原始 JSON
+	@$(DEV_SCRIPT)/tencent_jobs.sh clean

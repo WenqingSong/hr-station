@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-29（阶段 4-1.1.3 修复 Makefile 全量测试问题）
+> 最后更新：2026-05-29（阶段 4-1.2.4 Makefile 接入岗位同步命令）
 
 ## 1. 设计目标
 
@@ -284,3 +284,31 @@ make web-install
 - [环境变量.md](./环境变量.md)
 - [部署说明.md](./部署说明.md)
 - [Docker说明.md](./Docker说明.md)
+- [腾讯招聘信息接入方案.md](./腾讯招聘信息接入方案.md)
+
+## 腾讯岗位数据源命令
+
+以下命令用于管理腾讯招聘公开岗位原始数据的拉取、查看和清理。
+
+| 命令 | 说明 | 是否请求外部接口 | 是否入库 |
+|---|---|---|---|
+| make jobs-help | 查看帮助 | 否 | 否 |
+| make jobs-check | 检查配置 | 否 | 否 |
+| make jobs-source-check | 同 jobs-check | 否 | 否 |
+| make jobs-fetch-list | 拉取岗位列表原始 JSON | 是 | 否 |
+| make jobs-fetch-detail | 拉取岗位详情原始 JSON | 是 | 否 |
+| make jobs-fetch-details | 同 jobs-fetch-detail | 是 | 否 |
+| make jobs-fetch-dictionary | 拉取字典原始 JSON | 是 | 否 |
+| make jobs-fetch | 一键拉取列表 + 详情 + 字典 | 是 | 否 |
+| make jobs-sample | 查看本地样本 | 否 | 否 |
+| make jobs-status | 查看本地文件状态 | 否 | 否 |
+| make jobs-clean | 清理本地 raw JSON | 否 | 否 |
+
+重要说明：
+
+1. jobs-* 命令不会导入数据库
+2. jobs-* 命令不会修改后端接口
+3. jobs-* 命令不会修改前端页面
+4. jobs-fetch 不会自动出现在 make up 中
+5. 原始数据用于 4-1.3 适配前的本地缓存
+6. 测试时可临时覆盖：`TENCENT_JOBS_PAGE_SIZE=5 TENCENT_JOBS_MAX_PAGES=1 make jobs-fetch`
