@@ -14,6 +14,14 @@ type Job struct {
 	Description       string
 	Requirements      string
 	SkillKeywordsJSON []byte
+	ExternalSource    string
+	ExternalID        *string
+	ExternalInnerID   *string
+	SourceURL         *string
+	RawJSON           []byte // stored but not exposed in API responses
+	DataQuality       string
+	IsFeatured        bool
+	SyncedAt          *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }

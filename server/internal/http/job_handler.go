@@ -36,6 +36,7 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 	keyword := r.URL.Query().Get("keyword")
 	city := r.URL.Query().Get("city")
 	category := r.URL.Query().Get("category")
+	externalSource := r.URL.Query().Get("external_source")
 
 	limit := 20
 	if v := r.URL.Query().Get("limit"); v != "" {
@@ -52,13 +53,18 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := h.jobService.List(r.Context(), service.JobListRequest{
-		Keyword:  keyword,
-		City:     city,
-		Category: category,
-		Limit:    limit,
-		Offset:   offset,
+		Keyword:        keyword,
+		City:           city,
+		Category:       category,
+		ExternalSource: externalSource,
+		Limit:          limit,
+		Offset:         offset,
 	})
 	if err != nil {
+		if err.Error() == "invalid external_source" {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid external_source")
+			return
+		}
 		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
 		return
 	}

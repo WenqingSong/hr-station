@@ -5,17 +5,19 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"offer-catcher/server/internal/model"
 )
 
 // JobQuery holds filter parameters for job listing queries.
 type JobQuery struct {
-	Keyword  string
-	City     string
-	Category string
-	Limit    int
-	Offset   int
+	Keyword        string
+	City           string
+	Category       string
+	ExternalSource string
+	Limit          int
+	Offset         int
 }
 
 // JobRepository handles database operations for jobs.
@@ -40,8 +42,8 @@ func (r *JobRepository) List(ctx context.Context, query JobQuery) ([]*model.Job,
 	}
 
 	// Query list
-	listSQL := "SELECT id, title, department, city, category, job_type, description, requirements, skill_keywords_json, created_at, updated_at FROM jobs" +
-		where + " ORDER BY id ASC LIMIT ? OFFSET ?"
+	listSQL := "SELECT id, title, department, city, category, job_type, description, requirements, skill_keywords_json, external_source, external_id, external_inner_id, source_url, data_quality, is_featured, synced_at, created_at, updated_at FROM jobs" +
+		where + " ORDER BY is_featured DESC, id ASC LIMIT ? OFFSET ?"
 	listArgs := append(args, query.Limit, query.Offset)
 
 	rows, err := r.db.QueryContext(ctx, listSQL, listArgs...)
@@ -55,9 +57,13 @@ func (r *JobRepository) List(ctx context.Context, query JobQuery) ([]*model.Job,
 		var j model.Job
 		var skillKeywordsJSON sql.NullString
 		var description, requirements sql.NullString
+		var externalID, externalInnerID, sourceURL sql.NullString
+		var syncedAt sql.NullTime
 
 		if err := rows.Scan(&j.ID, &j.Title, &j.Department, &j.City, &j.Category,
 			&j.JobType, &description, &requirements, &skillKeywordsJSON,
+			&j.ExternalSource, &externalID, &externalInnerID, &sourceURL,
+			&j.DataQuality, &j.IsFeatured, &syncedAt,
 			&j.CreatedAt, &j.UpdatedAt); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan job: %w", err)
 		}
@@ -65,6 +71,10 @@ func (r *JobRepository) List(ctx context.Context, query JobQuery) ([]*model.Job,
 		j.Description = description.String
 		j.Requirements = requirements.String
 		j.SkillKeywordsJSON = fromNullJSON(skillKeywordsJSON)
+		j.ExternalID = fromNullString(externalID)
+		j.ExternalInnerID = fromNullString(externalInnerID)
+		j.SourceURL = fromNullString(sourceURL)
+		j.SyncedAt = fromNullTime(syncedAt)
 
 		jobs = append(jobs, &j)
 	}
@@ -81,12 +91,16 @@ func (r *JobRepository) FindByID(ctx context.Context, id uint64) (*model.Job, er
 	var j model.Job
 	var skillKeywordsJSON sql.NullString
 	var description, requirements sql.NullString
+	var externalID, externalInnerID, sourceURL sql.NullString
+	var syncedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, title, department, city, category, job_type, description, requirements, skill_keywords_json, created_at, updated_at FROM jobs WHERE id = ?",
+		"SELECT id, title, department, city, category, job_type, description, requirements, skill_keywords_json, external_source, external_id, external_inner_id, source_url, data_quality, is_featured, synced_at, created_at, updated_at FROM jobs WHERE id = ?",
 		id,
 	).Scan(&j.ID, &j.Title, &j.Department, &j.City, &j.Category,
 		&j.JobType, &description, &requirements, &skillKeywordsJSON,
+		&j.ExternalSource, &externalID, &externalInnerID, &sourceURL,
+		&j.DataQuality, &j.IsFeatured, &syncedAt,
 		&j.CreatedAt, &j.UpdatedAt)
 
 	if err == sql.ErrNoRows {
@@ -99,6 +113,10 @@ func (r *JobRepository) FindByID(ctx context.Context, id uint64) (*model.Job, er
 	j.Description = description.String
 	j.Requirements = requirements.String
 	j.SkillKeywordsJSON = fromNullJSON(skillKeywordsJSON)
+	j.ExternalID = fromNullString(externalID)
+	j.ExternalInnerID = fromNullString(externalInnerID)
+	j.SourceURL = fromNullString(sourceURL)
+	j.SyncedAt = fromNullTime(syncedAt)
 
 	return &j, nil
 }
@@ -124,9 +142,30 @@ func (r *JobRepository) buildWhereClause(query JobQuery) (string, []interface{})
 		args = append(args, query.Category)
 	}
 
+	if query.ExternalSource != "" {
+		conditions = append(conditions, "external_source = ?")
+		args = append(args, query.ExternalSource)
+	}
+
 	if len(conditions) > 0 {
 		return " WHERE " + strings.Join(conditions, " AND "), args
 	}
 
 	return "", args
+}
+
+// fromNullString converts sql.NullString to *string pointer.
+func fromNullString(ns sql.NullString) *string {
+	if ns.Valid {
+		return &ns.String
+	}
+	return nil
+}
+
+// fromNullTime converts sql.NullTime to *time.Time pointer.
+func fromNullTime(nt sql.NullTime) *time.Time {
+	if nt.Valid {
+		return &nt.Time
+	}
+	return nil
 }
