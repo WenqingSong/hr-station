@@ -143,6 +143,14 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
 - 后续推荐 Prompt 的模型调用也建议 max_tokens >= 8192
 
+### 4-1.4.6B 推荐 JSON Schema 登记记录
+
+- 推荐 JSON Schema 已登记：`server/prompts/schema/recommendation_schema.json`
+- Schema 验证结果：JSON 合法，7 个顶层 required 字段完整，7 个 $defs 子结构完整
+- Schema 已吸收 4-1.4.5 首轮验收问题（四档推荐固定但不强制覆盖、recommend_level 与 recommend_label 一致、match_score 区间一致）
+- 当前 4-1.4.6B 只登记 Schema，不再次调用 Hunyuan
+- 后续推荐 Prompt 的模型调用建议 LLM_MAX_OUTPUT_TOKENS ≥8192
+
 ### 4-1.4.3B Schema 登记记录
 
 - 匹配分析 JSON Schema 已登记：`server/prompts/schema/match_analysis_schema.json`

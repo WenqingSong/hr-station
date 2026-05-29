@@ -1,0 +1,540 @@
+{
+"$schema": "https://json-schema.org/draft/2020-12/schema",
+"$id": "server/prompts/schema/recommendation_schema.json",
+"title": "Recommendation Agent Output Schema",
+"description": "Schema for RecommendationAgent LLM output. The output must be a strict JSON object used to recommend jobs for a student based on resume evidence and candidate job information. It supports OfferGo user-facing tone, four-level recommendation, evidence-based reasoning, query suggestions, next actions, authenticity notice, and anti-hallucination constraints.",
+"type": "object",
+"additionalProperties": false,
+"required": [
+"strategy_summary",
+"recommendations",
+"overall_risks",
+"resume_focus",
+"authenticity_notice",
+"analysis_basis",
+"generated_by"
+],
+"properties": {
+"strategy_summary": {
+"type": "string",
+"minLength": 30,
+"maxLength": 520,
+"description": "Overall job application strategy in OfferGo tone. It should summarize which job directions should be prioritized, which should be explored first, and what resume improvements matter most. It must not promise that the user will pass screening."
+},
+"recommendations": {
+"type": "array",
+"minItems": 1,
+"maxItems": 5,
+"description": "Recommended or non-recommended jobs selected from the input candidate list. Do not output jobs that are not present in the input. The list should be sorted by recommendation priority: priority_apply, recommended, explore_first, not_recommended. The schema fixes four possible recommendation levels but does not require every response to cover all four levels, because real candidate job sets may not contain all match levels.",
+"items": {
+"$ref": "#/$defs/recommendation_item"
+}
+},
+"overall_risks": {
+"type": "array",
+"minItems": 1,
+"maxItems": 5,
+"description": "Overall risks across the user's job selection and resume positioning.",
+"items": {
+"$ref": "#/$defs/overall_risk"
+}
+},
+"resume_focus": {
+"type": "array",
+"minItems": 2,
+"maxItems": 5,
+"description": "Resume improvement focus areas that can improve screening performance across the recommended job directions.",
+"items": {
+"$ref": "#/$defs/resume_focus_item"
+}
+},
+"authenticity_notice": {
+"type": "string",
+"minLength": 20,
+"maxLength": 360,
+"description": "A professional authenticity reminder. It must remind the user not to fabricate experiences, job-related evidence, project metrics, responsibilities, or results. It should encourage strengthening truthful project expression and gaining real practice."
+},
+"analysis_basis": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"resume_used",
+"job_candidates_count",
+"full_jd_count",
+"summary_only_count"
+],
+"properties": {
+"resume_used": {
+"type": "boolean",
+"description": "Whether resume information was used in the recommendation."
+},
+"job_candidates_count": {
+"type": "integer",
+"minimum": 1,
+"maximum": 100,
+"description": "Number of candidate jobs provided to the model."
+},
+"full_jd_count": {
+"type": "integer",
+"minimum": 0,
+"maximum": 100,
+"description": "Number of candidate jobs with full_jd data quality."
+},
+"summary_only_count": {
+"type": "integer",
+"minimum": 0,
+"maximum": 100,
+"description": "Number of candidate jobs with summary_only data quality."
+}
+}
+},
+"generated_by": {
+"type": "string",
+"enum": [
+"llm_agent"
+],
+"description": "For normal LLM output, this must be llm_agent. Fallback labels such as mock_agent or llm_agent_fallback are assigned by backend fallback logic, not by this LLM output schema."
+}
+},
+"$defs": {
+"recommendation_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"job_id",
+"title",
+"department",
+"city",
+"category",
+"job_type",
+"external_source",
+"external_id",
+"data_quality",
+"source_url",
+"recommend_level",
+"recommend_label",
+"match_score",
+"offer_go_summary",
+"recommend_reason",
+"evidence",
+"risk_points",
+"query_suggestions",
+"next_action"
+],
+"properties": {
+"job_id": {
+"type": "integer",
+"minimum": 1,
+"description": "Internal job ID. It must come from the input candidate job list. Do not invent job_id."
+},
+"title": {
+"type": "string",
+"minLength": 1,
+"maxLength": 160,
+"description": "Job title from the input candidate job list. Do not invent or rewrite the title."
+},
+"department": {
+"type": "string",
+"minLength": 0,
+"maxLength": 160,
+"description": "Department or business group from the input job."
+},
+"city": {
+"type": "string",
+"minLength": 0,
+"maxLength": 160,
+"description": "Job city from the input job."
+},
+"category": {
+"type": "string",
+"minLength": 0,
+"maxLength": 120,
+"description": "Job category from the input job."
+},
+"job_type": {
+"type": "string",
+"minLength": 0,
+"maxLength": 120,
+"description": "Job type or recruitment project name from the input job."
+},
+"external_source": {
+"type": "string",
+"minLength": 0,
+"maxLength": 80,
+"description": "External source such as tencent_join or local_mock. It must come from the input job."
+},
+"external_id": {
+"type": "string",
+"minLength": 0,
+"maxLength": 128,
+"description": "External job ID from the input job. Do not invent external_id."
+},
+"data_quality": {
+"type": "string",
+"enum": [
+"full_jd",
+"summary_only",
+"manual_enriched",
+"unknown"
+],
+"description": "Data quality of the job information. full_jd supports deeper reasoning; summary_only should reduce certainty."
+},
+"source_url": {
+"type": "string",
+"minLength": 0,
+"maxLength": 500,
+"description": "Source URL for the job if available. It must come from the input job or be empty."
+},
+"recommend_level": {
+"type": "string",
+"enum": [
+"priority_apply",
+"recommended",
+"explore_first",
+"not_recommended"
+],
+"description": "Recommendation level. Use priority_apply for strong fit, recommended for clear but imperfect fit, explore_first for jobs worth understanding before applying, and not_recommended for jobs that should not be the current main target."
+},
+"recommend_label": {
+"type": "string",
+"enum": [
+"优先投递",
+"建议尝试",
+"先了解再决定",
+"暂不建议"
+],
+"description": "User-facing recommendation label. It must be consistent with recommend_level."
+},
+"match_score": {
+"type": "integer",
+"minimum": 0,
+"maximum": 100,
+"description": "A conservative auxiliary score from 0 to 100. The score is for sorting and reference only; it must not be treated as the main user-facing conclusion."
+},
+"offer_go_summary": {
+"type": "string",
+"minLength": 20,
+"maxLength": 300,
+"description": "A concise user-facing recommendation summary in OfferGo tone. It should be friendly but not childish, professional but not cold. It should give a conclusion, explain why, and suggest next steps. It must not include absolute promises such as '一定通过初筛' or exaggerated praise."
+},
+"recommend_reason": {
+"type": "string",
+"minLength": 20,
+"maxLength": 420,
+"description": "Core reason for recommending or not recommending this job. It must be based on resume and job evidence. Do not use vague phrases such as '比较匹配' without explanation."
+},
+"evidence": {
+"type": "array",
+"minItems": 2,
+"maxItems": 4,
+"description": "Evidence chain connecting job requirements with resume evidence. It should include matched, partial, or missing judgements where appropriate. If resume evidence is absent, use '简历中暂未看到直接证据' and judgement='missing'.",
+"items": {
+"$ref": "#/$defs/evidence_item"
+}
+},
+"risk_points": {
+"type": "array",
+"minItems": 1,
+"maxItems": 4,
+"description": "Risks for this specific job, including screening risks, skill gaps, missing evidence, or interview preparation risks.",
+"items": {
+"$ref": "#/$defs/job_risk_point"
+}
+},
+"query_suggestions": {
+"type": "array",
+"minItems": 2,
+"maxItems": 4,
+"description": "Concrete search queries that help the student understand the job direction, technical stack, interview requirements, or daily work. Avoid vague queries like '了解岗位'.",
+"items": {
+"$ref": "#/$defs/query_suggestion"
+}
+},
+"next_action": {
+"$ref": "#/$defs/next_action",
+"description": "The most important next action before applying to or deciding about this job."
+}
+},
+"allOf": [
+{
+"if": {
+"properties": {
+"recommend_level": {
+"const": "priority_apply"
+}
+},
+"required": [
+"recommend_level"
+]
+},
+"then": {
+"properties": {
+"recommend_label": {
+"const": "优先投递"
+},
+"match_score": {
+"minimum": 85,
+"maximum": 95
+}
+}
+}
+},
+{
+"if": {
+"properties": {
+"recommend_level": {
+"const": "recommended"
+}
+},
+"required": [
+"recommend_level"
+]
+},
+"then": {
+"properties": {
+"recommend_label": {
+"const": "建议尝试"
+},
+"match_score": {
+"minimum": 70,
+"maximum": 84
+}
+}
+}
+},
+{
+"if": {
+"properties": {
+"recommend_level": {
+"const": "explore_first"
+}
+},
+"required": [
+"recommend_level"
+]
+},
+"then": {
+"properties": {
+"recommend_label": {
+"const": "先了解再决定"
+},
+"match_score": {
+"minimum": 50,
+"maximum": 69
+}
+}
+}
+},
+{
+"if": {
+"properties": {
+"recommend_level": {
+"const": "not_recommended"
+}
+},
+"required": [
+"recommend_level"
+]
+},
+"then": {
+"properties": {
+"recommend_label": {
+"const": "暂不建议"
+},
+"match_score": {
+"minimum": 0,
+"maximum": 49
+}
+}
+}
+}
+]
+},
+"evidence_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"job_requirement",
+"resume_evidence",
+"judgement",
+"explanation"
+],
+"properties": {
+"job_requirement": {
+"type": "string",
+"minLength": 4,
+"maxLength": 220,
+"description": "A job requirement from the input job description or requirements."
+},
+"resume_evidence": {
+"type": "string",
+"minLength": 4,
+"maxLength": 280,
+"description": "Corresponding resume evidence. If there is no direct evidence, use '简历中暂未看到直接证据'. Do not invent resume evidence."
+},
+"judgement": {
+"type": "string",
+"enum": [
+"matched",
+"partial",
+"missing"
+],
+"description": "matched means direct evidence exists, partial means indirect or incomplete evidence exists, missing means no direct resume evidence exists."
+},
+"explanation": {
+"type": "string",
+"minLength": 8,
+"maxLength": 300,
+"description": "Explain why the judgement is matched, partial, or missing. Do not force a match."
+}
+}
+},
+"job_risk_point": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"risk",
+"severity",
+"mitigation"
+],
+"properties": {
+"risk": {
+"type": "string",
+"minLength": 4,
+"maxLength": 220,
+"description": "A screening, job selection, or interview risk for this specific job."
+},
+"severity": {
+"type": "string",
+"enum": [
+"high",
+"medium",
+"low"
+],
+"description": "Severity of the risk."
+},
+"mitigation": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "How to reduce this risk through truthful resume improvement, real learning, real practice, or better job research."
+}
+}
+},
+"query_suggestion": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"query",
+"why_search"
+],
+"properties": {
+"query": {
+"type": "string",
+"minLength": 4,
+"maxLength": 120,
+"description": "A concrete search query for the student. It should be useful for understanding job responsibilities, technical stacks, interview requirements, or daily work."
+},
+"why_search": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Why this query helps the student make a better job decision or prepare more effectively."
+}
+}
+},
+"next_action": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"action",
+"priority",
+"expected_effect"
+],
+"properties": {
+"action": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "The concrete next action before applying or deciding whether to apply. It must not suggest fabricating experience."
+},
+"priority": {
+"type": "string",
+"enum": [
+"p0",
+"p1",
+"p2"
+],
+"description": "Priority of this action."
+},
+"expected_effect": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Expected effect on job decision quality, resume screening, or preparation quality."
+}
+}
+},
+"overall_risk": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"risk",
+"severity",
+"suggestion"
+],
+"properties": {
+"risk": {
+"type": "string",
+"minLength": 4,
+"maxLength": 220,
+"description": "An overall risk across the user's job choices or resume positioning."
+},
+"severity": {
+"type": "string",
+"enum": [
+"high",
+"medium",
+"low"
+],
+"description": "Severity of the overall risk."
+},
+"suggestion": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Concrete suggestion for reducing this overall risk."
+}
+}
+},
+"resume_focus_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"focus",
+"why_it_matters",
+"suggested_action"
+],
+"properties": {
+"focus": {
+"type": "string",
+"minLength": 4,
+"maxLength": 160,
+"description": "A resume improvement focus area."
+},
+"why_it_matters": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Why this focus area matters for job recommendation or screening."
+},
+"suggested_action": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Concrete action for improving the resume. It must not suggest fabricating experience or metrics."
+}
+}
+}
+}
+}

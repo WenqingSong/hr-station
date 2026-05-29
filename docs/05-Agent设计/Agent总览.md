@@ -147,7 +147,17 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
     - 证据链真实，Offer鹅语气专业，分数克制（88/42/35/33）
     - 发现轻微问题：四档推荐覆盖不完整，不阻塞 Schema 定稿
     - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
-  - 下一步为 4-1.4.6A 人工定稿推荐 JSON Schema
+  - **4-1.4.6A/B 已完成：推荐 JSON Schema 定稿与登记**
+    - 推荐 Agent 当前已有完整 Prompt + Schema 资产组合：
+      - `recommendation_v1.md`
+      - `recommendation_schema.json`
+    - 当前已有：
+      - 匹配分析 Prompt + Schema
+      - 岗位推荐 Prompt + Schema
+    - 当前仍未接 Hunyuan
+    - 当前仍未实现 LLM Client
+    - 当前仍未替换 Mock Agent
+  - 下一步为 4-1.4.7A 人工定稿简历优化 Agent 指令模板
 
 ## 关联文档
 

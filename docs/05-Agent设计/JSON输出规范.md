@@ -264,7 +264,22 @@ LLM 输出文本
     - 模型输出 JSON 合法，字段完整，证据链真实，无编造内容
     - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
     - 验收结果将作为 recommendation_schema.json 的依据
-  - 正式推荐 JSON Schema 将在 4-1.4.6A/B 固定
+  - **4-1.4.6A 已完成：人工定稿 recommendation_schema.json**
+  - **4-1.4.6B 已完成：CodeBuddy 登记推荐 JSON Schema**
+  - Schema 路径：`server/prompts/schema/recommendation_schema.json`
+  - 该 Schema 约束 RecommendationAgent 的 LLM 输出
+  - 当前 Schema 包含 7 个顶层 required 字段
+  - 当前 Schema 禁止 additionalProperties
+  - 当前 Schema 已固定四档推荐：
+    - priority_apply / 优先投递
+    - recommended / 建议尝试
+    - explore_first / 先了解再决定
+    - not_recommended / 暂不建议
+  - 当前 Schema 已吸收 4-1.4.5 首轮验收问题：
+    - 固定四档推荐，但不强制一次输出覆盖四档
+    - recommend_level 与 recommend_label 一致（allOf if/then）
+    - match_score 与 recommend_level 区间一致（allOf if/then）
+    - 后续仍需补中匹配样本验证 recommended / explore_first
 
 ## 关联文档
 

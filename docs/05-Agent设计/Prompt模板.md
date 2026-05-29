@@ -40,7 +40,12 @@ Prompt 将作为独立产品资产管理：
     - 发现问题：四档推荐覆盖不完整（仅使用 priority_apply 和 not_recommended 两档），岗位 13 分类偏保守
     - 问题不阻塞进入 4-1.4.6A 推荐 Schema 定稿
     - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
-  - 当前尚未接入 Go 后端和 Hunyuan
+  - **4-1.4.6A/B 已完成：推荐 JSON Schema 定稿与登记**
+    - Schema 路径：`server/prompts/schema/recommendation_schema.json`
+    - Prompt 与 Schema 当前关系：
+      - Prompt 定义任务、角色、推荐原则、四档推荐和输出结构草案
+      - Schema 固定输出字段、类型、枚举、数组长度和推荐等级一致性约束
+    - 当前仍未接入 Go 后端和 Hunyuan
 - 4-1.4.7 开始创建简历优化 Prompt 文件 `resume_optimization_v1.md`
 - JSON 修复 Prompt `json_repair_v1.md` 为 P2 优先级，后续按需创建
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录

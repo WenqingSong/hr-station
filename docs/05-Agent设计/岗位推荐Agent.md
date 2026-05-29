@@ -136,9 +136,13 @@
   - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
   - 模型输出 JSON 合法，字段完整，证据链真实，Offer鹅语气专业
   - 发现轻微问题：四档推荐覆盖不完整，不阻塞后续 Schema 定稿
+- 推荐 Agent 后续将使用：
+  - Prompt Template：`server/prompts/recommendation_v1.md`
+  - Output Schema：`server/prompts/schema/recommendation_schema.json`
+- 当前 Prompt 和 Schema 均已登记
 - 当前仍使用 Mock Agent
-- 当前仍未接入 Go 后端和 Hunyuan
-- 后续 4-1.4.6A/B 将固定推荐 JSON Schema
+- 当前仍未接入 LLM Client
+- 后续简历优化 Prompt 将继续采用人工定稿 + CodeBuddy 登记模式
 
 ## 关联文档
 
