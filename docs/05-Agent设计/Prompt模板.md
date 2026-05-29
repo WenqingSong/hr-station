@@ -1,6 +1,6 @@
 # Prompt 模板
 
-> 最后更新：2026-05-29（阶段 4-1.4.3B 登记匹配分析 JSON Schema）
+> 最后更新：2026-05-29（阶段 4-1.4.4B 登记岗位推荐 Agent 指令模板）
 
 ## 当前状态
 
@@ -27,6 +27,20 @@ Prompt 将作为独立产品资产管理：
     - Schema 已吸收 4-1.4.2 首轮验收问题（rewrite_example 禁止编造数字、evidence_chain 支持 missing）
     - 当前仍未接入 Go 后端和 Hunyuan
 - 4-1.4.4 开始创建推荐 Prompt 文件 `recommendation_v1.md`
+  - **4-1.4.4A 已完成：人工定稿 recommendation_v1.md**
+  - **4-1.4.4B 已完成：CodeBuddy 登记 recommendation_v1.md**
+  - recommendation_v1.md 是 RecommendationAgent 的 Agent Prompt Template
+  - 该模板由人工定稿，CodeBuddy 只登记和检查，不重写核心 Prompt
+  - 模板面向"不知道选择哪个岗位"的学生求职场景
+  - 模板采用四档推荐：优先投递 / 建议尝试 / 先了解再决定 / 暂不建议
+  - 模板包含 Offer鹅展示语气、推荐理由、证据链、风险点、查询建议、下一步行动和真实性提醒
+  - **4-1.4.5 首轮输出验收结论：partial_pass**
+    - JSON 输出合法，7 个顶层字段完整，4 个推荐项各含 19 个必要字段
+    - 证据链真实引用 JD 和简历，Offer鹅语气亲和专业，分数克制（88/42/35/33）
+    - 发现问题：四档推荐覆盖不完整（仅使用 priority_apply 和 not_recommended 两档），岗位 13 分类偏保守
+    - 问题不阻塞进入 4-1.4.6A 推荐 Schema 定稿
+    - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
+  - 当前尚未接入 Go 后端和 Hunyuan
 - 4-1.4.7 开始创建简历优化 Prompt 文件 `resume_optimization_v1.md`
 - JSON 修复 Prompt `json_repair_v1.md` 为 P2 优先级，后续按需创建
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录

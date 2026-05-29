@@ -131,6 +131,18 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 - 不记录完整模型原始输出
 - 验收报告见 `docs/05-Agent设计/匹配分析Prompt首轮输出验收报告.md`
 
+### 4-1.4.5 推荐 Prompt 首轮输出验收记录
+
+- 已执行一次推荐 Prompt 手动调用验收
+- 使用 TokenHub（腾讯混元代理）+ hy3-preview 模型
+- max_tokens=8192，调用成功（finish_reason=stop）
+- prompt_tokens=8692, completion_tokens=3832, total_tokens=12524
+- 模型输出 JSON 合法，字段完整，证据链真实
+- 不记录 API Key
+- 不记录完整模型原始输出
+- 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
+- 后续推荐 Prompt 的模型调用也建议 max_tokens >= 8192
+
 ### 4-1.4.3B Schema 登记记录
 
 - 匹配分析 JSON Schema 已登记：`server/prompts/schema/match_analysis_schema.json`

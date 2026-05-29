@@ -1,6 +1,6 @@
 # JSON 输出规范
 
-> 最后更新：2026-05-29（阶段 4-1.4.3B 登记匹配分析 JSON Schema）
+> 最后更新：2026-05-29（阶段 4-1.4.4B 登记岗位推荐 Agent 指令模板）
 
 ## 1. 为什么必须强制 JSON
 
@@ -258,6 +258,13 @@ LLM 输出文本
   - evidence_chain 支持 missing 判断
   - 后续 LLM_MAX_OUTPUT_TOKENS 建议 ≥8192
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
+- **4-1.4.4A/B 已完成：岗位推荐 Agent 指令模板定稿与登记**
+  - recommendation_v1.md 已包含推荐输出结构草案
+  - **4-1.4.5 已完成：推荐 Prompt 首轮输出验收（partial_pass）**
+    - 模型输出 JSON 合法，字段完整，证据链真实，无编造内容
+    - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
+    - 验收结果将作为 recommendation_schema.json 的依据
+  - 正式推荐 JSON Schema 将在 4-1.4.6A/B 固定
 
 ## 关联文档
 

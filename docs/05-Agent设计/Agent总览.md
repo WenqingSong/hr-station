@@ -1,6 +1,6 @@
 # Agent 总览
 
-> 最后更新：2026-05-29（阶段 4-1.4.3B 登记匹配分析 JSON Schema）
+> 最后更新：2026-05-29（阶段 4-1.4.4B 登记岗位推荐 Agent 指令模板）
 
 ## 当前状态
 
@@ -134,6 +134,20 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
   - 当前仍未实现 LLM Client
   - 当前仍未替换 Mock Agent
   - 下一步为 4-1.4.4A 人工定稿岗位推荐 Agent 指令模板
+- **4-1.4.4A/B 已完成：岗位推荐 Agent 指令模板定稿与登记**
+  - 第二个正式 Agent Prompt Template 已登记：`server/prompts/recommendation_v1.md`
+  - 当前已有：
+    - 匹配分析 Prompt + Schema（match_analysis_v1.md + match_analysis_schema.json）
+    - 岗位推荐 Prompt（recommendation_v1.md）
+  - 当前仍未接 Hunyuan
+  - 当前仍未实现 LLM Client
+  - 当前仍未替换 Mock Agent
+  - **4-1.4.5 已完成：推荐 Prompt 首轮输出验收（partial_pass）**
+    - 模型输出 JSON 合法，7 个顶层字段完整，4 个推荐项各含 19 个必要字段
+    - 证据链真实，Offer鹅语气专业，分数克制（88/42/35/33）
+    - 发现轻微问题：四档推荐覆盖不完整，不阻塞 Schema 定稿
+    - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
+  - 下一步为 4-1.4.6A 人工定稿推荐 JSON Schema
 
 ## 关联文档
 
