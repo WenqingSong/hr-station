@@ -181,6 +181,21 @@
 
 详见 `docs/05-Agent设计/战略差异化与杀手锏确认.md`
 
+## 阶段 4-3.5.C 投递边界与优化停止条件设计
+
+4-3.5.C 已完成投递边界与优化停止条件设计。匹配分析后续应支持投递准备度判断：
+
+1. apply_readiness 枚举：ready_to_apply / quick_fix_before_apply / not_ready_for_this_role / insufficient_information
+2. optimization_stop_signal 枚举：stop_and_apply / fix_top_3_then_apply / needs_more_evidence / target_role_mismatch
+3. apply_readiness=quick_fix_before_apply 时输出 Top 3 快速优化项（top_fix_items）
+4. 长期提升项（long_term_improvement）与快速优化项分开展示
+5. 每条建议附带 self_check_question / learn_more_query / verification_notice
+6. 优化停止信号避免用户陷入无限优化循环
+
+本阶段不修改 Prompt / Schema / 代码，只登记方向。
+
+详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`
+
 ## 14. 阶段 4-3.2 接入实现
 
 4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，核心实现：

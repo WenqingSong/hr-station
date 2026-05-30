@@ -211,3 +211,19 @@
 本阶段不修改 Prompt / Schema / 代码，只登记方向。
 
 详见 `docs/05-Agent设计/战略差异化与杀手锏确认.md`
+
+## 阶段 4-3.5.C 投递边界与优化停止条件设计
+
+4-3.5.C 已完成投递边界与优化停止条件设计。推荐 Agent 后续应在推荐结果中体现：
+
+1. 每个推荐岗位的投递准备度（apply_readiness per job）
+2. 推荐优先级和投递顺序（recommended_job_priority）
+3. 推荐置信度（recommendation_confidence）
+4. 为什么先投这个岗位（why_this_job_first）
+5. 哪个岗位需要先补简历，哪个岗位暂不建议投
+
+推荐不是只告诉用户投什么岗位，还要提示该岗位是否可直接投、是否需快速优化后投递。
+
+本阶段不修改 Prompt / Schema / 代码，只登记方向。
+
+详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`

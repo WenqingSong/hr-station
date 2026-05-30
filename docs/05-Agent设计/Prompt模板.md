@@ -273,3 +273,17 @@ server/internal/agent/prompts/
 本阶段不修改 Prompt 文件，只登记优化方向。
 
 详见 `docs/05-Agent设计/战略差异化与杀手锏确认.md`
+
+## 阶段 4-3.5.C 更新
+
+4-3.5.C 已完成投递边界与优化停止条件设计。后续 Prompt 优化需加入：
+
+1. **apply_readiness**：投递准备度判断，匹配分析和推荐结果中输出
+2. **optimization_stop_signal**：优化停止信号，避免无限优化
+3. **Top 3 快速优化项**：apply_readiness=quick_fix_before_apply 时最多给 3 个快速优化项
+4. **长期提升项拆分**：long_term_improvement 与 top_fix_items 分开展示
+5. **estimated_effort**：每个优化项的预计耗时（within_10_min / within_30_min / within_60_min / long_term）
+
+本阶段不修改 Prompt 文件。
+
+详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`

@@ -789,3 +789,5 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 4-3.5 已完成：推荐接口联调与 fallback 验收。已验证 LLM success / repaired / fallback_required / LLM_ENABLE=false / 配置异常 / 候选集外岗位 / 空推荐列表等路径。修复了 RecommendationAgent 元数据缺失问题（GeneratedBy/AgentStatus/RepairApplied 未从 RunResult 传递到 RecommendedJob）。新增 19 项 service 层验收测试 + 12 项 agent 层测试。推荐接口在所有场景下均能稳定返回。下一步为 4-3.6 ResumeOptimizationAgent 现状核对与接入方案。
 
 4-3.5.B 已完成：战略差异化与杀手锏确认。项目定位从"岗位推荐工具"升级为"投递前决策与简历初筛优化系统"。三个核心杀手锏：投递边界与优化停止条件、JD 证据链匹配、Agent 输出 Quality Gate。后续 4-3.5.C ~ 4-3.5.H 将围绕投递边界、JD 证据链、Quality Gate、简历上下文设计进行局部战略校准。
+
+4-3.5.C 已完成：投递边界与优化停止条件设计。已定义 apply_readiness（ready_to_apply / quick_fix_before_apply / not_ready_for_this_role / insufficient_information）和 optimization_stop_signal（stop_and_apply / fix_top_3_then_apply / needs_more_evidence / target_role_mismatch）。后续业务 Agent 输出需要避免无限优化，明确 apply_readiness 与 optimization_stop_signal，区分 Top 3 快速优化项与长期提升项。

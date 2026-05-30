@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-30（阶段 4-3.5.B 战略差异化与杀手锏确认）
+> 最后更新：2026-05-30（阶段 4-3.5.C 投递边界与优化停止条件设计）
 
 ## 当前状态
 
-阶段 4-3 已开始，4-3.0 已完成方案设计，4-3.1 已通过真实 LLM Smoke 前置验收，4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，4-3.3 已完成匹配分析接口联调与 fallback 验收，4-3.4 已完成 RecommendationAgent 接入 Pipeline，4-3.5 已完成推荐接口联调与 fallback 验收，4-3.5.B 已完成战略差异化与杀手锏确认。MatchAnalysisAgent 已接入并通过接口验收。RecommendationAgent 已接入并通过接口验收。ResumeOptimizationAgent 尚未接入。后续业务 Agent 输出需从"给结果"升级为"给证据、边界、可核实建议"。下一步进入 4-3.5.C 投递边界与优化停止条件设计。
+阶段 4-3 已开始，4-3.0 已完成方案设计，4-3.1 已通过真实 LLM Smoke 前置验收，4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，4-3.3 已完成匹配分析接口联调与 fallback 验收，4-3.4 已完成 RecommendationAgent 接入 Pipeline，4-3.5 已完成推荐接口联调与 fallback 验收，4-3.5.B 已完成战略差异化与杀手锏确认，4-3.5.C 已完成投递边界与优化停止条件设计。MatchAnalysisAgent 已接入并通过接口验收。RecommendationAgent 已接入并通过接口验收。ResumeOptimizationAgent 尚未接入。后续业务 Agent 输出需从"给结果"升级为"给证据、边界、可核实建议"，并明确 apply_readiness 和 optimization_stop_signal。下一步进入 4-3.5.D JD 证据链匹配与 START 简历优化规则。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）

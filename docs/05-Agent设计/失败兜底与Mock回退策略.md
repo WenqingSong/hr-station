@@ -621,3 +621,15 @@ if !runResult.FallbackRequired {
 本阶段只做设计确认，不实现。
 
 详见 `docs/05-Agent设计/战略差异化与杀手锏确认.md`
+
+## 阶段 4-3.5.C 更新
+
+4-3.5.C 已完成投递边界与优化停止条件设计。后续 Quality Gate 可检查 Agent 输出是否缺少投递边界或优化停止条件：
+
+1. 如果输出只给泛泛优化建议但没有 apply_readiness，可触发重试或保守结果
+2. 如果 apply_readiness=quick_fix_before_apply 但没有 top_fix_items，可触发补充
+3. 如果 apply_readiness 与 optimization_stop_signal 矛盾（如 ready_to_apply + needs_more_evidence），可触发修正
+
+本阶段只做设计确认，不实现。
+
+详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`

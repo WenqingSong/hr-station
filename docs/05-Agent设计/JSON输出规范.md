@@ -508,3 +508,19 @@ Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映
 本阶段不修改 Schema，仅登记方向。
 
 详见 `docs/05-Agent设计/战略差异化与杀手锏确认.md`
+
+## 阶段 4-3.5.C 更新
+
+4-3.5.C 已完成投递边界与优化停止条件设计。后续 Schema 可评估增加以下字段：
+
+1. `apply_readiness`：投递准备度枚举（ready_to_apply / quick_fix_before_apply / not_ready_for_this_role / insufficient_information）
+2. `optimization_stop_signal`：优化停止信号枚举（stop_and_apply / fix_top_3_then_apply / needs_more_evidence / target_role_mismatch）
+3. `top_fix_items`：Top 3 快速优化项数组，每项含 issue / why_it_matters / action / example_reference / self_check_question / estimated_effort
+4. `long_term_improvement`：长期提升项数组
+5. `estimated_effort`：预计耗时枚举（within_10_min / within_30_min / within_60_min / long_term）
+6. `screening_risks`：初筛风险
+7. `recommendation_confidence`：推荐置信度
+
+本阶段不修改 Schema。
+
+详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`
