@@ -88,6 +88,11 @@ func minimalMatchAnalysis() map[string]any {
 		"match_level":         "potential_match",
 		"match_label":         "建议尝试",
 		"screening_result":    "likely",
+		"apply_readiness":           "quick_fix_before_apply",
+		"optimization_stop_signal":  "fix_top_3_then_apply",
+		"top_fix_items": []any{
+			map[string]any{"issue": "项目描述缺少量化数据", "why_it_matters": "量化数据能让初筛更有说服力", "action": "补充项目量化成果", "example_reference": "如果该项目确实有相关数据，可以补充具体的性能提升比例", "self_check_question": "项目中的量化数据是否真实存在？", "estimated_effort": "within_30_min"},
+		},
 		"offer_go_summary":    "你的简历与该岗位有一定匹配度，建议优化后尝试投递。",
 		"jd_key_requirements": []any{
 			map[string]any{"requirement": "岗位要求Go相关经验", "importance": "core", "source": "requirements", "reason": "该岗位核心技能要求Go语言"},
@@ -162,7 +167,10 @@ func minimalRecommendation() map[string]any {
 				"source_url":       "",
 				"recommend_level":  "priority_apply",
 				"recommend_label":  "优先投递",
-				"match_score":      88,
+				"match_score":             88,
+				"apply_readiness":         "ready_to_apply",
+				"optimization_stop_signal": "stop_and_apply",
+				"top_fix_items":           []any{},
 				"offer_go_summary": "你的Go技能与该岗位高度匹配，建议优先投递试试看。",
 				"recommend_reason": "你的Go项目经验与岗位核心要求高度匹配，数据库经验也是加分项，整体匹配度较高。",
 				"evidence": []any{
@@ -211,6 +219,11 @@ func minimalResumeOptimization() map[string]any {
 			"department":   "技术部",
 			"category":     "后端开发",
 			"data_quality": "full_jd",
+		},
+		"apply_readiness":          "quick_fix_before_apply",
+		"optimization_stop_signal": "fix_top_3_then_apply",
+		"top_fix_items": []any{
+			map[string]any{"issue": "Go项目描述缺少量化数据", "why_it_matters": "量化数据能让初筛更有说服力", "action": "补充项目量化成果", "example_reference": "如果该项目确实有相关数据，可以补充具体的性能提升比例", "self_check_question": "项目中的量化数据是否真实存在？", "estimated_effort": "within_30_min"},
 		},
 		"screening_focus": []any{
 			map[string]any{"focus": "Go项目经验深度", "why_it_matters": "岗位核心要求Go语言能力", "related_jd_requirement": "Go相关开发经验"},

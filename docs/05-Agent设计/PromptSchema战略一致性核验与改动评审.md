@@ -45,8 +45,8 @@
 
 | 战略维度 | MatchAnalysis | Recommendation | ResumeOptimization | 整体 |
 |----------|:---:|:---:|:---:|:---:|
-| 投递边界 (apply_readiness) | ❌ | ❌ | ❌ | 不支持 |
-| 优化停止条件 (optimization_stop_signal) | ❌ | ❌ | ❌ | 不支持 |
+| 投递边界 (apply_readiness) | ✅ | ✅ | ✅ | 已支持（4-3.7.C.1） |
+| 优化停止条件 (optimization_stop_signal) | ✅ | ✅ | ✅ | 已支持（4-3.7.C.1） |
 | JD 证据链 (evidence_chain) | ✅ | ✅ | ❌ (间接) | 部分支持 |
 | 示例参考与用户核实 | ✅ | ⚠️ | ✅ | 部分支持 |
 | START / STAR-T 表达法 | ❌ | ❌ | ❌ | 不支持 |
@@ -184,9 +184,9 @@
 
 | Agent | apply_readiness | 等价替代 | 结论 |
 |-------|----------------|----------|------|
-| MatchAnalysis | ❌ 缺失 | match_level + screening_result 可部分代替 | **部分支持** |
-| Recommendation | ❌ 缺失 | recommend_level 可部分代替 | **部分支持** |
-| ResumeOptimization | ❌ 缺失 | 无 | **不支持** |
+| MatchAnalysis | ✅ 已添加 | — | **已支持** |
+| Recommendation | ✅ 已添加（per job） | — | **已支持** |
+| ResumeOptimization | ✅ 已添加 | — | **已支持** |
 
 **判断**：`apply_readiness` 缺失是战略一致性最大缺口，但 match_level / recommend_level 在语义上可以覆盖 4 种投递准备度中的 3 种（ready / not_ready / insufficient_info），只有 `quick_fix_before_apply` 缺少显式表达。
 
@@ -194,9 +194,9 @@
 
 | Agent | optimization_stop_signal | 等价替代 | 结论 |
 |-------|------------------------|----------|------|
-| MatchAnalysis | ❌ 缺失 | 无 | **不支持** |
-| Recommendation | ❌ 缺失 | 无 | **不支持** |
-| ResumeOptimization | ❌ 缺失 | 无 | **不支持** |
+| MatchAnalysis | ✅ 已添加 | — | **已支持** |
+| Recommendation | ✅ 已添加（per job） | — | **已支持** |
+| ResumeOptimization | ✅ 已添加 | — | **已支持** |
 
 **判断**：`optimization_stop_signal` 是三个 Agent 统一缺失的字段，且无等价替代。这是"投递前决策系统"最核心的差异化能力。
 
@@ -325,3 +325,27 @@
    - Pipeline 实现 Quality Gate 检查逻辑
    - Prompt 增加极端情况处理指引
    - Pipeline 切换到 ResumeContextText 输入
+
+## 20. 4-3.7.C.1 完成记录
+
+4-3.7.C.1 已完成 Prompt / Schema 最小一致性修复。
+
+### 修改文件
+
+| 文件 | 修改内容 |
+|------|---------|
+| `server/prompts/schema/match_analysis_schema.json` | 新增 `apply_readiness` / `optimization_stop_signal` / `top_fix_items` 三个 required 字段及 `$defs/top_fix_item` 定义 |
+| `server/prompts/schema/recommendation_schema.json` | 在 `recommendation_item` 内新增 `apply_readiness` / `optimization_stop_signal` / `top_fix_items` 及 `$defs/top_fix_item` 定义 |
+| `server/prompts/schema/resume_optimization_schema.json` | 新增 `apply_readiness` / `optimization_stop_signal` / `top_fix_items` 三个 required 字段及 `$defs/top_fix_item` 定义 |
+| `server/prompts/match_analysis_v1.md` | 新增 7.5 apply_readiness / 7.6 optimization_stop_signal / 7.7 top_fix_items 指引；更新 Output JSON Structure / Enum Constraints / 数组长度要求 |
+| `server/prompts/recommendation_v1.md` | 新增 Section 9 Apply Readiness and Stop Signal（per job）；更新 Output JSON Structure / Enum Constraints |
+| `server/prompts/resume_optimization_v1.md` | 新增 Section 6 Apply Readiness and Stop Signal；更新 Output JSON Structure / Enum Constraints / 数组长度要求 |
+| `server/internal/schema/validator_test.go` | 测试数据新增三个字段 |
+| `server/internal/agent/repair/json_repair_agent_test.go` | 测试数据新增三个字段 |
+| `server/internal/agent/pipeline/pipeline_test.go` | 测试数据新增三个字段 |
+
+### 验证结果
+
+- 三个 JSON Schema 文件 `python3 -m json.tool` 验证通过
+- `go test ./...` 全部通过
+- grep 验证 `apply_readiness` / `optimization_stop_signal` / `top_fix_items` 在 6 个文件（3 schema + 3 prompt）中均已覆盖

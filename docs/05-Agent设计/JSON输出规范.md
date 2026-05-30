@@ -607,3 +607,25 @@ Quality Gate 是内容层检查，在 JSON Repair 和 Schema Validate 之上运�
 本阶段不修改 Schema 文件。
 
 详见 `docs/05-Agent设计/ResumeOptimizationAgent现状核对与接入方案.md`
+
+## 阶段 4-3.7.C.1 更新
+
+4-3.7.C.1 已完成 Prompt / Schema 最小一致性修复。三个 Schema 新增以下字段：
+
+| 字段 | 枚举值 | 说明 |
+|------|--------|------|
+| `apply_readiness` | ready_to_apply / quick_fix_before_apply / not_ready_for_this_role / insufficient_information | 投递准备度 |
+| `optimization_stop_signal` | stop_and_apply / fix_top_3_then_apply / needs_more_evidence / target_role_mismatch | 优化停止信号 |
+| `top_fix_items` | 数组（0-3 项），每项含 issue / why_it_matters / action / example_reference / self_check_question / estimated_effort | 快速修复项 |
+
+Recommendation Schema 中 `apply_readiness` / `optimization_stop_signal` / `top_fix_items` 位于 `recommendation_item` 内（per job），不在顶层。
+
+`estimated_effort` 枚举：within_10_min / within_30_min / within_60_min
+
+映射约束：
+- `ready_to_apply` → `stop_and_apply`（top_fix_items 应为空数组）
+- `quick_fix_before_apply` → `fix_top_3_then_apply`（top_fix_items 应有 1-3 项）
+- `not_ready_for_this_role` → `needs_more_evidence` 或 `target_role_mismatch`
+- `insufficient_information` → `needs_more_evidence`
+
+详见 `docs/09-开发日志/2026-05-30-107-PromptSchema最小一致性修复.md`

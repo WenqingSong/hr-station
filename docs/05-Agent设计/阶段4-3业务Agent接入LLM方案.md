@@ -811,3 +811,11 @@ ResumeOptimizationAgent 当前具备 Mock 业务接口基础，下一步可评�
 新增：ResumeOptimizationMockAgent / Model / Service / Handler / Route / 接口文档 / 测试。
 路由：POST /api/resumes/optimize。
 当前未接入真实 LLM Pipeline。
+
+4-3.7.C 已完成 Prompt / Schema 战略一致性核验与改动评审。结论：需要插入 C.1 最小修复。
+
+4-3.7.C.1 已完成 Prompt / Schema 最小一致性修复。
+三个 Schema 新增 apply_readiness / optimization_stop_signal / top_fix_items。
+三个 Prompt 新增对应指引。
+测试全部通过。
+详见 docs/09-开发日志/2026-05-30-107-PromptSchema最小一致性修复.md

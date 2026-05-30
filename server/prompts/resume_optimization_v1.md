@@ -319,9 +319,117 @@ P2：锦上添花
 
 ---
 
-## 6. Optimization Priority Guidance
+## 6. Apply Readiness and Stop Signal
 
-### 6.1 P0
+你必须输出 `apply_readiness`、`optimization_stop_signal` 和 `top_fix_items`。
+
+### 6.1 apply_readiness
+
+只能使用以下枚举值：
+
+```text
+ready_to_apply
+quick_fix_before_apply
+not_ready_for_this_role
+insufficient_information
+```
+
+含义：
+
+```text
+ready_to_apply：简历已足够投递目标岗位，不需要额外准备
+quick_fix_before_apply：整体方向可行，但有 1-3 个快速修复项需要在投递前完成
+not_ready_for_this_role：简历证据和目标岗位核心要求差距较大
+insufficient_information：信息不足以做出可靠判断
+```
+
+判断逻辑：
+
+```text
+如果 priority_suggestions.p0 中没有核心能力缺失项，主要是表达问题 → ready_to_apply
+如果 priority_suggestions.p0 中有 1-3 个可通过表达/关键词/信息补充快速修复的项 → quick_fix_before_apply
+如果 priority_suggestions.p0 中有核心能力缺失，不是表达能解决的 → not_ready_for_this_role
+如果 data_quality = summary_only 且无法可靠判断 → insufficient_information
+```
+
+### 6.2 optimization_stop_signal
+
+只能使用以下枚举值：
+
+```text
+stop_and_apply
+fix_top_3_then_apply
+needs_more_evidence
+target_role_mismatch
+```
+
+含义：
+
+```text
+stop_and_apply：简历已准备好投递，不要过度优化
+fix_top_3_then_apply：先完成 top_fix_items 中的修复项再投递
+needs_more_evidence：问题不是表达能解决的，需要真实经验或证据
+target_role_mismatch：目标岗位和简历证据或用户意图不匹配
+```
+
+对应关系：
+
+```text
+apply_readiness = ready_to_apply → optimization_stop_signal = stop_and_apply
+apply_readiness = quick_fix_before_apply → optimization_stop_signal = fix_top_3_then_apply
+apply_readiness = not_ready_for_this_role → optimization_stop_signal = needs_more_evidence 或 target_role_mismatch
+apply_readiness = insufficient_information → optimization_stop_signal = needs_more_evidence
+```
+
+矛盾禁止：
+
+```text
+apply_readiness = ready_to_apply 不能搭配 optimization_stop_signal = needs_more_evidence
+apply_readiness = ready_to_apply 不能搭配 optimization_stop_signal = target_role_mismatch
+apply_readiness = quick_fix_before_apply 不能搭配 optimization_stop_signal = stop_and_apply
+apply_readiness = quick_fix_before_apply 不能搭配 optimization_stop_signal = target_role_mismatch
+```
+
+### 6.3 top_fix_items
+
+你必须输出 `top_fix_items`。
+
+这是投递前的快速修复项，0-3 条。仅限表达优化、信息补充、关键词对齐、证据补充，可在 10-60 分钟内完成。
+
+不能包含长期学习、职业规划或项目搭建。
+
+每条结构：
+
+```json
+{
+  "issue": "",
+  "why_it_matters": "",
+  "action": "",
+  "example_reference": "",
+  "self_check_question": "",
+  "estimated_effort": "within_10_min"
+}
+```
+
+字段要求：
+
+```text
+issue：需要在投递前修复的具体问题
+why_it_matters：为什么修复这个问题对目标岗位初筛有影响
+action：用户应该采取的具体行动
+example_reference：修复后可能的样子（仅供参考，用户需确认事实后再使用）
+self_check_question：帮助用户自检修复是否真实准确的问题
+estimated_effort：只能使用 within_10_min / within_30_min / within_60_min
+```
+
+当 `apply_readiness = ready_to_apply` 时，`top_fix_items` 应为空数组。
+当 `apply_readiness = quick_fix_before_apply` 时，`top_fix_items` 应有 1-3 条。
+
+---
+
+## 7. Optimization Priority Guidance
+
+### 7.1 P0
 
 P0 表示：
 
@@ -340,7 +448,7 @@ P0 表示：
 
 ---
 
-### 6.2 P1
+### 7.2 P1
 
 P1 表示：
 
@@ -358,7 +466,7 @@ P1 表示：
 
 ---
 
-### 6.3 P2
+### 7.3 P2
 
 P2 表示：
 
@@ -610,6 +718,7 @@ JSON 之外的任何内容
 数组长度要求：
 
 ```text
+top_fix_items：0-3 项（apply_readiness=ready_to_apply 时为空数组，quick_fix_before_apply 时 1-3 项）
 priority_suggestions.p0：1-4 项
 priority_suggestions.p1：1-4 项
 priority_suggestions.p2：0-4 项
@@ -639,6 +748,18 @@ next_actions：3-6 项
     "category": "",
     "data_quality": ""
   },
+  "apply_readiness": "quick_fix_before_apply",
+  "optimization_stop_signal": "fix_top_3_then_apply",
+  "top_fix_items": [
+    {
+      "issue": "",
+      "why_it_matters": "",
+      "action": "",
+      "example_reference": "",
+      "self_check_question": "",
+      "estimated_effort": "within_10_min"
+    }
+  ],
   "screening_focus": [
     {
       "focus": "",
@@ -960,6 +1081,32 @@ p2
 present
 partial
 missing
+```
+
+### apply_readiness
+
+```text
+ready_to_apply
+quick_fix_before_apply
+not_ready_for_this_role
+insufficient_information
+```
+
+### optimization_stop_signal
+
+```text
+stop_and_apply
+fix_top_3_then_apply
+needs_more_evidence
+target_role_mismatch
+```
+
+### estimated_effort
+
+```text
+within_10_min
+within_30_min
+within_60_min
 ```
 
 ### skill_section_optimization.current_status

@@ -10,6 +10,9 @@
 "match_level",
 "match_label",
 "screening_result",
+"apply_readiness",
+"optimization_stop_signal",
+"top_fix_items",
 "offer_go_summary",
 "jd_key_requirements",
 "resume_evidence_summary",
@@ -59,6 +62,35 @@
 "unlikely"
 ],
 "description": "Estimated resume screening result. Do not promise that the user will pass screening."
+},
+"apply_readiness": {
+"type": "string",
+"enum": [
+"ready_to_apply",
+"quick_fix_before_apply",
+"not_ready_for_this_role",
+"insufficient_information"
+],
+"description": "Application readiness level based on JD requirements and resume evidence. ready_to_apply means core capabilities and evidence are sufficient to apply. quick_fix_before_apply means overall direction is viable but 1-3 quick fixes are needed before applying. not_ready_for_this_role means the gap between resume evidence and core role requirements is significant. insufficient_information means there is not enough information to make a reliable judgment."
+},
+"optimization_stop_signal": {
+"type": "string",
+"enum": [
+"stop_and_apply",
+"fix_top_3_then_apply",
+"needs_more_evidence",
+"target_role_mismatch"
+],
+"description": "Optimization stop signal indicating when the user should stop optimizing and take action. stop_and_apply means the resume is ready for submission, do not over-optimize. fix_top_3_then_apply means complete top_fix_items first then apply. needs_more_evidence means the issue is not solvable by expression fixes alone, real experience or evidence is needed. target_role_mismatch means the target role does not match resume evidence or user intent."
+},
+"top_fix_items": {
+"type": "array",
+"minItems": 0,
+"maxItems": 3,
+"description": "Top 1-3 quick fix items before applying. These are expression fixes, information supplements, keyword alignment, or evidence additions that can be completed within 10-60 minutes. They must NOT include long-term learning, career planning, or project building.",
+"items": {
+"$ref": "#/$defs/top_fix_item"
+}
 },
 "offer_go_summary": {
 "type": "string",
@@ -533,6 +565,59 @@
 "minLength": 8,
 "maxLength": 260,
 "description": "Expected effect of this action on screening or interview preparation."
+}
+}
+},
+"top_fix_item": {
+"type": "object",
+"additionalProperties": false,
+"required": [
+"issue",
+"why_it_matters",
+"action",
+"example_reference",
+"self_check_question",
+"estimated_effort"
+],
+"properties": {
+"issue": {
+"type": "string",
+"minLength": 4,
+"maxLength": 220,
+"description": "The specific issue that should be fixed before applying."
+},
+"why_it_matters": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "Why fixing this issue matters for this specific role screening."
+},
+"action": {
+"type": "string",
+"minLength": 8,
+"maxLength": 320,
+"description": "Concrete action the user should take to fix this issue."
+},
+"example_reference": {
+"type": "string",
+"minLength": 8,
+"maxLength": 420,
+"description": "An example reference for how the fix might look. This is a reference only, the user must verify facts before using it."
+},
+"self_check_question": {
+"type": "string",
+"minLength": 8,
+"maxLength": 260,
+"description": "A self-check question to help the user verify the fix is truthful and accurate."
+},
+"estimated_effort": {
+"type": "string",
+"enum": [
+"within_10_min",
+"within_30_min",
+"within_60_min"
+],
+"description": "Estimated time to complete this fix. Only short-term fixes are allowed, not long-term learning or project building."
 }
 }
 }

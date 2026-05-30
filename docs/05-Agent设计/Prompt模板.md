@@ -353,6 +353,23 @@ server/internal/agent/prompts/
 
 详见 `docs/05-Agent设计/ResumeOptimizationAgent现状核对与接入方案.md`
 
+## 阶段 4-3.7.C.1 更新
+
+4-3.7.C.1 已完成 Prompt / Schema 最小一致性修复。三个业务 Agent 的 Schema 和 Prompt 新增 `apply_readiness`、`optimization_stop_signal`、`top_fix_items` 字段。
+
+修改文件：
+
+| 文件 | 新增内容 |
+|------|---------|
+| `server/prompts/match_analysis_v1.md` | Section 7.5 apply_readiness / 7.6 optimization_stop_signal / 7.7 top_fix_items |
+| `server/prompts/recommendation_v1.md` | Section 9 Apply Readiness and Stop Signal（per job） |
+| `server/prompts/resume_optimization_v1.md` | Section 6 Apply Readiness and Stop Signal |
+| `server/prompts/schema/match_analysis_schema.json` | 3 个 required 字段 + $defs/top_fix_item |
+| `server/prompts/schema/recommendation_schema.json` | recommendation_item 内 3 字段 + $defs/top_fix_item |
+| `server/prompts/schema/resume_optimization_schema.json` | 3 个 required 字段 + $defs/top_fix_item |
+
+详见 `docs/09-开发日志/2026-05-30-107-PromptSchema最小一致性修复.md`
+
 ## 阶段 4-3.5.E 更新
 
 4-3.5.E 已完成 Agent 输出 Quality Gate 设计。后续 Prompt 优化需配合 Quality Gate 检查项：

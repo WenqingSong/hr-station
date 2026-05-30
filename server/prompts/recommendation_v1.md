@@ -175,6 +175,9 @@ external_source 可能为 tencent_join / local_mock
 ```text
 recommend_level
 recommend_label
+apply_readiness
+optimization_stop_signal
+top_fix_items
 offer_go_summary
 recommend_reason
 evidence
@@ -438,7 +441,115 @@ Offer鹅暂不建议你把这个岗位作为当前主攻方向。岗位核心要
 
 ---
 
-## 9. Ranking Rules
+## 9. Apply Readiness and Stop Signal
+
+每个岗位必须输出 `apply_readiness`、`optimization_stop_signal` 和 `top_fix_items`。
+
+### 9.1 apply_readiness
+
+只能使用以下枚举值：
+
+```text
+ready_to_apply
+quick_fix_before_apply
+not_ready_for_this_role
+insufficient_information
+```
+
+含义：
+
+```text
+ready_to_apply：该岗位核心能力和证据已足够投递
+quick_fix_before_apply：整体方向可行，但有 1-3 个快速修复项需要在投递前完成
+not_ready_for_this_role：简历证据和该岗位核心要求差距较大
+insufficient_information：信息不足以做出可靠判断
+```
+
+判断逻辑：
+
+```text
+如果 recommend_level = priority_apply 且 evidence 中 missing 较少 → ready_to_apply
+如果 recommend_level = priority_apply 或 recommended，但有 1-3 个可快速修复项 → quick_fix_before_apply
+如果 recommend_level = not_recommended，且缺口涉及核心能力 → not_ready_for_this_role
+如果 data_quality = summary_only 且无法可靠判断 → insufficient_information
+```
+
+### 9.2 optimization_stop_signal
+
+只能使用以下枚举值：
+
+```text
+stop_and_apply
+fix_top_3_then_apply
+needs_more_evidence
+target_role_mismatch
+```
+
+含义：
+
+```text
+stop_and_apply：该岗位简历已准备好投递，不要过度优化
+fix_top_3_then_apply：先完成 top_fix_items 中的修复项再投递
+needs_more_evidence：问题不是表达能解决的，需要真实经验或证据
+target_role_mismatch：该岗位和简历证据或用户意图不匹配
+```
+
+对应关系：
+
+```text
+apply_readiness = ready_to_apply → optimization_stop_signal = stop_and_apply
+apply_readiness = quick_fix_before_apply → optimization_stop_signal = fix_top_3_then_apply
+apply_readiness = not_ready_for_this_role → optimization_stop_signal = needs_more_evidence 或 target_role_mismatch
+apply_readiness = insufficient_information → optimization_stop_signal = needs_more_evidence
+```
+
+矛盾禁止：
+
+```text
+apply_readiness = ready_to_apply 不能搭配 optimization_stop_signal = needs_more_evidence
+apply_readiness = ready_to_apply 不能搭配 optimization_stop_signal = target_role_mismatch
+apply_readiness = quick_fix_before_apply 不能搭配 optimization_stop_signal = stop_and_apply
+apply_readiness = quick_fix_before_apply 不能搭配 optimization_stop_signal = target_role_mismatch
+```
+
+### 9.3 top_fix_items
+
+每个岗位必须输出 `top_fix_items`。
+
+这是投递前的快速修复项，0-3 条。仅限表达优化、信息补充、关键词对齐、证据补充，可在 10-60 分钟内完成。
+
+不能包含长期学习、职业规划或项目搭建。
+
+每条结构：
+
+```json
+{
+  "issue": "",
+  "why_it_matters": "",
+  "action": "",
+  "example_reference": "",
+  "self_check_question": "",
+  "estimated_effort": "within_10_min"
+}
+```
+
+字段要求：
+
+```text
+issue：需要在投递前修复的具体问题
+why_it_matters：为什么修复这个问题对该岗位初筛有影响
+action：用户应该采取的具体行动
+example_reference：修复后可能的样子（仅供参考，用户需确认事实后再使用）
+self_check_question：帮助用户自检修复是否真实准确的问题
+estimated_effort：只能使用 within_10_min / within_30_min / within_60_min
+```
+
+当 `apply_readiness = ready_to_apply` 时，`top_fix_items` 应为空数组。
+当 `apply_readiness = quick_fix_before_apply` 时，`top_fix_items` 应有 1-3 条。
+
+---
+
+## 10. Ranking Rules
 
 你需要对候选岗位进行排序。
 
@@ -720,6 +831,18 @@ recommendations：1-5 项
       "recommend_level": "recommended",
       "recommend_label": "建议尝试",
       "match_score": 0,
+      "apply_readiness": "quick_fix_before_apply",
+      "optimization_stop_signal": "fix_top_3_then_apply",
+      "top_fix_items": [
+        {
+          "issue": "",
+          "why_it_matters": "",
+          "action": "",
+          "example_reference": "",
+          "self_check_question": "",
+          "estimated_effort": "within_10_min"
+        }
+      ],
       "offer_go_summary": "",
       "recommend_reason": "",
       "evidence": [
@@ -875,6 +998,32 @@ missing
 high
 medium
 low
+```
+
+### apply_readiness
+
+```text
+ready_to_apply
+quick_fix_before_apply
+not_ready_for_this_role
+insufficient_information
+```
+
+### optimization_stop_signal
+
+```text
+stop_and_apply
+fix_top_3_then_apply
+needs_more_evidence
+target_role_mismatch
+```
+
+### estimated_effort
+
+```text
+within_10_min
+within_30_min
+within_60_min
 ```
 
 ### priority
