@@ -21,6 +21,7 @@ DEV_SCRIPT := scripts/dev
         backend-up backend-stop backend-restart backend-logs backend-status backend-health \
         web-install web-up web-stop web-restart web-logs web-status web-health \
         agent-env agent-check agent-test \
+        llm-help llm-check llm-smoke \
         logs logs-backend logs-web logs-mysql logs-agent \
         lint test build ci \
         clean clean-logs clean-pids clean-volume \
@@ -87,6 +88,11 @@ help: ## 查看所有可用命令
 	@echo "  make agent-env        检查 LLM 相关环境变量（不打印真实 Key）"
 	@echo "  make agent-check      检查 ENABLE_LLM_AGENT / LLM_PROVIDER / LLM_MODEL"
 	@echo "  make agent-test       当前只输出提示：LLM Client 尚未实现"
+	@echo ""
+	@echo "LLM Smoke Test:"
+	@echo "  make llm-help         查看 LLM smoke test 命令帮助"
+	@echo "  make llm-check        检查本地 LLM 配置，不请求外部模型"
+	@echo "  make llm-smoke        执行 LLM smoke test，默认需要 RUN_REAL_LLM_SMOKE=1"
 	@echo ""
 	@echo "日志:"
 	@echo "  make logs           查看日志入口提示"
@@ -346,6 +352,19 @@ agent-check: ## 检查 Agent/LLM 配置
 
 agent-test: ## 当前只输出提示
 	@$(DEV_SCRIPT)/agent.sh test
+
+# ============================================================
+# LLM Smoke Test
+# ============================================================
+
+llm-help: ## 查看 LLM smoke test 命令帮助
+	@$(DEV_SCRIPT)/llm_smoke.sh help
+
+llm-check: ## 检查本地 LLM 配置，不请求外部模型
+	@$(DEV_SCRIPT)/llm_smoke.sh check
+
+llm-smoke: ## 执行 LLM smoke test（需要 RUN_REAL_LLM_SMOKE=1）
+	@$(DEV_SCRIPT)/llm_smoke.sh smoke
 
 # ============================================================
 # 日志

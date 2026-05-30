@@ -3,7 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-2.0
 > 依据文档：阶段4-1.4方案、阶段4-1.4汇总、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、失败兜底与Mock回退策略、config.go、main.go、.env.example、go.mod
-> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
+> 最后更新：2026-05-30（阶段 4-2.6 LLM Smoke Test / Makefile 接入）
 
 ## 1. 阶段目标
 
@@ -663,7 +663,7 @@ scripts/dev/prompt_check.sh
 scripts/dev/schema_check.sh
 ```
 
-说明：**4-2.6 再实现 smoke test 和 Makefile 接入。**
+4-2.6 已完成 smoke test 和 Makefile 接入。
 
 ## 19. 后续子任务拆分
 
@@ -752,4 +752,15 @@ scripts/dev/schema_check.sh
 - 使用 httptest 进行单元测试，不调用真实 Hunyuan
 - 单元测试 22 项全部通过
 
-下一步为 4-2.6：LLM Smoke Test / Makefile 接入
+下一步为 4-2.7：JSONRepairAgent 调用链路
+
+4-2.6 已完成：LLM Smoke Test / Makefile 接入。
+当前已具备通过 `make llm-check` 检查 LLM 配置、通过 `RUN_REAL_LLM_SMOKE=1 make llm-smoke` 执行最小 HunyuanClient 连通性验证的能力。
+- 新增 `server/cmd/llm-smoke/main.go`：最小 smoke test Go 命令
+- 新增 `scripts/dev/llm_smoke.sh`：LLM smoke test 脚本（help / check / smoke）
+- 新增 Makefile `llm-help` / `llm-check` / `llm-smoke` target
+- `make llm-check` 不请求外部模型
+- `make llm-smoke` 需要 `RUN_REAL_LLM_SMOKE=1` 才执行真实调用
+- smoke test 使用最小 Prompt，不携带简历、JD 或业务数据
+- 不输出 API Key，不输出完整 raw output
+- 当前未接业务 Agent

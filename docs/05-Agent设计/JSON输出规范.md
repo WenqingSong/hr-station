@@ -1,6 +1,6 @@
 # JSON 输出规范
 
-> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
+> 最后更新：2026-05-30（阶段 4-2.6 LLM Smoke Test / Makefile 接入）
 
 ## 1. 为什么必须强制 JSON
 
@@ -255,6 +255,8 @@ raw output → extract JSON object → json.Unmarshal → Schema validate
 4-2.4 已完成 LLM Client 抽象。`ChatResponse.RawContent` 后续必须经过 4-2.3 的 JSON extract / parse / Schema validate 工具处理，不能直接返回业务接口。
 
 4-2.5 已完成 HunyuanClient。HunyuanClient 返回的 ChatResponse.RawContent 仍不得直接返回业务接口，后续必须进入 JSON extract / parse / Schema validate 链路。
+
+4-2.6 smoke test 会尝试对 Hunyuan raw output 执行 llmjson ExtractAndParse。json_parse_success 用于观察模型是否遵守严格 JSON 输出，但 smoke test 的核心仍是连通性。JSON 合法性失败可以记录为 warning，后续 4-2.7 / 4-2.8 处理。
 
 新增：
 - `server/internal/llm/hunyuan_client.go`：HunyuanClient 实现 llm.Client 接口

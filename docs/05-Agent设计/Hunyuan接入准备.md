@@ -1,6 +1,6 @@
 # Hunyuan 接入准备
 
-> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
+> 最后更新：2026-05-30（阶段 4-2.6 LLM Smoke Test / Makefile 接入）
 
 ## 1. 用户需要准备的信息
 
@@ -143,6 +143,21 @@ Hunyuan 接入后的核心约束：
 - `server/internal/llm/hunyuan_types.go`：OpenAI-compatible 内部请求/响应类型（不导出）
 - `server/internal/llm/hunyuan_client_test.go`：httptest 单元测试（22 项全部通过）
 - 无新增第三方依赖，使用 Go 标准库 net/http / encoding/json / context
+
+## 阶段 4-2.6 更新
+
+4-2.6 已接入 Hunyuan smoke test。真实调用必须显式设置 `RUN_REAL_LLM_SMOKE=1`。smoke test 只使用最小 Prompt，不携带简历、JD 或业务数据。
+
+新增：
+- `server/cmd/llm-smoke/main.go`：最小 LLM smoke test Go 命令
+- `scripts/dev/llm_smoke.sh`：LLM smoke test 脚本（help / check / smoke）
+- Makefile `llm-help` / `llm-check` / `llm-smoke` target
+
+执行方式：
+```bash
+make llm-check                              # 检查 LLM 配置（不请求外部模型）
+RUN_REAL_LLM_SMOKE=1 make llm-smoke         # 执行真实 HunyuanClient 连通性验证
+```
 
 ## 阶段 4-2.4 更新
 

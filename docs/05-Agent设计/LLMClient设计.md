@@ -1,6 +1,6 @@
 # LLM Client 设计
 
-> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
+> 最后更新：2026-05-30（阶段 4-2.6 LLM Smoke Test / Makefile 接入）
 
 ## 1. 设计目标
 
@@ -384,6 +384,22 @@ LLM Client 本身仍未实现。
 3. **401/403 映射为 LLM_API_KEY_MISSING**：错误信息写 "authentication failed"，不打印 token
 4. **支持注入 http.Client**：便于 httptest 和后续集成测试
 5. **当前仅通过 httptest 验证**，不调用真实 Hunyuan，真实连通性放到 4-2.6
+
+## 阶段 4-2.6 更新
+
+4-2.6 已完成 LLM smoke test 入口和 Makefile 接入。后续可通过 `make llm-check` 检查配置，通过 `RUN_REAL_LLM_SMOKE=1 make llm-smoke` 验证 HunyuanClient 连通性。
+
+新增：
+- `server/cmd/llm-smoke/main.go`：最小 LLM smoke test Go 命令
+  - 从环境变量读取 LLM_* 配置
+  - 构造最小 ChatRequest（temperature=0, max_tokens=256）
+  - 调用 HunyuanClient.Chat
+  - 尝试 llmjson.ExtractAndParse 解析 raw output
+  - 不输出 API Key，不输出完整 raw output（最多 120 字符预览）
+- `scripts/dev/llm_smoke.sh`：LLM smoke test 脚本（help / check / smoke）
+- Makefile 新增 `llm-help` / `llm-check` / `llm-smoke` target
+  - `make llm-check` 不请求外部模型
+  - `make llm-smoke` 需要 `RUN_REAL_LLM_SMOKE=1` 才执行真实调用
 
 ## 关联文档
 

@@ -3,7 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-1.4.11
 > 依据文档：阶段4-1.4方案、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、json_repair_v1.md、match_analysis_v1.md、recommendation_v1.md、resume_optimization_v1.md
-> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
+> 最后更新：2026-05-30（阶段 4-2.6 LLM Smoke Test / Makefile 接入）
 
 ## 1. 设计目标
 
@@ -452,6 +452,15 @@ HunyuanClient 错误映射：
 新增：
 - `server/internal/llm/hunyuan_client.go`：HunyuanClient 错误码映射实现
 - `server/internal/llm/hunyuan_client_test.go`：错误分类测试（429/500/401/空响应/非JSON/超时）
+
+## 阶段 4-2.6 更新
+
+4-2.6 只验证模型连通性，不进入业务 fallback。真实 fallback decision 仍放到 4-2.7 / 4-2.8。
+
+新增：
+- `server/cmd/llm-smoke/main.go`：LLM smoke test Go 命令（使用最小 Prompt，不接业务链路）
+- `scripts/dev/llm_smoke.sh`：LLM smoke test 脚本
+- Makefile `llm-help` / `llm-check` / `llm-smoke` target
 
 ## 阶段 4-2.4 更新
 

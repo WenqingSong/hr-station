@@ -172,6 +172,21 @@ make db-reset CONFIRM=yes
 - 如果 `LLM_MODEL=hhy3-preview`，提示疑似拼写错误
 - `agent-test` 当前不调用 Hunyuan API，阶段 4-2 后启用
 
+### LLM Smoke Test 命令
+
+| 命令 | 说明 | 是否请求外部接口 |
+|------|------|-----------------|
+| `make llm-help` | 查看 LLM smoke test 命令帮助 | 否 |
+| `make llm-check` | 检查本地 LLM 配置 | 否 |
+| `make llm-smoke` | 执行 LLM smoke test，需要 `RUN_REAL_LLM_SMOKE=1` | 需要 `RUN_REAL_LLM_SMOKE=1` |
+
+说明：
+1. `make llm-check` 不请求外部模型，只检查本地配置
+2. `make llm-smoke` 默认不直接调用真实 Hunyuan，需要显式设置 `RUN_REAL_LLM_SMOKE=1`
+3. `make llm-smoke` 不在 `make up` / `make ci` 中自动执行
+4. smoke test 使用最小 Prompt，不携带简历、JD 或业务数据
+5. 不输出 API Key，不输出完整 raw output
+
 ## 11. 日志命令
 
 | 命令 | 说明 |
