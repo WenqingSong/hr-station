@@ -489,3 +489,5 @@ Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映
 本次最小 Prompt 返回 JSON 可被成功解析，`json_parse_success=true`。`raw_output_preview={"ok":true,"message":"pong"}`。
 
 后续业务输出仍必须经过 JSON extract / parse / Schema validate / repair once / fallback_required。业务 Prompt 输出复杂度远高于最小连通性测试，JSON 遵循性仍需重点关注。
+
+4-3.3 已验证匹配分析接口在 JSON parse / Schema validate / repair once / fallback_required 下的稳定性。6 大验收场景全部通过，修复了 LLM 成功路径快照保存缺失的问题。

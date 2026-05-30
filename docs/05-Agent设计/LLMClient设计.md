@@ -485,3 +485,7 @@ LLM Client 本身仍未实现。
 ## 阶段 4-3.1.D 更新
 
 4-3.1.D 已完成 LLM smoke 环境加载修复。HunyuanClient 本身无需修改，问题位于 smoke 脚本加载 `.env` 的方式（`source .env` 遇到 `DB_DSN` 中的括号导致 bash 解析失败）。修复后 `llm_smoke.sh` 复用 `common.sh` 的 `load_env()`。
+
+## 阶段 4-3.3 更新
+
+4-3.3 已完成首个业务接口的 LLM Pipeline 稳定性验收。业务接口通过 Agent 间接使用 Pipeline，不直接依赖 HunyuanClient。6 大验收场景全部通过（success / repaired / fallback_required / LLM_ENABLE=false / 配置异常 / 请求参数异常）。

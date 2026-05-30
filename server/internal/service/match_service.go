@@ -149,6 +149,23 @@ func (s *MatchService) analyzeWithLLM(ctx context.Context, resume *model.ResumeV
 		CreatedAt: now.Format("2006-01-02T15:04:05Z07:00"),
 	}
 
+	// Save match analysis snapshot (same as mock path)
+	resultJSON, marshalErr := json.Marshal(result)
+	if marshalErr == nil {
+		analysis := &model.MatchAnalysis{
+			UserID:          resume.UserID,
+			ResumeVersionID: resume.ID,
+			JobID:           job.ID,
+			Score:           result.MatchScore,
+			ResultJSON:      resultJSON,
+		}
+		if createErr := s.matchRepo.Create(ctx, analysis); createErr != nil {
+			// Log but don't fail the response if snapshot save fails
+			_ = createErr
+		}
+		resp.AnalysisID = analysis.ID
+	}
+
 	return resp, nil
 }
 

@@ -605,3 +605,5 @@ if !runResult.FallbackRequired {
 4-3.1 已通过真实 LLM Smoke 前置验收。Hunyuan / TokenHub 最小调用可用，`json_parse_success=true`。
 
 即使连通性通过，后续业务 Agent 接入仍必须保留 Mock fallback，避免业务 Prompt 输出异常导致 Demo 不稳定。
+
+4-3.3 已在匹配分析接口层验收 Mock fallback。fallback_required 不作为接口失败，而是触发 match_mock.go 稳定兜底。6 大验收场景全部通过：LLM success / repaired / fallback_required / LLM_ENABLE=false / 配置异常 / 请求参数异常。

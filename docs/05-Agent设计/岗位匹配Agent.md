@@ -167,6 +167,8 @@
 
 当前 MatchAnalysisAgent 已接入 Pipeline，支持 LLM 优先 + Mock 回退。
 
+4-3.3 已完成匹配分析接口稳定性验收。MatchAnalysisAgent 的 LLM Pipeline 优先 + Mock fallback 链路已通过联调。6 大验收场景全部通过：LLM success、repaired、fallback_required、LLM_ENABLE=false、配置异常、请求参数异常。
+
 ## 14. 阶段 4-3.2 接入实现
 
 4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，核心实现：
