@@ -1,0 +1,44 @@
+{
+  "id": 1001,
+  "version_no": 1,
+  "target_role": "后端开发实习",
+  "target_city": "深圳",
+  "skills": ["Go", "MySQL", "Redis", "Docker", "HTTP API", "JWT", "Git", "Linux"],
+  "education": [
+    {
+      "school": "某大学",
+      "major": "计算机科学与技术",
+      "degree": "本科",
+      "start": "2022-09",
+      "end": "2026-06"
+    }
+  ],
+  "experience": [
+    {
+      "company": "ExampleTech",
+      "role": "后端开发实习生",
+      "description": "参与后台管理系统的接口开发和维护，使用 Go + Gin 框架完成 12 个 RESTful API 接口，包括用户管理、权限校验、数据导出等模块。使用 Redis 缓存热点数据，接口平均响应时间降低 40%。参与代码评审和线上问题排查。",
+      "start": "2025-06",
+      "end": "2025-09"
+    }
+  ],
+  "project": [
+    {
+      "name": "求职匹配系统",
+      "description": "基于 Go 开发的简历-岗位匹配平台后端，使用 MySQL 存储简历和岗位数据，Redis 缓存匹配结果，JWT 实现用户鉴权，Docker 部署。独立完成匹配分析、推荐、简历优化三个核心模块的 API 开发，通过 HTTP 接口与前端联调。",
+      "role": "后端开发",
+      "start": "2025-03",
+      "end": "2025-05"
+    },
+    {
+      "name": "在线课程平台",
+      "description": "使用 Go + Echo 框架搭建课程管理后端，支持课程 CRUD、用户注册登录、视频资源管理。使用 MySQL 设计 8 张表，实现事务保证数据一致性。部署在 Linux 服务器，通过 Nginx 反向代理提供服务。",
+      "role": "后端开发",
+      "start": "2024-10",
+      "end": "2024-12"
+    }
+  ],
+  "self_evaluation": "热爱后端开发，有 Go 语言项目经验和 HTTP API 开发能力。熟悉 MySQL 数据库设计和 Redis 缓存策略，具备 Docker 容器化部署经验。学习能力强，能快速上手新技术。",
+  "candidate_name": "测试候选人A",
+  "email": "candidate_a@example.com"
+}

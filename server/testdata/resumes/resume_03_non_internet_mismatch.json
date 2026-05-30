@@ -1,0 +1,37 @@
+{
+  "id": 1003,
+  "version_no": 1,
+  "target_role": "后端开发实习",
+  "target_city": "广州",
+  "skills": ["Office", "沟通协调", "活动策划", "Excel"],
+  "education": [
+    {
+      "school": "某财经大学",
+      "major": "市场营销",
+      "degree": "本科",
+      "start": "2022-09",
+      "end": "2026-06"
+    }
+  ],
+  "experience": [
+    {
+      "company": "某教育机构",
+      "role": "市场运营实习生",
+      "description": "负责线上线下活动的策划和执行，管理社群运营，撰写活动推文和宣传文案。通过数据分析优化投放策略，季度获客量提升 20%。",
+      "start": "2025-03",
+      "end": "2025-06"
+    }
+  ],
+  "project": [
+    {
+      "name": "校园文化节策划",
+      "description": "担任校园文化节总策划，协调 5 个部门 30 余人完成活动筹备和执行，活动参与人数超过 500 人。",
+      "role": "总策划",
+      "start": "2024-09",
+      "end": "2024-10"
+    }
+  ],
+  "self_evaluation": "擅长沟通和活动组织，希望在互联网行业发展。",
+  "candidate_name": "测试候选人C",
+  "email": "candidate_c@example.com"
+}

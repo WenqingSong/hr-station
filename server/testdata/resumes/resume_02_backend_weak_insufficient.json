@@ -1,0 +1,29 @@
+{
+  "id": 1002,
+  "version_no": 1,
+  "target_role": "后端开发实习",
+  "target_city": "北京",
+  "skills": ["Go", "Java", "MySQL"],
+  "education": [
+    {
+      "school": "某理工大学",
+      "major": "软件工程",
+      "degree": "本科",
+      "start": "2023-09",
+      "end": "2027-06"
+    }
+  ],
+  "experience": [],
+  "project": [
+    {
+      "name": "课程作业：学生管理系统",
+      "description": "课堂大作业，使用 Java 完成了一个简单的学生信息管理系统。",
+      "role": "开发者",
+      "start": "2024-11",
+      "end": "2024-12"
+    }
+  ],
+  "self_evaluation": "对后端开发感兴趣，正在学习 Go 语言。",
+  "candidate_name": "测试候选人B",
+  "email": "candidate_b@example.com"
+}
