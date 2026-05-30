@@ -595,3 +595,15 @@ Quality Gate 是内容层检查，在 JSON Repair 和 Schema Validate 之上运�
 后续可单独评估是否增加投递边界、证据链、Quality Gate、极端情况和 ResumeContext 相关字段。
 
 详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`
+
+## 阶段 4-3.6 ResumeOptimizationAgent 现状核对
+
+4-3.6 已核对 resume_optimization_schema.json 是否存在及是否已接入工程：
+- `server/prompts/schema/resume_optimization_schema.json` ✅ 存在，15 个 required 字段
+- Schema Loader 支持 `resume_optimization` 逻辑名称 ✅
+- Pipeline 和 Repair 支持 `TargetResumeOptimization` ✅
+- 但未被业务代码消费 ❌
+
+本阶段不修改 Schema 文件。
+
+详见 `docs/05-Agent设计/ResumeOptimizationAgent现状核对与接入方案.md`

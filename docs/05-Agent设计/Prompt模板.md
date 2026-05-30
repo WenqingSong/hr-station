@@ -341,6 +341,18 @@ server/internal/agent/prompts/
 
 详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`
 
+## 阶段 4-3.6 ResumeOptimizationAgent 现状核对
+
+4-3.6 已核对 resume_optimization_v1.md 是否存在及是否已接入工程：
+- `server/prompts/resume_optimization_v1.md` ✅ 存在
+- Prompt Loader 支持 `resume_optimization` 逻辑名称 ✅
+- Pipeline 支持 `TargetResumeOptimization` ✅
+- 但未被 Service / Agent 层调用 ❌
+
+本阶段不修改 Prompt 文件。
+
+详见 `docs/05-Agent设计/ResumeOptimizationAgent现状核对与接入方案.md`
+
 ## 阶段 4-3.5.E 更新
 
 4-3.5.E 已完成 Agent 输出 Quality Gate 设计。后续 Prompt 优化需配合 Quality Gate 检查项：

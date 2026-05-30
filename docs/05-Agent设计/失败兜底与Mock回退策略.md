@@ -702,3 +702,13 @@ Prompt → LLM → JSON parse → Schema validate → repair once → Quality Ga
 后续如实现 Quality Gate，可再评估 conservative_fallback 和 mock_fallback 的内容质量分支。
 
 详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`
+
+## 阶段 4-3.6 ResumeOptimizationAgent 现状核对
+
+4-3.6 已核对 ResumeOptimizationAgent 的 Mock / fallback 现状：
+- `server/internal/agent/resume_optimization_mock.go` ❌ 不存在
+- 无简历优化 Mock Agent，无法提供 fallback 保障
+- 版本对比 Mock Agent 存在，但版本对比 ≠ 简历优化
+- 后续如接入 Pipeline，需要先创建 ResumeOptimizationMockAgent 作为 fallback 保障
+
+详见 `docs/05-Agent设计/ResumeOptimizationAgent现状核对与接入方案.md`

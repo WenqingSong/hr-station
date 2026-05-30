@@ -803,3 +803,7 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 4-3.5.H 已完成战略转型阶段汇总与工程评审。
 结论：4-3.5.B ~ 4-3.5.G 已完成战略校准；不立即大改工程，下一步进入 4-3.6 ResumeOptimizationAgent 现状核对与接入方案。
 详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`
+
+4-3.6 已完成 ResumeOptimizationAgent 现状核对与接入方案。
+已确认当前简历优化链路现状：仅有 Prompt + Schema 资产，缺少 ResumeOptimizationAgent / Mock Agent / Service / Handler / Model / Route 共 6 项核心业务代码，不具备直接接入 Pipeline 的条件。当前只有版本对比能力，不是简历优化能力。4-3.7 应先补业务代码再接 Pipeline。
+详见 `docs/05-Agent设计/ResumeOptimizationAgent现状核对与接入方案.md`
