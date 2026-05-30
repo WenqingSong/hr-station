@@ -248,6 +248,15 @@ func mapParsedToMatchResult(parsed map[string]any, resume *model.ResumeVersion, 
 	result.AuthenticityNotice = getString(parsed, "authenticity_notice",
 		"以下建议仅用于表达优化，请只补充真实经历，不要虚构项目或能力。")
 
+	// apply_readiness (4-3.7.C.1)
+	result.ApplyReadiness = getString(parsed, "apply_readiness", "insufficient_information")
+
+	// optimization_stop_signal (4-3.7.C.1)
+	result.OptimizationStopSignal = getString(parsed, "optimization_stop_signal", "needs_more_evidence")
+
+	// top_fix_items (4-3.7.C.1)
+	result.TopFixItems = mapTopFixItems(parsed)
+
 	return result, nil
 }
 
@@ -476,6 +485,32 @@ func mapNextActions(parsed map[string]any) []string {
 		return []string{"优化简历后添加新版本"}
 	}
 	return steps
+}
+
+// mapTopFixItems maps top_fix_items from Schema to []model.TopFixItem (4-3.7.C.1).
+// Schema: [{issue, why_it_matters, action, example_reference, self_check_question, estimated_effort}]
+func mapTopFixItems(parsed map[string]any) []model.TopFixItem {
+	items, ok := getSlice(parsed, "top_fix_items")
+	if !ok || len(items) == 0 {
+		return []model.TopFixItem{}
+	}
+
+	var fixItems []model.TopFixItem
+	for _, item := range items {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		fixItems = append(fixItems, model.TopFixItem{
+			Issue:            getString(m, "issue", ""),
+			WhyItMatters:     getString(m, "why_it_matters", ""),
+			Action:           getString(m, "action", ""),
+			ExampleReference: getString(m, "example_reference", ""),
+			SelfCheckQuestion: getString(m, "self_check_question", ""),
+			EstimatedEffort:  getString(m, "estimated_effort", ""),
+		})
+	}
+	return fixItems
 }
 
 // ---------------------------------------------------------------------------

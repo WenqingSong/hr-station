@@ -129,6 +129,18 @@ func minimalRecParsedOutput(jobID uint64) map[string]any {
 					"priority":        "high",
 					"expected_effect": "提高面试机会",
 				},
+				"apply_readiness":           "quick_fix_before_apply",
+				"optimization_stop_signal":  "fix_top_3_then_apply",
+				"top_fix_items": []any{
+					map[string]any{
+						"issue":             "项目描述缺少量化数据",
+						"why_it_matters":    "量化数据能让初筛更有说服力",
+						"action":            "回顾项目经历，补充可量化的成果",
+						"example_reference": "示例参考：独立完成 12 个 RESTful API 接口开发",
+						"self_check_question": "请确认所有数字均为真实数据",
+						"estimated_effort":  "within_30_min",
+					},
+				},
 			},
 		},
 		"overall_risks": []any{
@@ -357,6 +369,9 @@ func TestRecommendationAgent_MixedValidInvalidJobIDs(t *testing.T) {
 				"evidence":        []any{},
 				"risk_points":     []any{},
 				"next_action":     map[string]any{"action": "投递"},
+				"apply_readiness":           "ready_to_apply",
+				"optimization_stop_signal":  "stop_and_apply",
+				"top_fix_items":             []any{},
 			},
 			map[string]any{
 				"job_id":          float64(999),
@@ -508,6 +523,9 @@ func TestRecommendationAgent_FieldsFromCandidate(t *testing.T) {
 				"evidence":        []any{},
 				"risk_points":     []any{},
 				"next_action":     map[string]any{"action": "投递"},
+				"apply_readiness":           "quick_fix_before_apply",
+				"optimization_stop_signal":  "fix_top_3_then_apply",
+				"top_fix_items":             []any{},
 			},
 		},
 		"overall_risks":       []any{},

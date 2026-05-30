@@ -262,6 +262,11 @@ func mapParsedToRecommendedJobs(parsed map[string]any, candidateIDs map[uint64]*
 		rec.OfferGoSummary = getString(m, "offer_go_summary", "")
 		rec.QuerySuggestions = mapRecQuerySuggestions(m)
 
+		// Strategic fields (4-3.7.C.1)
+		rec.ApplyReadiness = getString(m, "apply_readiness", "insufficient_information")
+		rec.OptimizationStopSignal = getString(m, "optimization_stop_signal", "needs_more_evidence")
+		rec.TopFixItems = mapRecTopFixItems(m)
+
 		// Agent metadata
 		rec.AgentStatus = "success" // will be overridden by caller for repaired
 
@@ -383,6 +388,32 @@ func mapRecQuerySuggestions(m map[string]any) []string {
 		}
 	}
 	return queries
+}
+
+// mapRecTopFixItems maps top_fix_items from Schema to []model.TopFixItem (4-3.7.C.1).
+// Schema: [{issue, why_it_matters, action, example_reference, self_check_question, estimated_effort}]
+func mapRecTopFixItems(m map[string]any) []model.TopFixItem {
+	items, ok := getSlice(m, "top_fix_items")
+	if !ok || len(items) == 0 {
+		return []model.TopFixItem{}
+	}
+
+	var fixItems []model.TopFixItem
+	for _, item := range items {
+		fm, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		fixItems = append(fixItems, model.TopFixItem{
+			Issue:            getString(fm, "issue", ""),
+			WhyItMatters:     getString(fm, "why_it_matters", ""),
+			Action:           getString(fm, "action", ""),
+			ExampleReference: getString(fm, "example_reference", ""),
+			SelfCheckQuestion: getString(fm, "self_check_question", ""),
+			EstimatedEffort:  getString(fm, "estimated_effort", ""),
+		})
+	}
+	return fixItems
 }
 
 // getUint64 safely extracts a uint64 value from map[string]any.

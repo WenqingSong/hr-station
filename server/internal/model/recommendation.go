@@ -40,6 +40,11 @@ type RecommendedJob struct {
 	OfferGoSummary   string   `json:"offer_go_summary,omitempty"`
 	QuerySuggestions []string `json:"query_suggestions,omitempty"`
 
+	// Strategic fields (4-3.7.C.1)
+	ApplyReadiness         string       `json:"apply_readiness,omitempty"`
+	OptimizationStopSignal string       `json:"optimization_stop_signal,omitempty"`
+	TopFixItems            []TopFixItem `json:"top_fix_items,omitempty"`
+
 	// Agent metadata (internal, 4-3.5 will unify API meta)
 	GeneratedBy    string `json:"generated_by,omitempty"`
 	AgentStatus    string `json:"agent_status,omitempty"`

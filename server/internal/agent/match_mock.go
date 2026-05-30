@@ -35,6 +35,10 @@ func (a *MatchMockAgent) Analyze(_ context.Context, resume *model.ResumeVersion,
 		risks = append([]string{"岗位详情信息不足，匹配分析可能不够准确"}, risks...)
 	}
 
+	// Determine apply_readiness and optimization_stop_signal
+	applyReadiness, stopSignal := determineMatchApplyReadiness(score, resume, job)
+	topFixItems := generateMatchTopFixItems(resume, job)
+
 	return &model.MatchAnalysisResult{
 		JobID:                   job.ID,
 		JobTitle:                job.Title,
@@ -53,6 +57,9 @@ func (a *MatchMockAgent) Analyze(_ context.Context, resume *model.ResumeVersion,
 		DataQuality:             job.DataQuality,
 		SourceURL:               job.SourceURL,
 		IsFeatured:              job.IsFeatured,
+		ApplyReadiness:          applyReadiness,
+		OptimizationStopSignal:  stopSignal,
+		TopFixItems:             topFixItems,
 	}, nil
 }
 
@@ -566,4 +573,76 @@ func generateNextSteps(suggestions []model.MatchSuggestion) []string {
 	steps = append(steps, "确认岗位详情中的核心技术要求，逐条对照简历内容")
 
 	return steps
+}
+
+// determineMatchApplyReadiness determines apply_readiness and optimization_stop_signal
+// for mock match analysis based on score and data quality.
+func determineMatchApplyReadiness(score int, resume *model.ResumeVersion, job *model.Job) (string, string) {
+	if job.DataQuality == "summary_only" {
+		return "insufficient_information", "needs_more_evidence"
+	}
+	if score >= 85 {
+		return "ready_to_apply", "stop_and_apply"
+	}
+	if score >= 60 {
+		return "quick_fix_before_apply", "fix_top_3_then_apply"
+	}
+	return "not_ready_for_this_role", "needs_more_evidence"
+}
+
+// generateMatchTopFixItems generates up to 3 quick fix items for mock match analysis.
+func generateMatchTopFixItems(resume *model.ResumeVersion, job *model.Job) []model.TopFixItem {
+	var items []model.TopFixItem
+
+	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
+	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+	resumeSkillSet := toLowerSet(resumeSkills)
+
+	// Find missing skills
+	var missing []string
+	for _, s := range jobSkills {
+		if !resumeSkillSet[strings.ToLower(s)] {
+			missing = append(missing, s)
+		}
+	}
+
+	if len(missing) > 0 {
+		top := missing[:min(2, len(missing))]
+		items = append(items, model.TopFixItem{
+			Issue:            fmt.Sprintf("简历中未体现 %s 相关经验", strings.Join(top, "、")),
+			WhyItMatters:     "岗位 JD 明确提及这些技术，是初筛关键词。",
+			Action:           fmt.Sprintf("如果真实使用过 %s，在项目或实习描述中补充使用场景。", strings.Join(top, "、")),
+			ExampleReference: fmt.Sprintf("示例参考：使用 %s 完成数据持久化，通过连接池优化查询性能。", strings.Join(top, "、")),
+			SelfCheckQuestion: "请确认你确实在项目中使用过这些技术，而不是仅了解概念。",
+			EstimatedEffort:  "within_30_min",
+		})
+	}
+
+	// Check project experience
+	if len(resume.ProjectJSON) == 0 {
+		items = append(items, model.TopFixItem{
+			Issue:            "缺少项目经历描述",
+			WhyItMatters:     "岗位 JD 要求开发经验，当前简历没有项目经历会影响初筛通过率。",
+			Action:           "补充你参与过的课程项目、个人项目或实验室项目。",
+			ExampleReference: "示例参考：基于 Gin 框架实现博客系统，包含用户注册登录、文章 CRUD 和评论功能。",
+			SelfCheckQuestion: "请确认项目确实是你本人参与完成的。",
+			EstimatedEffort:  "within_60_min",
+		})
+	} else {
+		items = append(items, model.TopFixItem{
+			Issue:            "项目职责描述不够清晰",
+			WhyItMatters:     "岗位 JD 强调后台接口开发和工程实践，当前表达难以证明个人贡献。",
+			Action:           "补充你负责的模块、使用的技术栈和最终产出。",
+			ExampleReference: "示例参考：基于 GoFrame 完成后台管理系统用户、角色、权限相关接口开发，并与前端完成联调。",
+			SelfCheckQuestion: "请确认你是否确实负责过这些模块，而不是团队整体成果。",
+			EstimatedEffort:  "within_30_min",
+		})
+	}
+
+	// Cap at 3 items
+	if len(items) > 3 {
+		items = items[:3]
+	}
+
+	return items
 }

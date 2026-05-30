@@ -349,3 +349,28 @@
 - 三个 JSON Schema 文件 `python3 -m json.tool` 验证通过
 - `go test ./...` 全部通过
 - grep 验证 `apply_readiness` / `optimization_stop_signal` / `top_fix_items` 在 6 个文件（3 schema + 3 prompt）中均已覆盖
+
+## 21. 4-3.7-fix.2 完成记录
+
+4-3.7-fix.2 已完成 Go 契约最小一致性补齐。
+
+### 修改文件
+
+| 文件 | 修改内容 |
+|------|---------|
+| `server/internal/model/match.go` | 新增 `TopFixItem` 结构体；`MatchAnalysisResult` 新增 `ApplyReadiness` / `OptimizationStopSignal` / `TopFixItems` |
+| `server/internal/model/recommendation.go` | `RecommendedJob` 新增 `ApplyReadiness` / `OptimizationStopSignal` / `TopFixItems` |
+| `server/internal/agent/match_agent.go` | `mapParsedToMatchResult` 新增三字段映射；新增 `mapTopFixItems` 函数 |
+| `server/internal/agent/recommendation_agent.go` | `mapParsedToRecommendedJobs` 新增三字段映射；新增 `mapRecTopFixItems` 函数 |
+| `server/internal/agent/match_mock.go` | 新增 `determineMatchApplyReadiness` / `generateMatchTopFixItems`；Mock 结果包含新字段 |
+| `server/internal/agent/recommendation_mock.go` | 新增 `determineRecApplyReadiness` / `generateRecTopFixItems`；Mock 结果包含新字段 |
+| `server/internal/agent/match_agent_test.go` | `minimalLLMOutput` 新增三字段 fixture |
+| `server/internal/agent/recommendation_agent_test.go` | `minimalRecParsedOutput` 及其他测试 fixture 新增三字段 |
+
+### 验证结果
+
+- `go build ./...` 编译通过
+- `go test ./...` 全部通过
+- `make llm-check` 通过（未调用真实 LLM）
+- Prompt / Schema / Go model / Agent mapping / mock / fallback / fixture 已保持一致
+- fix.2 完成后 C.1 判定升级为 pass，可进入 fix.3 最终闸门验收

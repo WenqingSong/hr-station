@@ -29,6 +29,17 @@ type MatchSuggestion struct {
 	Action   string `json:"action"`
 }
 
+// TopFixItem represents a quick fix item before applying (4-3.7.C.1).
+// Shared by MatchAnalysis and Recommendation agents.
+type TopFixItem struct {
+	Issue            string `json:"issue"`
+	WhyItMatters     string `json:"why_it_matters"`
+	Action           string `json:"action"`
+	ExampleReference string `json:"example_reference"`
+	SelfCheckQuestion string `json:"self_check_question"`
+	EstimatedEffort  string `json:"estimated_effort"`
+}
+
 // MatchAnalysisResult represents the structured match analysis output.
 // Fields added for LLM Agent output (4-3.2) are safe additions that won't break
 // existing consumers: MatchLevel, MatchLabel, OfferGoSummary, GapPoints,
@@ -58,6 +69,11 @@ type MatchAnalysisResult struct {
 	OfferGoSummary     string   `json:"offer_go_summary,omitempty"`
 	GapPoints          []string `json:"gap_points,omitempty"`
 	InterviewQuestions []string `json:"interview_questions,omitempty"`
+
+	// Strategic fields (4-3.7.C.1)
+	ApplyReadiness         string       `json:"apply_readiness,omitempty"`
+	OptimizationStopSignal string       `json:"optimization_stop_signal,omitempty"`
+	TopFixItems            []TopFixItem `json:"top_fix_items,omitempty"`
 
 	// Agent metadata (internal, 4-4 will unify API meta)
 	GeneratedBy    string `json:"generated_by,omitempty"`

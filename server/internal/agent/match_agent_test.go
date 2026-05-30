@@ -107,6 +107,18 @@ func minimalLLMOutput() map[string]any {
 			map[string]any{"action": "学习微服务基础知识", "priority": "p1", "expected_effect": "增加技术面试表现"},
 		},
 		"authenticity_notice": "以上建议仅用于表达优化，请只补充真实经历，不要虚构项目或能力。",
+		"apply_readiness":    "quick_fix_before_apply",
+		"optimization_stop_signal": "fix_top_3_then_apply",
+		"top_fix_items": []any{
+			map[string]any{
+				"issue":             "项目描述缺少量化数据",
+				"why_it_matters":    "量化数据能让初筛更有说服力",
+				"action":            "回顾项目经历，补充可量化的成果",
+				"example_reference": "示例参考：独立完成 12 个 RESTful API 接口开发",
+				"self_check_question": "请确认所有数字均为真实数据",
+				"estimated_effort":  "within_30_min",
+			},
+		},
 		"analysis_basis": map[string]any{
 			"job_description_used":  true,
 			"job_requirements_used": true,

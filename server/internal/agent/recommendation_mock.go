@@ -133,6 +133,8 @@ func (a *RecommendationMockAgent) Recommend(_ context.Context, resume *model.Res
 		highlights := generateHighlights(resume, sj.job, resumeSkills, parseJSONStringArray(sj.job.SkillKeywordsJSON))
 		risks := generateRisks(resume, sj.job, resumeSkills, parseJSONStringArray(sj.job.SkillKeywordsJSON))
 		action := generateAction(sj.job, priority)
+		applyReadiness, stopSignal := determineRecApplyReadiness(sj.score, sj.job)
+		topFixItems := generateRecTopFixItems(resume, sj.job, applyReadiness)
 
 		results = append(results, model.RecommendedJob{
 			JobID:                sj.job.ID,
@@ -152,6 +154,9 @@ func (a *RecommendationMockAgent) Recommend(_ context.Context, resume *model.Res
 			DataQuality:          sj.job.DataQuality,
 			SourceURL:            sj.job.SourceURL,
 			IsFeatured:           sj.job.IsFeatured,
+			ApplyReadiness:       applyReadiness,
+			OptimizationStopSignal: stopSignal,
+			TopFixItems:          topFixItems,
 		})
 	}
 
@@ -308,6 +313,72 @@ func generateAction(job *model.Job, priority string) string {
 	default:
 		return fmt.Sprintf("可作为备选方向了解，建议先补充%s相关技能后再重点关注。", job.Category)
 	}
+}
+
+// determineRecApplyReadiness determines apply_readiness and optimization_stop_signal
+// for a single recommended job based on score and data quality.
+func determineRecApplyReadiness(score int, job *model.Job) (string, string) {
+	if job.DataQuality == "summary_only" {
+		return "insufficient_information", "needs_more_evidence"
+	}
+	if score >= 80 {
+		return "ready_to_apply", "stop_and_apply"
+	}
+	if score >= 60 {
+		return "quick_fix_before_apply", "fix_top_3_then_apply"
+	}
+	return "not_ready_for_this_role", "target_role_mismatch"
+}
+
+// generateRecTopFixItems generates quick fix items for a recommended job.
+func generateRecTopFixItems(resume *model.ResumeVersion, job *model.Job, applyReadiness string) []model.TopFixItem {
+	if applyReadiness == "ready_to_apply" {
+		return []model.TopFixItem{}
+	}
+
+	var items []model.TopFixItem
+
+	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
+	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
+	resumeSkillSet := toLowerSet(resumeSkills)
+
+	// Find missing skills
+	var missing []string
+	for _, s := range jobSkills {
+		if !resumeSkillSet[strings.ToLower(s)] {
+			missing = append(missing, s)
+		}
+	}
+
+	if len(missing) > 0 {
+		top := missing[:min(2, len(missing))]
+		items = append(items, model.TopFixItem{
+			Issue:            fmt.Sprintf("简历中未体现 %s 相关经验", strings.Join(top, "、")),
+			WhyItMatters:     fmt.Sprintf("该岗位 JD 明确提及 %s，是初筛关键词。", strings.Join(top, "、")),
+			Action:           fmt.Sprintf("如果真实使用过 %s，在项目或实习描述中补充使用场景。", strings.Join(top, "、")),
+			ExampleReference: fmt.Sprintf("示例参考：使用 %s 完成数据持久化，通过连接池优化查询性能。", strings.Join(top, "、")),
+			SelfCheckQuestion: "请确认你确实在项目中使用过这些技术，而不是仅了解概念。",
+			EstimatedEffort:  "within_30_min",
+		})
+	}
+
+	if len(items) == 0 && applyReadiness == "quick_fix_before_apply" {
+		items = append(items, model.TopFixItem{
+			Issue:            "项目职责描述可进一步清晰化",
+			WhyItMatters:     "岗位 JD 强调工程实践能力，当前表达难以证明个人贡献。",
+			Action:           "补充你负责的模块、使用的技术栈和最终产出。",
+			ExampleReference: "示例参考：基于 GoFrame 完成后台管理系统用户、角色、权限相关接口开发。",
+			SelfCheckQuestion: "请确认你是否确实负责过这些模块。",
+			EstimatedEffort:  "within_30_min",
+		})
+	}
+
+	// Cap at 3 items
+	if len(items) > 3 {
+		items = items[:3]
+	}
+
+	return items
 }
 
 // parseJSONStringArray parses a JSON array of strings from bytes.
