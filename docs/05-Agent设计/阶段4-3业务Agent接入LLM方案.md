@@ -2,6 +2,7 @@
 
 > 创建时间：2026-05-30
 > 所属阶段：4-3.0
+> 当前阶段：4-3.1 未通过真实 LLM Smoke 前置验收
 > 依据文档：阶段4-2LLMClient与Hunyuan接入方案、阶段4-2集成验收报告、阶段4-2LLM基础设施汇总、Agent总览、岗位匹配Agent、岗位推荐Agent、LLMClient设计、Hunyuan接入准备、Prompt模板、JSON输出规范、失败兜底与Mock回退策略、match_mock.go、recommendation_mock.go、match_service.go、recommendation_service.go、match.go、recommendation.go、pipeline/pipeline.go、pipeline/types.go
 
 ## 1. 阶段目标
@@ -763,4 +764,8 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 
 **下一步进入 4-3.1：真实 LLM Smoke 前置验收。**
 
-4-3.1 通过后，再进入 4-3.2 MatchAnalysisAgent 接入 Pipeline。
+4-3.1 已执行但未通过：本地 .env 不存在，LLM 配置不完整（LLM_ENABLE=false，LLM_BASE_URL / LLM_API_KEY / LLM_MODEL 未配置），真实 LLM smoke 未执行。暂不建议进入 4-3.2。
+
+验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。
+
+需先补齐本地 LLM 配置并完成真实 smoke 后再进入 4-3.2。

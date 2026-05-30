@@ -435,3 +435,17 @@ LLM Client 本身仍未实现。
 4. **HunyuanClient 仍只作为 llm.Client 的 provider 实现**：业务 Agent 不感知 Provider 差异
 5. **4-3.1 需先执行真实 LLM Smoke Test**：验证 HunyuanClient 连通性后再接入业务 Agent
 6. **方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`**
+
+## 阶段 4-3.1 更新
+
+4-3.1 已通过 llm-smoke 对 HunyuanClient 真实连通性进行前置验收，但真实 smoke 未执行。
+
+原因：本地 .env 不存在，LLM 配置不完整（LLM_ENABLE=false，LLM_BASE_URL / LLM_API_KEY / LLM_MODEL 未配置）。
+
+结论：
+- HunyuanClient 代码逻辑正确（httptest 22 项单元测试通过）
+- 真实连通性未验证
+- 业务 Agent 接入仍必须通过 Pipeline，不直接调用 HunyuanClient
+- 暂不建议进入 4-3.2
+
+验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。

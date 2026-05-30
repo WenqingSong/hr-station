@@ -568,3 +568,15 @@ if !runResult.FallbackRequired {
 - 日志记录映射失败的 error_code 和 fallback_reason
 
 方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`
+
+## 阶段 4-3.1 更新
+
+4-3.1 已完成真实 LLM smoke 前置验收，但真实 smoke 未执行（本地 LLM 配置不完整）。
+
+结论：
+- 真实 LLM 连通性未验证
+- 后续业务 Agent 接入时仍必须保留 Mock fallback
+- Mock fallback 当前仍为接口稳定性的最终保障
+- 暂不建议进入 4-3.2
+
+验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。

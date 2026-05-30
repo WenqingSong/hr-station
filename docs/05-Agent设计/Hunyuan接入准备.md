@@ -341,3 +341,19 @@ Hunyuan 私有请求 / 响应结构不应泄漏到业务 Agent 层。业务 Agen
 3. **Hunyuan 配置已固化**：14 项 LLM_* 配置已就绪，4-3 不修改 .env.example
 4. **4-3.1 将执行 RUN_REAL_LLM_SMOKE=1 make llm-smoke**：确认模型可用后再接入 MatchAnalysisAgent
 5. **方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`**
+
+## 阶段 4-3.1 更新
+
+4-3.1 已执行真实 LLM Smoke 前置验收，但真实 smoke 未执行。
+
+原因：本地 .env 不存在，LLM 配置不完整：
+- LLM_ENABLE=false
+- LLM_BASE_URL 未配置
+- LLM_API_KEY 未配置
+- LLM_MODEL 未配置
+
+结论：HunyuanClient 真实连通性未验证，暂不建议进入 4-3.2。
+
+验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。
+
+用户需补齐 .env 配置后重新执行 `RUN_REAL_LLM_SMOKE=1 make llm-smoke`。

@@ -449,3 +449,16 @@ Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映
 || error_code | 4-3 内部记录 | 4-4 统一收口到 API meta |
 
 方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`
+
+## 阶段 4-3.1 更新
+
+4-3.1 已执行真实 LLM Smoke 前置验收，但真实 smoke 未执行（本地 LLM 配置不完整）。
+
+因此未能观察真实 Hunyuan smoke 输出的 JSON parse 结果。
+
+后续补执行真实 smoke 时需重点关注：
+- json_parse_success 是否为 true
+- 如果 json_parse_success=false，后续业务接入必须重点依赖 Schema validate / JSON repair / Mock fallback
+- 模型最小 Prompt 下是否严格输出 JSON
+
+验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。
