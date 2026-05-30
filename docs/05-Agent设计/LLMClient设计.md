@@ -1,6 +1,6 @@
 # LLM Client 设计
 
-> 最后更新：2026-05-30（阶段 4-2.6 LLM Smoke Test / Makefile 接入）
+> 最后更新：2026-05-30（阶段 4-2.7 JSONRepairAgent 调用链路）
 
 ## 1. 设计目标
 
@@ -384,6 +384,23 @@ LLM Client 本身仍未实现。
 3. **401/403 映射为 LLM_API_KEY_MISSING**：错误信息写 "authentication failed"，不打印 token
 4. **支持注入 http.Client**：便于 httptest 和后续集成测试
 5. **当前仅通过 httptest 验证**，不调用真实 Hunyuan，真实连通性放到 4-2.6
+
+## 阶段 4-2.7 更新
+
+4-2.7 已完成 JSONRepairAgent 调用链路。JSONRepairAgent 通过 `llm.Client` 调用模型，不直接依赖 HunyuanClient。repair 成功后业务结果 `generated_by` 仍保持 `llm_agent`。
+
+新增：
+- `server/internal/agent/repair/types.go`：TargetOutputType、RepairRequest、RepairResult、7 个错误码
+- `server/internal/agent/repair/json_repair_agent.go`：Agent 结构体、NewAgent、Repair 方法（repair once）
+- `server/internal/agent/repair/json_repair_agent_test.go`：14 项单元测试（全部通过）
+
+核心设计决策：
+1. **JSONRepairAgent 只修复结构，不重新做业务分析**
+2. **repair 只执行一次，不递归、不重试**
+3. **repair 通过 llm.Client 抽象层调用模型**
+4. **repair output 必须再次经过 JSON extract / parse / Schema validate**
+5. **错误消息中不泄露 API Key、完整 Prompt、完整 BrokenOutput**
+6. **repair 失败只返回结构化错误，不执行 Mock fallback**
 
 ## 阶段 4-2.6 更新
 

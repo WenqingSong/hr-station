@@ -3,7 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-2.0
 > 依据文档：阶段4-1.4方案、阶段4-1.4汇总、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、失败兜底与Mock回退策略、config.go、main.go、.env.example、go.mod
-> 最后更新：2026-05-30（阶段 4-2.6 LLM Smoke Test / Makefile 接入）
+> 最后更新：2026-05-30（阶段 4-2.7 JSONRepairAgent 调用链路）
 
 ## 1. 阶段目标
 
@@ -753,6 +753,14 @@ scripts/dev/schema_check.sh
 - 单元测试 22 项全部通过
 
 下一步为 4-2.7：JSONRepairAgent 调用链路
+
+4-2.7 已完成：JSONRepairAgent 调用链路。
+当前已具备基于 json_repair_v1.md 的 repair once 能力。
+当业务 LLM 输出发生 JSON parse 失败或 Schema validate 失败时，可调用 JSONRepairAgent 尝试修复一次。
+repair 后会重新执行 JSON extract / parse / Schema validate。
+repair 成功返回 repaired JSON object，repair 失败返回结构化错误。
+当前仍未接业务 Agent。
+下一步为 4-2.8 统一 LLM Agent Pipeline。
 
 4-2.6 已完成：LLM Smoke Test / Makefile 接入。
 当前已具备通过 `make llm-check` 检查 LLM 配置、通过 `RUN_REAL_LLM_SMOKE=1 make llm-smoke` 执行最小 HunyuanClient 连通性验证的能力。

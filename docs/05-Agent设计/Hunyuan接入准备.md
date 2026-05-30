@@ -1,6 +1,6 @@
 # Hunyuan 接入准备
 
-> 最后更新：2026-05-30（阶段 4-2.6 LLM Smoke Test / Makefile 接入）
+> 最后更新：2026-05-30（阶段 4-2.7 JSONRepairAgent 调用链路）
 
 ## 1. 用户需要准备的信息
 
@@ -143,6 +143,15 @@ Hunyuan 接入后的核心约束：
 - `server/internal/llm/hunyuan_types.go`：OpenAI-compatible 内部请求/响应类型（不导出）
 - `server/internal/llm/hunyuan_client_test.go`：httptest 单元测试（22 项全部通过）
 - 无新增第三方依赖，使用 Go 标准库 net/http / encoding/json / context
+
+## 阶段 4-2.7 更新
+
+4-2.7 已完成 JSON repair once 调用链路。后续 Hunyuan 输出发生 JSON parse / Schema validate 失败时，可进入 JSONRepairAgent 修复一次。repair 调用仍通过 llm.Client 抽象层完成。
+
+新增：
+- `server/internal/agent/repair/` 包：JSONRepairAgent repair once 调用链路
+- repair 只执行一次，不递归修复
+- repair 失败后返回结构化错误，Mock fallback 留给后续 Pipeline 决策
 
 ## 阶段 4-2.6 更新
 

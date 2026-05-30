@@ -3,7 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-1.4.11
 > 依据文档：阶段4-1.4方案、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、json_repair_v1.md、match_analysis_v1.md、recommendation_v1.md、resume_optimization_v1.md
-> 最后更新：2026-05-30（阶段 4-2.6 LLM Smoke Test / Makefile 接入）
+> 最后更新：2026-05-30（阶段 4-2.7 JSONRepairAgent 调用链路）
 
 ## 1. 设计目标
 
@@ -452,6 +452,13 @@ HunyuanClient 错误映射：
 新增：
 - `server/internal/llm/hunyuan_client.go`：HunyuanClient 错误码映射实现
 - `server/internal/llm/hunyuan_client_test.go`：错误分类测试（429/500/401/空响应/非JSON/超时）
+
+4-2.7 已落地 JSONRepairAgent 调用链路。JSON repair 只执行一次，repair 失败后不继续递归修复。Mock fallback 仍放到 4-2.8 / 4-3。
+
+新增：
+- `server/internal/agent/repair/` 包：JSONRepairAgent repair once 调用链路
+- 7 个 repair 错误码：JSON_REPAIR_FAILED / JSON_REPAIR_PARSE_FAILED / JSON_REPAIR_SCHEMA_FAILED / JSON_REPAIR_LLM_FAILED / JSON_REPAIR_PROMPT_LOAD_FAILED / JSON_REPAIR_SCHEMA_LOAD_FAILED / JSON_REPAIR_TARGET_INVALID
+- 14 项单元测试全部通过
 
 ## 阶段 4-2.6 更新
 

@@ -1,6 +1,6 @@
 # Prompt 模板
 
-> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
+> 最后更新：2026-05-30（阶段 4-2.7 JSONRepairAgent 调用链路）
 
 ## 当前状态
 
@@ -113,6 +113,8 @@ Prompt 将作为独立产品资产管理：
 | json_repair | server/prompts/json_repair_v1.md |
 
 Prompt Loader 需支持：按 PromptName 加载、校验文件存在、替换占位符、保留原始模板、不把 Prompt 写死在 Go 代码、支持后续版本化。
+
+4-2.7 已将 json_repair_v1.md 接入 JSONRepairAgent 调用链路。该 Prompt 仍保持人工定稿内容不变，JSONRepairAgent 通过 Prompt Loader 加载并渲染 5 个占位符（TARGET_OUTPUT_TYPE / TARGET_SCHEMA_JSON / BROKEN_MODEL_OUTPUT / VALIDATION_ERRORS / REPAIR_CONTEXT）。
 
 4-2.2 已完成 Prompt Loader，支持逻辑名称：
 
