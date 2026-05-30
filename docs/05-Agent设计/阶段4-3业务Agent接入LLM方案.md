@@ -819,3 +819,14 @@ ResumeOptimizationAgent 当前具备 Mock 业务接口基础，下一步可评�
 三个 Prompt 新增对应指引。
 测试全部通过。
 详见 docs/09-开发日志/2026-05-30-107-PromptSchema最小一致性修复.md
+
+4-3.8.0 已完成三类 Agent 当前 LLM / fallback 状态核验与验收矩阵冻结。
+
+核心发现：
+- MatchAnalysisAgent：LLM + fallback 已全接入（PipelineRunner + llmEnabled + MatchFallbackError + Mock fallback）
+- RecommendationAgent：LLM + fallback 已全接入（PipelineRunner + llmEnabled + RecFallbackError + Mock fallback）
+- ResumeOptimizationAgent：仍 Mock-only（无 LLM Agent 代码、Service 无 PipelineRunner/llmEnabled、无 fallback 路径）
+
+验收矩阵已冻结，详见 `docs/05-Agent设计/三类Agent当前LLMFallback状态核验与验收矩阵.md`
+
+结论：需插入 4-3.8.1-R 完成 ResumeOptimizationAgent Pipeline 最小集成。Pipeline 已支持 TargetResumeOptimization，Prompt/Schema/Go model 已就绪，仅缺 Agent 代码和 Service 注入。

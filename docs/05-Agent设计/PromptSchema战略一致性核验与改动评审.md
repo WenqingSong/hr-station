@@ -397,3 +397,13 @@
 ### 结论
 
 Prompt / Schema / Go 契约一致性已通过，C.1 判定为 pass。下一步进入 4-3.8 三类业务 Agent 集成验收。
+
+## 23. 4-3.8.0 完成记录
+
+4-3.8.0 已完成三类 Agent 当前 LLM / fallback 状态核验与验收矩阵冻结。
+
+核验结论：
+- MatchAnalysisAgent 和 RecommendationAgent 的 Prompt / Schema / Go 契约一致性已通过（C.1 pass），且 LLM + fallback 已全接入
+- ResumeOptimizationAgent 的 Prompt / Schema / Go 契约一致性已通过（C.1 pass），但工程层面仍 Mock-only，需 4-3.8.1-R 完成 Pipeline 最小集成
+
+验收矩阵详见 `docs/05-Agent设计/三类Agent当前LLMFallback状态核验与验收矩阵.md`
