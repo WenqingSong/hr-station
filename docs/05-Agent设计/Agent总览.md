@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-30（阶段 4-2.8 统一 LLM Agent Pipeline）
+> 最后更新：2026-05-30（阶段 4-2.9 阶段 4-2 集成验收）
 
 ## 当前状态
 
-阶段 4-2.8 已完成统一 LLM Agent Pipeline，当前已具备完整 Pipeline 执行链。下一步进入 4-2.9 阶段 4-2 集成验收。
+阶段 4-2.9 已完成阶段 4-2 集成验收，当前 LLM 基础设施链路已通过验收。下一步进入 4-2.10 阶段 4-2 汇总。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
