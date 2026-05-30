@@ -375,3 +375,17 @@ Hunyuan 私有请求 / 响应结构不应泄漏到业务 Agent 层。业务 Agen
 验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。
 
 用户需先创建 `.env` 文件并补齐 LLM 配置后重新执行 `RUN_REAL_LLM_SMOKE=1 make llm-smoke`。
+
+## 阶段 4-3.1.C 更新
+
+4-3.1.C 已完成开发环境 `.env` 自动生成与 Makefile 接入。
+
+新增：
+- `scripts/dev/ensure_env.sh`：`.env` 自动生成脚本（优先 `.env.local` → `.env.example`）
+- Makefile `ensure-env` target
+- `make up` / `make restart` / `make llm-check` / `make llm-smoke` 执行前自动确保 `.env` 存在
+
+推荐方式：
+- 用户创建 `.env.local` 保存本地真实开发配置（LLM_API_KEY 等）
+- `make ensure-env` 会自动从 `.env.local` 或 `.env.example` 生成 `.env`
+- 真实 LLM smoke 仍需用户填写真实 LLM 配置后执行

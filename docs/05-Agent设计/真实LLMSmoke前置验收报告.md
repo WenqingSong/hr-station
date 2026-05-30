@@ -293,3 +293,20 @@ HunyuanClient httptest 单元测试（22 项）和 llmjson 单元测试全部通
 - ❌ HunyuanClient 真实连通性仍未验证
 
 **暂不建议进入 4-3.2，需要先创建 `.env` 并补齐 LLM 配置并完成真实 smoke。**
+
+---
+
+## 16. 4-3.1.C 补充：开发环境 .env 自动生成机制
+
+4-3.1.C 已补充开发环境 `.env` 自动生成机制。
+
+新增：
+- `scripts/dev/ensure_env.sh`：`.env` 自动生成脚本
+- Makefile `ensure-env` target：确保 `.env` 存在后再执行依赖命令
+- `make up` / `make restart` / `make llm-check` / `make llm-smoke` 已接入 `ensure-env`
+
+优先级：`.env` 已存在 → 不覆盖；`.env.local` 存在 → 复制；`.env.example` 存在 → 复制。
+
+后续重新执行 4-3.1 smoke 前，`make llm-check` 会自动确保 `.env` 存在。
+
+注意：本次只是修复环境准备机制，不代表真实 smoke 已通过。用户仍需在 `.env` 或 `.env.local` 中填写真实 LLM 配置。

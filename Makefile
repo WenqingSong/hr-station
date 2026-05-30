@@ -15,6 +15,7 @@ DEV_SCRIPT := scripts/dev
 # ============================================================
 
 .PHONY: help doctor init check status health \
+        ensure-env \
         up stop down restart rebuild \
         infra-up infra-down infra-status infra-logs \
         db-import db-reset db-shell db-check \
@@ -44,6 +45,7 @@ help: ## 查看所有可用命令
 	@echo "  make help          查看所有可用命令"
 	@echo "  make doctor        检查开发环境（Docker/Go/Node/npm/.env/端口/目录）"
 	@echo "  make init          初始化开发环境（创建目录、复制 .env、提示依赖安装）"
+	@echo "  make ensure-env    确保 .env 存在（优先 .env.local → .env.example）"
 	@echo "  make check         执行 doctor + 轻量检查"
 	@echo "  make status        查看所有服务运行状态"
 	@echo "  make health        查看所有服务健康状态"
@@ -152,6 +154,9 @@ check: doctor ## 执行 doctor + 健康检查
 	@echo "--- 健康检查 ---"
 	@$(MAKE) --no-print-directory health
 
+ensure-env: ## 确保 .env 存在（优先 .env.local → .env.example）
+	@bash $(DEV_SCRIPT)/ensure_env.sh
+
 status: ## 查看所有服务运行状态
 	@echo ""
 	@echo "=== 服务运行状态 ==="
@@ -185,7 +190,7 @@ health: ## 查看所有服务健康状态
 # 完整生命周期
 # ============================================================
 
-up: ## 一键启动完整开发环境
+up: ensure-env ## 一键启动完整开发环境
 	@echo ""
 	@echo "=========================================="
 	@echo "  Offer Catcher - 一键启动开发环境"
@@ -239,7 +244,7 @@ down: ## 停止服务，保留数据库 volume
 	@$(DEV_SCRIPT)/web.sh stop || true
 	@$(DEV_SCRIPT)/infra.sh down
 
-restart: ## stop + up
+restart: ensure-env ## stop + up
 	@$(DEV_SCRIPT)/backend.sh stop || true
 	@$(DEV_SCRIPT)/web.sh stop || true
 	@sleep 1
@@ -360,10 +365,10 @@ agent-test: ## 当前只输出提示
 llm-help: ## 查看 LLM smoke test 命令帮助
 	@$(DEV_SCRIPT)/llm_smoke.sh help
 
-llm-check: ## 检查本地 LLM 配置，不请求外部模型
+llm-check: ensure-env ## 检查本地 LLM 配置，不请求外部模型
 	@$(DEV_SCRIPT)/llm_smoke.sh check
 
-llm-smoke: ## 执行 LLM smoke test（需要 RUN_REAL_LLM_SMOKE=1）
+llm-smoke: ensure-env ## 执行 LLM smoke test（需要 RUN_REAL_LLM_SMOKE=1）
 	@$(DEV_SCRIPT)/llm_smoke.sh smoke
 
 # ============================================================

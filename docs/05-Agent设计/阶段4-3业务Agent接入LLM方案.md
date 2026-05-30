@@ -2,7 +2,7 @@
 
 > 创建时间：2026-05-30
 > 所属阶段：4-3.0
-> 当前阶段：4-3.1.B 未通过真实 LLM Smoke 二次核验
+> 当前阶段：4-3.1.C 已完成开发环境 .env 自动生成与 Makefile 接入
 > 依据文档：阶段4-2LLMClient与Hunyuan接入方案、阶段4-2集成验收报告、阶段4-2LLM基础设施汇总、Agent总览、岗位匹配Agent、岗位推荐Agent、LLMClient设计、Hunyuan接入准备、Prompt模板、JSON输出规范、失败兜底与Mock回退策略、match_mock.go、recommendation_mock.go、match_service.go、recommendation_service.go、match.go、recommendation.go、pipeline/pipeline.go、pipeline/types.go
 
 ## 1. 阶段目标
@@ -768,6 +768,8 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 
 两次核验（4-3.1 和 4-3.1.B）均因配置缺失无法执行真实 smoke。
 
+4-3.1.C 已完成开发环境 .env 自动生成与 Makefile 接入：新增 `scripts/dev/ensure_env.sh` 和 `ensure-env` Makefile target，`make up` / `make restart` / `make llm-check` / `make llm-smoke` 执行前自动确保 `.env` 存在。下一步仍需重新执行真实 LLM smoke。
+
 验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。
 
-需先创建 `.env`、补齐本地 LLM 配置并完成真实 smoke 后再进入 4-3.2。
+需先创建 `.env.local`（或直接编辑 `.env`）补齐本地 LLM 配置后重新执行 `RUN_REAL_LLM_SMOKE=1 make llm-smoke`，通过后再进入 4-3.2。

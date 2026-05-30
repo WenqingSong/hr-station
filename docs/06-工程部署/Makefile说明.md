@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-30（阶段 4-3.1.B 真实 LLM Smoke 二次核验）
+> 最后更新：2026-05-30（阶段 4-3.1.C 开发环境 Env 自动生成与 Makefile 接入）
 
 ## 1. 设计目标
 
@@ -67,6 +67,7 @@ make db-reset CONFIRM=yes
 | `make help` | 查看所有命令 | ✅ | ❌ |
 | `make doctor` | 检查开发环境 | ✅ | ❌ |
 | `make init` | 初始化开发环境 | ❌ | ⚠️ |
+| `make ensure-env` | 确保 .env 存在（优先 .env.local → .env.example） | ❌ | ⚠️ |
 | `make check` | doctor + 健康检查 | ✅ | ❌ |
 | `make status` | 查看所有服务运行状态 | ✅ | ❌ |
 | `make health` | 查看所有服务健康状态 | ✅ | ❌ |
@@ -84,6 +85,7 @@ make db-reset CONFIRM=yes
 ### `make up` 执行顺序
 
 ```
+0. 确保 .env 存在（ensure-env）
 1. 环境检查（doctor）
 2. 环境初始化（init）
 3. 启动基础设施（infra-up）
@@ -361,3 +363,21 @@ make jobs-import-sql       # 3. 生成 SQL（可选，import 会自动执行）
 make jobs-import           # 4. 执行导入
 make jobs-import-status    # 5. 查看结果
 ```
+
+## 16. ensure-env 机制
+
+4-3.1.C 新增 `ensure-env` 机制。`make up` / `make restart` / `make llm-check` / `make llm-smoke` 执行前会自动确保项目根目录存在 `.env`。
+
+优先级：
+
+1. `.env` 已存在 → 不覆盖
+2. `.env` 不存在 + `.env.local` 存在 → 从 `.env.local` 复制
+3. `.env` 不存在 + `.env.example` 存在 → 从 `.env.example` 复制
+4. 三者都不存在 → 报错
+
+说明：
+
+- `.env.local` 用于保存本地真实开发配置（包含 API Key 等），不应提交 Git
+- `.env` 由 ensure-env 自动生成，是 Docker / Makefile 实际使用的文件
+- `.env.example` 是模板文件，可以提交 Git
+- `ensure-env` 不打印文件内容，不打印 API Key
