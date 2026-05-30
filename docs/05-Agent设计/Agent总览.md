@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-29（阶段 4-1.4.4B 登记岗位推荐 Agent 指令模板）
+> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
 
 ## 当前状态
 
-阶段 4-1.4 进行中，4-1.4.1B 已完成。三个 Mock Agent 仍正常运行。第一个正式 Agent Prompt Template 已登记（`server/prompts/match_analysis_v1.md`），后续将通过离线测试确定真实 Agent 输出质量，不做 MCP 记忆，不做多轮 Agent。
+阶段 4-2.3 已完成 JSON parse + Schema validate 工具，当前仍未实现 LLM Client，仍未接 Hunyuan，下一步进入 LLM Client 抽象接口。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
@@ -105,7 +105,19 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 
 4-1.3 已完成，腾讯岗位后端适配闭环已形成。
 
-## 阶段 4-1.4 Prompt / Agent 真实接入（进行中）
+## 阶段 4-2 LLM Client 抽象与 Hunyuan Client 接入（进行中）
+
+4-2.3 已完成 JSON parse + Schema validate 工具：
+- 4-2.0 已完成：LLM Client 与 Hunyuan 接入方案（docs only）
+- 4-2.1 已完成：LLM / Hunyuan 环境变量配置项（.env.example 已新增 14 项 LLM_* 配置）
+- 4-2.2 已完成：Prompt Loader / Schema Loader（可加载 4 个 Prompt + 3 个 Schema）
+- 4-2.3 已完成：JSON parse + Schema validate 工具（llmjson 包 + schema.Validator）
+- 方案文档见 `docs/05-Agent设计/阶段4-2LLMClient与Hunyuan接入方案.md`
+- 4-2 目标不是直接完成业务 Agent 的 LLM 化，而是建立统一的大模型基础设施层
+- 4-2 产出：LLMClient 抽象 / HunyuanClient / PromptLoader / SchemaLoader / SchemaValidator / JSONRepairAgent 调用器 / fallback decision
+- 4-3 才把具体业务 Agent 接入 LLM
+
+## 阶段 4-1.4 Prompt / Agent 真实接入（已完成）
 
 4-1.4 开始设计 Prompt 和 Agent 的真实接入方案：
 

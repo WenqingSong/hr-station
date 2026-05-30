@@ -1,6 +1,6 @@
 # Hunyuan 接入准备
 
-> 最后更新：2026-05-29（阶段 4-1.4.0 Prompt / Agent 真实接入方案）
+> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
 
 ## 1. 用户需要准备的信息
 
@@ -109,6 +109,63 @@ curl -s -X POST https://api.hunyuan.cloud.tencent.com/v1/chat/completions \
 3. **API Key 应妥善保管，不要分享给他人**
 4. **注意 API 调用费用，建议关注免费额度使用情况**
 5. **生产环境应使用更严格的密钥管理方案**
+
+## 阶段 4-2 更新
+
+4-2.0 已完成接入方案，详细方案见 `docs/05-Agent设计/阶段4-2LLMClient与Hunyuan接入方案.md`。
+
+Hunyuan 接入后的核心约束：
+
+1. **Hunyuan 接入后必须经过 LLM Client 抽象层**：业务 Agent 不直接依赖 Hunyuan
+2. **必须支持 timeout、error_code、raw_output_length**
+3. **必须支持 JSON parse、Schema validate**
+4. **必须支持 JSON repair once**
+5. **必须支持 Mock fallback**
+6. **不打印 API Key**
+7. **.env.example 中 API Key 必须为空**
+
+4-2.5 才开始实现 Hunyuan Client。
+
+## 阶段 4-2.4 更新
+
+4-2.4 已完成 LLM Client 抽象。Hunyuan Client 后续必须实现 `llm.Client` 接口（`Chat(ctx, ChatRequest) (*ChatResponse, error)` + `Provider() Provider`）。
+
+Hunyuan 私有请求 / 响应结构不应泄漏到业务 Agent 层。业务 Agent 只依赖 `llm.Client`、`llm.ChatRequest`、`llm.ChatResponse` 等统一抽象类型。
+
+新增：
+- `server/internal/llm/` 包：Client 接口 + 基础类型 + Config + ErrorCode + NoopClient
+- 错误码：LLM_DISABLED / LLM_CONFIG_MISSING / LLM_API_KEY_MISSING / LLM_TIMEOUT / LLM_HTTP_ERROR / LLM_RATE_LIMIT / LLM_EMPTY_RESPONSE / LLM_OUTPUT_TRUNCATED / UNKNOWN_ERROR
+- `IsDirectMockFallback()`：判断哪些 LLM 错误应直接 Mock fallback
+
+## 阶段 4-2.3 更新
+
+4-2.3 已完成 Hunyuan raw output 后处理工具。后续 Hunyuan 返回内容不得直接进入业务接口，必须先经过 JSON parse + Schema validate。
+
+新增 Go 包：
+- `server/internal/llmjson/`：从 raw output 提取 JSON object、JSON parse、错误码分类
+- `server/internal/schema/validator.go`：JSON Schema 校验（使用 santhosh-tekuri/jsonschema/v5，支持 draft 2020-12）
+
+## 阶段 4-2.2 更新
+
+4-2.2 已完成 Prompt / Schema 加载能力。Hunyuan 接入时不应把 Prompt 写死在代码中，而应通过 Prompt Loader 加载。
+
+新增 Go 包：
+- `server/internal/prompt/`：Prompt Loader（从 server/prompts/ 加载 .md 文件）
+- `server/internal/schema/`：Schema Loader（从 server/prompts/schema/ 加载 .json 文件）
+
+## 阶段 4-2.1 更新
+
+4-2.1 已完成 Hunyuan 相关环境变量配置项，详细配置见 `docs/06-工程部署/环境变量.md`。
+
+关键更新：
+
+1. `.env.example` 已新增 LLM / Hunyuan Config 分组（14 项配置）
+2. 清除了 `.env.example` 中遗留的真实 API Key（安全修复）
+3. 清除了 `.env_BASE_URL 中的完整 tokenhub 路径
+4. LLM_MAX_OUTPUT_TOKENS 从 2048 提升到 8192
+5. LLM_TIMEOUT_SECONDS 从 20 提升到 30
+6. 当前只固化配置，不调用 Hunyuan
+7. Hunyuan API Key 必须只写入本地 .env
 
 ## 阶段 4-1.4 更新
 

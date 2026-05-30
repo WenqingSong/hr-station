@@ -1,6 +1,6 @@
 # Prompt 模板
 
-> 最后更新：2026-05-29（阶段 4-1.4.4B 登记岗位推荐 Agent 指令模板）
+> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
 
 ## 当前状态
 
@@ -100,6 +100,30 @@ Prompt 将作为独立产品资产管理：
     - 汇总文档见 `docs/00-项目总览/阶段4-1.4Prompt与Agent真实接入汇总.md`
 - JSON Schema 文件将存放在 `server/prompts/schema/` 目录
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
+
+## 阶段 4-2 更新
+
+4-2.0 已设计 Prompt Loader，后续 Prompt Loader 将从 `server/prompts/` 加载以下 Prompt：
+
+| PromptName | 文件路径 |
+|-----------|---------|
+| match_analysis | server/prompts/match_analysis_v1.md |
+| recommendation | server/prompts/recommendation_v1.md |
+| resume_optimization | server/prompts/resume_optimization_v1.md |
+| json_repair | server/prompts/json_repair_v1.md |
+
+Prompt Loader 需支持：按 PromptName 加载、校验文件存在、替换占位符、保留原始模板、不把 Prompt 写死在 Go 代码、支持后续版本化。
+
+4-2.2 已完成 Prompt Loader，支持逻辑名称：
+
+- match_analysis
+- recommendation
+- resume_optimization
+- json_repair
+
+Prompt Loader 从 server/prompts/ 读取 Prompt 文件，不再要求后续业务代码硬编码 Prompt 内容。
+
+4-2.2 才开始实现 Prompt Loader。
 
 后续 Prompt 将以腾讯真实岗位 JD 为输入：
 - 推荐 Prompt 和匹配 Prompt 需要分别设计

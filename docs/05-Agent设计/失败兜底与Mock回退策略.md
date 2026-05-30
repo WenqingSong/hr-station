@@ -3,6 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-1.4.11
 > 依据文档：阶段4-1.4方案、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、json_repair_v1.md、match_analysis_v1.md、recommendation_v1.md、resume_optimization_v1.md
+> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
 
 ## 1. 设计目标
 
@@ -420,6 +421,46 @@ Mock Agent 是最终兜底，不是低质量替代。
 10. JSON repair 不改变业务结果来源标记
 11. LLM 配置缺失时直接 Mock，不报错
 12. LLM 超时/HTTP 错误时直接 Mock，不报错
+
+## 阶段 4-2 更新
+
+4-2.0 已确定 fallback 策略在 LLM 基础设施层的落地边界，详细方案见 `docs/05-Agent设计/阶段4-2LLMClient与Hunyuan接入方案.md`。
+
+关键落地边界：
+
+1. **4-2 将先实现通用 fallback decision**：不直接调用具体业务 Mock Agent，只返回"应使用 Mock"
+2. **4-3 再把具体业务 Mock Agent 接入业务链路**：MatchAnalysisAgent / RecommendationAgent / ResumeOptimizationAgent
+3. **LLMRunner 统一调用链路**：Chat → JSON parse → Schema validate → JSON repair once → fallback decision
+4. **新增错误码**：PROMPT_LOAD_FAILED / SCHEMA_LOAD_FAILED
+5. **错误码触发阶段和处理方式已在方案中明确**
+
+4-2.7 实现 JSONRepairAgent 调用链路，4-2.8 实现统一 LLM Agent Pipeline。
+
+## 阶段 4-2.4 更新
+
+4-2.4 已定义 LLM ErrorCode 和 LLMError，后续 fallback decision 将根据错误码判断是否直接 Mock fallback 或先尝试 JSON repair。
+
+新增错误码与 fallback 判断：
+- `LLM_DISABLED` / `LLM_CONFIG_MISSING` / `LLM_API_KEY_MISSING` / `LLM_TIMEOUT` / `LLM_HTTP_ERROR` / `LLM_RATE_LIMIT` / `LLM_EMPTY_RESPONSE` / `UNKNOWN_ERROR`：直接 Mock fallback
+- `LLM_OUTPUT_TRUNCATED`：尝试 JSON repair
+- `IsDirectMockFallback(err)` 函数：判断错误是否应直接 Mock fallback，不需要进入 repair
+
+新增：
+- `server/internal/llm/` 包：LLMError（结构化错误 + Unwrap）+ ErrorCode（9 个错误码）+ IsErrorCode + IsDirectMockFallback
+
+## 阶段 4-2.3 更新
+
+4-2.3 已落地 JSON parse / Schema validate 工具。parse 或 validate 失败后，后续将进入 JSON repair once，再失败则 Mock fallback。
+
+新增工具：
+- `server/internal/llmjson/`：ExtractObject / ParseObject / ExtractAndParse，支持 4 种错误码
+- `server/internal/schema/validator.go`：Validator.Validate / ValidateJSON，返回结构化 ValidationResult
+
+## 阶段 4-2.1 更新
+
+4-2.1 已新增 `LLM_FALLBACK_ENABLE=true` 配置，当 LLM 关闭、配置缺失、调用失败、repair 失败时，后续统一进入 Mock fallback。
+
+详细配置见 `docs/06-工程部署/环境变量.md`。
 
 ## 17. 当前不做事项
 

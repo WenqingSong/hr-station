@@ -1,6 +1,6 @@
 # LLM Client 设计
 
-> 最后更新：2026-05-29（阶段 4-1.4.0 Prompt / Agent 真实接入方案）
+> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
 
 ## 1. 设计目标
 
@@ -277,6 +277,92 @@ fallback_reason：fallback 原因
 - config.go 需在 4-2 中增加 EnableLLMAgent / EnableLLMFallback / LLMProvider / LLMTimeoutSeconds / LLMMaxRetries / LLMMaxOutputTokens / LLMTemperature 等 7 个字段
 - server/internal/llm/ 当前仅存在 .gitkeep，4-2 从零实现
 - 方案文档见 `docs/05-Agent设计/阶段4-1.4Prompt与Agent真实接入方案.md`
+
+## 阶段 4-2 更新
+
+4-2.0 已完成方案设计，详细方案见 `docs/05-Agent设计/阶段4-2LLMClient与Hunyuan接入方案.md`。
+
+关键设计决策：
+
+1. **LLM Client 后续应作为统一模型调用抽象**：业务 Agent 不直接依赖 Hunyuan，只依赖 LLM Client / Runner 抽象
+2. **Hunyuan Client 是 LLM Client 的 provider 实现**：通过工厂函数 NewLLMClient(provider, cfg) 创建
+3. **LLMRunner 统一调用链路**：Chat → JSON parse → Schema validate → JSON repair once → Mock fallback
+4. **Prompt Loader 从 server/prompts/ 加载 .md 文件**：不把 Prompt 写死在 Go 代码
+5. **Schema Loader 从 server/prompts/schema/ 加载 JSON Schema**：推荐使用 santhosh-tekuri/jsonschema/v5 作为校验库
+6. **4-2 只建基础设施，4-3 才改造业务 Agent**
+
+## 阶段 4-2.1 更新
+
+4-2.1 已固化 LLM_* 配置项到 `.env.example`，共 14 项配置：
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| LLM_ENABLE | false | 是否启用 LLM |
+| LLM_PROVIDER | hunyuan | LLM provider |
+| LLM_BASE_URL | （空） | API Base URL |
+| LLM_API_KEY | （空） | API Key，只放在 .env |
+| LLM_MODEL | （空） | 模型名称 |
+| LLM_TEMPERATURE | 0.2 | 温度 |
+| LLM_MAX_OUTPUT_TOKENS | 8192 | 最大输出 token |
+| LLM_TIMEOUT_SECONDS | 30 | 请求超时（秒） |
+| LLM_REPAIR_ENABLE | true | 是否启用 JSON repair |
+| LLM_REPAIR_MAX_ATTEMPTS | 1 | repair 最大尝试次数 |
+| LLM_FALLBACK_ENABLE | true | 是否启用 Mock fallback |
+| LLM_LOG_RAW_OUTPUT | false | 是否记录原始输出 |
+| LLM_PROMPT_DIR | server/prompts | Prompt 文件目录 |
+| LLM_SCHEMA_DIR | server/prompts/schema | Schema 文件目录 |
+
+安全修复：清除了 `.env.example` 中遗留的真实 API Key。
+
+## 阶段 4-2.2 更新
+
+4-2.2 已完成 Prompt Loader / Schema Loader，后续 LLM Client / Pipeline 应复用 Loader 加载 Prompt 和 Schema。
+
+Prompt Loader 能力：
+- 从 server/prompts/ 加载 4 个 Prompt 文件（match_analysis / recommendation / resume_optimization / json_repair）
+- 支持占位符替换（{{KEY}} 格式）
+- 只允许预定义逻辑名称，防止路径穿越
+- 单元测试全部通过（10 项）
+
+Schema Loader 能力：
+- 从 server/prompts/schema/ 加载 3 个 Schema 文件
+- JSON 合法性检查（顶层必须为 object）
+- 提供 Title() / RequiredCount() / Draft() 等元信息方法
+- 只允许预定义逻辑名称，防止路径穿越
+- 单元测试全部通过（11 项）
+
+当前仍未实现模型调用。
+
+## 阶段 4-2.3 更新
+
+4-2.3 已完成 JSON parse + Schema validate 基础工具，后续 LLM Client / Pipeline 需要复用该工具处理 raw output。
+
+新增 Go 包：
+- `server/internal/llmjson/`：从 LLM raw output 提取 JSON object（支持 Markdown code fence、前后解释文字、BOM 清理）、JSON parse、错误码分类（JSON_EMPTY / JSON_OBJECT_NOT_FOUND / JSON_PARSE_FAILED / JSON_TOP_LEVEL_NOT_OBJECT）
+- `server/internal/schema/validator.go`：Validator 使用 santhosh-tekuri/jsonschema/v5 实现 JSON Schema 校验，支持 draft 2020-12，返回结构化 ValidationResult（Success / ErrorCode / Errors）
+
+LLM Client 本身仍未实现。
+
+## 阶段 4-2.4 更新
+
+4-2.4 已完成 LLM Client 抽象接口，后续业务 Agent 只依赖 `llm.Client` 接口，不直接依赖 Hunyuan。
+
+新增 Go 包：
+- `server/internal/llm/` 包：统一 LLM Client 抽象和基础类型
+  - `Client` 接口：`Chat(ctx, ChatRequest) (*ChatResponse, error)` + `Provider() Provider`
+  - `ChatRequest` / `ChatResponse` / `Message` / `Usage` / `Provider` / `Role`
+  - `Config` 结构体：覆盖 .env.example 全部 14 项 LLM 配置，含 `DefaultConfig()` 和 `Validate()`
+  - `ErrorCode`：9 个错误码（LLM_DISABLED / LLM_CONFIG_MISSING / LLM_API_KEY_MISSING / LLM_TIMEOUT / LLM_HTTP_ERROR / LLM_RATE_LIMIT / LLM_EMPTY_RESPONSE / LLM_OUTPUT_TRUNCATED / UNKNOWN_ERROR）
+  - `LLMError`：结构化错误，支持 `Unwrap()` / `IsErrorCode()` / `IsDirectMockFallback()`
+  - `NoopClient`：不访问外部网络的测试实现，Enable=false 时返回 LLM_DISABLED
+- 单元测试 27 项全部通过
+
+核心设计决策：
+1. **业务 Agent 后续只依赖 llm.Client**，不直接依赖 Hunyuan
+2. **Hunyuan Client 将作为 llm.Client 的 provider 实现放到 4-2.5**
+3. **ChatResponse.RawContent 后续必须经过 4-2.3 的 llmjson + Schema validate 处理**
+4. **llm.Config.Validate() 在 Enable=true 时强制要求 Provider/BaseURL/APIKey/Model**
+5. **IsDirectMockFallback() 判断哪些错误码应直接 Mock fallback**
 
 ## 关联文档
 

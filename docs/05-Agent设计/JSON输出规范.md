@@ -1,6 +1,6 @@
 # JSON 输出规范
 
-> 最后更新：2026-05-29（阶段 4-1.4.4B 登记岗位推荐 Agent 指令模板）
+> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
 
 ## 1. 为什么必须强制 JSON
 
@@ -230,6 +230,47 @@ LLM 输出文本
 | `ENABLE_LLM_AGENT=true` 且 LLM 成功 | 使用 LLM 结果，`generated_by="llm_agent"` |
 | `ENABLE_LLM_AGENT=true` 且 LLM 失败 且 `ENABLE_LLM_FALLBACK=true` | 回退 Mock，`generated_by="llm_agent_fallback"` |
 | `ENABLE_LLM_AGENT=true` 且 LLM 失败 且 `ENABLE_LLM_FALLBACK=false` | 返回错误 |
+
+## 阶段 4-2 更新
+
+4-2.0 已设计 Schema Loader、JSON parse、Schema validate 和 JSON repair once 链路，详细方案见 `docs/05-Agent设计/阶段4-2LLMClient与Hunyuan接入方案.md`。
+
+后续 4-2 将实现以下基础设施能力：
+
+1. **Schema Loader**：从 `server/prompts/schema/` 加载 JSON Schema 文件
+2. **JSON parse**：从模型 raw output 提取合法 JSON（去除 Markdown code fence、提取 JSON object）
+3. **Schema validate**：推荐使用 `github.com/santhosh-tekuri/jsonschema/v5` 校验（支持 draft 2020-12）
+4. **JSON repair once**：JSONRepairAgent 调用一次修复，repair 不改变 generated_by
+5. **Mock fallback**：repair 失败后进入 Mock fallback
+
+4-2.1 已新增 `LLM_SCHEMA_DIR=server/prompts/schema`、`LLM_REPAIR_ENABLE=true`、`LLM_REPAIR_MAX_ATTEMPTS=1` 配置，后续 Schema Loader 和 JSON repair 链路将基于这些配置实现。
+
+4-2.3 已完成 JSON parse + Schema validate 工具。
+
+模型输出不允许直接返回，必须经过：
+raw output → extract JSON object → json.Unmarshal → Schema validate
+通过后才允许进入后续业务返回链路。
+失败后后续 4-2.7 进入 JSONRepairAgent。
+
+4-2.4 已完成 LLM Client 抽象。`ChatResponse.RawContent` 后续必须经过 4-2.3 的 JSON extract / parse / Schema validate 工具处理，不能直接返回业务接口。
+
+新增：
+- `server/internal/llm/` 包：Client 接口 + ChatRequest / ChatResponse + Config + ErrorCode + NoopClient
+- 业务 Agent 后续只依赖 llm.Client，不直接依赖 Hunyuan
+
+新增工具：
+- `server/internal/llmjson/` 包：ExtractObject / ParseObject / ExtractAndParse，支持去除 Markdown code fence、提取 JSON object、错误码分类
+- `server/internal/schema/validator.go`：Validator.Validate / Validator.ValidateJSON，使用 santhosh-tekuri/jsonschema/v5 实现完整 JSON Schema 校验
+
+4-2.2 已完成 Schema Loader，支持逻辑名称：
+
+- match_analysis
+- recommendation
+- resume_optimization
+
+Schema Loader 当前只负责加载 JSON Schema 文件和检查 JSON 合法性，完整 Schema validate 放到 4-2.3。
+
+4-2.2 实现 Schema Loader，4-2.3 实现 JSON parse + Schema validate，4-2.7 实现 JSON repair 调用链路。
 
 ## 阶段 4-1.4 更新
 
