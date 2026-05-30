@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-30（阶段 4-3.7.B.2 Makefile 一键启动标准化）
+> 最后更新：2026-05-30（阶段 4-3.7.B.R.1 混合式开发环境最终方案冻结）
 
 ## 1. 设计目标
 
@@ -382,7 +382,19 @@ make web-install
 
 ### Q: `make nginx-logs` 提示 pending 怎么办？
 
-当前 Nginx 尚未接入项目，nginx-logs 命令给出 pending 提示。Nginx 将在 4-3.7.B.3 阶段接入。
+当前 Nginx 尚未接入项目，nginx-logs 命令给出 pending 提示。Nginx 将在 R.2 阶段以混合式开发模式接入（Docker Compose 管理 Nginx，代理到宿主机的 Backend / Frontend 进程）。
+
+## 18. 方案 B 冻结确认（4-3.7.B.R.1）
+
+4-3.7.B.R.1 已冻结 make 命令用户语义。后续 R.2 会将内部实现调整为混合式启动（Docker Compose 管理 MySQL + Nginx，本机进程管理 Backend + Frontend），但 make up / down / restart / reset-up 的用户语义保持不变。
+
+关键变更：
+- `make up` 内部：infra-up 将包含 Nginx 容器（而非只有 MySQL）
+- `make up` 输出：Access 段将显示 http://localhost/ 作为主入口
+- `make nginx-logs`：将从 pending 提示改为真实 Nginx 日志
+- `make status`：将显示 Nginx 容器状态
+
+详细方案见 `docs/06-工程部署/混合式开发环境最终方案.md`。
 
 ## 关联文档
 
