@@ -1,6 +1,6 @@
 # Prompt 模板
 
-> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
+> 最后更新：2026-05-30（阶段 4-3.5.B 战略差异化与杀手锏确认）
 
 ## 当前状态
 
@@ -257,3 +257,19 @@ server/internal/agent/prompts/
 ## 阶段 4-3.4 更新
 
 4-3.4 已将 recommendation_v1.md 用于 RecommendationAgent Pipeline 调用。Prompt 文件本身未修改。PromptValues 组装包含 RESUME_CONTEXT_JSON / JOB_CANDIDATES_JSON / BUSINESS_CONTEXT 三个占位符。
+
+## 阶段 4-3.5.B 更新
+
+4-3.5.B 已完成战略差异化确认。后续 Prompt 优化需强化：
+
+1. **JD 证据链**：每条建议都要绑定 JD 要求和简历证据
+2. **投递边界**：输出 apply_readiness 判断
+3. **优化停止条件**：输出 optimization_stop_signal
+4. **示例参考**：改写建议使用"示例参考"而非"建议改为"
+5. **用户核实提醒**：每条建议附带 verification_notice
+6. **学习关键词**：附带 learn_more_query
+7. **自查问题**：附带 self_check_question
+
+本阶段不修改 Prompt 文件，只登记优化方向。
+
+详见 `docs/05-Agent设计/战略差异化与杀手锏确认.md`

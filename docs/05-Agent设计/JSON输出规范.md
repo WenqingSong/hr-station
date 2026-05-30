@@ -1,6 +1,6 @@
 # JSON 输出规范
 
-> 最后更新：2026-05-30（阶段 4-3.5 推荐接口联调与 fallback 验收）
+> 最后更新：2026-05-30（阶段 4-3.5.B 战略差异化与杀手锏确认）
 
 ## 1. 为什么必须强制 JSON
 
@@ -493,3 +493,18 @@ Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映
 4-3.3 已验证匹配分析接口在 JSON parse / Schema validate / repair once / fallback_required 下的稳定性。6 大验收场景全部通过，修复了 LLM 成功路径快照保存缺失的问题。
 
 4-3.4 推荐链路已开始执行 JSON parse / Schema validate / repair once / fallback_required 的统一处理。推荐输出还必须校验岗位来自候选集（job_id 白名单过滤），LLM 返回不存在 job_id 的推荐项被丢弃，全部丢弃后触发 fallback。
+
+## 阶段 4-3.5.B 更新
+
+4-3.5.B 已完成战略差异化确认。后续 Schema 可评估增加以下字段：
+
+1. `apply_readiness`：投递准备度（ready_to_apply / quick_fix_before_apply / not_ready_for_this_role / insufficient_information）
+2. `optimization_stop_signal`：优化停止信号（stop_and_apply / fix_top_3_then_apply / needs_more_evidence / target_role_mismatch）
+3. `self_check_question`：帮助用户确认建议是否适用的自查问题
+4. `learn_more_query`：用户可进一步搜索学习的方向或关键词
+5. `verification_notice`：提醒用户 AI 建议仅供参考，需自行核实
+6. `quality_gate_result`：Quality Gate 检查结果
+
+本阶段不修改 Schema，仅登记方向。
+
+详见 `docs/05-Agent设计/战略差异化与杀手锏确认.md`

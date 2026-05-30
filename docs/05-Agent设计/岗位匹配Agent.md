@@ -1,6 +1,6 @@
 # 岗位匹配Agent
 
-> 最后更新：2026-05-30（阶段 4-3.2 MatchAnalysisAgent 接入 Pipeline）
+> 最后更新：2026-05-30（阶段 4-3.5.B 战略差异化与杀手锏确认）
 
 ## 1. 当前实现状态
 
@@ -168,6 +168,18 @@
 当前 MatchAnalysisAgent 已接入 Pipeline，支持 LLM 优先 + Mock 回退。
 
 4-3.3 已完成匹配分析接口稳定性验收。MatchAnalysisAgent 的 LLM Pipeline 优先 + Mock fallback 链路已通过联调。6 大验收场景全部通过：LLM success、repaired、fallback_required、LLM_ENABLE=false、配置异常、请求参数异常。
+
+## 阶段 4-3.5.B 战略差异化确认
+
+4-3.5.B 已完成战略差异化确认。后续匹配分析输出需要围绕 JD 证据链展开：
+
+1. 岗位要求 → 简历证据 → 匹配判断 → 风险差距 → 投递建议
+2. 需要支持 `apply_readiness` 投递准备度判断（ready_to_apply / quick_fix_before_apply / not_ready_for_this_role / insufficient_information）
+3. 需要支持 `optimization_stop_signal` 优化停止信号（stop_and_apply / fix_top_3_then_apply / needs_more_evidence / target_role_mismatch）
+4. 每条建议需要附带 `self_check_question`、`learn_more_query`、`verification_notice`
+5. 本阶段不修改 Prompt / Schema / 代码，只登记方向
+
+详见 `docs/05-Agent设计/战略差异化与杀手锏确认.md`
 
 ## 14. 阶段 4-3.2 接入实现
 

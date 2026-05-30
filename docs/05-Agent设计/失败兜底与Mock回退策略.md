@@ -3,7 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-1.4.11
 > 依据文档：阶段4-1.4方案、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、json_repair_v1.md、match_analysis_v1.md、recommendation_v1.md、resume_optimization_v1.md
-> 最后更新：2026-05-30（阶段 4-3.5 推荐接口联调与 fallback 验收）
+> 最后更新：2026-05-30（阶段 4-3.5.B 战略差异化与杀手锏确认）
 
 ## 1. 设计目标
 
@@ -609,3 +609,15 @@ if !runResult.FallbackRequired {
 4-3.3 已在匹配分析接口层验收 Mock fallback。fallback_required 不作为接口失败，而是触发 match_mock.go 稳定兜底。6 大验收场景全部通过：LLM success / repaired / fallback_required / LLM_ENABLE=false / 配置异常 / 请求参数异常。
 
 4-3.4 已在 RecommendationAgent 中落地 Mock fallback：Pipeline fallback_required 时回退 recommendation_mock.go。RecFallbackError 标识推荐链路的 fallback 触发原因。推荐结果中无效 job_id 被过滤后也可能触发 fallback。
+
+## 阶段 4-3.5.B 更新
+
+4-3.5.B 已完成战略差异化确认。后续 Quality Gate 可作为内容质量层面的兜底策略：
+
+1. 如果 Agent 输出泛泛、无证据、编造经历或缺少投递边界，可重试一次或返回保守结果
+2. Quality Gate 检查项：是否基于真实 JD、是否基于简历证据、是否编造经历、是否编造岗位、是否给出投递边界、是否给出优化停止条件、是否使用示例参考、是否提醒用户核实、是否包含自查问题、不评价敏感属性、符合 Schema、前端可展示
+3. 最多重试一次，仍不合格则输出保守结果或 fallback
+
+本阶段只做设计确认，不实现。
+
+详见 `docs/05-Agent设计/战略差异化与杀手锏确认.md`
