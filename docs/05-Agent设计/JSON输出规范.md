@@ -473,3 +473,11 @@ Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映
 - json_parse_success 是否为 true
 - 如果 json_parse_success=false，后续业务接入必须重点依赖 Schema validate / JSON repair / Mock fallback
 - 模型最小 Prompt 下是否严格输出 JSON
+
+## 阶段 4-3.1 重新执行更新
+
+4-3.1 重新执行仍未能观察真实 Hunyuan smoke 输出的 JSON parse 结果。
+
+原因：LLM_ENABLE=false，LLM_BASE_URL 未配置。`.env` 已存在但只有模板值。
+
+三次核验均因配置不完整无法执行真实 smoke。

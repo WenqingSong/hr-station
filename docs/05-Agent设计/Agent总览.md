@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-30（阶段 4-3.1.B 真实 LLM Smoke 二次核验）
+> 最后更新：2026-05-30（阶段 4-3.1 重新执行）
 
 ## 当前状态
 
-阶段 4-3 已开始，4-3.0 已完成方案设计，4-3.1.B 真实 LLM Smoke 二次核验未通过（本地 LLM 配置仍不完整，与前次 4-3.1 一致）。暂不建议进入 4-3.2。
+阶段 4-3 已开始，4-3.0 已完成方案设计，4-3.1 重新执行仍未通过（LLM_ENABLE=false，LLM_BASE_URL 未配置）。暂不建议进入 4-3.2。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
@@ -127,7 +127,7 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 || 编号 | 任务 | 状态 |
 ||------|------|------|
 || 4-3.0 | 业务 Agent 接入 LLM 方案 | ✅ 已完成 |
-|| 4-3.1 | 真实 LLM Smoke Test | ⚠️ 未通过 |
+|| 4-3.1 | 真实 LLM Smoke Test | ⚠️ 未通过（三次核验配置均不完整） |
 || 4-3.2 | MatchAnalysisAgent 接入 Pipeline | ⬜ 暂缓 |
 || 4-3.3 | 匹配分析接口联调与 fallback 验收 | ⬜ 待执行 |
 || 4-3.4 | RecommendationAgent 接入 Pipeline | ⬜ 待执行 |

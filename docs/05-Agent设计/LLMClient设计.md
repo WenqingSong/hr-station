@@ -462,3 +462,11 @@ LLM Client 本身仍未实现。
 - 两次核验均因配置缺失无法执行
 - 业务 Agent 接入仍必须通过 Pipeline，不直接调用 HunyuanClient
 - 暂不建议进入 4-3.2
+
+## 阶段 4-3.1 重新执行更新
+
+4-3.1 重新执行仍未能验证 HunyuanClient 真实连通性。
+
+原因：LLM_ENABLE=false，LLM_BASE_URL 未配置。`.env` 已存在（4-3.1.C 自动创建）但只有模板值。
+
+三次核验均因配置不完整无法执行。业务 Agent 接入仍必须通过 Pipeline，不直接调用 HunyuanClient。

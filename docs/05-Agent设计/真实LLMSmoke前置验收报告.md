@@ -310,3 +310,77 @@ HunyuanClient httptest 单元测试（22 项）和 llmjson 单元测试全部通
 后续重新执行 4-3.1 smoke 前，`make llm-check` 会自动确保 `.env` 存在。
 
 注意：本次只是修复环境准备机制，不代表真实 smoke 已通过。用户仍需在 `.env` 或 `.env.local` 中填写真实 LLM 配置。
+
+---
+
+## 17. 三次核验结果（4-3.1 / 4-3.1.B / 重新执行）
+
+> 核验时间：2026-05-30
+> 核验编号：4-3.1 重新执行
+
+### 17.1 核验结论
+
+**not_executed**
+
+4-3.1 重新执行仍未执行真实 smoke，不能进入 4-3.2。
+
+### 17.2 配置检查结果
+
+| 检查项 | 结果 | 说明 |
+|--------|------|------|
+| .env 是否存在 | ✅ 存在 | 4-3.1.C 已自动创建 |
+| LLM_ENABLE | false | 未启用 |
+| LLM_PROVIDER | hunyuan | 默认值 |
+| LLM_BASE_URL | 未配置 | 空 |
+| LLM_API_KEY | configured | 有值但 LLM_ENABLE=false |
+| LLM_MODEL | configured | 有值但 LLM_ENABLE=false |
+
+与 4-3.1 和 4-3.1.B 核验结果一致：LLM_ENABLE=false，LLM_BASE_URL 未配置，真实 smoke 无法执行。
+
+4-3.1.C 解决了 `.env` 自动创建问题，但从 `.env.example` 生成的 `.env` 只包含模板值。
+
+### 17.3 make llm-help 验收
+
+✅ 通过（与 4-3.1 / 4-3.1.B 一致）
+
+### 17.4 make llm-check 验收
+
+✅ 通过（配置检查功能正常）
+
+### 17.5 真实 LLM smoke 执行结果
+
+❌ **未执行**。原因：LLM_ENABLE=false，LLM_BASE_URL 未配置。
+
+### 17.6 JSON parse 观察结果
+
+未能观察。未执行真实调用。
+
+### 17.7 输出安全检查
+
+| 检查项 | 结果 |
+|--------|------|
+| 是否输出 API Key | ✅ 未输出 |
+| 是否输出完整 raw output | ✅ 未执行调用 |
+| 是否携带业务数据 | ✅ 未执行调用 |
+| 是否调用业务接口 | ✅ 未调用 |
+
+### 17.8 是否可以进入 4-3.2
+
+**❌ 不能进入 4-3.2。**
+
+三次核验（4-3.1、4-3.1.B 和重新执行）均因本地 LLM 配置不完整无法执行真实 smoke。
+
+### 17.9 核验结论
+
+4-3.1 重新执行**未通过**。
+
+- ✅ `make ensure-env` 可用，`.env` 自动创建
+- ✅ `make llm-help` 可用
+- ✅ `make llm-check` 可用，正确识别配置缺失
+- ✅ LLM 基础设施代码测试通过
+- ✅ check 过程不请求外部模型
+- ✅ 不输出 API Key
+- ❌ 真实 LLM smoke 仍未执行（LLM_ENABLE=false，LLM_BASE_URL 未配置）
+- ❌ HunyuanClient 真实连通性仍未验证
+
+**暂不建议进入 4-3.2，需要先在 `.env` 或 `.env.local` 中填写真实 LLM 配置并完成真实 smoke。**

@@ -376,6 +376,16 @@ Hunyuan 私有请求 / 响应结构不应泄漏到业务 Agent 层。业务 Agen
 
 用户需先创建 `.env` 文件并补齐 LLM 配置后重新执行 `RUN_REAL_LLM_SMOKE=1 make llm-smoke`。
 
+## 阶段 4-3.1 重新执行更新
+
+4-3.1 重新执行仍未能执行真实 smoke。
+
+原因：LLM_ENABLE=false，LLM_BASE_URL 未配置。`.env` 虽已存在（4-3.1.C 自动创建），但从 `.env.example` 生成的 `.env` 只包含模板值。
+
+三次核验（4-3.1、4-3.1.B 和重新执行）均因 LLM 配置不完整无法执行真实 smoke。
+
+建议用户创建 `.env.local` 填写真实配置，然后 `make ensure-env` 会自动从 `.env.local` 生成 `.env`。
+
 ## 阶段 4-3.1.C 更新
 
 4-3.1.C 已完成开发环境 `.env` 自动生成与 Makefile 接入。

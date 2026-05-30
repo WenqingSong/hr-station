@@ -591,3 +591,11 @@ if !runResult.FallbackRequired {
 - 后续业务 Agent 接入时仍必须保留 Mock fallback
 - Mock fallback 当前仍为接口稳定性的最终保障
 - 暂不建议进入 4-3.2
+
+## 阶段 4-3.1 重新执行更新
+
+4-3.1 重新执行仍未能验证真实 LLM 连通性。
+
+原因：LLM_ENABLE=false，LLM_BASE_URL 未配置。`.env` 已存在（4-3.1.C 自动创建）但只有模板值。
+
+三次核验均因配置不完整无法执行。后续业务 Agent 接入时仍必须保留 Mock fallback。
