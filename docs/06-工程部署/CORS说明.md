@@ -184,3 +184,7 @@ curl -s -X OPTIONS http://localhost:8080/api/auth/login \
 
 - 生产部署时必须收紧 `CORS_ALLOWED_ORIGINS` 为正式域名
 - 如使用 Cookie 认证，需将 `CORS_ALLOW_CREDENTIALS` 改为 `true`
+
+## 15. R.4 更新
+
+4-3.7.B.R.4 已完成混合式一键启动集成验收。CORS OPTIONS 预检、Origin 安全验证均通过。

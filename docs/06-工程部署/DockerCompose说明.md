@@ -54,3 +54,7 @@ make ps            # 同 infra-status
 ## 9. R.3 更新
 
 4-3.7.B.R.3 已复核 Docker Compose 仍只管理 MySQL + Nginx。Nginx 通过 host.docker.internal 代理到宿主机 backend/frontend。后端 CORS 配置已通过环境变量配置化，不影响 Docker Compose 配置（后端不在容器中运行）。
+
+## 10. R.4 更新
+
+4-3.7.B.R.4 已完成混合式一键启动集成验收。Docker Compose 仍只管理 MySQL + Nginx，`make up` / `make down` 链路稳定。

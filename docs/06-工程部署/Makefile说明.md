@@ -507,3 +507,7 @@ make jobs-import-status    # 5. 查看结果
 - `.env` 由 ensure-env 自动生成，是 Docker / Makefile 实际使用的文件
 - `.env.example` 是模板文件，可以提交 Git
 - `ensure-env` 不打印文件内容，不打印 API Key
+
+## R.4 更新
+
+4-3.7.B.R.4 已完成混合式一键启动集成验收。`make up` / `make down` / `make restart` / `make status` / `make logs` 链路已通过集成验收。

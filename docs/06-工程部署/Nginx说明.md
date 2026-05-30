@@ -85,3 +85,7 @@ extra_hosts:
 ## 9. R.3 更新
 
 4-3.7.B.R.3 已完成 Nginx 代理与 CORS 复核修正。当前推荐通过 `http://localhost/` 访问页面，通过 `/api/` 请求后端，由 Nginx 做同源代理。后端 CORS 已改为环境变量配置化，详见 `docs/06-工程部署/CORS说明.md`。
+
+## 10. R.4 更新
+
+4-3.7.B.R.4 已完成混合式一键启动集成验收。Nginx 统一入口 `/`、`/api/`、`/healthz` 均通过验收。
