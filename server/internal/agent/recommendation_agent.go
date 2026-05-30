@@ -103,6 +103,15 @@ func (a *RecommendationAgent) Recommend(ctx context.Context, resume *model.Resum
 		}
 	}
 
+	// Step 7: Set LLM-specific metadata on each recommended job
+	for i := range recommendedJobs {
+		recommendedJobs[i].GeneratedBy = runResult.GeneratedBy
+		recommendedJobs[i].AgentStatus = string(runResult.AgentStatus)
+		recommendedJobs[i].RepairApplied = runResult.RepairApplied
+		recommendedJobs[i].FallbackReason = ""
+		recommendedJobs[i].ErrorCode = ""
+	}
+
 	return recommendedJobs, nil
 }
 

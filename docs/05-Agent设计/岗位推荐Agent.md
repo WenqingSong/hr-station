@@ -1,6 +1,6 @@
 # 岗位推荐 Agent
 
-> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
+> 最后更新：2026-05-30（阶段 4-3.5 推荐接口联调与 fallback 验收）
 
 ## 1. 当前实现状态
 
@@ -183,3 +183,14 @@
 10. **RecommendedJob 新增字段**（omitempty）：RecommendLabel / OfferGoSummary / QuerySuggestions / GeneratedBy / AgentStatus / RepairApplied / FallbackReason / ErrorCode
 11. **RecommendationService 改造**：注入 pipelineRunner + llmEnabled，LLM 优先 + Mock 回退，LLM 路径保存快照
 12. **12 项 Agent 层测试通过**：LLM 成功、repaired、fallback_required、无效 job_id 过滤、空推荐列表、混合 job_id、PromptValues 组装、安全边界、推荐级别映射、候选字段来源校验等
+
+## 阶段 4-3.5 推荐接口联调与 fallback 验收
+
+4-3.5 已完成推荐接口稳定性验收。关键验收：
+
+1. **8 场景验收通过**：LLM success / repaired / fallback_required / LLM_ENABLE=false / 配置异常 / 候选集外岗位 / 空推荐列表 / 请求参数异常
+2. **元数据修复**：RecommendationAgent.Recommend() 新增 Step 7，将 RunResult 的 GeneratedBy / AgentStatus / RepairApplied 传递到 RecommendedJob（与 MatchAnalysisAgent 行为一致）
+3. **19 项 service 层测试通过**：覆盖 Agent 元数据、Mock fallback、安全边界、排序稳定性、接口结构、Omitempty 字段等
+4. **推荐结果候选岗位白名单校验已通过**：LLM 返回的 job_id 不在候选集时被过滤，全部过滤后触发 fallback
+5. **安全边界验证通过**：不泄露 API Key / raw output / Prompt / 完整简历 / 完整候选岗位池
+6. **验收报告**：`docs/05-Agent设计/推荐接口联调与fallback验收报告.md`

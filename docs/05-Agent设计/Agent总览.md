@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-30（阶段 4-3.2 MatchAnalysisAgent 接入 Pipeline）
+> 最后更新：2026-05-30（阶段 4-3.5 推荐接口联调与 fallback 验收）
 
 ## 当前状态
 
-阶段 4-3 已开始，4-3.0 已完成方案设计，4-3.1 已通过真实 LLM Smoke 前置验收，4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，4-3.3 已完成匹配分析接口联调与 fallback 验收。下一步进入 4-3.4 RecommendationAgent 接入 Pipeline。
+阶段 4-3 已开始，4-3.0 已完成方案设计，4-3.1 已通过真实 LLM Smoke 前置验收，4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，4-3.3 已完成匹配分析接口联调与 fallback 验收，4-3.4 已完成 RecommendationAgent 接入 Pipeline，4-3.5 已完成推荐接口联调与 fallback 验收。MatchAnalysisAgent 已接入并通过接口验收。RecommendationAgent 已接入并通过接口验收。ResumeOptimizationAgent 尚未接入。下一步进入 4-3.6 ResumeOptimizationAgent 现状核对与接入方案。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
@@ -17,7 +17,7 @@
 | Agent | 说明 | 当前状态 | 详细文档 |
 |-------|------|---------|---------|
 | 简历提取 Agent | 从结构化简历中提取关键信息 | 阶段 3 暂不独立实现 | [简历提取Agent.md](./简历提取Agent.md) |
-| 岗位推荐 Agent | 基于简历推荐匹配岗位 | Mock（阶段 3 ✅）/ 真实 LLM（阶段 4-5） | [岗位推荐Agent.md](./岗位推荐Agent.md) |
+| 岗位推荐 Agent | 基于简历推荐匹配岗位 | Mock（阶段 3 ✅）/ Pipeline 接入（阶段 4-3.4 ✅）/ 接口验收（阶段 4-3.5 ✅） | [岗位推荐Agent.md](./岗位推荐Agent.md) |
 | 岗位匹配 Agent | 分析简历与岗位的匹配度 | Mock（阶段 3 ✅）/ Pipeline 接入（阶段 4-3.2 ✅） | [岗位匹配Agent.md](./岗位匹配Agent.md) |
 | 版本对比 Agent | 对比两个版本的差异 | Mock（阶段 3 ✅）/ 真实 LLM（阶段 4-6） | [版本对比Agent.md](./版本对比Agent.md) |
 
