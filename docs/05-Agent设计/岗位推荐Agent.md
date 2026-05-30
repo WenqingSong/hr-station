@@ -227,3 +227,18 @@
 本阶段不修改 Prompt / Schema / 代码，只登记方向。
 
 详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`
+
+## 阶段 4-3.5.D JD 证据链匹配与 START 简历优化规则
+
+4-3.5.D 已完成 JD 证据链匹配与 START 简历优化规则设计。推荐 Agent 后续应在推荐理由中体现 JD 证据链：
+
+1. 每个推荐岗位的推荐证据（recommend_reason / evidence）
+2. 为什么先投这个岗位（why_this_job_first）
+3. 推荐置信度（recommendation_confidence）
+4. 是否存在初筛风险、是否需要快速优化后投递
+
+推荐不是只告诉用户投什么岗位，还要给出推荐证据链。
+
+本阶段不修改 Prompt / Schema / 代码，只登记方向。
+
+详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`

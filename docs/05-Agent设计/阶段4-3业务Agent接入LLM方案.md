@@ -791,3 +791,5 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 4-3.5.B 已完成：战略差异化与杀手锏确认。项目定位从"岗位推荐工具"升级为"投递前决策与简历初筛优化系统"。三个核心杀手锏：投递边界与优化停止条件、JD 证据链匹配、Agent 输出 Quality Gate。后续 4-3.5.C ~ 4-3.5.H 将围绕投递边界、JD 证据链、Quality Gate、简历上下文设计进行局部战略校准。
 
 4-3.5.C 已完成：投递边界与优化停止条件设计。已定义 apply_readiness（ready_to_apply / quick_fix_before_apply / not_ready_for_this_role / insufficient_information）和 optimization_stop_signal（stop_and_apply / fix_top_3_then_apply / needs_more_evidence / target_role_mismatch）。后续业务 Agent 输出需要避免无限优化，明确 apply_readiness 与 optimization_stop_signal，区分 Top 3 快速优化项与长期提升项。
+
+4-3.5.D 已完成：JD 证据链匹配与 START 简历优化规则。已定义 jd_evidence_chain 标准结构（jd_requirement / resume_evidence / evidence_strength / match_judgement / gap_analysis / screening_risk / action_suggestion / example_reference），evidence_strength 四级枚举（strong / medium / weak / missing），match_judgement 四级枚举（matched / partially_matched / missing / risky），screening_risk 九类风险，START / STAR-T 技术岗表达法检查框架。后续业务 Agent 输出需要避免泛泛建议，尽量围绕 JD 要求、简历证据、差距、风险和示例参考展开。

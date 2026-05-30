@@ -524,3 +524,17 @@ Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映
 本阶段不修改 Schema。
 
 详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`
+
+## 阶段 4-3.5.D 更新
+
+4-3.5.D 已完成 JD 证据链匹配与 START 简历优化规则设计。后续 Schema 可评估增加以下字段：
+
+1. `jd_evidence_chain`：JD 证据链数组，每项含 jd_requirement / jd_requirement_source / resume_evidence / evidence_strength / match_judgement / gap_analysis / screening_risk / action_suggestion / example_reference / self_check_question / learn_more_query
+2. `evidence_strength`：证据强度枚举（strong / medium / weak / missing）
+3. `match_judgement`：匹配判断枚举（matched / partially_matched / missing / risky）
+4. `screening_risk`：初筛风险类型（keyword_missing / responsibility_unclear / result_missing / tech_stack_not_supported / scope_unclear / experience_missing / role_mismatch / authenticity_risk / location_or_preference_risk）
+5. `start_missing_parts`：START 缺失要素数组（Situation / Task / Action / Result / Tech）
+
+本阶段不修改 Schema。
+
+详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`

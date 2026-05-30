@@ -287,3 +287,19 @@ server/internal/agent/prompts/
 本阶段不修改 Prompt 文件。
 
 详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`
+
+## 阶段 4-3.5.D 更新
+
+4-3.5.D 已完成 JD 证据链匹配与 START 简历优化规则设计。后续 Prompt 优化需加入：
+
+1. **jd_evidence_chain**：JD 要求 → 简历证据 → 证据强度 → 匹配判断 → 差距风险 → 优化动作
+2. **evidence_strength**：strong / medium / weak / missing
+3. **match_judgement**：matched / partially_matched / missing / risky
+4. **screening_risk**：keyword_missing / responsibility_unclear / result_missing 等九类风险
+5. **START / STAR-T 技术岗表达法**：检查简历经历是否缺少 Situation / Task / Action / Result / Tech
+6. **示例参考**：使用"示例参考"替代"建议改为"，每条附带核实提醒
+7. **self_check_question / learn_more_query / verification_notice**：建议可核实机制
+
+本阶段不修改 Prompt 文件。
+
+详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`

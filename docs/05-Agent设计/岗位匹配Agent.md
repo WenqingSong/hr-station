@@ -196,6 +196,21 @@
 
 详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`
 
+## 阶段 4-3.5.D JD 证据链匹配与 START 简历优化规则
+
+4-3.5.D 已完成 JD 证据链匹配与 START 简历优化规则设计。匹配分析后续应围绕 JD 证据链输出：
+
+1. jd_evidence_chain：JD 要求 → 简历证据 → 证据强度 → 匹配判断 → 差距风险 → 优化动作
+2. evidence_strength：strong / medium / weak / missing
+3. match_judgement：matched / partially_matched / missing / risky
+4. screening_risk：keyword_missing / responsibility_unclear / result_missing 等九类风险
+5. 每条建议附带 self_check_question / learn_more_query / verification_notice
+6. 使用"示例参考"而非"建议改为"
+
+本阶段不修改 Prompt / Schema / 代码，只登记方向。
+
+详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`
+
 ## 14. 阶段 4-3.2 接入实现
 
 4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，核心实现：
