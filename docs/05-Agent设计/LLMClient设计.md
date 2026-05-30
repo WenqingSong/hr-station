@@ -481,3 +481,7 @@ LLM Client 本身仍未实现。
 - raw_output_length=28，duration_ms=1327
 
 业务 Agent 接入时仍必须调用统一 Pipeline，不直接依赖 HunyuanClient。
+
+## 阶段 4-3.1.D 更新
+
+4-3.1.D 已完成 LLM smoke 环境加载修复。HunyuanClient 本身无需修改，问题位于 smoke 脚本加载 `.env` 的方式（`source .env` 遇到 `DB_DSN` 中的括号导致 bash 解析失败）。修复后 `llm_smoke.sh` 复用 `common.sh` 的 `load_env()`。

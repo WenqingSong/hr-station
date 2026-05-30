@@ -413,3 +413,9 @@ HunyuanClient 已完成真实连通性验证：
 - duration_ms=1327
 
 后续业务 Agent 仍必须通过 Pipeline 间接使用 HunyuanClient，不直接调用。
+
+## 阶段 4-3.1.D 更新
+
+4-3.1.D 修复了 `llm_smoke.sh` 读取 `.env` 的稳定性问题。原先使用 `source .env`，因 `DB_DSN` 中的 `tcp(...)` 导致 bash 解析失败。修复后复用 `common.sh` 的 `load_env()` 逐行解析。
+
+后续 Hunyuan smoke 和业务 Agent 接入前的配置检查应使用 `common.sh` 的 `load_env()`，不应使用 `source .env`。

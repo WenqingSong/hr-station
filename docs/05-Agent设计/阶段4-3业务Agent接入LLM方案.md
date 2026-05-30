@@ -777,3 +777,5 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 4-3.1 重新执行结果：三次核验（4-3.1、4-3.1.B 和重新执行）均因 LLM 配置不完整无法执行真实 smoke。LLM_ENABLE=false，LLM_BASE_URL 未配置。暂不建议进入 4-3.2。
 
 4-3.1 通过结果登记：用户已补齐 `.env` 配置并成功执行 `RUN_REAL_LLM_SMOKE=1 make llm-smoke`。真实 LLM Smoke 前置验收已通过。Hunyuan / TokenHub 最小调用可用。`provider=hunyuan`，`model=hy3-preview`，`json_parse_success=true`。下一步为 4-3.2 MatchAnalysisAgent 接入 Pipeline。
+
+4-3.1.D 已完成 LLM Smoke 环境变量加载修复。问题根因是 `llm_smoke.sh` 使用 `source .env`，遇到 `DB_DSN` 中的 `tcp(...)` 时 bash 解析失败，导致 LLM 配置未加载。修复后 `llm_smoke.sh` 复用 `common.sh` 的 `load_env()` 逐行解析 `.env`。真实 LLM smoke 链路已更稳定。下一步仍为 4-3.2 MatchAnalysisAgent 接入 Pipeline。

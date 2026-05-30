@@ -193,6 +193,8 @@ make db-reset CONFIRM=yes
 
 后续建议将 smoke 输出中的 `api_key` 脱敏显示进一步改为 `api_key=configured`，不展示尾号。
 
+4-3.1.D 已修复 llm-smoke 环境加载问题。`llm_smoke.sh` 不再使用 `source .env` 方式加载配置，而是复用 `common.sh` 的 `load_env()`，避免 `DB_DSN` 等复杂值（含括号 `tcp(...)`）导致配置读取失败。
+
 ## 11. 日志命令
 
 | 命令 | 说明 |

@@ -481,3 +481,32 @@ HunyuanClient httptest 单元测试（22 项）和 llmjson 单元测试全部通
 - ✅ 未修改业务 Agent
 
 **可以进入 4-3.2 MatchAnalysisAgent 接入 Pipeline。**
+
+---
+
+## 19. 4-3.1.D LLM Smoke 环境变量加载修复
+
+> 登记时间：2026-05-30
+> 登记编号：4-3.1.D
+
+### 19.1 修复结论
+
+4-3.1.D 已完成 LLM Smoke 环境变量加载修复。
+
+### 19.2 问题根因
+
+`llm_smoke.sh` 原先使用 `source .env`（通过 `load_env_silent()` 函数）加载环境变量。`.env` 中 `DB_DSN=root:password@tcp(127.0.0.1:3306)/offer_catcher?charset=utf8mb4&parseTime=True&loc=Local` 中的 `tcp(...)` 括号被 bash 当作子 shell 语法解析，导致 `syntax error near unexpected token '('`，`.env` 加载中断，后续 LLM 配置变量均未加载。错误被 `2>/dev/null || true` 静默吞掉，表现为 `.env` 存在但 LLM 配置为空。
+
+### 19.3 修复方案
+
+移除 `load_env_silent()` 函数，改用 `common.sh` 的 `load_env()`（逐行 `while read` 解析 + `export`），能正确处理含括号、`&`、`?` 等特殊字符的值。
+
+### 19.4 修复验证
+
+`make llm-check` 已能正确识别 LLM_ENABLE=true、LLM_BASE_URL=已配置、LLM_API_KEY=已配置、LLM_MODEL=hy3-preview。
+
+### 19.5 影响范围
+
+- 仅修改 `scripts/dev/llm_smoke.sh`（移除 `load_env_silent()`，改用 `load_env`）
+- 未修改 Go 代码、Prompt、Schema、业务 Agent、前端
+- 未修改 `.env` / `.env.local` / `.env.example`
