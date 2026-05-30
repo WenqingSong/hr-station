@@ -1,10 +1,10 @@
 # 岗位匹配Agent
 
-> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
+> 最后更新：2026-05-30（阶段 4-3.2 MatchAnalysisAgent 接入 Pipeline）
 
 ## 1. 当前实现状态
 
-阶段 3-7 已完成，岗位匹配 Mock Agent 已实现（`server/internal/agent/match_mock.go`）。Mock Agent 使用简单规则打分生成结构化匹配分析结果，包含 JD-简历证据链、初筛判断、风险点、P0/P1 优化建议、下一步建议和真实性提示。不调用真实 LLM。
+阶段 3-7 已完成，岗位匹配 Mock Agent 已实现（`server/internal/agent/match_mock.go`）。阶段 4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline（`server/internal/agent/match_agent.go`），MatchService 支持 LLM Pipeline 优先 + Mock 回退。LLM_ENABLE=true 时优先调用 Pipeline，fallback_required 或映射失败时自动回退 Mock Agent；LLM_ENABLE=false 时直接走 Mock Agent。
 
 ## 2. 阶段 3 Mock Agent 目标
 
@@ -163,6 +163,77 @@
 4. **RunResult 处理**：success/repaired → 将 RunResult.Parsed 映射为 model.MatchAnalysisResult；fallback_required → 调用 s.mockAgent.Analyze()
 5. **字段映射策略**：map[string]any → typed struct，映射失败触发 Mock fallback
 6. **generated_by 规则**：success/repaired → llm_agent，fallback_required → mock_agent
-7. **4-3.2 将实现本接入方案**
+7. **4-3.2 已实现本接入方案**
 
-当前仍使用 Mock Agent，当前仍未接入 Pipeline。
+当前 MatchAnalysisAgent 已接入 Pipeline，支持 LLM 优先 + Mock 回退。
+
+## 14. 阶段 4-3.2 接入实现
+
+4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，核心实现：
+
+### 代码变更
+
+| 文件 | 变更 |
+|------|------|
+| `server/internal/agent/match_agent.go` | 新增：MatchAnalyzer 接口、PipelineRunner 接口、MatchAnalysisAgent、MatchFallbackError、PromptValues 组装、字段映射 |
+| `server/internal/agent/match_mock.go` | 修改：Analyze 新增 ctx 参数以实现 MatchAnalyzer 接口 |
+| `server/internal/model/match.go` | 修改：新增 MatchLevel/MatchLabel/OfferGoSummary/GapPoints/InterviewQuestions/GeneratedBy/AgentStatus/RepairApplied/FallbackReason/ErrorCode 字段 |
+| `server/internal/service/match_service.go` | 重写：MatchService 新增 pipelineRunner + llmEnabled，Analyze() 支持 LLM 优先 + Mock 回退 |
+| `server/internal/config/config.go` | 修改：LLMConfig 从 3 字段扩展到 14 字段 |
+| `server/cmd/server/main.go` | 修改：LLM 基础设施初始化，MatchService 依赖注入 |
+| `server/internal/agent/match_agent_test.go` | 新增：28 项单元测试（fake Pipeline，不调用真实 LLM） |
+
+### MatchAnalyzer 接口
+
+```go
+type MatchAnalyzer interface {
+    Analyze(ctx context.Context, resume *model.ResumeVersion, job *model.Job) (*model.MatchAnalysisResult, error)
+}
+```
+
+MatchMockAgent 和 MatchAnalysisAgent 均实现此接口。
+
+### PromptValues 组装
+
+三个占位符对应 match_analysis_v1.md：
+- `RESUME_CONTEXT_JSON`：简历安全子集（version_no, target_role, target_city, skills, education, experience, project, self_evaluation）
+- `JOB_CONTEXT_JSON`：岗位信息（id, title, department, city, category, description, requirements, data_quality, skill_keywords）
+- `BUSINESS_CONTEXT`：业务上下文注入（HR 初筛 + 技术面试官双视角）
+
+### Pipeline 调用
+
+```go
+runReq := pipeline.RunRequest{
+    AgentName:        "MatchAnalysisAgent",
+    PromptName:       prompt.PromptMatchAnalysis,
+    SchemaName:       schema.SchemaMatchAnalysis,
+    TargetOutputType: pipeline.TargetMatchAnalysis,
+    PromptValues:     promptValues,
+}
+```
+
+### RunResult 处理
+
+| AgentStatus | 处理 |
+|-------------|------|
+| success | mapParsedToMatchResult → MatchAnalysisResult |
+| repaired | mapParsedToMatchResult → MatchAnalysisResult（RepairApplied=true） |
+| fallback_required | 返回 MatchFallbackError → Service 回退 Mock Agent |
+
+### 字段映射策略
+
+LLM Schema 输出与 Mock Model 存在结构差异，通过映射函数处理：
+- `evidence_chain.judgement`：matched→strong_match, partial→partial_match, missing→missing
+- `screening_result`：likely→likely, uncertain→possible, risky→risky
+- `matched_points`：提取 point 字符串 → match_highlights
+- `gap_points`：提取 gap 字符串（LLM 新增字段）
+- `risk_points`：提取 risk 字符串，兼容纯字符串
+- `resume_optimization.p0/p1/p2`：扁平化为 MatchSuggestion 列表
+- `interview_questions`：提取 question 字符串（LLM 新增字段）
+- `next_actions`：提取 action 字符串，兼容纯字符串
+- 映射失败触发 MatchFallbackError → Mock 回退
+
+### 开关控制
+
+- `LLM_ENABLE=false`：MatchService 直接走 Mock Agent，不初始化 Pipeline Runner
+- `LLM_ENABLE=true`：MatchService 优先走 Pipeline，fallback_required 时回退 Mock

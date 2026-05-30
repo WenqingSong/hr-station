@@ -9,12 +9,17 @@ import (
 	"time"
 
 	"offer-catcher/server/internal/agent"
+	"offer-catcher/server/internal/agent/pipeline"
+	"offer-catcher/server/internal/agent/repair"
 	"offer-catcher/server/internal/config"
 	"offer-catcher/server/internal/database"
 	"offer-catcher/server/internal/health"
 	httpserver "offer-catcher/server/internal/http"
+	"offer-catcher/server/internal/llm"
 	"offer-catcher/server/internal/middleware"
+	"offer-catcher/server/internal/prompt"
 	"offer-catcher/server/internal/repository"
+	"offer-catcher/server/internal/schema"
 	"offer-catcher/server/internal/service"
 )
 
@@ -65,7 +70,49 @@ func main() {
 	// Initialize match module
 	matchRepo := repository.NewMatchRepository(mysqlDB.DB)
 	matchMockAgent := agent.NewMatchMockAgent()
-	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent)
+
+	// Initialize LLM infrastructure for MatchAnalysisAgent pipeline
+	var pipelineRunner *pipeline.Runner
+	llmEnabled := cfg.LLM.Enable
+	if llmEnabled {
+		llmCfg := llm.Config{
+			Enable:            cfg.LLM.Enable,
+			Provider:          llm.Provider(cfg.LLM.Provider),
+			BaseURL:           cfg.LLM.BaseURL,
+			APIKey:            cfg.LLM.APIKey,
+			Model:             cfg.LLM.Model,
+			Temperature:       cfg.LLM.Temperature,
+			MaxOutputTokens:   cfg.LLM.MaxOutputTokens,
+			TimeoutSeconds:    cfg.LLM.TimeoutSeconds,
+			RepairEnable:      cfg.LLM.RepairEnable,
+			RepairMaxAttempts: cfg.LLM.RepairMaxAttempts,
+			FallbackEnable:    cfg.LLM.FallbackEnable,
+			LogRawOutput:      cfg.LLM.LogRawOutput,
+			PromptDir:         cfg.LLM.PromptDir,
+			SchemaDir:         cfg.LLM.SchemaDir,
+		}
+
+		if err := llmCfg.Validate(); err != nil {
+			log.Fatalf("[offer-catcher-server] Invalid LLM config: %v", err)
+		}
+
+		llmClient, err := llm.NewHunyuanClient(llmCfg, nil)
+		if err != nil {
+			log.Fatalf("[offer-catcher-server] Failed to create LLM client: %v", err)
+		}
+
+		promptLoader := prompt.NewLoader(llmCfg.PromptDir)
+		schemaLoader := schema.NewLoader(llmCfg.SchemaDir)
+		validator := schema.NewValidator()
+		repairAgent := repair.NewAgent(llmClient, promptLoader, schemaLoader, validator)
+
+		pipelineRunner = pipeline.NewRunner(llmClient, promptLoader, schemaLoader, validator, repairAgent)
+		log.Printf("[offer-catcher-server] LLM pipeline initialized (provider=%s model=%s)", llmCfg.Provider, llmCfg.Model)
+	} else {
+		log.Println("[offer-catcher-server] LLM disabled, using Mock Agent only")
+	}
+
+	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, pipelineRunner, llmEnabled)
 	matchHandler := httpserver.NewMatchHandler(matchService)
 
 	// Initialize version compare module

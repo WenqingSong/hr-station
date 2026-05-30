@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -18,7 +19,7 @@ func NewMatchMockAgent() *MatchMockAgent {
 }
 
 // Analyze generates a mock match analysis based on the resume and target job.
-func (a *MatchMockAgent) Analyze(resume *model.ResumeVersion, job *model.Job) (*model.MatchAnalysisResult, error) {
+func (a *MatchMockAgent) Analyze(_ context.Context, resume *model.ResumeVersion, job *model.Job) (*model.MatchAnalysisResult, error) {
 	score := calculateMatchScore(resume, job)
 	screeningResult := getScreeningResult(score)
 	evidenceChain := generateEvidenceChain(resume, job)

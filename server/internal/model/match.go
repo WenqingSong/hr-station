@@ -30,6 +30,9 @@ type MatchSuggestion struct {
 }
 
 // MatchAnalysisResult represents the structured match analysis output.
+// Fields added for LLM Agent output (4-3.2) are safe additions that won't break
+// existing consumers: MatchLevel, MatchLabel, OfferGoSummary, GapPoints,
+// InterviewQuestions, GeneratedBy, AgentStatus, RepairApplied.
 type MatchAnalysisResult struct {
 	JobID                   uint64            `json:"job_id"`
 	JobTitle                string            `json:"job_title"`
@@ -48,6 +51,20 @@ type MatchAnalysisResult struct {
 	DataQuality             string            `json:"data_quality"`
 	SourceURL               *string           `json:"source_url,omitempty"`
 	IsFeatured              bool              `json:"is_featured"`
+
+	// LLM-enriched fields (added in 4-3.2, safe additions)
+	MatchLevel         string   `json:"match_level,omitempty"`
+	MatchLabel         string   `json:"match_label,omitempty"`
+	OfferGoSummary     string   `json:"offer_go_summary,omitempty"`
+	GapPoints          []string `json:"gap_points,omitempty"`
+	InterviewQuestions []string `json:"interview_questions,omitempty"`
+
+	// Agent metadata (internal, 4-4 will unify API meta)
+	GeneratedBy    string `json:"generated_by,omitempty"`
+	AgentStatus    string `json:"agent_status,omitempty"`
+	RepairApplied  bool   `json:"repair_applied,omitempty"`
+	FallbackReason string `json:"fallback_reason,omitempty"`
+	ErrorCode      string `json:"error_code,omitempty"`
 }
 
 // AnalysisBasis describes what data was used to generate the match analysis.

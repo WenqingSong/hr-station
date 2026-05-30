@@ -779,3 +779,5 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 4-3.1 通过结果登记：用户已补齐 `.env` 配置并成功执行 `RUN_REAL_LLM_SMOKE=1 make llm-smoke`。真实 LLM Smoke 前置验收已通过。Hunyuan / TokenHub 最小调用可用。`provider=hunyuan`，`model=hy3-preview`，`json_parse_success=true`。下一步为 4-3.2 MatchAnalysisAgent 接入 Pipeline。
 
 4-3.1.D 已完成 LLM Smoke 环境变量加载修复。问题根因是 `llm_smoke.sh` 使用 `source .env`，遇到 `DB_DSN` 中的 `tcp(...)` 时 bash 解析失败，导致 LLM 配置未加载。修复后 `llm_smoke.sh` 复用 `common.sh` 的 `load_env()` 逐行解析 `.env`。真实 LLM smoke 链路已更稳定。下一步仍为 4-3.2 MatchAnalysisAgent 接入 Pipeline。
+
+4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline。核心实现：MatchAnalyzer 接口抽象、PipelineRunner 接口抽象、MatchAnalysisAgent（PromptValues 组装 + Pipeline 调用 + 字段映射 + MatchFallbackError）、MatchService（LLM 优先 + Mock 回退）、config.LLMConfig 扩展到 14 字段、main.go LLM 基础设施初始化。28 项单元测试通过（fake Pipeline，不调用真实 LLM）。下一步为 4-3.3 匹配分析接口联调与 fallback 验收。

@@ -52,10 +52,22 @@ type JWTConfig struct {
 }
 
 // LLMConfig holds LLM API configuration.
+// These fields map 1:1 to the LLM_* environment variables in .env.
 type LLMConfig struct {
-	BaseURL string
-	APIKey  string
-	Model   string
+	Enable           bool
+	Provider         string
+	BaseURL          string
+	APIKey           string
+	Model            string
+	Temperature      float64
+	MaxOutputTokens  int
+	TimeoutSeconds   int
+	RepairEnable     bool
+	RepairMaxAttempts int
+	FallbackEnable   bool
+	LogRawOutput     bool
+	PromptDir        string
+	SchemaDir        string
 }
 
 // FeatureConfig holds feature flag configuration.
@@ -92,9 +104,20 @@ func Load() *Config {
 			ExpireHours: getEnvAsInt("JWT_EXPIRE_HOURS", 168),
 		},
 		LLM: LLMConfig{
-			BaseURL: getEnv("LLM_BASE_URL", ""),
-			APIKey:  getEnv("LLM_API_KEY", ""),
-			Model:   getEnv("LLM_MODEL", ""),
+			Enable:            getEnvAsBool("LLM_ENABLE", false),
+			Provider:          getEnv("LLM_PROVIDER", "hunyuan"),
+			BaseURL:           getEnv("LLM_BASE_URL", ""),
+			APIKey:            getEnv("LLM_API_KEY", ""),
+			Model:             getEnv("LLM_MODEL", ""),
+			Temperature:       getEnvAsFloat64("LLM_TEMPERATURE", 0.2),
+			MaxOutputTokens:   getEnvAsInt("LLM_MAX_OUTPUT_TOKENS", 8192),
+			TimeoutSeconds:    getEnvAsInt("LLM_TIMEOUT_SECONDS", 30),
+			RepairEnable:      getEnvAsBool("LLM_REPAIR_ENABLE", true),
+			RepairMaxAttempts: getEnvAsInt("LLM_REPAIR_MAX_ATTEMPTS", 1),
+			FallbackEnable:    getEnvAsBool("LLM_FALLBACK_ENABLE", true),
+			LogRawOutput:      getEnvAsBool("LLM_LOG_RAW_OUTPUT", false),
+			PromptDir:         getEnv("LLM_PROMPT_DIR", "server/prompts"),
+			SchemaDir:         getEnv("LLM_SCHEMA_DIR", "server/prompts/schema"),
 		},
 		Feature: FeatureConfig{
 			EnableMockAgent: getEnvAsBool("ENABLE_MOCK_AGENT", true),
@@ -145,4 +168,17 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 		return defaultValue
 	}
 	return b
+}
+
+// getEnvAsFloat64 reads an environment variable as float64 or returns a default value.
+func getEnvAsFloat64(key string, defaultValue float64) float64 {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultValue
+	}
+	f, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		return defaultValue
+	}
+	return f
 }
