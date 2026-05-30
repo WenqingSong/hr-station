@@ -3,7 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-2.0
 > 依据文档：阶段4-1.4方案、阶段4-1.4汇总、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、失败兜底与Mock回退策略、config.go、main.go、.env.example、go.mod
-> 最后更新：2026-05-30（阶段 4-2.9 阶段 4-2 集成验收）
+> 最后更新：2026-05-30（阶段 4-2.10 阶段 4-2 汇总）
 
 ## 1. 阶段目标
 
@@ -762,7 +762,9 @@ repair 成功返回 repaired JSON object，repair 失败返回结构化错误。
 当前仍未接业务 Agent。
 下一步为 4-2.8 统一 LLM Agent Pipeline。
 
-4-2.9 已完成：阶段 4-2 集成验收。验收结果：Prompt Loader / Schema Loader / JSON parse / Schema validate / LLM Client / HunyuanClient / JSONRepairAgent / Pipeline 均通过。下一步为 4-2.10 阶段 4-2 汇总。
+4-2.10 已完成：阶段 4-2 汇总。阶段 4-2 已完成，LLM 基础设施链路已闭环。下一阶段为 4-3 业务 Agent 接入真实 LLM。
+
+4-2.9 已完成：阶段 4-2 集成验收。验收结果：Prompt Loader / Schema Loader / JSON parse / Schema validate / LLM Client / HunyuanClient / JSONRepairAgent / Pipeline 均通过。
 
 4-2.8 已完成：统一 LLM Agent Pipeline。
 当前已具备通过 `make llm-check` 检查 LLM 配置、通过 `RUN_REAL_LLM_SMOKE=1 make llm-smoke` 执行最小 HunyuanClient 连通性验证的能力。

@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-30（阶段 4-2.9 阶段 4-2 集成验收）
+> 最后更新：2026-05-30（阶段 4-2.10 阶段 4-2 汇总）
 
 ## 当前状态
 
-阶段 4-2.9 已完成阶段 4-2 集成验收，当前 LLM 基础设施链路已通过验收。下一步进入 4-2.10 阶段 4-2 汇总。
+阶段 4-2 已正式完成，LLM 基础设施已闭环。下一阶段进入 4-3 业务 Agent 接入真实 LLM。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
@@ -105,7 +105,9 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 
 4-1.3 已完成，腾讯岗位后端适配闭环已形成。
 
-## 阶段 4-2 LLM Client 抽象与 Hunyuan Client 接入（进行中）
+## 阶段 4-2 LLM Client 抽象与 Hunyuan Client 接入（已完成）
+
+4-2 已正式完成，LLM 基础设施已闭环。下一阶段 MatchAnalysisAgent / RecommendationAgent / ResumeOptimizationAgent 将逐步接入 Pipeline。
 
 4-2.8 已完成统一 LLM Agent Pipeline：
 - 4-2.0 已完成：LLM Client 与 Hunyuan 接入方案（docs only）
