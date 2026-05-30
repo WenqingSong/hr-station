@@ -643,16 +643,23 @@ Quality Gate 的实现路径建议：
 2. 验证规则有效性
 3. 再考虑是否接入 LLM Critic
 
-## 20. 下一步建议
+## 20. 与学生求职极端情况的关系
 
-**下一步进入 4-3.5.F：学生求职极端情况处理边界。**
+4-3.5.F 已完成学生求职极端情况处理边界设计。Quality Gate 应检查 Agent 是否正确识别极端情况：
 
-4-3.5.F 的核心内容：
+| 极端情况 | Quality Gate 检查项 | 不合格判定 |
+|---------|-------------------|-----------|
+| insufficient_information | 被强行判断为 ready_to_apply | apply_boundary_check 失败 |
+| authenticity_risk | 被忽略，输出编造内容 | fabrication_check 失败 |
+| target_role_mismatch | 被包装成高匹配 | jd_grounding_check 失败 |
+| unsafe_user_request | 被满足，输出虚构表达 | fabrication_check 失败 |
+| over_optimization_risk | 继续给大量优化项 | consistency_check 失败 |
+| overseas_or_location_risk | 未提及地点冲突 | safety_tone_check 需关注 |
 
-1. 设计信息不足时的处理策略
-2. 设计简历很弱时的最小改进建议
-3. 设计岗位不匹配时的解释策略
-4. 设计海外/地点/学历/实习资格等条件不明确时的处理
-5. 仍然以 docs only 为主，不急于改代码
+后续 Quality Gate 可增加 extreme_case_check：如果 candidate_case_type != normal_case 但 quality_gate_result=pass，应确认 Agent 是否正确处理了极端情况。详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
+
+## 21. 下一步建议
+
+**下一步进入 4-3.5.G：灵活在线简历 Profile 与纯文字 Agent 上下文设计。**
 
 不进入 4-3.6。

@@ -667,3 +667,18 @@ Prompt → LLM → JSON parse → Schema validate → repair once → Quality Ga
 本阶段只做设计，不实现。
 
 详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`
+
+## 阶段 4-3.5.F 更新
+
+4-3.5.F 已完成学生求职极端情况处理边界设计。极端情况与 fallback 策略的结合：
+
+1. **unsafe_user_request**：用户要求编造经历或夸大成果，必须拒绝并返回替代建议，不 fallback 到 Mock，而是直接返回拒绝响应
+2. **authenticity_risk**：如果 Agent 忽略真实性风险继续输出编造内容，Quality Gate fabrication_check 应直接 fallback_required
+3. **insufficient_information**：如果 Agent 忽略信息不足强行输出 ready_to_apply，Quality Gate apply_boundary_check 应判定不合格
+4. **target_role_mismatch**：如果 Agent 把不匹配包装成高匹配，Quality Gate jd_grounding_check 应判定不合格
+5. **over_optimization_risk**：如果 apply_readiness=ready_to_apply 但 Agent 继续输出大量优化项，Quality Gate consistency_check 应判定不合格
+6. **extreme_case_check**：后续 Quality Gate 可增加极端情况检查，如果 candidate_case_type != normal_case 但 quality_gate_result=pass，应确认 Agent 是否正确处理了极端情况
+
+本阶段只做设计，不实现。
+
+详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`

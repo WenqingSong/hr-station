@@ -230,6 +230,23 @@ fabrication_check 一旦失败应直接 fallback_required。revise_required 时�
 
 详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`
 
+## 阶段 4-3.5.F 学生求职极端情况处理边界
+
+4-3.5.F 已完成学生求职极端情况处理边界设计。后续匹配分析需识别 candidate_case_type：
+
+1. 信息不足时不强行给高分，返回 apply_readiness=insufficient_information
+2. 弱简历时给出最小可行动作，不否定学生
+3. 岗位不匹配时表达为"当前简历 × 当前岗位 JD 不匹配"，不做人格判断
+4. 海外/地点问题只处理投递条件与岗位适配
+5. 优秀候选人只提示方向，不做长期职业规划
+6. 真实性风险时保守处理，建议只保留实际参与的内容
+7. 过度优化时明确告知可以投递
+8. 造假请求必须拒绝，提供基于真实经历的替代建议
+
+本阶段不修改 Prompt / Schema / 代码，只登记方向。
+
+详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
+
 ## 14. 阶段 4-3.2 接入实现
 
 4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，核心实现：

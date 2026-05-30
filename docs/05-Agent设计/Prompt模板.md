@@ -316,3 +316,17 @@ server/internal/agent/prompts/
 本阶段不修改 Prompt 文件。
 
 详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`
+
+## 阶段 4-3.5.F 更新
+
+4-3.5.F 已完成学生求职极端情况处理边界设计。后续 Prompt 优化需加入极端情况判断规则：
+
+1. **candidate_case_type 识别**：Prompt 应引导模型识别候选人情况类型（信息不足 / 弱简历 / 岗位不匹配 / 海外风险 / 优秀候选人 / 求职目标不清晰 / 真实性风险 / 过度优化 / 造假请求）
+2. **禁止表达规则**：禁止"你不适合互联网""你的能力太差""你价值观不符"等表达
+3. **推荐表达规则**：使用"当前简历对该岗位关键要求的覆盖不足""当前信息不足，无法稳定判断"等客观表达
+4. **处理策略映射**：不同极端情况对应不同处理策略（clarify_before_recommendation / quick_fix_then_apply / recommend_alternative_jobs / conservative_advice / refuse_fabrication）
+5. **case_risk_level**：高风险（high/critical）情况应触发保守输出或 fallback
+
+本阶段不修改 Prompt 文件。
+
+详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`

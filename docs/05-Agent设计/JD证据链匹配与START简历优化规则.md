@@ -676,6 +676,18 @@ ResumeOptimizationAgent 的输出必须围绕 JD 证据链展开，不能脱离 
 
 4-3.5.E 已完成 Agent 输出 Quality Gate 设计。Quality Gate 可检查 Agent 输出是否缺少 JD 证据链、是否泛泛建议、是否编造经历、是否缺少核实提醒、是否使用"建议改为"而非"示例参考"。fabrication_check 一旦失败应直接 fallback_required。详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`
 
+---
+
+4-3.5.F 已完成学生求职极端情况处理边界设计。极端情况对 JD 证据链的影响：
+
+1. **insufficient_information**：简历证据过少，无法形成可靠 jd_evidence_chain，多数 JD 要求的 evidence_strength 为 missing
+2. **weak_resume**：证据链中 weak / partially_matched 占多数，但不是方向不匹配
+3. **target_role_mismatch**：核心 JD 要求多为 missing，存在 experience_missing 或 role_mismatch 类型 screening_risk
+4. **authenticity_risk**：简历表达存在真实性风险，evidence_strength=weak 但 match_judgement=risky
+5. **unsafe_user_request**：用户要求编造证据链中不存在的证据，必须拒绝
+
+极端情况下 JD 证据链的 evidence_strength 和 match_judgement 应反映实际情况，不能因用户请求而强行调整。详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
+
 ## 16. 对 Prompt / Schema 的后续影响
 
 ### 16.1 可评估新增字段

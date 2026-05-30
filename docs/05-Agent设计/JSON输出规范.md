@@ -556,3 +556,20 @@ Quality Gate 是内容层检查，在 JSON Repair 和 Schema Validate 之上运�
 本阶段不修改 Schema。
 
 详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`
+
+## 阶段 4-3.5.F 更新
+
+4-3.5.F 已完成学生求职极端情况处理边界设计。后续 Schema 可评估增加以下字段：
+
+1. `candidate_case_type`：候选人情况类型枚举（normal_case / insufficient_information / weak_resume / target_role_mismatch / overseas_or_location_risk / high_potential_research_or_deep_tech / unclear_job_intention / authenticity_risk / over_optimization_risk / unsafe_user_request）
+2. `case_risk_level`：情况风险等级（low / medium / high / critical）
+3. `case_handling_strategy`：处理策略（normal_response / clarify_before_recommendation / quick_fix_then_apply / recommend_alternative_jobs / conservative_advice / refuse_fabrication / manual_review_suggested）
+4. `recommendation_confidence`：推荐置信度（极端情况下应降低）
+5. `authenticity_risk`：真实性风险标记
+6. `over_optimization_risk`：过度优化风险标记
+7. `location_or_preference_risk`：地点或偏好风险标记
+8. `unsafe_user_request_detected`：检测到不安全用户请求
+
+本阶段不修改 Schema。
+
+详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
