@@ -1,6 +1,6 @@
 # JSON 输出规范
 
-> 最后更新：2026-05-30（阶段 4-2.7 JSONRepairAgent 调用链路）
+> 最后更新：2026-05-30（阶段 4-2.8 统一 LLM Agent Pipeline）
 
 ## 1. 为什么必须强制 JSON
 
@@ -259,6 +259,16 @@ raw output → extract JSON object → json.Unmarshal → Schema validate
 4-2.7 已完成 JSON repair once 工程能力。模型输出处理链路变为：
 raw output → extract / parse → schema validate → repair once → repair output extract / parse → schema validate
 repair 仍失败时交由后续 fallback decision。
+
+4-2.8 已完成统一 LLM Agent Pipeline。完整执行链路：
+Prompt Render → LLM Call → JSON extract/parse → Schema validate → repair once → fallback decision
+Pipeline 返回 RunResult，包含 AgentStatus（success / repaired / fallback_required）和完整诊断信息。
+
+新增：
+- `server/internal/agent/pipeline/` 包：Pipeline Runner
+- AgentStatus 三种状态：success / repaired / fallback_required
+- 20+ Pipeline 错误码
+- 18 项单元测试全部通过
 
 4-2.6 smoke test 会尝试对 Hunyuan raw output 执行 llmjson ExtractAndParse。json_parse_success 用于观察模型是否遵守严格 JSON 输出，但 smoke test 的核心仍是连通性。JSON 合法性失败可以记录为 warning，后续 4-2.7 / 4-2.8 处理。
 

@@ -1,6 +1,6 @@
 # LLM Client 设计
 
-> 最后更新：2026-05-30（阶段 4-2.7 JSONRepairAgent 调用链路）
+> 最后更新：2026-05-30（阶段 4-2.8 统一 LLM Agent Pipeline）
 
 ## 1. 设计目标
 

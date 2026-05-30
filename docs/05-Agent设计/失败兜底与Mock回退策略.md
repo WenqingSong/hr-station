@@ -3,7 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-1.4.11
 > 依据文档：阶段4-1.4方案、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、json_repair_v1.md、match_analysis_v1.md、recommendation_v1.md、resume_optimization_v1.md
-> 最后更新：2026-05-30（阶段 4-2.7 JSONRepairAgent 调用链路）
+> 最后更新：2026-05-30（阶段 4-2.8 统一 LLM Agent Pipeline）
 
 ## 1. 设计目标
 
@@ -434,7 +434,16 @@ Mock Agent 是最终兜底，不是低质量替代。
 4. **新增错误码**：PROMPT_LOAD_FAILED / SCHEMA_LOAD_FAILED
 5. **错误码触发阶段和处理方式已在方案中明确**
 
-4-2.7 实现 JSONRepairAgent 调用链路，4-2.8 实现统一 LLM Agent Pipeline。
+4-2.7 已落地 JSONRepairAgent 调用链路，4-2.8 实现统一 LLM Agent Pipeline。
+
+新增：
+- `server/internal/agent/pipeline/` 包：Pipeline Runner（Prompt Render → LLM Call → JSON extract/parse → Schema validate → repair once → fallback decision）
+- AgentStatus 三种状态：success / repaired / fallback_required
+- RunRequest / RunResult 完整结构
+- 20+ Pipeline 错误码 + 13 个 FallbackReason 常量
+- safeErr / redactSensitive API Key 脱敏
+- 18 项单元测试全部通过
+- Pipeline 只返回 fallback_required 决策，不调用具体 Mock Agent（4-3 实现）
 
 ## 阶段 4-2.5 更新
 

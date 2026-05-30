@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-30（阶段 4-2.3 JSON parse + Schema validate 工具）
+> 最后更新：2026-05-30（阶段 4-2.8 统一 LLM Agent Pipeline）
 
 ## 当前状态
 
-阶段 4-2.3 已完成 JSON parse + Schema validate 工具，当前仍未实现 LLM Client，仍未接 Hunyuan，下一步进入 LLM Client 抽象接口。
+阶段 4-2.8 已完成统一 LLM Agent Pipeline，当前已具备完整 Pipeline 执行链。下一步进入 4-2.9 阶段 4-2 集成验收。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
@@ -107,14 +107,19 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 
 ## 阶段 4-2 LLM Client 抽象与 Hunyuan Client 接入（进行中）
 
-4-2.3 已完成 JSON parse + Schema validate 工具：
+4-2.8 已完成统一 LLM Agent Pipeline：
 - 4-2.0 已完成：LLM Client 与 Hunyuan 接入方案（docs only）
 - 4-2.1 已完成：LLM / Hunyuan 环境变量配置项（.env.example 已新增 14 项 LLM_* 配置）
 - 4-2.2 已完成：Prompt Loader / Schema Loader（可加载 4 个 Prompt + 3 个 Schema）
 - 4-2.3 已完成：JSON parse + Schema validate 工具（llmjson 包 + schema.Validator）
+- 4-2.4 已完成：LLM Client 抽象接口（Client + ChatRequest/ChatResponse + Config + ErrorCode + NoopClient）
+- 4-2.5 已完成：Hunyuan Client 实现（OpenAI-compatible API，httptest 22 项测试）
+- 4-2.6 已完成：LLM Smoke Test / Makefile 接入
+- 4-2.7 已完成：JSONRepairAgent 调用链路（repair once + 14 项单元测试）
+- 4-2.8 已完成：统一 LLM Agent Pipeline（Prompt→LLM→parse→validate→repair→fallback，18 项单元测试）
 - 方案文档见 `docs/05-Agent设计/阶段4-2LLMClient与Hunyuan接入方案.md`
 - 4-2 目标不是直接完成业务 Agent 的 LLM 化，而是建立统一的大模型基础设施层
-- 4-2 产出：LLMClient 抽象 / HunyuanClient / PromptLoader / SchemaLoader / SchemaValidator / JSONRepairAgent 调用器 / fallback decision
+- 4-2 产出：LLMClient 抽象 / HunyuanClient / PromptLoader / SchemaLoader / SchemaValidator / JSONRepairAgent 调用器 / Pipeline Runner / fallback decision
 - 4-3 才把具体业务 Agent 接入 LLM
 
 ## 阶段 4-1.4 Prompt / Agent 真实接入（已完成）

@@ -3,7 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-2.0
 > 依据文档：阶段4-1.4方案、阶段4-1.4汇总、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、失败兜底与Mock回退策略、config.go、main.go、.env.example、go.mod
-> 最后更新：2026-05-30（阶段 4-2.7 JSONRepairAgent 调用链路）
+> 最后更新：2026-05-30（阶段 4-2.8 统一 LLM Agent Pipeline）
 
 ## 1. 阶段目标
 
