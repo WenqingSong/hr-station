@@ -1,6 +1,6 @@
 # Docker Compose 说明
 
-> 最后更新：2026-05-30（阶段 4-3.7.B.R.2 回退全容器改造并落地混合式启动）
+> 最后更新：2026-05-30（阶段 4-3.7.B.R.3 Nginx 代理与 CORS 复核修正）
 
 ## 1. 概述
 
@@ -50,3 +50,7 @@ make ps            # 同 infra-status
 方案 A（全容器开发）的 `docker-compose.dev.yml` 包含 4 个服务（MySQL + Nginx + Backend + Frontend），当前混合式方案只有 2 个服务（MySQL + Nginx）。
 
 方案 A 已通过 `backup/full-container-dev` 分支保留。
+
+## 9. R.3 更新
+
+4-3.7.B.R.3 已复核 Docker Compose 仍只管理 MySQL + Nginx。Nginx 通过 host.docker.internal 代理到宿主机 backend/frontend。后端 CORS 配置已通过环境变量配置化，不影响 Docker Compose 配置（后端不在容器中运行）。

@@ -1,6 +1,6 @@
 # Nginx 说明
 
-> 最后更新：2026-05-30（阶段 4-3.7.B.R.2 回退全容器改造并落地混合式启动）
+> 最后更新：2026-05-30（阶段 4-3.7.B.R.3 Nginx 代理与 CORS 复核修正）
 
 ## 1. 概述
 
@@ -81,3 +81,7 @@ docker compose logs nginx  # 同上
 extra_hosts:
   - "host.docker.internal:host-gateway"
 ```
+
+## 9. R.3 更新
+
+4-3.7.B.R.3 已完成 Nginx 代理与 CORS 复核修正。当前推荐通过 `http://localhost/` 访问页面，通过 `/api/` 请求后端，由 Nginx 做同源代理。后端 CORS 已改为环境变量配置化，详见 `docs/06-工程部署/CORS说明.md`。

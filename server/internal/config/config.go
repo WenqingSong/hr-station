@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds all application configuration.
@@ -19,6 +20,7 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	JWT      JWTConfig
+	CORS     CORSConfig
 	LLM      LLMConfig
 	Feature  FeatureConfig
 	Log      LogConfig
@@ -49,6 +51,14 @@ type DatabaseConfig struct {
 type JWTConfig struct {
 	Secret      string
 	ExpireHours int
+}
+
+// CORSConfig holds CORS (Cross-Origin Resource Sharing) configuration.
+type CORSConfig struct {
+	AllowedOrigins   []string
+	AllowedMethods   string
+	AllowedHeaders   string
+	AllowCredentials bool
 }
 
 // LLMConfig holds LLM API configuration.
@@ -102,6 +112,12 @@ func Load() *Config {
 		JWT: JWTConfig{
 			Secret:      getEnv("JWT_SECRET", "change-me-in-local"),
 			ExpireHours: getEnvAsInt("JWT_EXPIRE_HOURS", 168),
+		},
+		CORS: CORSConfig{
+			AllowedOrigins:   getEnvAsCSV("CORS_ALLOWED_ORIGINS", []string{"http://localhost:5173", "http://127.0.0.1:5173"}),
+			AllowedMethods:   getEnv("CORS_ALLOWED_METHODS", "GET, POST, PUT, PATCH, DELETE, OPTIONS"),
+			AllowedHeaders:   getEnv("CORS_ALLOWED_HEADERS", "Content-Type, Authorization, X-Requested-With"),
+			AllowCredentials: getEnvAsBool("CORS_ALLOW_CREDENTIALS", false),
 		},
 		LLM: LLMConfig{
 			Enable:            getEnvAsBool("LLM_ENABLE", false),
@@ -181,4 +197,24 @@ func getEnvAsFloat64(key string, defaultValue float64) float64 {
 		return defaultValue
 	}
 	return f
+}
+
+// getEnvAsCSV reads an environment variable as comma-separated values or returns a default slice.
+// It trims whitespace and ignores empty items.
+func getEnvAsCSV(key string, defaultValues []string) []string {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultValues
+	}
+	var result []string
+	for _, item := range strings.Split(val, ",") {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			result = append(result, item)
+		}
+	}
+	if len(result) == 0 {
+		return defaultValues
+	}
+	return result
 }

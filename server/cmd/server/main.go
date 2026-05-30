@@ -130,6 +130,9 @@ func main() {
 	resumeOptimizationService := service.NewResumeOptimizationService(resumeOptimizationRepo, resumeOptimizationMockAgent)
 	resumeOptimizationHandler := httpserver.NewResumeOptimizationHandler(resumeOptimizationService)
 
+	// Initialize CORS middleware with config
+	middleware.InitCORS(cfg.CORS)
+
 	// Initialize router with all dependencies
 	router := httpserver.NewRouter(httpserver.RouterDeps{
 		HealthService:              healthService,
