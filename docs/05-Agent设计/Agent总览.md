@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-30（阶段 4-2.10 阶段 4-2 汇总）
+> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
 
 ## 当前状态
 
-阶段 4-2 已正式完成，LLM 基础设施已闭环。下一阶段进入 4-3 业务 Agent 接入真实 LLM。
+阶段 4-3 已开始，4-3.0 已完成业务 Agent 接入 LLM 方案设计。下一阶段进入 4-3.1 真实 LLM Smoke Test。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）
@@ -107,7 +107,35 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
 
 ## 阶段 4-2 LLM Client 抽象与 Hunyuan Client 接入（已完成）
 
-4-2 已正式完成，LLM 基础设施已闭环。下一阶段 MatchAnalysisAgent / RecommendationAgent / ResumeOptimizationAgent 将逐步接入 Pipeline。
+4-2 已正式完成，LLM 基础设施已闭环。4-3 已开始，MatchAnalysisAgent / RecommendationAgent / ResumeOptimizationAgent 将逐步接入 Pipeline。
+
+## 阶段 4-3 业务 Agent 接入真实 LLM（进行中）
+
+4-3.0 已完成业务 Agent 接入 LLM 方案设计（docs only），方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`。
+
+关键方案决策：
+
+1. **业务 Agent 依赖 Pipeline Runner**：Service 层注入 pipelineRunner，不直接依赖 HunyuanClient
+2. **PromptValues 由 Service 层组装**：Service 从数据库读取简历/岗位后组装 PromptValues，传给 Pipeline
+3. **fallback_required 由 Pipeline 返回**：Pipeline 只返回决策，业务 Agent 调用具体 Mock Agent
+4. **generated_by 规则**：success/repaired → llm_agent，fallback_required → mock_agent
+5. **RunResult.Parsed → Go Model 映射**：map[string]any → typed struct，映射失败触发 Mock fallback
+6. **ResumeOptimizationAgent 无业务代码**：4-3.6 仅做状态评估，不强行造新接口
+
+4-3 子任务（4-3.0 ~ 4-3.9）：
+
+|| 编号 | 任务 | 状态 |
+||------|------|------|
+|| 4-3.0 | 业务 Agent 接入 LLM 方案 | ✅ 已完成 |
+|| 4-3.1 | 真实 LLM Smoke Test | ⬜ 待执行 |
+|| 4-3.2 | MatchAnalysisAgent 接入 Pipeline | ⬜ 待执行 |
+|| 4-3.3 | 匹配分析接口联调与 fallback 验收 | ⬜ 待执行 |
+|| 4-3.4 | RecommendationAgent 接入 Pipeline | ⬜ 待执行 |
+|| 4-3.5 | 推荐接口联调与 fallback 验收 | ⬜ 待执行 |
+|| 4-3.6 | ResumeOptimizationAgent 状态评估 | ⬜ 待执行 |
+|| 4-3.7 | RunResult 字段策略落地 | ⬜ 待执行 |
+|| 4-3.8 | 三类业务 Agent 集成验收 | ⬜ 待执行 |
+|| 4-3.9 | 阶段 4-3 汇总 | ⬜ 待执行 |
 
 4-2.8 已完成统一 LLM Agent Pipeline：
 - 4-2.0 已完成：LLM Client 与 Hunyuan 接入方案（docs only）

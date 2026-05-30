@@ -1,6 +1,6 @@
 # Prompt 模板
 
-> 最后更新：2026-05-30（阶段 4-2.10 阶段 4-2 汇总）
+> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
 
 ## 当前状态
 
@@ -232,3 +232,24 @@ server/internal/agent/prompts/
 - [JSON输出规范.md](./JSON输出规范.md)
 - [模型接入.md](./模型接入.md)
 - [../02-后端设计/阶段3核心业务后端Mock方案.md](../02-后端设计/阶段3核心业务后端Mock方案.md)
+
+## 阶段 4-3.0 更新
+
+4-3.0 已完成 PromptValues 组装策略设计（docs only）。关键策略：
+
+### 各 Agent 的 PromptValues 组装规则
+
+|| Agent | PromptName | 占位符 | 组装方 |
+||-------|-----------|--------|-------|
+|| MatchAnalysisAgent | match_analysis | `RESUME_CONTEXT_JSON` / `JOB_CONTEXT_JSON` / `BUSINESS_CONTEXT` | MatchService |
+|| RecommendationAgent | recommendation | `RESUME_CONTEXT_JSON` / `JOB_CANDIDATES_JSON` / `BUSINESS_CONTEXT` | RecommendationService |
+|| ResumeOptimizationAgent | resume_optimization | `RESUME_CONTEXT_JSON` / `TARGET_JOB_CONTEXT_JSON` / `MATCH_ANALYSIS_JSON` / `BUSINESS_CONTEXT` | 待实现 |
+
+### PromptValues 组装原则
+
+1. **Service 层负责组装**：从数据库读取业务数据，序列化为 JSON 后填入占位符
+2. **BUSINESS_CONTEXT 统一格式**：包含 user_id、resume_version_id、job_id 等业务上下文
+3. **序列化失败触发 Mock fallback**：占位符组装异常不应导致接口崩溃
+4. **不把完整简历/JD 写入日志**：PromptValues 仅传递给 Pipeline，不记录完整内容
+
+方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`

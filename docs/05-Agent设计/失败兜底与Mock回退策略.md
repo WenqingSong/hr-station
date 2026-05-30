@@ -3,7 +3,7 @@
 > 创建时间：2026-05-29
 > 所属阶段：4-1.4.11
 > 依据文档：阶段4-1.4方案、Agent总览、Prompt模板、JSON输出规范、LLMClient设计、Hunyuan接入准备、json_repair_v1.md、match_analysis_v1.md、recommendation_v1.md、resume_optimization_v1.md
-> 最后更新：2026-05-30（阶段 4-2.10 阶段 4-2 汇总）
+> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
 
 ## 1. 设计目标
 
@@ -536,3 +536,35 @@ HunyuanClient 错误映射：
 - 失败兜底策略已纳入阶段闭环
 - 后续 4-2 实现时应按本文档落地 JSON repair once + Mock fallback
 - 汇总文档见 `docs/00-项目总览/阶段4-1.4Prompt与Agent真实接入汇总.md`
+
+## 阶段 4-3.0 更新
+
+4-3.0 已完成 fallback 业务落地方案设计（docs only）。关键落地决策：
+
+### fallback_required 与 Mock Agent 的结合
+
+1. **Pipeline 只返回 fallback_required 决策**：不调用具体 Mock Agent
+2. **业务 Agent Service 层处理 fallback**：检查 RunResult.FallbackRequired，若为 true 则调用对应 Mock Agent
+3. **MatchAnalysisAgent fallback**：调用 `s.mockAgent.Analyze(resume, job)` 获取 model.MatchAnalysisResult
+4. **RecommendationAgent fallback**：调用 `s.mockAgent.Recommend(resume, jobs)` 获取 []model.RecommendedJob
+5. **ResumeOptimizationAgent fallback**：当前无 Mock Agent，4-3.6 评估是否需要补齐
+
+### generated_by 设置规则（4-3 落地版）
+
+```
+if !runResult.FallbackRequired {
+    result.GeneratedBy = "llm_agent"  // success or repaired
+} else {
+    mockResult := s.mockAgent.Xxx(...)
+    mockResult.GeneratedBy = "mock_agent"
+    return mockResult
+}
+```
+
+### 字段映射失败与 Mock fallback
+
+- RunResult.Parsed → Go Model 映射失败时，也应触发 Mock fallback
+- 映射失败与 LLM 错误统一走 fallback_required 逻辑
+- 日志记录映射失败的 error_code 和 fallback_reason
+
+方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`

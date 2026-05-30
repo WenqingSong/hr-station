@@ -1,6 +1,6 @@
 # Hunyuan 接入准备
 
-> 最后更新：2026-05-30（阶段 4-2.10 阶段 4-2 汇总）
+> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
 
 ## 1. 用户需要准备的信息
 
@@ -331,3 +331,13 @@ Hunyuan 私有请求 / 响应结构不应泄漏到业务 Agent 层。业务 Agen
 - [LLMClient设计.md](./LLMClient设计.md)
 - [JSON输出规范.md](./JSON输出规范.md)
 - [../06-工程部署/环境变量.md](../06-工程部署/环境变量.md)
+
+## 阶段 4-3.0 更新
+
+4-3.0 已完成业务 Agent 接入 LLM 方案设计（docs only）。Hunyuan 接入在 4-3 阶段的关键约束：
+
+1. **4-3.1 需先执行真实 LLM Smoke Test**：验证 HunyuanClient 连通性后再接入业务 Agent
+2. **业务 Agent 不直接依赖 HunyuanClient**：通过 Pipeline Runner 间接调用
+3. **Hunyuan 配置已固化**：14 项 LLM_* 配置已就绪，4-3 不修改 .env.example
+4. **4-3.1 将执行 RUN_REAL_LLM_SMOKE=1 make llm-smoke**：确认模型可用后再接入 MatchAnalysisAgent
+5. **方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`**

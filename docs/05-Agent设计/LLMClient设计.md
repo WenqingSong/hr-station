@@ -1,6 +1,6 @@
 # LLM Client 设计
 
-> 最后更新：2026-05-30（阶段 4-2.10 阶段 4-2 汇总）
+> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
 
 ## 1. 设计目标
 
@@ -424,3 +424,14 @@ LLM Client 本身仍未实现。
 - [Hunyuan接入准备.md](./Hunyuan接入准备.md)
 - [JSON输出规范.md](./JSON输出规范.md)
 - [Agent总览.md](./Agent总览.md)
+
+## 阶段 4-3.0 更新
+
+4-3.0 已完成业务 Agent 接入 LLM 方案设计（docs only）。关键设计决策：
+
+1. **业务 Agent 依赖 Pipeline Runner**：Service 层注入 pipelineRunner，不直接依赖 HunyuanClient
+2. **Pipeline Runner 依赖 llm.Client**：pipelineRunner.NewRunner(llmClient, promptLoader, schemaLoader, validator, repairAgent)
+3. **业务 Agent 不直接调用 llm.Client**：所有模型调用通过 Pipeline Runner 完成
+4. **HunyuanClient 仍只作为 llm.Client 的 provider 实现**：业务 Agent 不感知 Provider 差异
+5. **4-3.1 需先执行真实 LLM Smoke Test**：验证 HunyuanClient 连通性后再接入业务 Agent
+6. **方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`**

@@ -1,6 +1,6 @@
 # JSON 输出规范
 
-> 最后更新：2026-05-30（阶段 4-2.10 阶段 4-2 汇总）
+> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
 
 ## 1. 为什么必须强制 JSON
 
@@ -417,3 +417,35 @@ Schema Loader 当前只负责加载 JSON Schema 文件和检查 JSON 合法性�
 - [LLMClient设计.md](./LLMClient设计.md)
 - [Agent总览.md](./Agent总览.md)
 - [Prompt模板.md](./Prompt模板.md)
+
+## 阶段 4-3.0 更新
+
+4-3.0 已设计 RunResult → Go Model 字段映射策略（docs only）。关键策略：
+
+### RunResult.Parsed → Go Model 映射
+
+Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映射为 Go typed struct：
+
+|| Agent | Parsed → Go Model | 映射方式 |
+||-------|-------------------|---------|
+|| MatchAnalysisAgent | map[string]any → model.MatchAnalysisResult | json re-marshal + unmarshal |
+|| RecommendationAgent | map[string]any → []model.RecommendedJob | json re-marshal + unmarshal |
+|| ResumeOptimizationAgent | map[string]any → 待定义 | 待实现 |
+
+### 映射失败处理
+
+- 映射失败（字段类型不匹配、缺失必要字段等）触发 Mock fallback
+- 映射失败不应导致接口崩溃
+- 映射失败记录日志，包含 error_code 和 fallback_reason
+
+### generated_by / agent_status / repair_applied 字段策略
+
+|| RunResult 字段 | 业务处理 | API 响应 |
+||---------------|---------|---------|
+|| generated_by | 立即使用（llm_agent / mock_agent） | 返回给前端 |
+|| agent_status | 4-3 内部记录 | 4-4 统一收口到 API meta |
+|| repair_applied | 4-3 内部记录 | 4-4 统一收口到 API meta |
+|| fallback_reason | 4-3 内部记录 | 4-4 统一收口到 API meta |
+|| error_code | 4-3 内部记录 | 4-4 统一收口到 API meta |
+
+方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`

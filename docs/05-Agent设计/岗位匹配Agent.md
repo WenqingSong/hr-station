@@ -1,6 +1,6 @@
 # 岗位匹配Agent
 
-> 最后更新：2026-05-29（阶段 4-1.4.3B 登记匹配分析 JSON Schema）
+> 最后更新：2026-05-30（阶段 4-3.0 业务 Agent 接入 LLM 方案）
 
 ## 1. 当前实现状态
 
@@ -150,3 +150,19 @@
 3. 更个性化的优化建议
 4. 支持 NLP 理解岗位描述和简历内容
 5. 异步分析支持
+
+## 13. 阶段 4-3.0 接入方案
+
+4-3.0 已完成 MatchAnalysisAgent 接入 LLM 方案设计（docs only），详细方案见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`。
+
+关键接入设计：
+
+1. **Service 层注入 pipelineRunner**：MatchService 新增 pipelineRunner 字段，构造函数注入
+2. **PromptValues 组装**：Service 从数据库读取简历和岗位后，组装 `RESUME_CONTEXT_JSON`、`JOB_CONTEXT_JSON`、`BUSINESS_CONTEXT` 三个占位符
+3. **Pipeline 调用**：AgentName=match_analysis，PromptName=match_analysis，SchemaName=match_analysis
+4. **RunResult 处理**：success/repaired → 将 RunResult.Parsed 映射为 model.MatchAnalysisResult；fallback_required → 调用 s.mockAgent.Analyze()
+5. **字段映射策略**：map[string]any → typed struct，映射失败触发 Mock fallback
+6. **generated_by 规则**：success/repaired → llm_agent，fallback_required → mock_agent
+7. **4-3.2 将实现本接入方案**
+
+当前仍使用 Mock Agent，当前仍未接入 Pipeline。

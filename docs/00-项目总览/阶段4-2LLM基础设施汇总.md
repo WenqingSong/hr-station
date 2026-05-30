@@ -4,6 +4,8 @@
 > 所属阶段：4-2.10
 > 结论：✅ 阶段 4-2 已完成
 
+**4-3 已开始**：4-3.0 已完成业务 Agent 接入 LLM 方案设计（docs only），方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`。
+
 ## 1. 阶段结论
 
 阶段 4-2 已完成。
@@ -325,8 +327,8 @@ PromptName + SchemaName + PromptValues
 ## 19. 下一步建议
 
 1. 阶段 4-2 已完成
-2. 下一阶段进入 4-3：业务 Agent 接入真实 LLM
-3. 4-3 建议先做 docs only 方案
-4. 优先接 MatchAnalysisAgent
-5. 再接 RecommendationAgent
-6. 最后处理 ResumeOptimizationAgent
+2. 4-3.0 已完成：业务 Agent 接入 LLM 方案（docs only）
+3. 下一阶段进入 4-3.1：真实 LLM Smoke Test
+4. 优先接 MatchAnalysisAgent（4-3.2）
+5. 再接 RecommendationAgent（4-3.4）
+6. 最后处理 ResumeOptimizationAgent（4-3.6 状态评估）
