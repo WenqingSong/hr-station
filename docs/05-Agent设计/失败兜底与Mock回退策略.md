@@ -695,3 +695,10 @@ Prompt → LLM → JSON parse → Schema validate → repair once → Quality Ga
 详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
 
 详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
+
+## 阶段 4-3.5.H 战略转型阶段汇总与工程评审
+
+4-3.5.H 工程评审结论：暂不立即扩展 fallback 工程逻辑。
+后续如实现 Quality Gate，可再评估 conservative_fallback 和 mock_fallback 的内容质量分支。
+
+详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`

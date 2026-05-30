@@ -334,6 +334,13 @@ server/internal/agent/prompts/
 
 详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`
 
+## 阶段 4-3.5.H 战略转型阶段汇总与工程评审
+
+4-3.5.H 工程评审结论：暂不立即修改 Prompt 文件。
+后续可单独评估是否加入 apply_readiness、jd_evidence_chain、quality_gate_result、candidate_case_type、ResumeContextText 等规则。
+
+详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`
+
 ## 阶段 4-3.5.E 更新
 
 4-3.5.E 已完成 Agent 输出 Quality Gate 设计。后续 Prompt 优化需配合 Quality Gate 检查项：

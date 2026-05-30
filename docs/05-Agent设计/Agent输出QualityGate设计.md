@@ -671,3 +671,9 @@ Quality Gate 的实现路径建议：
 - `privacy_flags.name_excluded = true` 但 Agent 输出中出现了姓名 → Quality Gate 应标记为质量异常
 - `profile_summary.has_internship = false` 但 Agent 输出中引用了实习经历 → Quality Gate 应标记为编造
 详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
+---
+
+4-3.5.H 已完成阶段汇总。
+Quality Gate 评审结论：不立即实现完整 LLM Critic，后续如落地优先考虑轻量规则版。
+详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`

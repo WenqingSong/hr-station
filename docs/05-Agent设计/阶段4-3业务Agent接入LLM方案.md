@@ -799,3 +799,7 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 4-3.5.F 已完成：学生求职极端情况处理边界设计。已定义 candidate_case_type 十种枚举（normal_case / insufficient_information / weak_resume / target_role_mismatch / overseas_or_location_risk / high_potential_research_or_deep_tech / unclear_job_intention / authenticity_risk / over_optimization_risk / unsafe_user_request）、case_risk_level 四级枚举（low / medium / high / critical）、case_handling_strategy 七种策略（normal_response / clarify_before_recommendation / quick_fix_then_apply / recommend_alternative_jobs / conservative_advice / refuse_fabrication / manual_review_suggested）。极端情况处理不能脱离课题主旨，判断对象是"当前简历 × 当前岗位 JD"不是"这个学生行不行"。详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
 
 4-3.5.G 已完成：灵活在线简历 Profile 与纯文字 Agent 上下文设计。定义了半结构化自由简历方案（ResumeProfile + ResumeSection）、ResumeContextText 生成规则、ResumeContextPayload（resume_context_text + profile_summary + privacy_flags）设计、隐私字段处理规则（姓名/手机/邮箱不发给 LLM，只传布尔标记）。后续 PromptValues 需从 `RESUME_CONTEXT_JSON` 迁移为 `RESUME_CONTEXT_TEXT + PROFILE_SUMMARY_JSON + PRIVACY_FLAGS_JSON`。ResumeContextText 是所有 Agent 判断的输入基础。详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
+4-3.5.H 已完成战略转型阶段汇总与工程评审。
+结论：4-3.5.B ~ 4-3.5.G 已完成战略校准；不立即大改工程，下一步进入 4-3.6 ResumeOptimizationAgent 现状核对与接入方案。
+详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`

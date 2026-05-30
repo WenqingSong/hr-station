@@ -786,3 +786,10 @@ ResumeOptimizationAgent 的输出必须围绕 JD 证据链展开，不能脱离 
 - 如果 ResumeContextText 中缺少某类经历（如无实习），evidence_strength 只能是 `missing`
 - 半结构化的 Section 让 Agent 能精确引用"你的项目经历中提到了 GoFrame"而不是"你可能用过一些框架"
 详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
+---
+
+4-3.5.H 已完成阶段汇总。
+JD 证据链与 START / STAR-T 规则已作为后续 Prompt / Schema / Agent 改造方向登记，暂不立即改工程。
+评审结论：不立即大改工程，先进入 4-3.6。
+详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`

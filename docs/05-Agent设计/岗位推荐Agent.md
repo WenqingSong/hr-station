@@ -285,4 +285,10 @@ PromptValues 变化：`RESUME_CONTEXT_JSON` → `RESUME_CONTEXT_TEXT` + `PROFILE
 
 详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
 
+## 阶段 4-3.5.H 战略转型阶段汇总与工程评审
+
+4-3.5.H 评审结论：RecommendationAgent 已完成接入与验收，后续再按战略转型方向优化 Prompt / Schema，不在当前阶段立即改动。
+
+详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`
+
 详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`

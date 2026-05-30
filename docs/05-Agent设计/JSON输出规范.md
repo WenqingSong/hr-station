@@ -588,3 +588,10 @@ Quality Gate 是内容层检查，在 JSON Repair 和 Schema Validate 之上运�
 本阶段不修改 Schema 文件，只做设计登记。
 
 详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
+## 阶段 4-3.5.H 战略转型阶段汇总与工程评审
+
+4-3.5.H 工程评审结论：暂不立即修改 Schema 文件。
+后续可单独评估是否增加投递边界、证据链、Quality Gate、极端情况和 ResumeContext 相关字段。
+
+详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`

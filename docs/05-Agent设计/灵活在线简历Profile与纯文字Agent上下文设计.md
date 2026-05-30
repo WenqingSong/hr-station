@@ -804,3 +804,10 @@ ResumeContextPayload 的 profile_summary 是 candidate_case_type 识别的关键
 核心一句话：
 
 > **ResumeContextText 是所有 Agent 判断的输入基础。如果输入层混乱，所有下游判断都不稳定。**
+
+---
+
+4-3.5.H 已完成阶段汇总。
+ResumeProfile / ResumeSection / ResumeContextText 暂不立即做数据库和前端工程改造，建议放到阶段 5 或后续产品体验阶段评估。
+评审结论：不立即大改工程，先进入 4-3.6。
+详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`
