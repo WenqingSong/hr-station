@@ -126,6 +126,24 @@ Hunyuan 接入后的核心约束：
 
 4-2.5 才开始实现 Hunyuan Client。
 
+## 阶段 4-2.5 更新
+
+4-2.5 已完成 HunyuanClient HTTP 调用封装。当前仅通过 httptest 验证，不调用真实 Hunyuan。真实连通性验证放到 4-2.6。
+
+新增：
+- `server/internal/llm/hunyuan_client.go`：HunyuanClient 实现 llm.Client 接口
+  - 支持 OpenAI-compatible chat completions 请求与响应映射
+  - 支持 BaseURL endpoint 规范化（/v1、/v1/、/v1/chat/completions）
+  - 支持 Authorization Bearer Token
+  - 支持 per-request timeout 和 context cancellation
+  - 支持 HTTP status 错误分类（429/5xx/401/403）
+  - 支持空响应错误分类
+  - 支持 finish_reason 记录和 usage 解析
+  - 不在错误中泄露 API Key
+- `server/internal/llm/hunyuan_types.go`：OpenAI-compatible 内部请求/响应类型（不导出）
+- `server/internal/llm/hunyuan_client_test.go`：httptest 单元测试（22 项全部通过）
+- 无新增第三方依赖，使用 Go 标准库 net/http / encoding/json / context
+
 ## 阶段 4-2.4 更新
 
 4-2.4 已完成 LLM Client 抽象。Hunyuan Client 后续必须实现 `llm.Client` 接口（`Chat(ctx, ChatRequest) (*ChatResponse, error)` + `Provider() Provider`）。

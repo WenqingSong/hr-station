@@ -364,6 +364,27 @@ LLM Client 本身仍未实现。
 4. **llm.Config.Validate() 在 Enable=true 时强制要求 Provider/BaseURL/APIKey/Model**
 5. **IsDirectMockFallback() 判断哪些错误码应直接 Mock fallback**
 
+## 阶段 4-2.5 更新
+
+4-2.5 已完成 Hunyuan Client 实现。HunyuanClient 作为 llm.Client 的 provider 实现，业务 Agent 仍只依赖 llm.Client，不直接依赖 Hunyuan 私有 HTTP 结构。
+
+新增 Go 文件：
+- `server/internal/llm/hunyuan_client.go`：HunyuanClient 结构体，实现 llm.Client 接口
+  - NewHunyuanClient(config, httpClient)：构造函数，支持注入 http.Client 便于 httptest
+  - Chat(ctx, ChatRequest)：发送 OpenAI-compatible chat completions 请求，解析响应
+  - Provider()：返回 ProviderHunyuan
+  - normalizeEndpoint(baseURL)：规范化 BaseURL，兼容 /v1、/v1/、/v1/chat/completions
+- `server/internal/llm/hunyuan_types.go`：OpenAI-compatible 请求/响应内部类型（不导出）
+  - chatCompletionRequest / chatCompletionResponse / chatChoice / chatMessage / chatCompletionUsage
+- `server/internal/llm/hunyuan_client_test.go`：httptest 单元测试（22 项）
+
+核心设计决策：
+1. **HunyuanClient 不暴露私有 HTTP 结构**：chatCompletionRequest / chatCompletionResponse 不导出
+2. **finish_reason=length 不视为硬错误**：返回 ChatResponse，Pipeline 决定是否 repair
+3. **401/403 映射为 LLM_API_KEY_MISSING**：错误信息写 "authentication failed"，不打印 token
+4. **支持注入 http.Client**：便于 httptest 和后续集成测试
+5. **当前仅通过 httptest 验证**，不调用真实 Hunyuan，真实连通性放到 4-2.6
+
 ## 关联文档
 
 - [阶段4Agent与模型接入方案.md](./阶段4Agent与模型接入方案.md)

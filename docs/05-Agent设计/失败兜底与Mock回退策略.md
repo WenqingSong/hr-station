@@ -436,6 +436,23 @@ Mock Agent 是最终兜底，不是低质量替代。
 
 4-2.7 实现 JSONRepairAgent 调用链路，4-2.8 实现统一 LLM Agent Pipeline。
 
+## 阶段 4-2.5 更新
+
+4-2.5 已实现 HunyuanClient 的基础错误码映射。LLM_TIMEOUT / LLM_HTTP_ERROR / LLM_RATE_LIMIT / LLM_EMPTY_RESPONSE 后续将进入 fallback decision。
+
+HunyuanClient 错误映射：
+- HTTP 429 → LLM_RATE_LIMIT → 直接 Mock fallback
+- HTTP 5xx → LLM_HTTP_ERROR → 直接 Mock fallback
+- HTTP 401/403 → LLM_API_KEY_MISSING → 直接 Mock fallback
+- 空 body / 空 choices / 空 content → LLM_EMPTY_RESPONSE → 直接 Mock fallback
+- context deadline / cancel → LLM_TIMEOUT → 直接 Mock fallback
+- finish_reason=length → 不视为硬错误，返回 ChatResponse，Pipeline 判断是否 repair
+- 非 JSON 响应 → LLM_HTTP_ERROR → 直接 Mock fallback
+
+新增：
+- `server/internal/llm/hunyuan_client.go`：HunyuanClient 错误码映射实现
+- `server/internal/llm/hunyuan_client_test.go`：错误分类测试（429/500/401/空响应/非JSON/超时）
+
 ## 阶段 4-2.4 更新
 
 4-2.4 已定义 LLM ErrorCode 和 LLMError，后续 fallback decision 将根据错误码判断是否直接 Mock fallback 或先尝试 JSON repair。

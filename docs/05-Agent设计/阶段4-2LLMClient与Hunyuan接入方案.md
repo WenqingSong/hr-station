@@ -734,5 +734,22 @@ scripts/dev/schema_check.sh
 - llm 包：NoopClient（不访问外部网络的测试实现）
 - 单元测试 27 项全部通过
 
-当前仍未实现 Hunyuan Client。
-下一步为 4-2.5：Hunyuan Client 实现
+当前仍未进行真实 Hunyuan smoke test。
+
+4-2.5 已完成：Hunyuan Client 实现已完成。
+当前已具备 Hunyuan / TokenHub OpenAI-compatible chat completions 的 HTTP 调用封装能力：
+- HunyuanClient 实现 llm.Client 接口（Chat + Provider）
+- 支持通用 ChatRequest 到 OpenAI-compatible 请求体的映射
+- 支持 OpenAI-compatible 响应体到 ChatResponse 的解析
+- 支持 BaseURL endpoint 规范化（/v1、/v1/、/v1/chat/completions 均可）
+- 支持 Authorization Bearer Token
+- 支持 per-request timeout 和 context cancellation
+- 支持 HTTP status 错误分类（429→LLM_RATE_LIMIT、5xx→LLM_HTTP_ERROR、401/403→LLM_API_KEY_MISSING）
+- 支持空响应错误分类（空 body、空 choices、空 content → LLM_EMPTY_RESPONSE）
+- 支持 finish_reason=length 记录（不视为硬错误，由 Pipeline 判断是否 repair）
+- 支持 usage 解析
+- 不在错误中泄露 API Key
+- 使用 httptest 进行单元测试，不调用真实 Hunyuan
+- 单元测试 22 项全部通过
+
+下一步为 4-2.6：LLM Smoke Test / Makefile 接入

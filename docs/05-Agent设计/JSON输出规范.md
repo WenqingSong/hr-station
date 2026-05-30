@@ -254,6 +254,12 @@ raw output → extract JSON object → json.Unmarshal → Schema validate
 
 4-2.4 已完成 LLM Client 抽象。`ChatResponse.RawContent` 后续必须经过 4-2.3 的 JSON extract / parse / Schema validate 工具处理，不能直接返回业务接口。
 
+4-2.5 已完成 HunyuanClient。HunyuanClient 返回的 ChatResponse.RawContent 仍不得直接返回业务接口，后续必须进入 JSON extract / parse / Schema validate 链路。
+
+新增：
+- `server/internal/llm/hunyuan_client.go`：HunyuanClient 实现 llm.Client 接口
+- `server/internal/llm/hunyuan_types.go`：OpenAI-compatible 内部请求/响应类型
+
 新增：
 - `server/internal/llm/` 包：Client 接口 + ChatRequest / ChatResponse + Config + ErrorCode + NoopClient
 - 业务 Agent 后续只依赖 llm.Client，不直接依赖 Hunyuan
