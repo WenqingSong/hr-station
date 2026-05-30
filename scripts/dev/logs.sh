@@ -19,6 +19,7 @@ case "$ACTION" in
         echo "  make logs-backend  查看 Go 后端日志 (.logs/server.log)"
         echo "  make logs-web      查看前端日志 (.logs/web.log)"
         echo "  make logs-mysql    查看 MySQL Docker 日志"
+        echo "  make nginx-logs    查看 Nginx Docker 日志"
         echo "  make logs-agent    查看 Agent 相关日志"
         echo ""
         echo "日志文件目录: .logs/"
@@ -71,7 +72,8 @@ case "$ACTION" in
         ;;
 
     nginx)
-        log_warn "nginx is not configured yet. This will be enabled in 4-3.7.B.3/B.4."
+        cd "$PROJECT_ROOT"
+        docker compose logs -f nginx
         ;;
 
     *)

@@ -154,11 +154,18 @@ log_step "端口占用检查"
 SERVER_PORT=$(get_env_value "SERVER_PORT" "8080")
 WEB_PORT=$(get_env_value "WEB_PORT" "5173")
 DB_PORT=$(get_env_value "DB_PORT" "3306")
+NGINX_PORT=$(get_env_value "NGINX_PORT" "80")
 
 if check_port "$DB_PORT"; then
     check_warn "端口 ${DB_PORT} (MySQL): 已占用"
 else
     check_pass "端口 ${DB_PORT} (MySQL): 可用"
+fi
+
+if check_port "$NGINX_PORT"; then
+    check_warn "端口 ${NGINX_PORT} (Nginx): 已占用"
+else
+    check_pass "端口 ${NGINX_PORT} (Nginx): 可用"
 fi
 
 if check_port "$SERVER_PORT"; then

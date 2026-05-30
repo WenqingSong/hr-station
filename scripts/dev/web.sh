@@ -50,8 +50,9 @@ start_web() {
     log_info "启动前端开发服务 (端口: ${WEB_PORT})..."
 
     # 使用 nohup 后台启动，日志重定向
+    # --host 0.0.0.0 使 Vite 监听所有网卡，Nginx 容器通过 host.docker.internal 可访问
     cd "$WEB_DIR"
-    nohup npm run dev >> "$LOG_FILE" 2>&1 &
+    nohup npm run dev -- --host 0.0.0.0 >> "$LOG_FILE" 2>&1 &
     local pid=$!
     echo "$pid" > "$PID_FILE"
 
@@ -109,7 +110,6 @@ case "$ACTION" in
 
     status)
         if is_process_running "$PID_FILE"; then
-            local pid
             pid=$(cat "$PID_FILE")
             log_info "前端运行中 (PID: ${pid}, 端口: ${WEB_PORT})"
         else

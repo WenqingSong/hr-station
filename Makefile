@@ -64,7 +64,7 @@ help: ## 查看所有可用命令
 	@echo "  make rebuild       ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes"
 	@echo ""
 	@echo "基础设施:"
-	@echo "  make infra-up      启动 Docker Compose 基础设施（MySQL）"
+	@echo "  make infra-up      启动 Docker Compose 基础设施（MySQL + Nginx）"
 	@echo "  make infra-down    停止 Docker Compose 服务，保留 volume"
 	@echo "  make infra-status  查看 Docker Compose 状态"
 	@echo "  make infra-logs    查看 Docker Compose 日志"
@@ -101,7 +101,7 @@ help: ## 查看所有可用命令
 	@echo "  make backend-logs   同 logs-backend"
 	@echo "  make frontend-logs  同 logs-web"
 	@echo "  make db-logs        同 logs-mysql"
-	@echo "  make nginx-logs     Nginx 日志（当前未接入 Nginx）"
+	@echo "  make nginx-logs     Nginx 日志（Docker Compose Nginx 容器日志）"
 	@echo ""
 	@echo "Agent / LLM:"
 	@echo "  make agent-env        检查 LLM 相关环境变量（不打印真实 Key）"
@@ -181,15 +181,13 @@ status: ## 查看所有服务运行状态
 	@echo "--- 前端 ---"
 	@$(DEV_SCRIPT)/web.sh status || true
 	@echo ""
-	@echo "--- Nginx ---"
-	@echo "  [WARN] nginx is not configured yet. Will be enabled in 4-3.7.B.3."
-	@echo ""
 	@echo "--- 访问地址 ---"
-	@echo "  Frontend:  http://localhost:5173"
+	@echo "  App:       http://localhost/"
+	@echo "  API:       http://localhost/api/"
+	@echo "  Health:    http://localhost/healthz"
 	@echo "  Backend:   http://localhost:8080"
-	@echo "  Health:    http://localhost:8080/healthz"
+	@echo "  Frontend:  http://localhost:5173"
 	@echo "  MySQL:     localhost:3306"
-	@echo "  Nginx:     pending"
 	@echo ""
 
 ps: ## 显示 Docker Compose 容器状态
@@ -225,7 +223,7 @@ up: ensure-env ## 一键启动完整开发环境
 	@echo "[2/7] 环境初始化"
 	@$(DEV_SCRIPT)/env.sh init
 	@echo ""
-	@echo "[3/7] 启动基础设施"
+	@echo "[3/7] 启动基础设施（MySQL + Nginx）"
 	@$(DEV_SCRIPT)/infra.sh up
 	@echo ""
 	@echo "[4/7] 等待 MySQL 就绪"
@@ -248,11 +246,12 @@ up: ensure-env ## 一键启动完整开发环境
 	@echo "=========================================="
 	@echo ""
 	@echo "Access:"
-	@echo "  Frontend:  http://localhost:5173"
+	@echo "  App:       http://localhost/"
+	@echo "  API:       http://localhost/api/"
+	@echo "  Health:    http://localhost/healthz"
 	@echo "  Backend:   http://localhost:8080"
-	@echo "  Health:    http://localhost:8080/healthz"
+	@echo "  Frontend:  http://localhost:5173"
 	@echo "  MySQL:     localhost:3306"
-	@echo "  Nginx:     pending (将在 4-3.7.B.3 接入)"
 	@echo ""
 	@echo "Useful commands:"
 	@echo "  make status       查看服务状态"
@@ -428,8 +427,8 @@ frontend-logs: ## 同 logs-web，查看前端日志
 db-logs: ## 同 logs-mysql，查看 MySQL 日志
 	@$(DEV_SCRIPT)/logs.sh mysql
 
-nginx-logs: ## Nginx 日志（当前未接入 Nginx）
-	@echo "[WARN] nginx is not configured yet. This will be enabled in 4-3.7.B.3/B.4."
+nginx-logs: ## 查看 Nginx 容器日志
+	@docker compose logs -f nginx
 
 # ============================================================
 # Agent / LLM

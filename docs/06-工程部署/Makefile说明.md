@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-30（阶段 4-3.7.B.R.1 混合式开发环境最终方案冻结）
+> 最后更新：2026-05-30（阶段 4-3.7.B.R.2 回退全容器改造并落地混合式启动）
 
 ## 1. 设计目标
 
@@ -115,7 +115,7 @@ make reset-up CONFIRM=yes
 
 [1/7] 环境检查
 [2/7] 环境初始化
-[3/7] 启动基础设施
+[3/7] 启动基础设施（MySQL + Nginx）
 [4/7] 等待 MySQL 就绪
 [5/7] 启动后端
 [6/7] 启动前端
@@ -126,11 +126,12 @@ make reset-up CONFIRM=yes
 ==========================================
 
 Access:
-  Frontend:  http://localhost:5173
+  App:       http://localhost/
+  API:       http://localhost/api/
+  Health:    http://localhost/healthz
   Backend:   http://localhost:8080
-  Health:    http://localhost:8080/healthz
+  Frontend:  http://localhost:5173
   MySQL:     localhost:3306
-  Nginx:     pending (将在 4-3.7.B.3 接入)
 
 Useful commands:
   make status       查看服务状态
@@ -162,7 +163,7 @@ Useful commands:
 
 | 命令 | 说明 |
 |------|------|
-| `make infra-up` | 启动 Docker Compose 基础设施（MySQL） |
+| `make infra-up` | 启动 Docker Compose 基础设施（MySQL + Nginx） |
 | `make infra-down` | 停止 Docker Compose 服务，保留 volume |
 | `make infra-status` | 查看 Docker Compose 状态 |
 | `make infra-logs` | 查看 Docker Compose 日志 |
@@ -263,7 +264,7 @@ Useful commands:
 | `make backend-logs` | 同 logs-backend |
 | `make frontend-logs` | 同 logs-web |
 | `make db-logs` | 同 logs-mysql |
-| `make nginx-logs` | Nginx 日志（当前未接入 Nginx，输出 pending 提示） |
+| `make nginx-logs` | Nginx 容器日志（`docker compose logs -f nginx`） |
 
 日志目录 `.logs/` 由 `make init` 自动创建。
 
@@ -321,11 +322,10 @@ make clean-volume CONFIRM=yes # 删除 Docker volume
 
 | 功能 | 状态 | 预计阶段 |
 |------|------|---------|
-| Nginx 统一入口 | ❌ 未接入 | 4-3.7.B.3 |
-| nginx-logs 命令 | ⚠️ 输出 pending 提示 | 4-3.7.B.3 |
-| 前后端 Docker 化 | ❌ 未接入 | 4-3.7.B.3（可选） |
-| CORS 配置化 | ❌ 未改 | 4-3.7.B.4 |
-| 生产环境启动命令 | ❌ 未实现 | 4-3.7.B.5 |
+| Nginx 统一入口 | ✅ 已接入 | 4-3.7.B.R.2 |
+| nginx-logs 命令 | ✅ 已接入 | 4-3.7.B.R.2 |
+| CORS 配置化 | ❌ 未改 | 4-3.7.B.R.3 |
+| 生产环境启动命令 | ❌ 未实现 | 后续独立阶段 |
 
 ## 16. 常见问题
 
@@ -380,9 +380,9 @@ make web-install
 
 不会。只显示「已配置/未配置」，不打印真实 Key。
 
-### Q: `make nginx-logs` 提示 pending 怎么办？
+### Q: `make nginx-logs` 看什么？
 
-当前 Nginx 尚未接入项目，nginx-logs 命令给出 pending 提示。Nginx 将在 R.2 阶段以混合式开发模式接入（Docker Compose 管理 Nginx，代理到宿主机的 Backend / Frontend 进程）。
+R.2 已接入 Nginx，`make nginx-logs` 输出 Nginx 容器实时日志，包含代理请求记录和错误信息。
 
 ## 18. 方案 B 冻结确认（4-3.7.B.R.1）
 
@@ -393,6 +393,20 @@ make web-install
 - `make up` 输出：Access 段将显示 http://localhost/ 作为主入口
 - `make nginx-logs`：将从 pending 提示改为真实 Nginx 日志
 - `make status`：将显示 Nginx 容器状态
+
+详细方案见 `docs/06-工程部署/混合式开发环境最终方案.md`。
+
+## 19. 方案 B 落地确认（4-3.7.B.R.2）
+
+4-3.7.B.R.2 已完成混合式启动落地。make up 启动 MySQL + Nginx 容器，并启动 Backend / Frontend 本机后台进程。
+
+已实现的关键变更：
+- `make up` 内部：infra-up 包含 Nginx 容器
+- `make up` 输出：Access 段显示 `http://localhost/` 作为主入口
+- `make nginx-logs`：输出真实 Nginx 日志（`docker compose logs -f nginx`）
+- `make status`：显示 MySQL + Nginx 容器状态和访问地址
+- `make infra-up` 帮助：描述为"启动 Docker Compose 基础设施（MySQL + Nginx）"
+- Vite 启动命令：`npm run dev -- --host 0.0.0.0`（使 Nginx 容器可通过 `host.docker.internal` 代理）
 
 详细方案见 `docs/06-工程部署/混合式开发环境最终方案.md`。
 
