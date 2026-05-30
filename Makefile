@@ -16,11 +16,13 @@ DEV_SCRIPT := scripts/dev
 
 .PHONY: help doctor init check status health \
         ensure-env \
-        up stop down restart rebuild \
+        up stop down restart restart-soft reset reset-up \
+        ps \
         infra-up infra-down infra-status infra-logs \
         db-import db-reset db-shell db-check \
         backend-up backend-stop backend-restart backend-logs backend-status backend-health \
         web-install web-up web-stop web-restart web-logs web-status web-health \
+        frontend-logs db-logs nginx-logs \
         agent-env agent-check agent-test \
         llm-help llm-check llm-smoke \
         logs logs-backend logs-web logs-mysql logs-agent \
@@ -38,7 +40,7 @@ DEV_SCRIPT := scripts/dev
 
 help: ## 查看所有可用命令
 	@echo ""
-	@echo "Offer Catcher - Makefile 命令"
+	@echo "[Offer Catcher] Makefile 命令"
 	@echo "=============================="
 	@echo ""
 	@echo "基础命令:"
@@ -49,12 +51,16 @@ help: ## 查看所有可用命令
 	@echo "  make check         执行 doctor + 轻量检查"
 	@echo "  make status        查看所有服务运行状态"
 	@echo "  make health        查看所有服务健康状态"
+	@echo "  make ps            显示 Docker Compose 容器状态"
 	@echo ""
-	@echo "完整生命周期:"
+	@echo "开发环境:"
 	@echo "  make up            一键启动完整开发环境"
 	@echo "  make stop          停止本地前后端进程，保留 Docker 数据"
 	@echo "  make down          停止服务，保留数据库 volume，不清空数据"
-	@echo "  make restart       stop + up"
+	@echo "  make restart       软重启（stop + up，不清空 volume）"
+	@echo "  make restart-soft  同 restart（软重启）"
+	@echo "  make reset         ⚠️ 危险：停止并清空 volume，需要 CONFIRM=yes"
+	@echo "  make reset-up      ⚠️ 危险：清空 volume 后重启，需要 CONFIRM=yes"
 	@echo "  make rebuild       ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes"
 	@echo ""
 	@echo "基础设施:"
@@ -86,6 +92,17 @@ help: ## 查看所有可用命令
 	@echo "  make web-status       查看前端进程状态"
 	@echo "  make web-health       检查前端端口"
 	@echo ""
+	@echo "日志:"
+	@echo "  make logs           查看日志入口提示"
+	@echo "  make logs-backend   查看后端日志"
+	@echo "  make logs-web       查看前端日志"
+	@echo "  make logs-mysql     查看 MySQL 日志"
+	@echo "  make logs-agent     查看 Agent 相关日志"
+	@echo "  make backend-logs   同 logs-backend"
+	@echo "  make frontend-logs  同 logs-web"
+	@echo "  make db-logs        同 logs-mysql"
+	@echo "  make nginx-logs     Nginx 日志（当前未接入 Nginx）"
+	@echo ""
 	@echo "Agent / LLM:"
 	@echo "  make agent-env        检查 LLM 相关环境变量（不打印真实 Key）"
 	@echo "  make agent-check      检查 ENABLE_LLM_AGENT / LLM_PROVIDER / LLM_MODEL"
@@ -95,13 +112,6 @@ help: ## 查看所有可用命令
 	@echo "  make llm-help         查看 LLM smoke test 命令帮助"
 	@echo "  make llm-check        检查本地 LLM 配置，不请求外部模型"
 	@echo "  make llm-smoke        执行 LLM smoke test，默认需要 RUN_REAL_LLM_SMOKE=1"
-	@echo ""
-	@echo "日志:"
-	@echo "  make logs           查看日志入口提示"
-	@echo "  make logs-backend   查看后端日志"
-	@echo "  make logs-web       查看前端日志"
-	@echo "  make logs-mysql     查看 MySQL 日志"
-	@echo "  make logs-agent     查看 Agent 相关日志"
 	@echo ""
 	@echo "质量检查:"
 	@echo "  make lint           代码风格检查"
@@ -159,7 +169,8 @@ ensure-env: ## 确保 .env 存在（优先 .env.local → .env.example）
 
 status: ## 查看所有服务运行状态
 	@echo ""
-	@echo "=== 服务运行状态 ==="
+	@echo "[Offer Catcher] Service Status"
+	@echo "==============================="
 	@echo ""
 	@echo "--- 基础设施 ---"
 	@$(DEV_SCRIPT)/infra.sh status || true
@@ -169,6 +180,20 @@ status: ## 查看所有服务运行状态
 	@echo ""
 	@echo "--- 前端 ---"
 	@$(DEV_SCRIPT)/web.sh status || true
+	@echo ""
+	@echo "--- Nginx ---"
+	@echo "  [WARN] nginx is not configured yet. Will be enabled in 4-3.7.B.3."
+	@echo ""
+	@echo "--- 访问地址 ---"
+	@echo "  Frontend:  http://localhost:5173"
+	@echo "  Backend:   http://localhost:8080"
+	@echo "  Health:    http://localhost:8080/healthz"
+	@echo "  MySQL:     localhost:3306"
+	@echo "  Nginx:     pending"
+	@echo ""
+
+ps: ## 显示 Docker Compose 容器状态
+	@docker compose ps
 
 health: ## 查看所有服务健康状态
 	@echo ""
@@ -192,73 +217,125 @@ health: ## 查看所有服务健康状态
 
 up: ensure-env ## 一键启动完整开发环境
 	@echo ""
-	@echo "=========================================="
-	@echo "  Offer Catcher - 一键启动开发环境"
-	@echo "=========================================="
+	@echo "[Offer Catcher] Starting development environment..."
 	@echo ""
-	@echo "--- 1. 环境检查 ---"
+	@echo "[1/7] 环境检查"
 	@$(DEV_SCRIPT)/doctor.sh
 	@echo ""
-	@echo "--- 2. 环境初始化 ---"
+	@echo "[2/7] 环境初始化"
 	@$(DEV_SCRIPT)/env.sh init
 	@echo ""
-	@echo "--- 3. 启动基础设施 ---"
+	@echo "[3/7] 启动基础设施"
 	@$(DEV_SCRIPT)/infra.sh up
 	@echo ""
-	@echo "--- 4. 等待 MySQL 就绪 ---"
+	@echo "[4/7] 等待 MySQL 就绪"
 	@sleep 5
 	@$(DEV_SCRIPT)/mysql.sh check || echo "  提示：如果数据库为空，请执行 make db-import"
 	@echo ""
-	@echo "--- 5. 启动后端 ---"
+	@echo "[5/7] 启动后端"
 	@$(DEV_SCRIPT)/backend.sh up || echo "  ⚠️ 后端启动失败，可能是 MySQL 尚未就绪，稍后重试"
 	@echo ""
-	@echo "--- 6. 启动前端 ---"
+	@echo "[6/7] 启动前端"
 	@$(DEV_SCRIPT)/web.sh up || echo "  ⚠️ 前端启动失败，可能需要先执行 make web-install"
 	@echo ""
-	@echo "--- 7. 健康检查 ---"
+	@echo "[7/7] 健康检查"
 	@sleep 3
 	@$(DEV_SCRIPT)/backend.sh health || true
 	@$(DEV_SCRIPT)/web.sh health || true
 	@echo ""
 	@echo "=========================================="
-	@echo "  ✅ 开发环境启动完成"
+	@echo "  ✅ Offer Catcher 开发环境已启动"
 	@echo "=========================================="
 	@echo ""
-	@echo "  后端:  http://localhost:8080/healthz"
-	@echo "  前端:  http://localhost:5173"
-	@echo "  MySQL: localhost:3306"
+	@echo "Access:"
+	@echo "  Frontend:  http://localhost:5173"
+	@echo "  Backend:   http://localhost:8080"
+	@echo "  Health:    http://localhost:8080/healthz"
+	@echo "  MySQL:     localhost:3306"
+	@echo "  Nginx:     pending (将在 4-3.7.B.3 接入)"
 	@echo ""
-	@echo "  查看日志: make logs"
-	@echo "  查看状态: make backend-status / make web-status"
+	@echo "Useful commands:"
+	@echo "  make status       查看服务状态"
+	@echo "  make logs         查看日志"
+	@echo "  make restart-soft 软重启（不清空数据）"
+	@echo "  make reset-up     ⚠️ 清空数据并重启（CONFIRM=yes）"
+	@echo "  make down         停止所有服务"
 	@echo ""
 
 stop: ## 停止本地前后端进程，保留 Docker 数据
-	@echo "停止本地进程..."
+	@echo "[Offer Catcher] Stopping local processes..."
 	@$(DEV_SCRIPT)/backend.sh stop
 	@$(DEV_SCRIPT)/web.sh stop
 	@echo ""
-	@echo "✅ 前后端进程已停止（Docker 数据保留）"
+	@echo "[OK] 前后端进程已停止（Docker 数据保留）"
 
 down: ## 停止服务，保留数据库 volume
+	@echo "[Offer Catcher] Stopping all services..."
 	@$(DEV_SCRIPT)/backend.sh stop || true
 	@$(DEV_SCRIPT)/web.sh stop || true
 	@$(DEV_SCRIPT)/infra.sh down
+	@echo ""
+	@echo "[OK] 所有服务已停止（volume 保留）"
 
-restart: ensure-env ## stop + up
+restart: ensure-env ## 软重启（stop + up，不清空 volume）
+	@echo "[Offer Catcher] Soft restart (volume preserved)..."
 	@$(DEV_SCRIPT)/backend.sh stop || true
 	@$(DEV_SCRIPT)/web.sh stop || true
 	@sleep 1
 	@$(MAKE) up
 
-rebuild: ## ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes
+restart-soft: ensure-env ## 同 restart（软重启）
+	@echo "[Offer Catcher] Soft restart (volume preserved)..."
+	@$(DEV_SCRIPT)/backend.sh stop || true
+	@$(DEV_SCRIPT)/web.sh stop || true
+	@sleep 1
+	@$(MAKE) up
+
+reset: ## ⚠️ 危险：停止并清空 volume，需要 CONFIRM=yes
 	@if [ "$(CONFIRM)" != "yes" ]; then \
 		echo ""; \
-		echo "危险操作：该命令会重置本地开发环境。"; \
-		echo "如确认执行，请使用：make rebuild CONFIRM=yes"; \
+		echo "[ERROR] This command will remove development volumes (including MySQL data)."; \
+		echo "        Re-run with: make reset CONFIRM=yes"; \
 		echo ""; \
 		exit 1; \
 	fi
-	@echo "清理运行态..."
+	@echo "[Offer Catcher] Resetting (removing volumes)..."
+	@$(DEV_SCRIPT)/backend.sh stop || true
+	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/infra.sh down
+	@docker compose down -v
+	@$(DEV_SCRIPT)/clean.sh clean
+	@echo ""
+	@echo "[OK] Services stopped and volumes removed."
+	@echo "[INFO] Run 'make up' to start fresh, or 'make reset-up CONFIRM=yes' to reset and start."
+
+reset-up: ensure-env ## ⚠️ 危险：清空 volume 后重启，需要 CONFIRM=yes
+	@if [ "$(CONFIRM)" != "yes" ]; then \
+		echo ""; \
+		echo "[ERROR] This command will remove development volumes (including MySQL data)."; \
+		echo "        Re-run with: make reset-up CONFIRM=yes"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "[Offer Catcher] Reset and restart (removing volumes)..."
+	@$(DEV_SCRIPT)/backend.sh stop || true
+	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/infra.sh down
+	@docker compose down -v
+	@$(DEV_SCRIPT)/clean.sh clean
+	@echo ""
+	@echo "[OK] Volumes removed. Starting fresh..."
+	@$(MAKE) up
+
+rebuild: ## ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes
+	@if [ "$(CONFIRM)" != "yes" ]; then \
+		echo ""; \
+		echo "[ERROR] This command will reset local development environment."; \
+		echo "        Re-run with: make rebuild CONFIRM=yes"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "[Offer Catcher] Rebuilding..."
 	@$(DEV_SCRIPT)/backend.sh stop || true
 	@$(DEV_SCRIPT)/web.sh stop || true
 	@$(DEV_SCRIPT)/clean.sh clean
@@ -344,6 +421,15 @@ web-status: ## 查看前端进程状态
 
 web-health: ## 检查前端端口
 	@$(DEV_SCRIPT)/web.sh health
+
+frontend-logs: ## 同 logs-web，查看前端日志
+	@$(DEV_SCRIPT)/logs.sh web
+
+db-logs: ## 同 logs-mysql，查看 MySQL 日志
+	@$(DEV_SCRIPT)/logs.sh mysql
+
+nginx-logs: ## Nginx 日志（当前未接入 Nginx）
+	@echo "[WARN] nginx is not configured yet. This will be enabled in 4-3.7.B.3/B.4."
 
 # ============================================================
 # Agent / LLM

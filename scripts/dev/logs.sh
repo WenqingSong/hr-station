@@ -70,8 +70,12 @@ case "$ACTION" in
         log_info "阶段 4-2 实现后，Agent 日志将独立输出"
         ;;
 
+    nginx)
+        log_warn "nginx is not configured yet. This will be enabled in 4-3.7.B.3/B.4."
+        ;;
+
     *)
-        echo "用法: $0 {all|backend|web|mysql|agent}"
+        echo "用法: $0 {all|backend|web|mysql|agent|nginx}"
         exit 1
         ;;
 esac

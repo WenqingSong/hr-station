@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-30（阶段 4-3.1 通过结果登记）
+> 最后更新：2026-05-30（阶段 4-3.7.B.2 Makefile 一键启动标准化）
 
 ## 1. 设计目标
 
@@ -12,20 +12,23 @@
 6. 新模型 / 新开发者快速接手
 7. 危险操作必须 `CONFIRM=yes` 确认
 8. 不在脚本中打印真实密钥
+9. **restart 不清空 volume，reset/reset-up 清空 volume 需 CONFIRM=yes**
+10. **Nginx 未接入时，nginx-logs 等命令给出明确 pending 提示**
 
 ## 2. 总体结构
 
 ```
 Makefile                    # 统一入口 / 命令编排层
 scripts/dev/common.sh       # 通用函数（log、load_env、mask_secret 等）
+scripts/dev/ensure_env.sh   # .env 自动生成
 scripts/dev/doctor.sh       # 开发环境检查
 scripts/dev/env.sh          # 环境初始化与配置展示
-scripts/dev/infra.sh         # Docker Compose 基础设施管理
+scripts/dev/infra.sh        # Docker Compose 基础设施管理
 scripts/dev/mysql.sh        # 数据库导入/重置/shell/检查
 scripts/dev/backend.sh      # 后端启动/停止/重启/日志/状态/健康检查
 scripts/dev/web.sh          # 前端安装/启动/停止/重启/日志/状态/健康检查
 scripts/dev/agent.sh        # Agent/LLM 环境检查
-scripts/dev/logs.sh         # 统一日志查看
+scripts/dev/logs.sh         # 统一日志查看（含 nginx 预留）
 scripts/dev/quality.sh      # 代码质量检查
 scripts/dev/clean.sh        # 清理操作
 ```
@@ -60,6 +63,12 @@ make db-import
 make db-reset CONFIRM=yes
 ```
 
+如果想完全清空并重启：
+
+```bash
+make reset-up CONFIRM=yes
+```
+
 ## 4. 常用命令
 
 | 命令 | 说明 | 只读 | 有副作用 |
@@ -69,8 +78,9 @@ make db-reset CONFIRM=yes
 | `make init` | 初始化开发环境 | ❌ | ⚠️ |
 | `make ensure-env` | 确保 .env 存在（优先 .env.local → .env.example） | ❌ | ⚠️ |
 | `make check` | doctor + 健康检查 | ✅ | ❌ |
-| `make status` | 查看所有服务运行状态 | ✅ | ❌ |
+| `make status` | 查看所有服务运行状态和访问地址 | ✅ | ❌ |
 | `make health` | 查看所有服务健康状态 | ✅ | ❌ |
+| `make ps` | 显示 Docker Compose 容器状态 | ✅ | ❌ |
 
 ## 5. 生命周期命令
 
@@ -79,7 +89,10 @@ make db-reset CONFIRM=yes
 | `make up` | 一键启动完整开发环境 | 🟢 安全 |
 | `make stop` | 停止前后端进程，保留 Docker 数据 | 🟢 安全 |
 | `make down` | 停止所有服务，保留数据库 volume | 🟢 安全 |
-| `make restart` | stop + up | 🟢 安全 |
+| `make restart` | 软重启（stop + up，不清空 volume） | 🟢 安全 |
+| `make restart-soft` | 同 restart（软重启） | 🟢 安全 |
+| `make reset` | 停止并清空 volume | 🔴 需 CONFIRM=yes |
+| `make reset-up` | 清空 volume 后重启 | 🔴 需 CONFIRM=yes |
 | `make rebuild` | 清理运行态并重建 | 🔴 需 CONFIRM=yes |
 
 ### `make up` 执行顺序
@@ -95,10 +108,55 @@ make db-reset CONFIRM=yes
 7. 健康检查
 ```
 
+### `make up` 输出
+
+```
+[Offer Catcher] Starting development environment...
+
+[1/7] 环境检查
+[2/7] 环境初始化
+[3/7] 启动基础设施
+[4/7] 等待 MySQL 就绪
+[5/7] 启动后端
+[6/7] 启动前端
+[7/7] 健康检查
+
+==========================================
+  ✅ Offer Catcher 开发环境已启动
+==========================================
+
+Access:
+  Frontend:  http://localhost:5173
+  Backend:   http://localhost:8080
+  Health:    http://localhost:8080/healthz
+  MySQL:     localhost:3306
+  Nginx:     pending (将在 4-3.7.B.3 接入)
+
+Useful commands:
+  make status       查看服务状态
+  make logs         查看日志
+  make restart-soft 软重启（不清空数据）
+  make reset-up     ⚠️ 清空数据并重启（CONFIRM=yes）
+  make down         停止所有服务
+```
+
 ### `make stop` vs `make down`
 
 - `make stop`：只停止本地前后端进程，Docker 容器继续运行
 - `make down`：停止前后端 + 停止 Docker 容器，但**不删除 volume**，数据保留
+
+### `make restart` vs `make reset` vs `make reset-up`
+
+- `make restart`：软重启，= stop + up，**不清空 volume**，数据保留
+- `make restart-soft`：同 restart，语义更明确
+- `make reset`：停止服务并**清空所有 volume**（含 MySQL 数据），必须 `CONFIRM=yes`
+- `make reset-up`：reset 后重新 up，必须 `CONFIRM=yes`
+
+设计理由：
+1. restart 在行业习惯中通常不代表删除数据（`docker compose restart` 不删 volume）
+2. 清空 volume 是破坏性操作，容易误删数据库，必须明确确认
+3. 开发阶段可以提供 reset-up 满足快速重置需求，但有 CONFIRM 保护
+4. 生产环境必须禁止清空 volume
 
 ## 6. 基础设施命令
 
@@ -191,8 +249,6 @@ make db-reset CONFIRM=yes
 
 4-3.1 已通过 `RUN_REAL_LLM_SMOKE=1 make llm-smoke` 验证真实 LLM 连通性。`make llm-check` 可验证 LLM 配置完整性。`make llm-smoke` 仍需要 `RUN_REAL_LLM_SMOKE=1` 才触发真实模型请求。
 
-后续建议将 smoke 输出中的 `api_key` 脱敏显示进一步改为 `api_key=configured`，不展示尾号。
-
 4-3.1.D 已修复 llm-smoke 环境加载问题。`llm_smoke.sh` 不再使用 `source .env` 方式加载配置，而是复用 `common.sh` 的 `load_env()`，避免 `DB_DSN` 等复杂值（含括号 `tcp(...)`）导致配置读取失败。
 
 ## 11. 日志命令
@@ -204,6 +260,10 @@ make db-reset CONFIRM=yes
 | `make logs-web` | tail .logs/web.log |
 | `make logs-mysql` | docker compose logs -f mysql |
 | `make logs-agent` | 当前查看后端日志中的 Agent 相关内容 |
+| `make backend-logs` | 同 logs-backend |
+| `make frontend-logs` | 同 logs-web |
+| `make db-logs` | 同 logs-mysql |
+| `make nginx-logs` | Nginx 日志（当前未接入 Nginx，输出 pending 提示） |
 
 日志目录 `.logs/` 由 `make init` 自动创建。
 
@@ -241,19 +301,33 @@ make db-reset CONFIRM=yes
 以下命令必须 `CONFIRM=yes`：
 
 ```bash
-make rebuild CONFIRM=yes       # 清理运行态并重建
-make db-reset CONFIRM=yes      # 重新导入初始化 SQL
-make clean-volume CONFIRM=yes  # 删除 Docker volume
+make reset CONFIRM=yes        # 停止并清空 volume
+make reset-up CONFIRM=yes     # 清空 volume 后重启
+make rebuild CONFIRM=yes      # 清理运行态并重建
+make db-reset CONFIRM=yes     # 重新导入初始化 SQL
+make clean-volume CONFIRM=yes # 删除 Docker volume
 ```
 
 没有确认时输出提示并拒绝执行：
 
 ```text
-危险操作：该命令会重置本地开发数据。
-如确认执行，请使用：make xxx CONFIRM=yes
+[ERROR] This command will remove development volumes (including MySQL data).
+        Re-run with: make reset CONFIRM=yes
 ```
 
-## 15. 常见问题
+## 15. 当前阶段限制
+
+以下功能当前为 pending 状态，将在后续阶段接入：
+
+| 功能 | 状态 | 预计阶段 |
+|------|------|---------|
+| Nginx 统一入口 | ❌ 未接入 | 4-3.7.B.3 |
+| nginx-logs 命令 | ⚠️ 输出 pending 提示 | 4-3.7.B.3 |
+| 前后端 Docker 化 | ❌ 未接入 | 4-3.7.B.3（可选） |
+| CORS 配置化 | ❌ 未改 | 4-3.7.B.4 |
+| 生产环境启动命令 | ❌ 未实现 | 4-3.7.B.5 |
+
+## 16. 常见问题
 
 ### Q: CNB 环境重启后如何恢复？
 
@@ -276,18 +350,23 @@ make doctor → make init → make up → make health
 
 不会。`make down` 只停止服务和容器，不删除 volume。
 
+### Q: `make restart` 会清空数据吗？
+
+不会。`make restart` 是软重启（= stop + up），不清空 volume，数据保留。如需清空数据，使用 `make reset-up CONFIRM=yes`。
+
 ### Q: 如何完全清理数据库？
 
 ```bash
-make clean-volume CONFIRM=yes
+make reset-up CONFIRM=yes
 ```
 
-这将删除 `mysql_data` 数据卷，MySQL 中所有数据将丢失。
+这将删除 `mysql_data` 数据卷，MySQL 中所有数据将丢失，然后重新启动。
 
 ### Q: 后端日志在哪里？
 
 ```bash
 make logs-backend    # 实时查看
+make backend-logs    # 同上
 cat .logs/server.log # 查看全部
 ```
 
@@ -301,12 +380,17 @@ make web-install
 
 不会。只显示「已配置/未配置」，不打印真实 Key。
 
+### Q: `make nginx-logs` 提示 pending 怎么办？
+
+当前 Nginx 尚未接入项目，nginx-logs 命令给出 pending 提示。Nginx 将在 4-3.7.B.3 阶段接入。
+
 ## 关联文档
 
 - [工程执行规范.md](./工程执行规范.md)
 - [环境变量.md](./环境变量.md)
 - [部署说明.md](./部署说明.md)
 - [Docker说明.md](./Docker说明.md)
+- [启动与部署标准化方案.md](./启动与部署标准化方案.md)
 - [腾讯招聘信息接入方案.md](./腾讯招聘信息接入方案.md)
 
 ## 腾讯岗位数据源命令
@@ -314,7 +398,7 @@ make web-install
 以下命令用于管理腾讯招聘公开岗位原始数据的拉取、查看和清理。
 
 | 命令 | 说明 | 是否请求外部接口 | 是否入库 |
-|---|---|---|---|
+|------|------|-----------------|---------|
 | make jobs-help | 查看帮助 | 否 | 否 |
 | make jobs-check | 检查配置 | 否 | 否 |
 | make jobs-source-check | 同 jobs-check | 否 | 否 |
@@ -370,9 +454,9 @@ make jobs-import           # 4. 执行导入
 make jobs-import-status    # 5. 查看结果
 ```
 
-## 16. ensure-env 机制
+## 17. ensure-env 机制
 
-4-3.1.C 新增 `ensure-env` 机制。`make up` / `make restart` / `make llm-check` / `make llm-smoke` 执行前会自动确保项目根目录存在 `.env`。
+4-3.1.C 新增 `ensure-env` 机制。`make up` / `make restart` / `make restart-soft` / `make reset-up` / `make llm-check` / `make llm-smoke` 执行前会自动确保项目根目录存在 `.env`。
 
 优先级：
 
