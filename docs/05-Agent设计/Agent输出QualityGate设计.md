@@ -663,3 +663,11 @@ Quality Gate 的实现路径建议：
 **下一步进入 4-3.5.G：灵活在线简历 Profile 与纯文字 Agent 上下文设计。**
 
 不进入 4-3.6。
+
+---
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。ResumeContextPayload 的 profile_summary 辅助 Quality Gate 检查：
+- `profile_summary.data_quality = insufficient` 但 Agent 输出了 `apply_readiness = ready_to_apply` → Quality Gate 应标记为质量异常
+- `privacy_flags.name_excluded = true` 但 Agent 输出中出现了姓名 → Quality Gate 应标记为质量异常
+- `profile_summary.has_internship = false` 但 Agent 输出中引用了实习经历 → Quality Gate 应标记为编造
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`

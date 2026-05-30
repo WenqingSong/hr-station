@@ -778,3 +778,11 @@ ResumeOptimizationAgent 的输出必须围绕 JD 证据链展开，不能脱离 
 4. 仍然以 docs only 为主，不急于改代码
 
 不进入 4-3.6。
+
+---
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。ResumeContextText 是 JD 证据链中"简历证据"的来源：
+- 每条 jd_evidence_chain 的 `resume_evidence` 来自 ResumeContextText 中的具体 Section 内容
+- 如果 ResumeContextText 中缺少某类经历（如无实习），evidence_strength 只能是 `missing`
+- 半结构化的 Section 让 Agent 能精确引用"你的项目经历中提到了 GoFrame"而不是"你可能用过一些框架"
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`

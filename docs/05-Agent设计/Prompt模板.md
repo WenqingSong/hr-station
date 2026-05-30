@@ -286,6 +286,21 @@ server/internal/agent/prompts/
 
 本阶段不修改 Prompt 文件。
 
+## 阶段 4-3.5.G 灵活在线简历 Profile 与纯文字 Agent 上下文设计
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。后续 Prompt 需适配新的输入格式：
+
+1. **占位符迁移**：`{{RESUME_CONTEXT_JSON}}` → `{{RESUME_CONTEXT_TEXT}}` + `{{PROFILE_SUMMARY_JSON}}` + `{{PRIVACY_FLAGS_JSON}}`
+2. **简历输入说明**：从"以下是用户的简历 JSON"改为"以下是用户简历的结构化纯文字上下文"
+3. **隐私约束**：增加"简历上下文中不包含姓名、手机号、邮箱等隐私字段，不要在输出中推测或编造这些信息"
+4. **概况辅助**：增加"profile_summary 提供了简历概况信号，可直接用于快速判断"
+5. **Section 引用**：增加"引用简历证据时，尽量引用具体的 Section 标题和内容"
+6. **简历优化额外占位符**：增加 `{{CURRENT_TARGET_SECTION}}` 表示当前优化的目标 Section
+
+本阶段不修改 Prompt 文件，只做设计登记。
+
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
 详见 `docs/05-Agent设计/投递边界与优化停止条件设计.md`
 
 ## 阶段 4-3.5.D 更新
@@ -302,6 +317,21 @@ server/internal/agent/prompts/
 
 本阶段不修改 Prompt 文件。
 
+## 阶段 4-3.5.G 灵活在线简历 Profile 与纯文字 Agent 上下文设计
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。后续 Prompt 需适配新的输入格式：
+
+1. **占位符迁移**：`{{RESUME_CONTEXT_JSON}}` → `{{RESUME_CONTEXT_TEXT}}` + `{{PROFILE_SUMMARY_JSON}}` + `{{PRIVACY_FLAGS_JSON}}`
+2. **简历输入说明**：从"以下是用户的简历 JSON"改为"以下是用户简历的结构化纯文字上下文"
+3. **隐私约束**：增加"简历上下文中不包含姓名、手机号、邮箱等隐私字段，不要在输出中推测或编造这些信息"
+4. **概况辅助**：增加"profile_summary 提供了简历概况信号，可直接用于快速判断"
+5. **Section 引用**：增加"引用简历证据时，尽量引用具体的 Section 标题和内容"
+6. **简历优化额外占位符**：增加 `{{CURRENT_TARGET_SECTION}}` 表示当前优化的目标 Section
+
+本阶段不修改 Prompt 文件，只做设计登记。
+
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
 详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`
 
 ## 阶段 4-3.5.E 更新
@@ -314,6 +344,21 @@ server/internal/agent/prompts/
 4. **保守输出**：Prompt 应引导模型在不确定时输出保守结果，避免触发 fallback_required
 
 本阶段不修改 Prompt 文件。
+
+## 阶段 4-3.5.G 灵活在线简历 Profile 与纯文字 Agent 上下文设计
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。后续 Prompt 需适配新的输入格式：
+
+1. **占位符迁移**：`{{RESUME_CONTEXT_JSON}}` → `{{RESUME_CONTEXT_TEXT}}` + `{{PROFILE_SUMMARY_JSON}}` + `{{PRIVACY_FLAGS_JSON}}`
+2. **简历输入说明**：从"以下是用户的简历 JSON"改为"以下是用户简历的结构化纯文字上下文"
+3. **隐私约束**：增加"简历上下文中不包含姓名、手机号、邮箱等隐私字段，不要在输出中推测或编造这些信息"
+4. **概况辅助**：增加"profile_summary 提供了简历概况信号，可直接用于快速判断"
+5. **Section 引用**：增加"引用简历证据时，尽量引用具体的 Section 标题和内容"
+6. **简历优化额外占位符**：增加 `{{CURRENT_TARGET_SECTION}}` 表示当前优化的目标 Section
+
+本阶段不修改 Prompt 文件，只做设计登记。
+
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
 
 详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`
 
@@ -328,5 +373,35 @@ server/internal/agent/prompts/
 5. **case_risk_level**：高风险（high/critical）情况应触发保守输出或 fallback
 
 本阶段不修改 Prompt 文件。
+
+## 阶段 4-3.5.G 灵活在线简历 Profile 与纯文字 Agent 上下文设计
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。后续 Prompt 需适配新的输入格式：
+
+1. **占位符迁移**：`{{RESUME_CONTEXT_JSON}}` → `{{RESUME_CONTEXT_TEXT}}` + `{{PROFILE_SUMMARY_JSON}}` + `{{PRIVACY_FLAGS_JSON}}`
+2. **简历输入说明**：从"以下是用户的简历 JSON"改为"以下是用户简历的结构化纯文字上下文"
+3. **隐私约束**：增加"简历上下文中不包含姓名、手机号、邮箱等隐私字段，不要在输出中推测或编造这些信息"
+4. **概况辅助**：增加"profile_summary 提供了简历概况信号，可直接用于快速判断"
+5. **Section 引用**：增加"引用简历证据时，尽量引用具体的 Section 标题和内容"
+6. **简历优化额外占位符**：增加 `{{CURRENT_TARGET_SECTION}}` 表示当前优化的目标 Section
+
+本阶段不修改 Prompt 文件，只做设计登记。
+
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
+## 阶段 4-3.5.G 灵活在线简历 Profile 与纯文字 Agent 上下文设计
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。后续 Prompt 需适配新的输入格式：
+
+1. **占位符迁移**：`{{RESUME_CONTEXT_JSON}}` → `{{RESUME_CONTEXT_TEXT}}` + `{{PROFILE_SUMMARY_JSON}}` + `{{PRIVACY_FLAGS_JSON}}`
+2. **简历输入说明**：从"以下是用户的简历 JSON"改为"以下是用户简历的结构化纯文字上下文"
+3. **隐私约束**：增加"简历上下文中不包含姓名、手机号、邮箱等隐私字段，不要在输出中推测或编造这些信息"
+4. **概况辅助**：增加"profile_summary 提供了简历概况信号，可直接用于快速判断"
+5. **Section 引用**：增加"引用简历证据时，尽量引用具体的 Section 标题和内容"
+6. **简历优化额外占位符**：增加 `{{CURRENT_TARGET_SECTION}}` 表示当前优化的目标 Section
+
+本阶段不修改 Prompt 文件，只做设计登记。
+
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
 
 详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`

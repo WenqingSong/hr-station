@@ -243,6 +243,21 @@ fabrication_check 一旦失败应直接 fallback_required。revise_required 时�
 7. 过度优化时明确告知可以投递
 8. 造假请求必须拒绝，提供基于真实经历的替代建议
 
+详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
+
+## 阶段 4-3.5.G 灵活在线简历 Profile 与纯文字 Agent 上下文设计
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。后续匹配分析输入统一为 ResumeContextPayload：
+
+1. **ResumeContextText** 替代旧的 `json.Marshal(resumeVersion)`，结构化纯文字格式，Agent 可稳定消费
+2. **profile_summary** 提供简历概况信号（section_count / has_project / has_internship 等），快速判断 candidate_case_type
+3. **privacy_flags** 确认隐私字段已排除（姓名/手机/邮箱不发给 LLM）
+4. **CURRENT_TARGET_SECTION**（仅简历优化 Agent）：针对具体 Section 给出优化建议
+
+PromptValues 变化：`RESUME_CONTEXT_JSON` → `RESUME_CONTEXT_TEXT` + `PROFILE_SUMMARY_JSON` + `PRIVACY_FLAGS_JSON`
+
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
 本阶段不修改 Prompt / Schema / 代码，只登记方向。
 
 详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`

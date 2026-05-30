@@ -682,3 +682,16 @@ Prompt → LLM → JSON parse → Schema validate → repair once → Quality Ga
 本阶段只做设计，不实现。
 
 详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
+
+## 阶段 4-3.5.G 更新
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。ResumeContextText 信息完整性影响 fallback 决策：
+
+1. **信息不足时的 fallback**：如果 ResumeContextText 缺少必填字段（target_roles / expected_locations / education_summary / 能力证明 Section），Agent 应输出 `apply_readiness = insufficient_information`，而不是编造内容
+2. **profile_summary.data_quality = insufficient** 时，Agent 输出质量更不可控，应降低 quality_gate_result 通过阈值
+3. **隐私字段异常**：如果 Agent 输出中出现了姓名/手机/邮箱等应被排除的字段，Quality Gate 应判定为 fallback_required
+4. **Section 内容缺失**：如果 profile_summary 显示无项目经历但 Agent 输出中引用了项目经历，应判定为编造，触发 fallback
+
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
+详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`

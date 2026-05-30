@@ -573,3 +573,18 @@ Quality Gate 是内容层检查，在 JSON Repair 和 Schema Validate 之上运�
 本阶段不修改 Schema。
 
 详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
+
+## 阶段 4-3.5.G 更新
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。后续 Schema 可评估增加以下字段：
+
+1. `resume_context_text`：输入的简历上下文摘要（用于审计和调试）
+2. `profile_summary`：输入的简历概况信号（target_roles / expected_locations / section_count / has_project 等）
+3. `section_count`：简历 Section 数量
+4. `section_types`：简历包含的 Section 类型列表
+5. `privacy_flags`：隐私标记（contact_info_provided / email_provided / phone_provided / name_excluded）
+6. `data_quality`：数据质量评估（sufficient / minimal / insufficient）
+
+本阶段不修改 Schema 文件，只做设计登记。
+
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`

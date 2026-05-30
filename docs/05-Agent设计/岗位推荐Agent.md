@@ -272,3 +272,17 @@
 本阶段不修改 Prompt / Schema / 代码，只登记方向。
 
 详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
+
+## 阶段 4-3.5.G 灵活在线简历 Profile 与纯文字 Agent 上下文设计
+
+4-3.5.G 已完成灵活在线简历 Profile 与纯文字 Agent 上下文设计。后续推荐输入统一为 ResumeContextPayload：
+
+1. **ResumeContextText** 替代旧的 `json.Marshal(resumeVersion)`，结构化纯文字格式
+2. **profile_summary** 提供简历概况信号，快速判断 candidate_case_type 和推荐置信度
+3. **privacy_flags** 确认隐私字段已排除
+
+PromptValues 变化：`RESUME_CONTEXT_JSON` → `RESUME_CONTEXT_TEXT` + `PROFILE_SUMMARY_JSON` + `PRIVACY_FLAGS_JSON` + `JOB_CANDIDATES_JSON`
+
+详见 `docs/05-Agent设计/灵活在线简历Profile与纯文字Agent上下文设计.md`
+
+详见 `docs/05-Agent设计/学生求职极端情况处理边界.md`
