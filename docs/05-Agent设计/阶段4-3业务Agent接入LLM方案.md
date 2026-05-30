@@ -805,5 +805,9 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 详见 `docs/05-Agent设计/阶段4-3.5战略转型汇总与工程评审.md`
 
 4-3.6 已完成 ResumeOptimizationAgent 现状核对与接入方案。
-已确认当前简历优化链路现状：仅有 Prompt + Schema 资产，缺少 ResumeOptimizationAgent / Mock Agent / Service / Handler / Model / Route 共 6 项核心业务代码，不具备直接接入 Pipeline 的条件。当前只有版本对比能力，不是简历优化能力。4-3.7 应先补业务代码再接 Pipeline。
-详见 `docs/05-Agent设计/ResumeOptimizationAgent现状核对与接入方案.md`
+
+4-3.7 已完成简历优化业务链路补齐。
+ResumeOptimizationAgent 当前具备 Mock 业务接口基础，下一步可评估接入 Pipeline。
+新增：ResumeOptimizationMockAgent / Model / Service / Handler / Route / 接口文档 / 测试。
+路由：POST /api/resumes/optimize。
+当前未接入真实 LLM Pipeline。

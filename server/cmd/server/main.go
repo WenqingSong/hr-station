@@ -124,16 +124,23 @@ func main() {
 	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent)
 	versionCompareHandler := httpserver.NewVersionCompareHandler(versionCompareService)
 
+	// Initialize resume optimization module
+	resumeOptimizationRepo := repository.NewResumeOptimizationRepository(mysqlDB.DB)
+	resumeOptimizationMockAgent := agent.NewResumeOptimizationMockAgent()
+	resumeOptimizationService := service.NewResumeOptimizationService(resumeOptimizationRepo, resumeOptimizationMockAgent)
+	resumeOptimizationHandler := httpserver.NewResumeOptimizationHandler(resumeOptimizationService)
+
 	// Initialize router with all dependencies
 	router := httpserver.NewRouter(httpserver.RouterDeps{
-		HealthService:         healthService,
-		AuthHandler:           authHandler,
-		AuthMiddleware:        authMiddleware,
-		ResumeHandler:         resumeHandler,
-		JobHandler:            jobHandler,
-		RecommendationHandler: recommendationHandler,
-		MatchHandler:          matchHandler,
-		VersionCompareHandler: versionCompareHandler,
+		HealthService:              healthService,
+		AuthHandler:                authHandler,
+		AuthMiddleware:             authMiddleware,
+		ResumeHandler:              resumeHandler,
+		JobHandler:                 jobHandler,
+		RecommendationHandler:      recommendationHandler,
+		MatchHandler:               matchHandler,
+		VersionCompareHandler:      versionCompareHandler,
+		ResumeOptimizationHandler:  resumeOptimizationHandler,
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)

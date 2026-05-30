@@ -712,3 +712,12 @@ Prompt → LLM → JSON parse → Schema validate → repair once → Quality Ga
 - 后续如接入 Pipeline，需要先创建 ResumeOptimizationMockAgent 作为 fallback 保障
 
 详见 `docs/05-Agent设计/ResumeOptimizationAgent现状核对与接入方案.md`
+
+## 阶段 4-3.7 简历优化业务链路补齐
+
+4-3.7 已补齐 ResumeOptimization Mock 链路。
+- `server/internal/agent/resume_optimization_mock.go` ✅ 已创建
+- ResumeOptimizationMockAgent 已实现，返回 `generated_by=mock_agent`
+- 简历优化当前通过 mock_agent 返回稳定结果
+- 后续接入 Pipeline 后，Mock Agent 可作为 fallback 使用
+- 路由：POST /api/resumes/optimize

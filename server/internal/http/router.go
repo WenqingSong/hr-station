@@ -19,14 +19,15 @@ const jobIDContextKey contextKey = "job_id"
 
 // RouterDeps holds all dependencies needed by the router.
 type RouterDeps struct {
-	HealthService         *health.Service
-	AuthHandler           *AuthHandler
-	AuthMiddleware        func(http.Handler) http.Handler
-	ResumeHandler         *ResumeHandler
-	JobHandler            *JobHandler
-	RecommendationHandler *RecommendationHandler
-	MatchHandler          *MatchHandler
-	VersionCompareHandler *VersionCompareHandler
+	HealthService              *health.Service
+	AuthHandler                *AuthHandler
+	AuthMiddleware             func(http.Handler) http.Handler
+	ResumeHandler              *ResumeHandler
+	JobHandler                 *JobHandler
+	RecommendationHandler      *RecommendationHandler
+	MatchHandler               *MatchHandler
+	VersionCompareHandler      *VersionCompareHandler
+	ResumeOptimizationHandler  *ResumeOptimizationHandler
 }
 
 // NewRouter creates and returns the main HTTP handler with all routes registered
@@ -54,6 +55,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("/api/resumes/versions", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Versions)))
 	mux.Handle("/api/resumes/versions/compare", deps.AuthMiddleware(http.HandlerFunc(deps.VersionCompareHandler.Compare)))
 	mux.Handle("/api/resumes/versions/", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.VersionDetail)))
+	mux.Handle("/api/resumes/optimize", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeOptimizationHandler.Optimize)))
 
 	// Job routes (all require auth)
 	mux.Handle("/api/jobs", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.List)))

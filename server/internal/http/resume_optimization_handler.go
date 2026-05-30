@@ -1,0 +1,65 @@
+package httpserver
+
+import (
+	"encoding/json"
+	"net/http"
+
+	apperror "offer-catcher/server/internal/errors"
+	"offer-catcher/server/internal/middleware"
+	"offer-catcher/server/internal/response"
+	"offer-catcher/server/internal/service"
+)
+
+// ResumeOptimizationHandler handles resume optimization HTTP requests.
+type ResumeOptimizationHandler struct {
+	resumeOptimizationService *service.ResumeOptimizationService
+}
+
+// NewResumeOptimizationHandler creates a new ResumeOptimizationHandler.
+func NewResumeOptimizationHandler(resumeOptimizationService *service.ResumeOptimizationService) *ResumeOptimizationHandler {
+	return &ResumeOptimizationHandler{resumeOptimizationService: resumeOptimizationService}
+}
+
+// Optimize handles POST /api/resumes/optimize — generates mock resume optimization.
+func (h *ResumeOptimizationHandler) Optimize(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
+		return
+	}
+
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+		return
+	}
+
+	// Parse request body
+	var req service.ResumeOptimizationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid request body")
+		return
+	}
+
+	resp, err := h.resumeOptimizationService.Optimize(r.Context(), userID, req)
+	if err != nil {
+		handleResumeOptimizationError(w, err)
+		return
+	}
+
+	response.OK(w, resp)
+}
+
+// handleResumeOptimizationError maps resume optimization service errors to HTTP responses.
+func handleResumeOptimizationError(w http.ResponseWriter, err error) {
+	msg := err.Error()
+	switch msg {
+	case "resume_text is required":
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "resume_text is required")
+	case "target_job is required":
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "target_job is required")
+	case "target_job.title or target_job.jd_text is required":
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "target_job.title or target_job.jd_text is required")
+	default:
+		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
+	}
+}
