@@ -511,3 +511,7 @@ make jobs-import-status    # 5. 查看结果
 ## R.4 更新
 
 4-3.7.B.R.4 已完成混合式一键启动集成验收。`make up` / `make down` / `make restart` / `make status` / `make logs` 链路已通过集成验收。
+
+## R.5 更新
+
+4-3.7.B.R.5 已完成 README 与部署说明更新。Makefile 命令契约与 README 保持一致。4-3.7.B.R 返工阶段已完成。

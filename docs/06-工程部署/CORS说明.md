@@ -188,3 +188,7 @@ curl -s -X OPTIONS http://localhost:8080/api/auth/login \
 ## 15. R.4 更新
 
 4-3.7.B.R.4 已完成混合式一键启动集成验收。CORS OPTIONS 预检、Origin 安全验证均通过。
+
+## 16. R.5 更新
+
+4-3.7.B.R.5 已完成 README 与部署说明更新。CORS 策略已在 README 和部署说明中写清楚：推荐走 Nginx 同源代理，生产环境不要使用 `*`。4-3.7.B.R 返工阶段已完成。
