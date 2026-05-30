@@ -491,3 +491,5 @@ Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映
 后续业务输出仍必须经过 JSON extract / parse / Schema validate / repair once / fallback_required。业务 Prompt 输出复杂度远高于最小连通性测试，JSON 遵循性仍需重点关注。
 
 4-3.3 已验证匹配分析接口在 JSON parse / Schema validate / repair once / fallback_required 下的稳定性。6 大验收场景全部通过，修复了 LLM 成功路径快照保存缺失的问题。
+
+4-3.4 推荐链路已开始执行 JSON parse / Schema validate / repair once / fallback_required 的统一处理。推荐输出还必须校验岗位来自候选集（job_id 白名单过滤），LLM 返回不存在 job_id 的推荐项被丢弃，全部丢弃后触发 fallback。

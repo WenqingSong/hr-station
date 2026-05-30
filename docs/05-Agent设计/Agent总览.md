@@ -278,6 +278,16 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
     - 当前仍未替换 Mock Agent
     - 下一阶段为 4-2：LLM Client 抽象与 Hunyuan Client 接入
 
+## 阶段 4-3.4 更新
+
+4-3.4 已完成：RecommendationAgent 接入 Pipeline。
+
+- MatchAnalysisAgent 已接入并通过接口验收（4-3.2 + 4-3.3）
+- RecommendationAgent 已接入 Pipeline（4-3.4），推荐链路已从纯 Mock 升级为 LLM Pipeline 优先 + Mock fallback
+- 推荐结果必须来自候选岗位集，不允许模型编造岗位
+- ResumeOptimizationAgent 尚未接入
+- 下一步为 4-3.5 推荐接口联调与 fallback 验收
+
 ## 关联文档
 
 - [阶段4Agent与模型接入方案.md](./阶段4Agent与模型接入方案.md)

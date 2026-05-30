@@ -166,3 +166,20 @@
 7. **4-3.4 将实现本接入方案**
 
 当前仍使用 Mock Agent，当前仍未接入 Pipeline。
+
+## 阶段 4-3.4 RecommendationAgent 接入 Pipeline
+
+4-3.4 已完成 RecommendationAgent 接入统一 Pipeline。关键实现：
+
+1. **Recommender 接口抽象**：`Recommend(ctx, resume, jobs)` — RecommendationMockAgent 和 RecommendationAgent 共享同一接口
+2. **PromptValues 组装**：RESUME_CONTEXT_JSON / JOB_CANDIDATES_JSON / BUSINESS_CONTEXT 三个占位符，与 recommendation_v1.md 对应
+3. **Pipeline 调用**：AgentName=RecommendationAgent，PromptName=recommendation，SchemaName=recommendation
+4. **候选岗位校验**：LLM 返回的 job_id 必须在候选集中，不存在的 job_id 被过滤；全部过滤后触发 fallback
+5. **字段映射**：map[string]any → RecommendedJob，推荐级别映射（priority_apply→strong_recommend、recommended→recommend、explore_first→try）
+6. **Job 字段来自候选集**：title/department/city/ExternalSource 等来自数据库候选岗位，不采用 LLM 输出
+7. **RecFallbackError**：Pipeline fallback_required 或映射失败时返回，Service 层捕获后调用 Mock
+8. **generated_by 规则**：success/repaired → llm_agent，fallback_required → mock_agent
+9. **Mock Agent 签名更新**：Recommend 方法新增 context.Context 参数以实现 Recommender 接口
+10. **RecommendedJob 新增字段**（omitempty）：RecommendLabel / OfferGoSummary / QuerySuggestions / GeneratedBy / AgentStatus / RepairApplied / FallbackReason / ErrorCode
+11. **RecommendationService 改造**：注入 pipelineRunner + llmEnabled，LLM 优先 + Mock 回退，LLM 路径保存快照
+12. **12 项 Agent 层测试通过**：LLM 成功、repaired、fallback_required、无效 job_id 过滤、空推荐列表、混合 job_id、PromptValues 组装、安全边界、推荐级别映射、候选字段来源校验等

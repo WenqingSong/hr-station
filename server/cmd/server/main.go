@@ -64,8 +64,7 @@ func main() {
 	// Initialize recommendation module
 	recommendationRepo := repository.NewRecommendationRepository(mysqlDB.DB)
 	mockAgent := agent.NewRecommendationMockAgent()
-	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent)
-	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
+	// recommendationService is created after LLM init (needs pipelineRunner)
 
 	// Initialize match module
 	matchRepo := repository.NewMatchRepository(mysqlDB.DB)
@@ -114,6 +113,10 @@ func main() {
 
 	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, pipelineRunner, llmEnabled)
 	matchHandler := httpserver.NewMatchHandler(matchService)
+
+	// Initialize recommendation service with Pipeline support (after LLM init)
+	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, pipelineRunner, llmEnabled)
+	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
 
 	// Initialize version compare module
 	versionCompareRepo := repository.NewVersionCompareRepository(mysqlDB.DB)

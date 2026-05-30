@@ -13,6 +13,9 @@ type RecommendationResult struct {
 }
 
 // RecommendedJob represents a single recommended job in the response.
+// Fields added for LLM Agent output (4-3.4) are safe additions that won't break
+// existing consumers: RecommendLabel, OfferGoSummary, QuerySuggestions,
+// AgentStatus, RepairApplied, FallbackReason, ErrorCode.
 type RecommendedJob struct {
 	JobID                uint64   `json:"job_id"`
 	Title                string   `json:"title"`
@@ -31,4 +34,16 @@ type RecommendedJob struct {
 	DataQuality          string   `json:"data_quality"`
 	SourceURL            *string  `json:"source_url,omitempty"`
 	IsFeatured           bool     `json:"is_featured"`
+
+	// LLM-enriched fields (added in 4-3.4, safe additions with omitempty)
+	RecommendLabel   string   `json:"recommend_label,omitempty"`
+	OfferGoSummary   string   `json:"offer_go_summary,omitempty"`
+	QuerySuggestions []string `json:"query_suggestions,omitempty"`
+
+	// Agent metadata (internal, 4-3.5 will unify API meta)
+	GeneratedBy    string `json:"generated_by,omitempty"`
+	AgentStatus    string `json:"agent_status,omitempty"`
+	RepairApplied  bool   `json:"repair_applied,omitempty"`
+	FallbackReason string `json:"fallback_reason,omitempty"`
+	ErrorCode      string `json:"error_code,omitempty"`
 }

@@ -421,3 +421,5 @@ HunyuanClient 已完成真实连通性验证：
 后续 Hunyuan smoke 和业务 Agent 接入前的配置检查应使用 `common.sh` 的 `load_env()`，不应使用 `source .env`。
 
 4-3.3 已完成匹配分析接口联调。业务接口层仍通过 Pipeline 间接使用 HunyuanClient，Mock fallback 保留。6 大验收场景全部通过。
+
+4-3.4 已完成 RecommendationAgent 接入 Pipeline。HunyuanClient 仍只作为 Pipeline 内部 llm.Client provider，业务 Agent 不直接调用 HunyuanClient。

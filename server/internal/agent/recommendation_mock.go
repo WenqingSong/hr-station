@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -20,7 +21,7 @@ func NewRecommendationMockAgent() *RecommendationMockAgent {
 
 // Recommend generates mock recommendations based on the resume and available jobs.
 // It uses simple keyword matching rules to score and rank jobs.
-func (a *RecommendationMockAgent) Recommend(resume *model.ResumeVersion, jobs []*model.Job) ([]model.RecommendedJob, error) {
+func (a *RecommendationMockAgent) Recommend(_ context.Context, resume *model.ResumeVersion, jobs []*model.Job) ([]model.RecommendedJob, error) {
 	type scoredJob struct {
 		job   *model.Job
 		score int

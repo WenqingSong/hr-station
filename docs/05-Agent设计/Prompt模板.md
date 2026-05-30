@@ -253,3 +253,7 @@ server/internal/agent/prompts/
 4. **不把完整简历/JD 写入日志**：PromptValues 仅传递给 Pipeline，不记录完整内容
 
 方案文档见 `docs/05-Agent设计/阶段4-3业务Agent接入LLM方案.md`
+
+## 阶段 4-3.4 更新
+
+4-3.4 已将 recommendation_v1.md 用于 RecommendationAgent Pipeline 调用。Prompt 文件本身未修改。PromptValues 组装包含 RESUME_CONTEXT_JSON / JOB_CANDIDATES_JSON / BUSINESS_CONTEXT 三个占位符。

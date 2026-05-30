@@ -489,3 +489,7 @@ LLM Client 本身仍未实现。
 ## 阶段 4-3.3 更新
 
 4-3.3 已完成首个业务接口的 LLM Pipeline 稳定性验收。业务接口通过 Agent 间接使用 Pipeline，不直接依赖 HunyuanClient。6 大验收场景全部通过（success / repaired / fallback_required / LLM_ENABLE=false / 配置异常 / 请求参数异常）。
+
+## 阶段 4-3.4 更新
+
+4-3.4 已完成第二个业务 Agent 对 Pipeline 的接入。RecommendationAgent 通过 Pipeline 间接使用 HunyuanClient，不直接依赖 HunyuanClient。推荐链路 PromptValues 组装与匹配分析同构（RESUME_CONTEXT_JSON / JOB_CANDIDATES_JSON / BUSINESS_CONTEXT）。

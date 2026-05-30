@@ -783,3 +783,5 @@ RUN_REAL_LLM_SMOKE=1 make llm-smoke
 4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline。核心实现：MatchAnalyzer 接口抽象、PipelineRunner 接口抽象、MatchAnalysisAgent（PromptValues 组装 + Pipeline 调用 + 字段映射 + MatchFallbackError）、MatchService（LLM 优先 + Mock 回退）、config.LLMConfig 扩展到 14 字段、main.go LLM 基础设施初始化。28 项单元测试通过（fake Pipeline，不调用真实 LLM）。下一步为 4-3.3 匹配分析接口联调与 fallback 验收。
 
 4-3.3 已完成：匹配分析接口联调与 fallback 验收。已验证 LLM success / repaired / fallback_required / LLM_ENABLE=false / 配置异常等路径。修复了 LLM 成功路径快照保存缺失的问题。新增 15+ 项 service 层验收测试。下一步为 4-3.4 RecommendationAgent 接入 Pipeline。
+
+4-3.4 已完成：RecommendationAgent 接入 Pipeline。核心实现：Recommender 接口抽象（RecommendationMockAgent + RecommendationAgent 共享）、PipelineRunner 接口复用、RecommendationAgent（PromptValues 组装 + Pipeline 调用 + 候选岗位校验 + 字段映射 + RecFallbackError）、RecommendationService（LLM 优先 + Mock 回退）、RecommendedJob 新增 LLM-enriched 字段（RecommendLabel / OfferGoSummary / QuerySuggestions / GeneratedBy / AgentStatus / RepairApplied / FallbackReason / ErrorCode，均 omitempty）。12 项 Agent 层单元测试通过（fake Pipeline，不调用真实 LLM）。岗位推荐链路已从纯 Mock 升级为 LLM Pipeline 优先 + Mock fallback。推荐结果必须来自候选岗位集，不允许模型编造岗位（job_id 白名单校验）。下一步为 4-3.5 推荐接口联调与 fallback 验收。

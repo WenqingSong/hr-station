@@ -607,3 +607,5 @@ if !runResult.FallbackRequired {
 即使连通性通过，后续业务 Agent 接入仍必须保留 Mock fallback，避免业务 Prompt 输出异常导致 Demo 不稳定。
 
 4-3.3 已在匹配分析接口层验收 Mock fallback。fallback_required 不作为接口失败，而是触发 match_mock.go 稳定兜底。6 大验收场景全部通过：LLM success / repaired / fallback_required / LLM_ENABLE=false / 配置异常 / 请求参数异常。
+
+4-3.4 已在 RecommendationAgent 中落地 Mock fallback：Pipeline fallback_required 时回退 recommendation_mock.go。RecFallbackError 标识推荐链路的 fallback 触发原因。推荐结果中无效 job_id 被过滤后也可能触发 fallback。
