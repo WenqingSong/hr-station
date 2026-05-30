@@ -211,6 +211,25 @@
 
 详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`
 
+## 阶段 4-3.5.E Agent 输出 Quality Gate 设计
+
+4-3.5.E 已完成 Agent 输出 Quality Gate 设计。后续匹配分析输出需要通过 Quality Gate 检查：
+
+1. 是否有 JD 证据链（jd_grounding_check）
+2. 是否有 apply_readiness（apply_boundary_check）
+3. 是否有 optimization_stop_signal（optimization_stop_check）
+4. 是否编造简历证据（fabrication_check）
+5. 是否避免泛泛匹配（jd_grounding_check）
+6. apply_readiness 与 optimization_stop_signal 是否一致（consistency_check）
+7. 是否包含核实提醒（verification_check）
+8. 是否存在不当表达（safety_tone_check）
+
+fabrication_check 一旦失败应直接 fallback_required。revise_required 时最多重试一次。
+
+本阶段不修改 Prompt / Schema / 代码，只登记方向。
+
+详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`
+
 ## 14. 阶段 4-3.2 接入实现
 
 4-3.2 已完成 MatchAnalysisAgent 接入 Pipeline，核心实现：

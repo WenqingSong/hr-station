@@ -538,3 +538,21 @@ Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映
 本阶段不修改 Schema。
 
 详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`
+
+## 阶段 4-3.5.E 更新
+
+4-3.5.E 已完成 Agent 输出 Quality Gate 设计。后续 Schema 可评估增加以下字段：
+
+1. `quality_gate_result`：Quality Gate 检查结果（pass / revise_required / fallback_required / manual_review_suggested）
+2. `quality_score`：内容质量评分（内部使用）
+3. `failed_checks`：未通过的检查项列表
+4. `revision_allowed`：是否允许 revise
+5. `revision_count`：已执行 revise 次数
+6. `final_action`：最终动作（return / revise_once / conservative_fallback / mock_fallback）
+7. `quality_gate_summary`：质检摘要（可选，前端展示用）
+
+Quality Gate 是内容层检查，在 JSON Repair 和 Schema Validate 之上运行。结构合法不等于内容可靠。
+
+本阶段不修改 Schema。
+
+详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`

@@ -674,6 +674,8 @@ ResumeOptimizationAgent 的输出必须围绕 JD 证据链展开，不能脱离 
 
 本阶段只做设计确认，不实现 Quality Gate。
 
+4-3.5.E 已完成 Agent 输出 Quality Gate 设计。Quality Gate 可检查 Agent 输出是否缺少 JD 证据链、是否泛泛建议、是否编造经历、是否缺少核实提醒、是否使用"建议改为"而非"示例参考"。fabrication_check 一旦失败应直接 fallback_required。详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`
+
 ## 16. 对 Prompt / Schema 的后续影响
 
 ### 16.1 可评估新增字段

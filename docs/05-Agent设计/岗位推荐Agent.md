@@ -242,3 +242,18 @@
 本阶段不修改 Prompt / Schema / 代码，只登记方向。
 
 详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`
+
+## 阶段 4-3.5.E Agent 输出 Quality Gate 设计
+
+4-3.5.E 已完成 Agent 输出 Quality Gate 设计。后续推荐输出需要通过 Quality Gate 检查：
+
+1. 推荐岗位是否来自候选岗位集（fabrication_check，一旦推荐候选集外岗位应 fallback_required）
+2. 是否编造 job_id / title / department（fabrication_check）
+3. 是否解释推荐理由（jd_grounding_check）
+4. 是否有推荐优先级和置信度（apply_boundary_check）
+5. 是否包含核实提醒（verification_check）
+6. 是否存在不当表达（safety_tone_check）
+
+本阶段不修改 Prompt / Schema / 代码，只登记方向。
+
+详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`

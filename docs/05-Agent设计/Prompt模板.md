@@ -303,3 +303,16 @@ server/internal/agent/prompts/
 本阶段不修改 Prompt 文件。
 
 详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`
+
+## 阶段 4-3.5.E 更新
+
+4-3.5.E 已完成 Agent 输出 Quality Gate 设计。后续 Prompt 优化需配合 Quality Gate 检查项：
+
+1. **quality_gate_result**：后续 Schema 可评估增加 Quality Gate 检查结果字段
+2. **revise once**：当 Quality Gate 判定 revise_required 时，需要将 failed_checks 反馈给生成 Agent
+3. **Prompt 需强化**：确保输出包含 JD 证据链、apply_readiness、optimization_stop_signal、verification_notice 等 Quality Gate 检查所需字段
+4. **保守输出**：Prompt 应引导模型在不确定时输出保守结果，避免触发 fallback_required
+
+本阶段不修改 Prompt 文件。
+
+详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`

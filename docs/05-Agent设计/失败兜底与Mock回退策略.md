@@ -646,3 +646,24 @@ if !runResult.FallbackRequired {
 本阶段只做设计确认，不实现。
 
 详见 `docs/05-Agent设计/JD证据链匹配与START简历优化规则.md`
+
+## 阶段 4-3.5.E 更新
+
+4-3.5.E 已完成 Agent 输出 Quality Gate 设计。Quality Gate 是内容层面的兜底策略：
+
+1. **Quality Gate 在 JSON Repair 之上运行**：JSON Repair 修结构，Quality Gate 检内容
+2. **revise once**：Quality Gate 判定 revise_required 时，最多重试一次，仍不合格则 fallback
+3. **conservative_fallback**：LLM 输出有一定价值但缺少足够证据时，返回保守结果
+4. **mock_fallback**：LLM 输出存在严重问题（编造经历、编造岗位、不当承诺等）时，使用 Mock Agent
+5. **fallback 不是失败**：Quality Gate 触发 fallback 是正确决策，不是系统故障
+6. **fabrication_check 一旦失败**：应直接 fallback_required，不尝试 revise
+
+后续 Pipeline 可在 JSON Repair 之后接入 Quality Gate：
+
+```
+Prompt → LLM → JSON parse → Schema validate → repair once → Quality Gate → revise once → fallback decision
+```
+
+本阶段只做设计，不实现。
+
+详见 `docs/05-Agent设计/Agent输出QualityGate设计.md`
