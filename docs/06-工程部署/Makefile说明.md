@@ -1,6 +1,6 @@
 # Makefile 说明
 
-> 最后更新：2026-05-30（阶段 4-3.1.C 开发环境 Env 自动生成与 Makefile 接入）
+> 最后更新：2026-05-30（阶段 4-3.1 通过结果登记）
 
 ## 1. 设计目标
 
@@ -188,6 +188,10 @@ make db-reset CONFIRM=yes
 3. `make llm-smoke` 不在 `make up` / `make ci` 中自动执行
 4. smoke test 使用最小 Prompt，不携带简历、JD 或业务数据
 5. 不输出 API Key，不输出完整 raw output
+
+4-3.1 已通过 `RUN_REAL_LLM_SMOKE=1 make llm-smoke` 验证真实 LLM 连通性。`make llm-check` 可验证 LLM 配置完整性。`make llm-smoke` 仍需要 `RUN_REAL_LLM_SMOKE=1` 才触发真实模型请求。
+
+后续建议将 smoke 输出中的 `api_key` 脱敏显示进一步改为 `api_key=configured`，不展示尾号。
 
 ## 11. 日志命令
 

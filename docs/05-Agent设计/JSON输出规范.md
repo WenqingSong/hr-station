@@ -481,3 +481,11 @@ Pipeline RunResult.Parsed 类型为 `map[string]any`，业务 Agent 需将其映
 原因：LLM_ENABLE=false，LLM_BASE_URL 未配置。`.env` 已存在但只有模板值。
 
 三次核验均因配置不完整无法执行真实 smoke。
+
+## 阶段 4-3.1 通过结果登记更新
+
+4-3.1 已观察真实 Hunyuan smoke 输出。
+
+本次最小 Prompt 返回 JSON 可被成功解析，`json_parse_success=true`。`raw_output_preview={"ok":true,"message":"pong"}`。
+
+后续业务输出仍必须经过 JSON extract / parse / Schema validate / repair once / fallback_required。业务 Prompt 输出复杂度远高于最小连通性测试，JSON 遵循性仍需重点关注。

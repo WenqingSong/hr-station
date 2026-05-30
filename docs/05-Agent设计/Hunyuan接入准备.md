@@ -399,3 +399,17 @@ Hunyuan 私有请求 / 响应结构不应泄漏到业务 Agent 层。业务 Agen
 - 用户创建 `.env.local` 保存本地真实开发配置（LLM_API_KEY 等）
 - `make ensure-env` 会自动从 `.env.local` 或 `.env.example` 生成 `.env`
 - 真实 LLM smoke 仍需用户填写真实 LLM 配置后执行
+
+## 阶段 4-3.1 通过结果登记更新
+
+4-3.1 已通过真实 LLM Smoke 前置验收。
+
+HunyuanClient 已完成真实连通性验证：
+- provider=hunyuan
+- model=hy3-preview
+- finish_reason=stop
+- json_parse_success=true
+- raw_output_length=28
+- duration_ms=1327
+
+后续业务 Agent 仍必须通过 Pipeline 间接使用 HunyuanClient，不直接调用。

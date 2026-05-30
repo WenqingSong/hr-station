@@ -384,3 +384,100 @@ HunyuanClient httptest 单元测试（22 项）和 llmjson 单元测试全部通
 - ❌ HunyuanClient 真实连通性仍未验证
 
 **暂不建议进入 4-3.2，需要先在 `.env` 或 `.env.local` 中填写真实 LLM 配置并完成真实 smoke。**
+
+---
+
+## 18. 通过结果登记（4-3.1 真实 LLM Smoke 通过）
+
+> 登记时间：2026-05-30
+> 登记编号：4-3.1 通过结果登记
+
+### 18.1 验收结论
+
+**pass**
+
+4-3.1 真实 LLM Smoke 前置验收已通过。可以进入 4-3.2。
+
+### 18.2 配置检查结果
+
+| 检查项 | 结果 |
+|--------|------|
+| .env 是否存在 | ✅ 存在 |
+| LLM_ENABLE | true |
+| LLM_PROVIDER | hunyuan |
+| LLM_BASE_URL | 已配置 |
+| LLM_API_KEY | 已配置（长度: 51），但不记录真实 Key |
+| LLM_MODEL | hy3-preview |
+| LLM_TEMPERATURE | 0.2 |
+| LLM_MAX_OUTPUT_TOKENS | 8192 |
+| LLM_TIMEOUT_SECONDS | 30 |
+| HunyuanClient 编译 | 通过 |
+
+### 18.3 make llm-help 验收
+
+✅ 通过
+
+### 18.4 make llm-check 验收
+
+✅ 通过（LLM 配置完整，可执行 smoke test）
+
+### 18.5 真实 LLM smoke 执行结果
+
+✅ **已执行并成功**
+
+| 指标 | 值 |
+|------|-----|
+| provider | hunyuan |
+| model | hy3-preview |
+| finish_reason | stop |
+| raw_output_length | 28 |
+| duration_ms | 1327 |
+| usage.prompt_tokens | 50 |
+| usage.completion_tokens | 11 |
+| usage.total_tokens | 61 |
+| json_parse_success | true |
+| raw_output_preview | {"ok":true,"message":"pong"} |
+
+### 18.6 JSON parse 观察结果
+
+本次最小 Prompt 返回 JSON 可被成功解析，`json_parse_success=true`。
+
+后续业务输出仍必须经过 JSON extract / parse / Schema validate / repair once / fallback_required。
+
+### 18.7 安全检查
+
+| 检查项 | 结果 |
+|--------|------|
+| 是否输出 API Key | ✅ 仅脱敏尾号，未泄露完整 Key |
+| 是否输出 Authorization header | ✅ 未输出 |
+| 是否输出完整 raw output | ✅ 未输出（仅 28 字符预览） |
+| 是否携带简历 | ✅ 未携带 |
+| 是否携带岗位 JD | ✅ 未携带 |
+| 是否携带腾讯岗位数据 | ✅ 未携带 |
+| 是否携带用户隐私 | ✅ 未携带 |
+| 是否调用业务接口 | ✅ 未调用 |
+| 是否请求腾讯招聘接口 | ✅ 未请求 |
+| 是否修改业务 Agent | ✅ 未修改 |
+
+**轻微风险**：smoke 输出中出现脱敏 API Key 尾号（`api_key=***********************************************4Nql`），虽未泄露完整 Key，不阻塞本次验收；后续建议将输出优化为 `api_key=configured`，不展示任何尾号。
+
+### 18.8 是否可以进入 4-3.2
+
+**✅ 可以进入 4-3.2。**
+
+### 18.9 验收结论
+
+4-3.1 真实 LLM Smoke 前置验收**已通过**。
+
+- ✅ `make llm-help` 可用
+- ✅ `make llm-check` 可用，LLM 配置完整
+- ✅ `make llm-smoke` 真实调用成功
+- ✅ HunyuanClient 真实连通性已验证
+- ✅ json_parse_success=true
+- ✅ 不输出真实 API Key
+- ✅ 不输出完整 raw output
+- ✅ 未携带简历 / JD / 腾讯岗位数据 / 用户隐私
+- ✅ 未调用业务接口
+- ✅ 未修改业务 Agent
+
+**可以进入 4-3.2 MatchAnalysisAgent 接入 Pipeline。**

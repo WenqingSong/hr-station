@@ -470,3 +470,14 @@ LLM Client 本身仍未实现。
 原因：LLM_ENABLE=false，LLM_BASE_URL 未配置。`.env` 已存在（4-3.1.C 自动创建）但只有模板值。
 
 三次核验均因配置不完整无法执行。业务 Agent 接入仍必须通过 Pipeline，不直接调用 HunyuanClient。
+
+## 阶段 4-3.1 通过结果登记更新
+
+4-3.1 已通过 llm-smoke 验证 HunyuanClient 真实连通性。
+
+真实 smoke 结果：
+- provider=hunyuan，model=hy3-preview
+- finish_reason=stop，json_parse_success=true
+- raw_output_length=28，duration_ms=1327
+
+业务 Agent 接入时仍必须调用统一 Pipeline，不直接依赖 HunyuanClient。

@@ -599,3 +599,9 @@ if !runResult.FallbackRequired {
 原因：LLM_ENABLE=false，LLM_BASE_URL 未配置。`.env` 已存在（4-3.1.C 自动创建）但只有模板值。
 
 三次核验均因配置不完整无法执行。后续业务 Agent 接入时仍必须保留 Mock fallback。
+
+## 阶段 4-3.1 通过结果登记更新
+
+4-3.1 已通过真实 LLM Smoke 前置验收。Hunyuan / TokenHub 最小调用可用，`json_parse_success=true`。
+
+即使连通性通过，后续业务 Agent 接入仍必须保留 Mock fallback，避免业务 Prompt 输出异常导致 Demo 不稳定。

@@ -28,17 +28,9 @@ fi
 
 # --------------------------------------------------
 # .env 加载（安全方式）
+# 使用 common.sh 的 load_env 逐行解析，避免 DB_DSN 等含特殊字符的值
+# 导致 source 语法错误（如括号被 bash 解释为子 shell）
 # --------------------------------------------------
-load_env_silent() {
-  local env_file="${PROJECT_ROOT}/.env"
-  if [[ -f "$env_file" ]]; then
-    # Source .env silently, do not print contents
-    set -a
-    # shellcheck disable=SC1090
-    source "$env_file" 2>/dev/null || true
-    set +a
-  fi
-}
 
 # --------------------------------------------------
 # 命令实现
@@ -76,7 +68,7 @@ do_check() {
   echo ""
 
   # Load .env if available
-  load_env_silent
+  load_env
 
   # Check .env existence
   local env_file="${PROJECT_ROOT}/.env"
@@ -178,7 +170,7 @@ do_smoke() {
   fi
 
   # Load .env if available
-  load_env_silent
+  load_env
 
   # Verify basic config before calling
   local llm_enable="${LLM_ENABLE:-false}"
