@@ -1,10 +1,10 @@
 # Agent 总览
 
-> 最后更新：2026-05-30（阶段 4-3.1 真实 LLM Smoke 前置验收）
+> 最后更新：2026-05-30（阶段 4-3.1.B 真实 LLM Smoke 二次核验）
 
 ## 当前状态
 
-阶段 4-3 已开始，4-3.0 已完成方案设计，4-3.1 真实 LLM Smoke 前置验收未通过（本地 LLM 配置不完整）。暂不建议进入 4-3.2。
+阶段 4-3 已开始，4-3.0 已完成方案设计，4-3.1.B 真实 LLM Smoke 二次核验未通过（本地 LLM 配置仍不完整，与前次 4-3.1 一致）。暂不建议进入 4-3.2。
 
 - **RecommendationMockAgent**（`server/internal/agent/recommendation_mock.go`）：基于规则打分生成推荐结果
 - **MatchMockAgent**（`server/internal/agent/match_mock.go`）：基于规则打分生成匹配分析结果（含 JD-简历证据链）

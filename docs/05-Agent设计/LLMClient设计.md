@@ -449,3 +449,16 @@ LLM Client 本身仍未实现。
 - 暂不建议进入 4-3.2
 
 验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。
+
+## 阶段 4-3.1.B 更新
+
+4-3.1.B 再次通过 llm-smoke 对 HunyuanClient 真实连通性进行前置核验，但真实 smoke 仍未执行。
+
+原因：本地 .env 仍然不存在，LLM 配置仍不完整（与前次 4-3.1 一致）。
+
+结论：
+- HunyuanClient 代码逻辑正确（httptest 22 项单元测试通过）
+- 真实连通性仍未验证
+- 两次核验均因配置缺失无法执行
+- 业务 Agent 接入仍必须通过 Pipeline，不直接调用 HunyuanClient
+- 暂不建议进入 4-3.2

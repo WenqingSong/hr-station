@@ -357,3 +357,21 @@ Hunyuan 私有请求 / 响应结构不应泄漏到业务 Agent 层。业务 Agen
 验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。
 
 用户需补齐 .env 配置后重新执行 `RUN_REAL_LLM_SMOKE=1 make llm-smoke`。
+
+## 阶段 4-3.1.B 更新
+
+4-3.1.B 已重新核验 Hunyuan / TokenHub 最小调用，但真实 smoke 仍未执行。
+
+原因与前次 4-3.1 完全一致：本地 .env 仍然不存在，LLM 配置仍不完整：
+- LLM_ENABLE=false
+- LLM_BASE_URL 未配置
+- LLM_API_KEY 未配置
+- LLM_MODEL 未配置
+
+两次核验（4-3.1 和 4-3.1.B）均因配置缺失无法执行真实 smoke。
+
+结论：HunyuanClient 真实连通性仍未验证，暂不建议进入 4-3.2。
+
+验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。
+
+用户需先创建 `.env` 文件并补齐 LLM 配置后重新执行 `RUN_REAL_LLM_SMOKE=1 make llm-smoke`。

@@ -580,3 +580,14 @@ if !runResult.FallbackRequired {
 - 暂不建议进入 4-3.2
 
 验收报告见 `docs/05-Agent设计/真实LLMSmoke前置验收报告.md`。
+
+## 阶段 4-3.1.B 更新
+
+4-3.1.B 再次完成真实 LLM smoke 二次核验，但真实 smoke 仍未执行（本地 LLM 配置仍不完整，与前次 4-3.1 一致）。
+
+结论：
+- 真实 LLM 连通性仍未验证
+- 两次核验均因配置缺失无法执行
+- 后续业务 Agent 接入时仍必须保留 Mock fallback
+- Mock fallback 当前仍为接口稳定性的最终保障
+- 暂不建议进入 4-3.2
