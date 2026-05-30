@@ -374,3 +374,26 @@
 - `make llm-check` 通过（未调用真实 LLM）
 - Prompt / Schema / Go model / Agent mapping / mock / fallback / fixture 已保持一致
 - fix.2 完成后 C.1 判定升级为 pass，可进入 fix.3 最终闸门验收
+
+## 22. 4-3.7-fix.3 完成记录
+
+4-3.7-fix.3 已完成最终闸门验收。
+
+### 验收结果
+
+| 验收项 | 结果 |
+|--------|------|
+| Git 状态 | ✅ 分支 rework/hybrid-dev，工作区干净 |
+| 敏感 Key | ✅ 无真实未脱敏 Key |
+| 全容器残留 | ✅ 无方案 A / 全容器路线回归 |
+| Prompt 字段一致性 | ✅ 三个 Prompt 均包含新字段 |
+| Schema 字段一致性 | ✅ 三个 Schema 均包含新字段 |
+| Go 契约一致性 | ✅ model + mapping + mock + fixture 同步 |
+| JSON Schema 合法性 | ✅ 三个 Schema 均 JSON 合法 |
+| Go 测试 | ✅ go test ./... 全部通过 |
+| LLM 配置检查 | ✅ make llm-check 可用 |
+| 状态文档一致性 | ✅ 一致指向 4-3.8 |
+
+### 结论
+
+Prompt / Schema / Go 契约一致性已通过，C.1 判定为 pass。下一步进入 4-3.8 三类业务 Agent 集成验收。
