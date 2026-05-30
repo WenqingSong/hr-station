@@ -72,6 +72,56 @@ start_web() {
 
 stop_web() {
     stop_pid_file "$PID_FILE" "前端"
+
+    # 端口兜底：如果 5173 仍被占用，尝试清理本项目相关进程
+    if check_port "$WEB_PORT"; then
+        local port_pids=""
+        if command -v lsof >/dev/null 2>&1; then
+            port_pids=$(lsof -t -i ":${WEB_PORT}" -sTCP:LISTEN 2>/dev/null || true)
+        fi
+
+        if [ -n "$port_pids" ]; then
+            for port_pid in $port_pids; do
+                local cmd
+                cmd=$(ps -p "$port_pid" -o args= 2>/dev/null || true)
+                local cwd=""
+                cwd=$(readlink /proc/"$port_pid"/cwd 2>/dev/null || true)
+
+                # 判断是否属于当前项目前端进程
+                local is_project_process=0
+                if echo "$cmd" | grep -qi "vite"; then
+                    is_project_process=1
+                elif echo "$cmd" | grep -qi "npm.*dev"; then
+                    is_project_process=1
+                elif [ -n "$cwd" ] && echo "$cwd" | grep -q "$(basename "$WEB_DIR")"; then
+                    is_project_process=1
+                fi
+
+                if [ "$is_project_process" -eq 1 ]; then
+                    log_warn "端口 ${WEB_PORT} 仍有本项目前端残留进程 (PID: ${port_pid})，正在清理..."
+                    # 同时清理该进程的后代
+                    local descendants
+                    descendants=$(get_all_descendants "$port_pid")
+                    for desc_pid in $descendants; do
+                        kill "$desc_pid" 2>/dev/null || true
+                    done
+                    kill "$port_pid" 2>/dev/null || true
+                    sleep 1
+                    if kill -0 "$port_pid" 2>/dev/null; then
+                        kill -9 "$port_pid" 2>/dev/null || true
+                    fi
+                    for desc_pid in $descendants; do
+                        if kill -0 "$desc_pid" 2>/dev/null; then
+                            kill -9 "$desc_pid" 2>/dev/null || true
+                        fi
+                    done
+                else
+                    log_warn "端口 ${WEB_PORT} 被非本项目进程占用 (PID: ${port_pid})，请手动处理"
+                    log_warn "  进程命令: ${cmd}"
+                fi
+            done
+        fi
+    fi
 }
 
 case "$ACTION" in
