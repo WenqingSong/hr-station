@@ -21,12 +21,19 @@ type RecommendationRequest struct {
 
 // RecommendationResponse represents the response for job recommendations.
 type RecommendationResponse struct {
-	ResumeVersionID uint64                  `json:"resume_version_id"`
-	ResumeVersionNo int                     `json:"resume_version_no"`
-	GeneratedBy     string                  `json:"generated_by"`
+	ResumeVersionID uint64                        `json:"resume_version_id"`
+	ResumeVersionNo int                           `json:"resume_version_no"`
+	GeneratedBy     string                        `json:"generated_by"`     // deprecated: use meta.generated_by
+	RecommendedJobs []*model.RecommendedJob       `json:"recommended_jobs"` // deprecated: use result.recommended_jobs
+	Result          *RecommendationBusinessResult `json:"result"`
+	Summary         string                        `json:"summary"`
+	CreatedAt       string                        `json:"created_at"`
+	Meta            model.AgentResponseMeta       `json:"meta"`
+}
+
+// RecommendationBusinessResult wraps the business result for recommendation.
+type RecommendationBusinessResult struct {
 	RecommendedJobs []*model.RecommendedJob `json:"recommended_jobs"`
-	Summary         string                  `json:"summary"`
-	CreatedAt       string                  `json:"created_at"`
 }
 
 // RecommendationService handles job recommendation business logic.
@@ -161,13 +168,34 @@ func (s *RecommendationService) recommendWithLLM(ctx context.Context, userID uin
 	summary := generateSummary(resume, jobPtrs)
 	now := time.Now()
 
+	// Derive meta from the first recommended job's metadata, or default to LLM success
+	var meta model.AgentResponseMeta
+	if len(jobPtrs) > 0 && jobPtrs[0] != nil {
+		meta = model.DeriveMetaFromResult(
+			model.AgentNameRecommendation,
+			jobPtrs[0].GeneratedBy,
+			jobPtrs[0].AgentStatus,
+			jobPtrs[0].FallbackReason,
+			jobPtrs[0].ErrorCode,
+			jobPtrs[0].RepairApplied,
+		)
+	} else {
+		meta = model.NewAgentResponseMeta(model.AgentNameRecommendation)
+		meta.GeneratedBy = model.GeneratedByLLMAgent
+		meta.AgentStatus = model.AgentStatusSuccess
+	}
+
+	recResult := &RecommendationBusinessResult{RecommendedJobs: jobPtrs}
+
 	resp := &RecommendationResponse{
 		ResumeVersionID: resume.ID,
 		ResumeVersionNo: resume.VersionNo,
 		GeneratedBy:     "llm_agent",
 		RecommendedJobs: jobPtrs,
+		Result:          recResult,
 		Summary:         summary,
 		CreatedAt:       now.Format("2006-01-02T15:04:05Z07:00"),
+		Meta:            meta,
 	}
 
 	// Save recommendation result snapshot (same as mock path)
@@ -201,6 +229,7 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 	}
 
 	// Set metadata for mock results
+	var meta model.AgentResponseMeta
 	for i := range recommendedJobs {
 		recommendedJobs[i].GeneratedBy = "mock_agent"
 		if fbErr != nil {
@@ -209,8 +238,22 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 			recommendedJobs[i].ErrorCode = fbErr.ErrorCode
 			recommendedJobs[i].RepairApplied = false
 		} else {
-			recommendedJobs[i].AgentStatus = "mock"
+			recommendedJobs[i].AgentStatus = model.AgentStatusMockSuccess
 		}
+	}
+
+	// Build meta from first job or fallback info
+	if fbErr != nil {
+		meta = model.DeriveMetaFromResult(
+			model.AgentNameRecommendation,
+			"mock_agent",
+			"fallback",
+			fbErr.FallbackReason,
+			fbErr.ErrorCode,
+			false,
+		)
+	} else {
+		meta = model.NewAgentResponseMeta(model.AgentNameRecommendation)
 	}
 
 	// Convert to pointer slice for response
@@ -222,13 +265,17 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 	summary := generateSummary(resume, jobPtrs)
 	now := time.Now()
 
+	recResult := &RecommendationBusinessResult{RecommendedJobs: jobPtrs}
+
 	resp := &RecommendationResponse{
 		ResumeVersionID: resume.ID,
 		ResumeVersionNo: resume.VersionNo,
 		GeneratedBy:     "mock_agent",
 		RecommendedJobs: jobPtrs,
+		Result:          recResult,
 		Summary:         summary,
 		CreatedAt:       now.Format("2006-01-02T15:04:05Z07:00"),
+		Meta:            meta,
 	}
 
 	// Save recommendation result snapshot
@@ -237,13 +284,13 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 		return nil, fmt.Errorf("failed to marshal recommendation result: %w", err)
 	}
 
-	recResult := &model.RecommendationResult{
+	recSnapshot := &model.RecommendationResult{
 		UserID:          userID,
 		ResumeVersionID: resume.ID,
 		ResultJSON:      resultJSON,
 	}
 
-	if err := s.recommendationRepo.Create(ctx, recResult); err != nil {
+	if err := s.recommendationRepo.Create(ctx, recSnapshot); err != nil {
 		// Log but don't fail the response if snapshot save fails
 		_ = err
 	}

@@ -21,10 +21,11 @@ type MatchRequest struct {
 // MatchResponse represents the response for job match analysis.
 type MatchResponse struct {
 	AnalysisID    uint64                     `json:"analysis_id"`
-	GeneratedBy   string                     `json:"generated_by"`
+	GeneratedBy   string                     `json:"generated_by"` // deprecated: use meta.generated_by
 	Result        *model.MatchAnalysisResult `json:"result"`
 	AnalysisBasis *model.AnalysisBasis       `json:"analysis_basis"`
 	CreatedAt     string                     `json:"created_at"`
+	Meta          model.AgentResponseMeta    `json:"meta"`
 }
 
 // MatchService handles job match analysis business logic.
@@ -147,6 +148,14 @@ func (s *MatchService) analyzeWithLLM(ctx context.Context, resume *model.ResumeV
 			DataQuality:         job.DataQuality,
 		},
 		CreatedAt: now.Format("2006-01-02T15:04:05Z07:00"),
+		Meta: model.DeriveMetaFromResult(
+			model.AgentNameMatchAnalysis,
+			result.GeneratedBy,
+			result.AgentStatus,
+			result.FallbackReason,
+			result.ErrorCode,
+			result.RepairApplied,
+		),
 	}
 
 	// Save match analysis snapshot (same as mock path)
@@ -185,13 +194,23 @@ func (s *MatchService) analyzeWithMock(
 
 	// Set metadata for mock result
 	result.GeneratedBy = "mock_agent"
+	var meta model.AgentResponseMeta
 	if fbErr != nil {
 		result.AgentStatus = "fallback"
 		result.FallbackReason = fbErr.FallbackReason
 		result.ErrorCode = fbErr.ErrorCode
 		result.RepairApplied = false
+		meta = model.DeriveMetaFromResult(
+			model.AgentNameMatchAnalysis,
+			"mock_agent",
+			"fallback",
+			fbErr.FallbackReason,
+			fbErr.ErrorCode,
+			false,
+		)
 	} else {
-		result.AgentStatus = "mock"
+		result.AgentStatus = model.AgentStatusMockSuccess
+		meta = model.NewAgentResponseMeta(model.AgentNameMatchAnalysis)
 	}
 
 	now := time.Now()
@@ -204,6 +223,7 @@ func (s *MatchService) analyzeWithMock(
 			DataQuality:         job.DataQuality,
 		},
 		CreatedAt: now.Format("2006-01-02T15:04:05Z07:00"),
+		Meta:      meta,
 	}
 
 	// Save match analysis snapshot

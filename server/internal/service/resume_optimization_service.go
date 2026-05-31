@@ -25,9 +25,10 @@ type ResumeOptimizationRequest struct {
 // ResumeOptimizationResponse represents the response for resume optimization.
 type ResumeOptimizationResponse struct {
 	OptimizationID uint64                          `json:"optimization_id"`
-	GeneratedBy    string                          `json:"generated_by"`
+	GeneratedBy    string                          `json:"generated_by"` // deprecated: use meta.generated_by
 	Result         *model.ResumeOptimizationResult `json:"result"`
 	CreatedAt      string                          `json:"created_at"`
+	Meta           model.AgentResponseMeta         `json:"meta"`
 }
 
 // ResumeOptimizationService handles resume optimization business logic.
@@ -67,7 +68,7 @@ func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64,
 
 	// Build agent input
 	input := &agent.OptimizeInput{
-		ResumeText:   req.ResumeText,
+		ResumeText:    req.ResumeText,
 		TargetSection: req.TargetSection,
 	}
 
@@ -121,6 +122,14 @@ func (s *ResumeOptimizationService) optimizeWithLLM(ctx context.Context, userID 
 		GeneratedBy: result.GeneratedBy,
 		Result:      result,
 		CreatedAt:   now.Format("2006-01-02T15:04:05Z07:00"),
+		Meta: model.DeriveMetaFromResult(
+			model.AgentNameResumeOptimization,
+			result.GeneratedBy,
+			result.AgentStatus,
+			result.FallbackReason,
+			result.ErrorCode,
+			result.RepairApplied,
+		),
 	}
 
 	// Save optimization snapshot (best effort)
@@ -145,13 +154,23 @@ func (s *ResumeOptimizationService) optimizeWithMock(
 
 	// Set metadata for mock result
 	result.GeneratedBy = "mock_agent"
+	var meta model.AgentResponseMeta
 	if fbErr != nil {
 		result.AgentStatus = "fallback"
 		result.FallbackReason = fbErr.FallbackReason
 		result.ErrorCode = fbErr.ErrorCode
 		result.RepairApplied = false
+		meta = model.DeriveMetaFromResult(
+			model.AgentNameResumeOptimization,
+			"mock_agent",
+			"fallback",
+			fbErr.FallbackReason,
+			fbErr.ErrorCode,
+			false,
+		)
 	} else {
-		result.AgentStatus = "mock_success"
+		result.AgentStatus = model.AgentStatusMockSuccess
+		meta = model.NewAgentResponseMeta(model.AgentNameResumeOptimization)
 	}
 
 	// Handle short resume case
@@ -165,6 +184,7 @@ func (s *ResumeOptimizationService) optimizeWithMock(
 		GeneratedBy: "mock_agent",
 		Result:      result,
 		CreatedAt:   now.Format("2006-01-02T15:04:05Z07:00"),
+		Meta:        meta,
 	}
 
 	// Save optimization snapshot (best effort)
