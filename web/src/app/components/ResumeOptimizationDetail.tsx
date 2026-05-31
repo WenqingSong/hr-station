@@ -6,6 +6,11 @@ import { useNavigate } from "react-router";
 import { mockResumeOptimizationResponse } from "../mocks";
 import { toResumeOptimizationPageViewModel } from "../adapters";
 
+interface ResumeOptimizationDetailProps {
+  currentJobId?: string;
+  currentResumeId?: string;
+}
+
 const optVm = toResumeOptimizationPageViewModel(
   mockResumeOptimizationResponse.result,
   mockResumeOptimizationResponse.meta
@@ -30,7 +35,7 @@ const CollapsibleSection = ({ title, icon: Icon, children, defaultOpen = false }
   );
 };
 
-export function ResumeOptimizationDetail() {
+export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", currentResumeId = "resume-v2" }: ResumeOptimizationDetailProps) {
   const navigate = useNavigate();
 
   return (
@@ -248,7 +253,7 @@ export function ResumeOptimizationDetail() {
             <Button 
               variant="outline" 
               className="flex-1 border-transparent text-[#0052D9] hover:bg-blue-50 h-11"
-              onClick={() => navigate("/jobs/1")}
+              onClick={() => navigate(`/jobs/${currentJobId}`)}
             >
               查看岗位详情
             </Button>

@@ -1,12 +1,16 @@
 import React from "react";
 import { FileText, Sparkles, Target, TrendingUp } from "lucide-react";
 import { Badge } from "./ui/Badge";
-import { mockCurrentResume } from "../mocks";
 import { toResumeSummaryViewModel } from "../adapters";
+import type { Resume } from "../types";
 
-const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
+interface ResumeOptimizationSidebarRightProps {
+  resume?: Resume;
+  resumeSource?: string;
+}
 
-export function ResumeOptimizationSidebarRight() {
+export function ResumeOptimizationSidebarRight({ resume, resumeSource = "默认简历" }: ResumeOptimizationSidebarRightProps) {
+  const resumeVm = toResumeSummaryViewModel(resume || null as any);
   return (
     <aside className="w-[320px] shrink-0 flex flex-col gap-4">
       {/* Resume Card */}

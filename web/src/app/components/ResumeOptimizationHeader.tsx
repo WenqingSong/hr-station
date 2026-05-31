@@ -1,14 +1,20 @@
 import React from "react";
 import { ChevronLeft, Briefcase, FileText, Activity } from "lucide-react";
 import { useNavigate } from "react-router";
-import { mockSelectedJob, mockCurrentResume } from "../mocks";
 import { toJobDetailViewModel, toResumeSummaryViewModel } from "../adapters";
+import type { JobDetail, Resume } from "../types";
 
-const jobVm = toJobDetailViewModel(mockSelectedJob);
-const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
+interface ResumeOptimizationHeaderProps {
+  job?: JobDetail;
+  resume?: Resume;
+  jobSource?: string;
+  resumeSource?: string;
+}
 
-export function ResumeOptimizationHeader() {
+export function ResumeOptimizationHeader({ job, resume, jobSource = "默认岗位", resumeSource = "默认简历" }: ResumeOptimizationHeaderProps) {
   const navigate = useNavigate();
+  const jobVm = toJobDetailViewModel(job || null as any);
+  const resumeVm = toResumeSummaryViewModel(resume || null as any);
 
   return (
     <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm flex flex-col gap-3">
@@ -17,7 +23,7 @@ export function ResumeOptimizationHeader() {
           <h1 className="text-[18px] font-bold text-gray-900 tracking-tight">简历优化</h1>
           <div className="h-3.5 w-px bg-gray-300"></div>
           <p className="text-[13px] text-gray-500">
-            基于目标岗位 JD 和当前简历，生成投递前最关键的修复任务和核实清单。
+            基于已选择目标岗位 JD 和已选择简历，生成投递前最关键的修复任务和核实清单。
           </p>
         </div>
         <button 
@@ -39,11 +45,21 @@ export function ResumeOptimizationHeader() {
         </div>
         <div className="w-px h-3 bg-gray-200"></div>
         <div className="flex items-center gap-1.5">
+          <span className="text-gray-500">岗位来源：</span>
+          <span className="text-[#0052D9] font-medium bg-blue-50 px-1.5 py-0.5 rounded-sm">{jobSource}</span>
+        </div>
+        <div className="w-px h-3 bg-gray-200"></div>
+        <div className="flex items-center gap-1.5">
           <span className="text-gray-400">当前简历：</span>
           <div className="flex items-center text-gray-700 font-medium">
             <FileText className="w-3 h-3 mr-1 text-[#0052D9]" />
             {resumeVm.name}
           </div>
+        </div>
+        <div className="w-px h-3 bg-gray-200"></div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-gray-500">简历来源：</span>
+          <span className="text-[#0052D9] font-medium bg-blue-50 px-1.5 py-0.5 rounded-sm">{resumeSource}</span>
         </div>
         <div className="w-px h-3 bg-gray-200"></div>
         <div className="flex items-center gap-1.5">
