@@ -25,18 +25,41 @@ MYSQL_ROOT_PASSWORD=$(get_env_value "MYSQL_ROOT_PASSWORD" "password")
 # SQL 文件路径
 INIT_SQL="${PROJECT_ROOT}/server/sql/init.sql"
 
-do_check() {
-    log_step "数据库检查"
+# 核心表列表
+CORE_TABLES="users resume_versions jobs recommendation_results match_analyses version_compare_results"
+
+# 检查 MySQL 容器是否运行
+check_mysql_container() {
     if ! docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps mysql 2>/dev/null | grep -q "Up\|healthy"; then
         log_error "MySQL 容器未运行，请先执行 make infra-up"
-        exit 1
+        return 1
+    fi
+    return 0
+}
+
+# 检查核心表是否都存在（返回 0=存在, 1=缺失）
+tables_exist() {
+    for table in $CORE_TABLES; do
+        local count
+        count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+            -s -N -e "SELECT COUNT(*) FROM ${table};" 2>/dev/null || echo "ERROR")
+        if [ "$count" = "ERROR" ] || [ -z "$count" ]; then
+            return 1
+        fi
+    done
+    return 0
+}
+
+do_check() {
+    log_step "数据库检查"
+    if ! check_mysql_container; then
+        return 1
     fi
 
     # 检查核心表是否存在
-    local tables="users resume_versions jobs recommendation_results match_analyses version_compare_results"
     local all_ok=true
 
-    for table in $tables; do
+    for table in $CORE_TABLES; do
         local count
         count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
             -s -N -e "SELECT COUNT(*) FROM ${table};" 2>/dev/null || echo "ERROR")
@@ -52,8 +75,10 @@ do_check() {
     echo ""
     if [ "$all_ok" = true ]; then
         log_info "所有核心表检查通过"
+        return 0
     else
         log_warn "部分表缺失，请执行 make db-import 导入初始化 SQL"
+        return 1
     fi
 }
 
@@ -123,8 +148,20 @@ case "$ACTION" in
         do_check
         ;;
 
+    tables-exist)
+        # 静默检查核心表是否存在，返回 0=存在, 1=缺失
+        if ! check_mysql_container; then
+            exit 1
+        fi
+        if tables_exist; then
+            exit 0
+        else
+            exit 1
+        fi
+        ;;
+
     *)
-        echo "用法: $0 {import|reset|shell|check}"
+        echo "用法: $0 {import|reset|shell|check|tables-exist}"
         exit 1
         ;;
 esac

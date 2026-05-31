@@ -20,9 +20,9 @@ DEV_SCRIPT := scripts/dev
         ps \
         infra-up infra-down infra-status infra-logs \
         db-import db-reset db-shell db-check \
-        backend-up backend-stop backend-restart backend-logs backend-status backend-health \
-        web-install web-up web-stop web-restart web-logs web-status web-health \
-        frontend-logs db-logs nginx-logs \
+        backend-up backend-start backend-stop backend-restart backend-logs backend-status backend-health \
+        web-install web-up web-start web-stop web-restart web-logs web-status web-health \
+        frontend-start frontend-logs db-logs nginx-logs \
         agent-env agent-check agent-test \
         llm-help llm-check llm-smoke \
         logs logs-backend logs-web logs-mysql logs-agent \
@@ -173,13 +173,13 @@ status: ## 查看所有服务运行状态
 	@echo "==============================="
 	@echo ""
 	@echo "--- 基础设施 ---"
-	@$(DEV_SCRIPT)/infra.sh status || true
+	@$(DEV_SCRIPT)/infra.sh status 2>/dev/null || echo "  基础设施未运行"
 	@echo ""
 	@echo "--- 后端 ---"
-	@$(DEV_SCRIPT)/backend.sh status || true
+	@$(DEV_SCRIPT)/backend.sh status 2>/dev/null || echo "  后端未运行"
 	@echo ""
 	@echo "--- 前端 ---"
-	@$(DEV_SCRIPT)/web.sh status || true
+	@$(DEV_SCRIPT)/web.sh status 2>/dev/null || echo "  前端未运行"
 	@echo ""
 	@echo "--- 访问地址 ---"
 	@echo "  App:       http://localhost/"
@@ -193,100 +193,65 @@ status: ## 查看所有服务运行状态
 ps: ## 显示 Docker Compose 容器状态
 	@docker compose ps
 
-health: ## 查看所有服务健康状态
-	@echo ""
-	@echo "=== 健康检查 ==="
-	@echo ""
-	@echo "--- 基础设施 ---"
-	@$(DEV_SCRIPT)/infra.sh status || true
-	@echo ""
-	@echo "--- 后端 ---"
-	@$(DEV_SCRIPT)/backend.sh health || true
-	@echo ""
-	@echo "--- 前端 ---"
-	@$(DEV_SCRIPT)/web.sh health || true
-	@echo ""
-	@echo "--- 数据库 ---"
-	@$(DEV_SCRIPT)/mysql.sh check || true
+health: ## 查看所有服务健康状态（失败时返回非零退出码）
+	@echo "" && \
+	echo "=== 健康检查 ===" && \
+	echo "" && \
+	echo "--- 基础设施 ---" && \
+	$(DEV_SCRIPT)/infra.sh status; \
+	echo "" && \
+	echo "--- 后端 ---" && \
+	$(DEV_SCRIPT)/backend.sh health; \
+	backend_rc=$$?; \
+	echo "" && \
+	echo "--- 前端 ---" && \
+	$(DEV_SCRIPT)/web.sh health; \
+	frontend_rc=$$?; \
+	echo "" && \
+	echo "--- 数据库 ---" && \
+	$(DEV_SCRIPT)/mysql.sh check; \
+	db_rc=$$?; \
+	echo ""; \
+	if [ $$backend_rc -ne 0 ] || [ $$frontend_rc -ne 0 ] || [ $$db_rc -ne 0 ]; then \
+		echo "❌ 部分健康检查未通过"; \
+		exit 1; \
+	else \
+		echo "✅ 所有健康检查通过"; \
+	fi
 
 # ============================================================
 # 完整生命周期
 # ============================================================
 
 up: ensure-env ## 一键启动完整开发环境
-	@echo ""
-	@echo "[Offer Catcher] Starting development environment..."
-	@echo ""
-	@echo "[1/7] 环境检查"
-	@$(DEV_SCRIPT)/doctor.sh
-	@echo ""
-	@echo "[2/7] 环境初始化"
-	@$(DEV_SCRIPT)/env.sh init
-	@echo ""
-	@echo "[3/7] 启动基础设施（MySQL + Nginx）"
-	@$(DEV_SCRIPT)/infra.sh up
-	@echo ""
-	@echo "[4/7] 等待 MySQL 就绪"
-	@sleep 5
-	@$(DEV_SCRIPT)/mysql.sh check || echo "  提示：如果数据库为空，请执行 make db-import"
-	@echo ""
-	@echo "[5/7] 启动后端"
-	@$(DEV_SCRIPT)/backend.sh up || echo "  ⚠️ 后端启动失败，可能是 MySQL 尚未就绪，稍后重试"
-	@echo ""
-	@echo "[6/7] 启动前端"
-	@$(DEV_SCRIPT)/web.sh up || echo "  ⚠️ 前端启动失败，可能需要先执行 make web-install"
-	@echo ""
-	@echo "[7/7] 健康检查"
-	@sleep 3
-	@$(DEV_SCRIPT)/backend.sh health || true
-	@$(DEV_SCRIPT)/web.sh health || true
-	@echo ""
-	@echo "=========================================="
-	@echo "  ✅ Offer Catcher 开发环境已启动"
-	@echo "=========================================="
-	@echo ""
-	@echo "Access:"
-	@echo "  App:       http://localhost/"
-	@echo "  API:       http://localhost/api/"
-	@echo "  Health:    http://localhost/healthz"
-	@echo "  Backend:   http://localhost:8080"
-	@echo "  Frontend:  http://localhost:5173"
-	@echo "  MySQL:     localhost:3306"
-	@echo ""
-	@echo "Useful commands:"
-	@echo "  make status       查看服务状态"
-	@echo "  make logs         查看日志"
-	@echo "  make restart-soft 软重启（不清空数据）"
-	@echo "  make reset-up     ⚠️ 清空数据并重启（CONFIRM=yes）"
-	@echo "  make down         停止所有服务"
-	@echo ""
+	@bash $(DEV_SCRIPT)/up.sh
 
 stop: ## 停止本地前后端进程，保留 Docker 数据
 	@echo "[Offer Catcher] Stopping local processes..."
-	@$(DEV_SCRIPT)/backend.sh stop
-	@$(DEV_SCRIPT)/web.sh stop
+	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
+	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@echo ""
 	@echo "[OK] 前后端进程已停止（Docker 数据保留）"
 
 down: ## 停止服务，保留数据库 volume
 	@echo "[Offer Catcher] Stopping all services..."
-	@$(DEV_SCRIPT)/backend.sh stop || true
-	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
+	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/infra.sh down
 	@echo ""
 	@echo "[OK] 所有服务已停止（volume 保留）"
 
 restart: ensure-env ## 软重启（stop + up，不清空 volume）
 	@echo "[Offer Catcher] Soft restart (volume preserved)..."
-	@$(DEV_SCRIPT)/backend.sh stop || true
-	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
+	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@sleep 1
 	@$(MAKE) up
 
 restart-soft: ensure-env ## 同 restart（软重启）
 	@echo "[Offer Catcher] Soft restart (volume preserved)..."
-	@$(DEV_SCRIPT)/backend.sh stop || true
-	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
+	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@sleep 1
 	@$(MAKE) up
 
@@ -299,8 +264,8 @@ reset: ## ⚠️ 危险：停止并清空 volume，需要 CONFIRM=yes
 		exit 1; \
 	fi
 	@echo "[Offer Catcher] Resetting (removing volumes)..."
-	@$(DEV_SCRIPT)/backend.sh stop || true
-	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
+	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/infra.sh down
 	@docker compose down -v
 	@$(DEV_SCRIPT)/clean.sh clean
@@ -317,8 +282,8 @@ reset-up: ensure-env ## ⚠️ 危险：清空 volume 后重启，需要 CONFIRM
 		exit 1; \
 	fi
 	@echo "[Offer Catcher] Reset and restart (removing volumes)..."
-	@$(DEV_SCRIPT)/backend.sh stop || true
-	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
+	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/infra.sh down
 	@docker compose down -v
 	@$(DEV_SCRIPT)/clean.sh clean
@@ -335,8 +300,8 @@ rebuild: ## ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes
 		exit 1; \
 	fi
 	@echo "[Offer Catcher] Rebuilding..."
-	@$(DEV_SCRIPT)/backend.sh stop || true
-	@$(DEV_SCRIPT)/web.sh stop || true
+	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
+	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/clean.sh clean
 	@$(DEV_SCRIPT)/infra.sh down
 	@echo ""
@@ -381,6 +346,9 @@ db-check: ## 检查核心表
 backend-up: ## 后台启动 Go 后端
 	@$(DEV_SCRIPT)/backend.sh up
 
+backend-start: ## 同 backend-up，后台启动 Go 后端
+	@$(DEV_SCRIPT)/backend.sh up
+
 backend-stop: ## 停止 Go 后端
 	@$(DEV_SCRIPT)/backend.sh stop
 
@@ -406,6 +374,9 @@ web-install: ## 在 web/ 下执行 npm install
 web-up: ## 后台启动前端开发服务
 	@$(DEV_SCRIPT)/web.sh up
 
+web-start: ## 同 web-up，后台启动前端开发服务
+	@$(DEV_SCRIPT)/web.sh up
+
 web-stop: ## 停止前端服务
 	@$(DEV_SCRIPT)/web.sh stop
 
@@ -420,6 +391,9 @@ web-status: ## 查看前端进程状态
 
 web-health: ## 检查前端端口
 	@$(DEV_SCRIPT)/web.sh health
+
+frontend-start: ## 同 web-up，启动前端
+	@$(DEV_SCRIPT)/web.sh up
 
 frontend-logs: ## 同 logs-web，查看前端日志
 	@$(DEV_SCRIPT)/logs.sh web
@@ -460,8 +434,18 @@ llm-smoke: ensure-env ## 执行 LLM smoke test（需要 RUN_REAL_LLM_SMOKE=1）
 # 日志
 # ============================================================
 
-logs: ## 查看日志入口提示
-	@$(DEV_SCRIPT)/logs.sh all
+logs: ## 查看所有服务日志（后端 + 前端最近 50 行）
+	@echo "=== 后端日志 (最近 50 行) ==="
+	@tail -50 .logs/server.log 2>/dev/null || echo "  后端日志不存在"
+	@echo ""
+	@echo "=== 前端日志 (最近 50 行) ==="
+	@tail -50 .logs/web.log 2>/dev/null || echo "  前端日志不存在"
+	@echo ""
+	@echo "更多日志命令:"
+	@echo "  make logs-backend  跟踪后端日志"
+	@echo "  make logs-web      跟踪前端日志"
+	@echo "  make logs-mysql    跟踪 MySQL 日志"
+	@echo "  make nginx-logs    跟踪 Nginx 日志"
 
 logs-backend: ## 查看后端日志
 	@$(DEV_SCRIPT)/logs.sh backend

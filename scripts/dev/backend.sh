@@ -121,9 +121,11 @@ do_health() {
             if [ -n "$body" ]; then
                 echo "  响应: $body"
             fi
+            return 1
         fi
     else
         log_warn "curl 不可用，无法检查"
+        return 1
     fi
 }
 

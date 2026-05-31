@@ -40,9 +40,21 @@ start_web() {
         return 1
     fi
 
+    # 自动安装依赖（如果 node_modules 不存在）
     if [ ! -d "${WEB_DIR}/node_modules" ]; then
-        log_error "web/node_modules 不存在，请先执行: make web-install"
-        return 1
+        log_info "web/node_modules 不存在，自动安装前端依赖..."
+        if [ -f "${WEB_DIR}/package-lock.json" ]; then
+            (cd "$WEB_DIR" && npm ci 2>&1) || (cd "$WEB_DIR" && npm install 2>&1) || {
+                log_error "前端依赖安装失败"
+                return 1
+            }
+        else
+            (cd "$WEB_DIR" && npm install 2>&1) || {
+                log_error "前端依赖安装失败"
+                return 1
+            }
+        fi
+        log_info "前端依赖安装完成"
     fi
 
     init_runtime_dirs
@@ -58,7 +70,7 @@ start_web() {
 
     # 等待启动
     local wait_count=0
-    while ! check_port "$WEB_PORT" && [ $wait_count -lt 15 ]; do
+    while ! check_port "$WEB_PORT" && [ $wait_count -lt 20 ]; do
         sleep 1
         wait_count=$((wait_count + 1))
     done
@@ -66,7 +78,8 @@ start_web() {
     if check_port "$WEB_PORT"; then
         log_info "前端已启动 (PID: ${pid}, 端口: ${WEB_PORT})"
     else
-        log_warn "前端启动可能仍在进行中，请查看日志: make logs-web"
+        log_error "前端启动超时，请查看日志: make logs-web"
+        return 1
     fi
 }
 
@@ -173,6 +186,7 @@ case "$ACTION" in
             log_info "前端端口 ${WEB_PORT} 可访问"
         else
             log_error "前端端口 ${WEB_PORT} 不可访问"
+            exit 1
         fi
         ;;
 
