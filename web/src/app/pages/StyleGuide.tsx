@@ -1,8 +1,8 @@
 import { Button } from "../components/ui/Button";
 import { Tag } from "../components/ui/Tag";
 import { AIBadge } from "../components/ui/AIBadge";
-import { Sidebar } from "../components/layout/Sidebar";
-import { AIDecisionWorkspace } from "../components/layout/AIDecisionWorkspace";
+import { JobFilterSidebar } from "../components/JobFilterSidebar";
+import { AIDecisionWorkspace } from "../components/AIDecisionWorkspace";
 import { DeliveryReadinessCard } from "../components/business/DeliveryReadinessCard";
 import { OptimizationStopSignalCard } from "../components/business/OptimizationStopSignalCard";
 import { TopFixTaskCard } from "../components/business/TopFixTaskCard";
@@ -15,7 +15,7 @@ import { FileText, UserPlus, Zap } from "lucide-react";
 export function StyleGuide() {
   return (
     <>
-      <Sidebar />
+      <JobFilterSidebar />
       
       <main className="flex-1 max-w-[820px] min-w-[680px] space-y-8 pb-20">
         

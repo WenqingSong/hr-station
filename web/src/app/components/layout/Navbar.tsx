@@ -1,3 +1,6 @@
+// @deprecated — 5-3.1 已废弃。唯一生效 Navbar 见 ../Navbar.tsx。
+// 保留此文件仅用于历史追溯，后续清理阶段可安全删除。
+
 import { FileText } from "lucide-react";
 import { Link } from "react-router";
 

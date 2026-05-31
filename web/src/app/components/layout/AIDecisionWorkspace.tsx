@@ -1,3 +1,6 @@
+// @deprecated — 5-3.1 已废弃。AI 决策工作台使用 ../AIDecisionWorkspace.tsx。
+// 保留此文件仅用于历史追溯，后续清理阶段可安全删除。
+
 import { BrainCircuit, ChevronRight, FileText, Briefcase } from "lucide-react";
 import { Button } from "../ui/Button";
 

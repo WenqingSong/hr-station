@@ -1,3 +1,6 @@
+// @deprecated — 5-3.1 已废弃。岗位筛选侧栏使用 ../JobFilterSidebar.tsx。
+// 保留此文件仅用于历史追溯，后续清理阶段可安全删除。
+
 import { Search, ChevronDown, Check } from "lucide-react";
 import { useState } from "react";
 import { cn } from "../../utils/cn";
