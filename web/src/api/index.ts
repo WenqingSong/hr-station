@@ -4,3 +4,4 @@ export * from './client';
 export * from './jobs';
 export * from './resumes';
 export * from './agents';
+export * from './viewModels';
