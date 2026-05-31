@@ -12,9 +12,7 @@ export function JobRecommendationPage() {
   const matchedResume = resumeId
     ? mockResumeVersions.find((r) => r.id === resumeId) ?? mockCurrentResume
     : mockCurrentResume;
-  const sourceLabel = resumeId && mockResumeVersions.some((r) => r.id === resumeId)
-    ? "已选择简历"
-    : "默认简历";
+  const sourceLabel = "当前简历";
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6 pb-12">

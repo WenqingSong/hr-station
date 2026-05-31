@@ -9,7 +9,7 @@ interface MatchAnalysisSidebarRightProps {
   resumeSource?: string;
 }
 
-export function MatchAnalysisSidebarRight({ resume, resumeSource = "默认简历" }: MatchAnalysisSidebarRightProps) {
+export function MatchAnalysisSidebarRight({ resume, resumeSource = "当前简历" }: MatchAnalysisSidebarRightProps) {
   const resumeVm = toResumeSummaryViewModel(resume || null as any);
   return (
     <aside className="w-[320px] shrink-0 flex flex-col gap-4">
@@ -69,11 +69,11 @@ export function MatchAnalysisSidebarRight({ resume, resumeSource = "默认简历
         </div>
       </div>
 
-      {/* Mock Status */}
+      {/* Demo data notice */}
       <div className="mt-2 flex justify-center">
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 text-gray-400 text-[11px] opacity-70">
           <Sparkles className="h-3.5 w-3.5" />
-          当前结果来源：Mock 演示
+          当前为演示数据
         </div>
       </div>
     </aside>

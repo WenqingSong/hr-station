@@ -7,7 +7,7 @@ interface RecommendationHeaderProps {
   sourceLabel?: string;
 }
 
-export function RecommendationHeader({ resumeName = "V2 后端开发简历", sourceLabel = "默认简历" }: RecommendationHeaderProps) {
+export function RecommendationHeader({ resumeName = "V2 后端开发简历", sourceLabel = "当前简历" }: RecommendationHeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -22,7 +22,7 @@ export function RecommendationHeader({ resumeName = "V2 后端开发简历", sou
 
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">AI 岗位推荐</h1>
-        <p className="text-[15px] text-gray-600">基于已选择简历，从岗位池中推荐最值得优先关注的 5 个岗位。</p>
+        <p className="text-[15px] text-gray-600">基于当前简历，从岗位池中推荐最值得优先关注的 5 个岗位。</p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-6 pt-4 border-t border-gray-100 text-sm">

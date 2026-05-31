@@ -18,8 +18,8 @@ export function ResumeOptimizationPage() {
     ? (mockResumeVersions.find((r) => r.id === resumeId) ?? mockCurrentResume)
     : mockCurrentResume;
 
-  const jobSource = jobId && mockJobDetails[jobId] ? "来自岗位匹配分析" : "默认岗位";
-  const resumeSource = resumeId && mockResumeVersions.some((r) => r.id === resumeId) ? "来自岗位匹配分析" : "默认简历";
+  const jobSource = "基于匹配分析结果";
+  const resumeSource = "当前简历";
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6 pb-12">

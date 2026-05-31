@@ -11,7 +11,7 @@ interface RecommendationContextProps {
   sourceLabel?: string;
 }
 
-export function RecommendationContext({ resumeName = resumeVm.name, sourceLabel = "默认简历" }: RecommendationContextProps) {
+export function RecommendationContext({ resumeName = resumeVm.name, sourceLabel = "当前简历" }: RecommendationContextProps) {
   return (
     <aside className="w-[320px] shrink-0 flex flex-col gap-4">
       {/* Resume Card */}
@@ -19,7 +19,7 @@ export function RecommendationContext({ resumeName = resumeVm.name, sourceLabel 
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-2 text-gray-500 text-[13px]">
             <FileText className="h-4 w-4" />
-            当前用于推荐的简历
+            当前简历
           </div>
         </div>
         <div className="mb-3">
@@ -74,11 +74,11 @@ export function RecommendationContext({ resumeName = resumeVm.name, sourceLabel 
         </ul>
       </div>
 
-      {/* Mock Status */}
+      {/* Demo data notice */}
       <div className="mt-2 flex justify-center">
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 text-gray-400 text-[11px] opacity-70">
           <Sparkles className="h-3.5 w-3.5" />
-          当前结果来源：Mock 演示
+          当前为演示数据
         </div>
       </div>
     </aside>

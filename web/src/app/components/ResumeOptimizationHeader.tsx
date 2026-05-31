@@ -11,7 +11,7 @@ interface ResumeOptimizationHeaderProps {
   resumeSource?: string;
 }
 
-export function ResumeOptimizationHeader({ job, resume, jobSource = "默认岗位", resumeSource = "默认简历" }: ResumeOptimizationHeaderProps) {
+export function ResumeOptimizationHeader({ job, resume, jobSource = "目标岗位", resumeSource = "当前简历" }: ResumeOptimizationHeaderProps) {
   const navigate = useNavigate();
   const jobVm = toJobDetailViewModel(job || null as any);
   const resumeVm = toResumeSummaryViewModel(resume || null as any);
@@ -23,7 +23,7 @@ export function ResumeOptimizationHeader({ job, resume, jobSource = "默认岗�
           <h1 className="text-[18px] font-bold text-gray-900 tracking-tight">简历优化</h1>
           <div className="h-3.5 w-px bg-gray-300"></div>
           <p className="text-[13px] text-gray-500">
-            基于已选择目标岗位 JD 和已选择简历，生成投递前最关键的修复任务和核实清单。
+            基于目标岗位 JD 和当前简历，生成投递前最关键的修复任务和核实清单。
           </p>
         </div>
         <button 
@@ -45,8 +45,8 @@ export function ResumeOptimizationHeader({ job, resume, jobSource = "默认岗�
         </div>
         <div className="w-px h-3 bg-gray-200"></div>
         <div className="flex items-center gap-1.5">
-          <span className="text-gray-500">岗位来源：</span>
-          <span className="text-[#0052D9] font-medium bg-blue-50 px-1.5 py-0.5 rounded-sm">{jobSource}</span>
+          <span className="text-gray-500">优化来源：</span>
+          <span className="text-[#0052D9] font-medium bg-blue-50 px-1.5 py-0.5 rounded-sm">基于匹配分析结果</span>
         </div>
         <div className="w-px h-3 bg-gray-200"></div>
         <div className="flex items-center gap-1.5">
@@ -66,7 +66,7 @@ export function ResumeOptimizationHeader({ job, resume, jobSource = "默认岗�
           <span className="text-gray-400">优化状态：</span>
           <div className="flex items-center text-gray-500">
             <Activity className="w-3 h-3 mr-1 text-gray-400" />
-            Mock 演示结果 / 兜底结果
+            演示数据
           </div>
         </div>
       </div>
