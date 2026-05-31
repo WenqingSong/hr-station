@@ -1,11 +1,27 @@
 import React from "react";
-import { CheckCircle2, ShieldAlert, Zap, ArrowRight, CheckSquare, Sparkles, Activity, PlusCircle } from "lucide-react";
+import { CheckCircle2, ShieldAlert, Zap, ArrowRight, Sparkles, Activity, PlusCircle } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
+import { mockMatchAnalysisResponse } from "../mocks";
+import { toMatchAnalysisPageViewModel } from "../adapters";
+
+const matchVm = toMatchAnalysisPageViewModel(
+  mockMatchAnalysisResponse.result,
+  mockMatchAnalysisResponse.meta
+);
 
 export function MatchAnalysisDetail() {
   const navigate = useNavigate();
+
+  const getStrengthStyle = (tone: string) => {
+    switch (tone) {
+      case 'green': return "bg-green-50 text-green-700 border border-green-200";
+      case 'blue': return "bg-blue-50 text-[#0052D9] border border-blue-200";
+      case 'orange': return "bg-amber-50 text-amber-700 border border-amber-200";
+      default: return "bg-gray-50 text-gray-700";
+    }
+  };
 
   return (
     <div className="flex-1 min-w-[640px] max-w-[760px] bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
@@ -21,7 +37,7 @@ export function MatchAnalysisDetail() {
             <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm flex flex-col items-center justify-center text-center">
               <div className="text-[13px] text-gray-500 mb-1">匹配分数</div>
               <div className="text-3xl font-black text-[#0052D9] flex items-baseline">
-                82<span className="text-[12px] text-gray-400 font-medium ml-1">/ 100</span>
+                {matchVm.matchScore}<span className="text-[12px] text-gray-400 font-medium ml-1">/ 100</span>
               </div>
             </div>
             
@@ -38,7 +54,7 @@ export function MatchAnalysisDetail() {
           
           <p className="text-[14px] text-gray-700 leading-relaxed bg-white/60 p-3.5 rounded border border-blue-50">
             <span className="font-semibold text-gray-900">一句话总结：</span>
-            你的 Go 后端、MySQL、Redis 和微服务项目经历与岗位核心要求较匹配，但高并发压测、Linux 使用经验和线上问题排查证据仍需补强。
+            {matchVm.summary}
           </p>
         </div>
       </div>
@@ -51,44 +67,27 @@ export function MatchAnalysisDetail() {
             投递前最应该先修的 3 件事
           </h3>
           <div className="space-y-3">
-            {[
-              {
-                title: "补充 Linux 使用经验",
-                priority: "高",
-                impact: "提升后台开发岗位可信度",
-                verify: "是"
-              },
-              {
-                title: "量化微服务项目 QPS / 响应时间 / 缓存命中率",
-                priority: "高",
-                impact: "增强高并发和性能优化证据",
-                verify: "是"
-              },
-              {
-                title: "补充线上问题排查或接口优化案例",
-                priority: "中",
-                impact: "增强工程实践与稳定性意识",
-                verify: "是"
-              }
-            ].map((task, i) => (
+            {matchVm.topFixItems.map((task, i) => (
               <div key={i} className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-100 rounded-md hover:border-blue-100 transition-colors">
-                <CheckSquare className="w-5 h-5 text-gray-300 shrink-0 mt-0.5" />
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white border border-gray-300 text-gray-700 text-[13px] font-bold shrink-0 mt-0.5">
+                  {i + 1}
+                </div>
                 <div className="flex-1">
                   <div className="text-[15px] font-bold text-gray-900 mb-2">{task.title}</div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-2 gap-x-4 text-[12px]">
                     <div className="flex items-center gap-1.5">
                       <span className="text-gray-400">优先级：</span>
-                      <span className={task.priority === "高" ? "text-red-600 font-medium" : "text-amber-600 font-medium"}>
-                        {task.priority}
+                      <span className={task.priorityTone === 'orange' ? "text-red-600 font-medium" : "text-amber-600 font-medium"}>
+                        {task.priorityLabel}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 sm:col-span-2">
                       <span className="text-gray-400">预计影响：</span>
-                      <span className="text-gray-700">{task.impact}</span>
+                      <span className="text-gray-700">{task.expectedImpact}</span>
                     </div>
                     <div className="flex items-center gap-1.5 sm:col-span-3">
                       <span className="text-gray-400">需要用户核实：</span>
-                      <span className="text-gray-700">{task.verify}</span>
+                      <span className="text-gray-700">{task.needUserVerify ? "是" : "否"}</span>
                     </div>
                   </div>
                 </div>
@@ -111,42 +110,16 @@ export function MatchAnalysisDetail() {
               <div className="col-span-3">风险说明</div>
             </div>
             <div className="divide-y divide-gray-100 text-[12px] leading-relaxed">
-              {/* Row 1 */}
-              <div className="grid grid-cols-12 gap-4 p-3 items-start hover:bg-gray-50 transition-colors">
-                <div className="col-span-3 text-gray-800">熟悉 Go / Java / C++ 至少一门语言</div>
-                <div className="col-span-4 text-gray-600">Go 微服务项目，包含接口开发和数据库设计</div>
-                <div className="col-span-2 flex justify-center">
-                  <Badge className="bg-green-50 text-green-700 border border-green-200 font-normal">强</Badge>
+              {matchVm.evidenceChain.map((ev, i) => (
+                <div key={i} className="grid grid-cols-12 gap-4 p-3 items-start hover:bg-gray-50 transition-colors">
+                  <div className="col-span-3 text-gray-800">{ev.jdRequirement}</div>
+                  <div className="col-span-4 text-gray-600">{ev.resumeEvidence}</div>
+                  <div className="col-span-2 flex justify-center">
+                    <Badge className={getStrengthStyle(ev.evidenceStrengthTone) + " font-normal"}>{ev.evidenceStrengthLabel}</Badge>
+                  </div>
+                  <div className="col-span-3 text-gray-500">{ev.riskNote || "-----"}</div>
                 </div>
-                <div className="col-span-3 text-gray-400">-----</div>
-              </div>
-              {/* Row 2 */}
-              <div className="grid grid-cols-12 gap-4 p-3 items-start hover:bg-gray-50 transition-colors">
-                <div className="col-span-3 text-gray-800">理解数据库和缓存</div>
-                <div className="col-span-4 text-gray-600">使用 MySQL、Redis 完成订单缓存与查询优化</div>
-                <div className="col-span-2 flex justify-center">
-                  <Badge className="bg-green-50 text-green-700 border border-green-200 font-normal">强</Badge>
-                </div>
-                <div className="col-span-3 text-gray-500">可以补充性能数据</div>
-              </div>
-              {/* Row 3 */}
-              <div className="grid grid-cols-12 gap-4 p-3 items-start hover:bg-gray-50 transition-colors">
-                <div className="col-span-3 text-gray-800">高并发或分布式系统经验</div>
-                <div className="col-span-4 text-gray-600">有微服务项目，但缺少 QPS、压测、性能优化数据</div>
-                <div className="col-span-2 flex justify-center">
-                  <Badge className="bg-blue-50 text-[#0052D9] border border-blue-200 font-normal">中</Badge>
-                </div>
-                <div className="col-span-3 text-amber-600">建议量化项目指标</div>
-              </div>
-              {/* Row 4 */}
-              <div className="grid grid-cols-12 gap-4 p-3 items-start hover:bg-gray-50 transition-colors">
-                <div className="col-span-3 text-gray-800">熟悉 Linux / 后台服务部署</div>
-                <div className="col-span-4 text-gray-600">简历中未明确体现 Linux 使用经验</div>
-                <div className="col-span-2 flex justify-center">
-                  <Badge className="bg-amber-50 text-amber-700 border border-amber-200 font-normal">弱</Badge>
-                </div>
-                <div className="col-span-3 text-amber-600">需要补充 Linux 环境开发或部署经历</div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
@@ -159,18 +132,12 @@ export function MatchAnalysisDetail() {
               你的优势
             </h3>
             <ul className="space-y-2 text-[13px] text-gray-700 bg-green-50/30 p-4 rounded-md border border-green-100/50">
-              <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 mt-1.5"></div>
-                后端开发方向与岗位方向一致
-              </li>
-              <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 mt-1.5"></div>
-                Go / MySQL / Redis 技能与岗位要求高度相关
-              </li>
-              <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 mt-1.5"></div>
-                微服务项目能支撑后台系统设计与接口开发经历
-              </li>
+              {matchVm.matchHighlights.map((item, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 mt-1.5"></div>
+                  {item}
+                </li>
+              ))}
             </ul>
           </section>
 
@@ -181,18 +148,12 @@ export function MatchAnalysisDetail() {
               主要风险
             </h3>
             <ul className="space-y-2 text-[13px] text-amber-800 bg-amber-50/30 p-4 rounded-md border border-amber-100/50">
-              <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5"></div>
-                高并发压测结果描述不足
-              </li>
-              <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5"></div>
-                Linux 使用经验不够明确
-              </li>
-              <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5"></div>
-                线上问题排查案例缺失
-              </li>
+              {matchVm.riskItems.map((item, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5"></div>
+                  {item}
+                </li>
+              ))}
             </ul>
           </section>
         </div>
@@ -203,7 +164,7 @@ export function MatchAnalysisDetail() {
             <Zap className="w-5 h-5 text-[#0052D9] shrink-0 mt-0.5" />
             <div className="text-[14px] text-gray-700 leading-relaxed">
               <p className="font-bold text-gray-900 mb-1">下一步建议</p>
-              建议先修复 Top 3 简历问题，再进入投递。当前岗位值得优先关注，但简历中仍有几处关键证据需要补强。
+              {matchVm.nextActions[0] || "建议先修复 Top 3 简历问题，再进入投递。"}
             </div>
           </div>
           

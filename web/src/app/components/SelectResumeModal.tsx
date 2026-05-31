@@ -9,22 +9,12 @@ import {
   Briefcase,
   ChevronRight,
 } from "lucide-react";
+import { mockResumeOptions } from "../mocks";
+import { toResumeOptionViewModels } from "../adapters";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Scene = "recommendation" | "match-analysis";
-
-interface ResumeOption {
-  id: string;
-  name: string;
-  status: "recommended" | "history" | "mismatch";
-  isCurrent: boolean;
-  direction: string;
-  keywords: string;
-  projectCount: number;
-  lastUpdated: string;
-  fitNote: string;
-}
 
 interface SelectResumeModalProps {
   isOpen: boolean;
@@ -34,43 +24,7 @@ interface SelectResumeModalProps {
   jobTitle?: string;
 }
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
-const RESUME_OPTIONS: ResumeOption[] = [
-  {
-    id: "v2",
-    name: "V2 后端开发简历",
-    status: "recommended",
-    isCurrent: true,
-    direction: "后端开发",
-    keywords: "Go / MySQL / Redis / 微服务",
-    projectCount: 3,
-    lastUpdated: "2 小时前",
-    fitNote: "与当前岗位方向较一致，建议优先使用。",
-  },
-  {
-    id: "v1",
-    name: "V1 通用后端简历",
-    status: "history",
-    isCurrent: false,
-    direction: "后端开发",
-    keywords: "Go / Java / MySQL",
-    projectCount: 2,
-    lastUpdated: "3 天前",
-    fitNote: "可用于分析，但项目证据不如 V2 完整。",
-  },
-  {
-    id: "v3",
-    name: "V3 产品方向简历",
-    status: "mismatch",
-    isCurrent: false,
-    direction: "产品策划",
-    keywords: "需求分析 / 用户调研 / 原型设计",
-    projectCount: 2,
-    lastUpdated: "1 周前",
-    fitNote: "与当前技术岗位方向不一致，不建议用于本次分析。",
-  },
-];
+const resumeOptions = toResumeOptionViewModels(mockResumeOptions);
 
 const SCENE_CONFIG: Record<Scene, { label: string; desc: string }> = {
   "recommendation": {
@@ -157,8 +111,8 @@ export function SelectResumeModal({
 
         {/* ── Resume cards ────────────────────────────────────────────── */}
         <div className="px-7 py-5 space-y-3 overflow-y-auto flex-1">
-          {RESUME_OPTIONS.map((resume) => {
-            const isMismatch = resume.status === "mismatch";
+          {resumeOptions.map((resume) => {
+            const isMismatch = !!resume.mismatchReason;
             const isSelected = !isMismatch && selectedResumeId === resume.id;
 
             return (
@@ -200,29 +154,29 @@ export function SelectResumeModal({
                       {resume.name}
                     </span>
 
-                    {resume.status === "recommended" && (
+                    {resume.isRecommended && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-[#0052D9] text-xs rounded">
                         <Sparkles className="w-3 h-3" />
                         推荐使用
                       </span>
                     )}
-                    {resume.isCurrent && (
+                    {resume.isDefault && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-100 text-[#0052D9] text-xs rounded">
                         <CheckCircle2 className="w-3 h-3" />
                         当前使用
                       </span>
                     )}
-                    {resume.status === "recommended" && (
+                    {resume.isRecommended && (
                       <span className="px-2 py-0.5 bg-green-50 border border-green-100 text-green-700 text-xs rounded">
                         可用于 AI 分析
                       </span>
                     )}
-                    {resume.status === "history" && (
+                    {resume.statusLabel === '历史版本' && (
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded">
-                        历史版本
+                        {resume.statusLabel}
                       </span>
                     )}
-                    {resume.status === "mismatch" && (
+                    {isMismatch && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 border border-orange-100 text-orange-600 text-xs rounded">
                         <AlertTriangle className="w-3 h-3" />
                         方向不匹配
@@ -234,10 +188,10 @@ export function SelectResumeModal({
                   <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
                     <span className="flex items-center gap-1">
                       <Briefcase className="w-3 h-3" />
-                      {resume.direction}
+                      {resume.directionLabel}
                     </span>
                     <span className="w-px h-3 bg-gray-200" />
-                    <span>{resume.keywords}</span>
+                    <span>{resume.tags.join(" / ")}</span>
                   </div>
 
                   <div className="flex items-center gap-3 text-xs text-gray-400 mb-2.5">
@@ -245,7 +199,7 @@ export function SelectResumeModal({
                     <span className="w-px h-3 bg-gray-200" />
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      最近更新：{resume.lastUpdated}
+                      最近更新：{resume.updatedAt}
                     </span>
                   </div>
 
@@ -255,7 +209,7 @@ export function SelectResumeModal({
                       isMismatch ? "text-orange-500" : "text-gray-500"
                     }`}
                   >
-                    {resume.fitNote}
+                    {resume.recommendationLabel || resume.mismatchReason || resume.directionLabel}
                   </p>
                 </div>
               </div>
