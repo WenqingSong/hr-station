@@ -1,0 +1,188 @@
+// ─── Agent 通用元数据类型 ────────────────────────────────────────────────────────
+
+/** 生成来源 */
+export type AgentGeneratedBy = 'llm_agent' | 'mock_agent' | string;
+
+/** Agent 运行状态 */
+export type AgentStatus =
+  | 'success'
+  | 'repaired'
+  | 'fallback'
+  | 'mock_success'
+  | 'error'
+  | string;
+
+/** Fallback 触发原因 */
+export type AgentFallbackReason =
+  | 'none'
+  | 'llm_disabled'
+  | 'llm_error'
+  | 'llm_timeout'
+  | 'llm_api_key_missing'
+  | 'json_parse_failed'
+  | 'json_repair_failed'
+  | 'schema_invalid'
+  | 'pipeline_error'
+  | 'prompt_load_failed'
+  | 'unknown'
+  | string;
+
+/** Agent 错误码 */
+export type AgentErrorCode =
+  | 'none'
+  | 'LLM_DISABLED'
+  | 'LLM_ERROR'
+  | 'LLM_TIMEOUT'
+  | 'JSON_PARSE_FAILED'
+  | 'JSON_REPAIR_FAILED'
+  | 'SCHEMA_INVALID'
+  | 'PIPELINE_ERROR'
+  | 'MOCK_FALLBACK_USED'
+  | 'VALIDATION_ERROR'
+  | 'INTERNAL_ERROR'
+  | 'UNKNOWN_ERROR'
+  | string;
+
+/** Agent 响应统一 meta 字段（8 字段） */
+export interface AgentResponseMeta {
+  agent_name: string;
+  generated_by: AgentGeneratedBy;
+  agent_status: AgentStatus;
+  fallback_reason: AgentFallbackReason;
+  error_code: AgentErrorCode;
+  repair_applied: boolean;
+  schema_valid: boolean;
+  request_id: string;
+}
+
+/**
+ * Agent 返回的 data 内层结构。
+ * 后端统一契约：data.result + data.meta
+ */
+export interface AgentResponseEnvelope<TResult> {
+  result: TResult;
+  meta: AgentResponseMeta;
+}
+
+// ─── 通用业务枚举 ──────────────────────────────────────────────────────────────
+
+/** 投递准备度 */
+export type ApplyReadiness =
+  | 'ready_to_apply'
+  | 'fix_before_apply'
+  | 'quick_fix_before_apply'
+  | 'not_recommended'
+  | string;
+
+/** 优化停止信号 */
+export type OptimizationStopSignal =
+  | 'stop_and_apply'
+  | 'fix_top_items_first'
+  | 'fix_top_3_then_apply'
+  | 'collect_more_evidence'
+  | string;
+
+/** 证据强度 */
+export type EvidenceStrength = 'strong' | 'medium' | 'weak' | 'none' | string;
+
+/** 优先级 */
+export type PriorityLevel = 'high' | 'medium' | 'low' | string;
+
+// ─── 共享业务类型 ───────────────────────────────────────────────────────────────
+
+/** Top 快速修复任务 */
+export interface TopFixItem {
+  title: string;
+  priority: PriorityLevel;
+  expected_impact: string;
+  need_user_verify: boolean;
+  description?: string;
+}
+
+/** JD 证据链条目 */
+export interface EvidenceItem {
+  jd_requirement: string;
+  resume_evidence: string;
+  evidence_strength: EvidenceStrength;
+  risk_note?: string;
+}
+
+// ─── 三类 Agent Result ─────────────────────────────────────────────────────────
+
+/** 推荐岗位项 */
+export interface RecommendedJobItem {
+  job_id: string;
+  job_title: string;
+  recommendation_level: string;
+  recommendation_score?: number;
+  recommendation_reason?: string;
+  match_keywords: string[];
+  location: string;
+  reason: string;
+  risk_tags: string[];
+  next_action: string;
+}
+
+/** 岗位推荐 Agent Result */
+export interface RecommendationResult {
+  recommended_jobs: RecommendedJobItem[];
+  recommendation_summary: string;
+  apply_readiness: ApplyReadiness;
+  optimization_stop_signal: OptimizationStopSignal;
+  top_fix_items: TopFixItem[];
+  evidence_chain: EvidenceItem[];
+  risk_items: string[];
+  next_actions: string[];
+}
+
+/** 岗位匹配分析 Agent Result */
+export interface MatchAnalysisResult {
+  match_score: number;
+  match_level: string;
+  summary: string;
+  apply_readiness: ApplyReadiness;
+  optimization_stop_signal: OptimizationStopSignal;
+  top_fix_items: TopFixItem[];
+  evidence_chain: EvidenceItem[];
+  match_highlights: string[];
+  risk_items: string[];
+  next_actions: string[];
+}
+
+/** JD 关键词对齐建议 */
+export interface KeywordAlignmentItem {
+  keyword: string;
+  current_coverage: string;
+  suggested_action: string;
+}
+
+/** 项目经历优化建议 */
+export interface ProjectOptimizationItem {
+  project_name: string;
+  current_problem: string;
+  suggested_rewrite: string;
+  example_text: string;
+  need_user_verify: boolean;
+}
+
+/** 简历修改前后对比示例 */
+export interface RewriteExample {
+  before: string;
+  suggestion: string;
+  after: string;
+  verification_notice: string;
+}
+
+/** 简历优化 Agent Result */
+export interface ResumeOptimizationResult {
+  summary: string;
+  apply_readiness: ApplyReadiness;
+  optimization_stop_signal: OptimizationStopSignal;
+  top_fix_items: TopFixItem[];
+  keyword_alignment: KeywordAlignmentItem[];
+  project_optimization: ProjectOptimizationItem[];
+  missing_evidence_plan: string[];
+  rewrite_examples: RewriteExample[];
+  verification_notice: string;
+  final_checklist: string[];
+}
