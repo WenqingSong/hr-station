@@ -112,7 +112,7 @@ function FieldRow({ label, required, children, hint }: {
         {children}
         {hint && <p className="mt-1.5 text-xs text-gray-400">{hint}</p>}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -291,10 +291,9 @@ export function MyResumesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F2F3F5] font-sans text-gray-900">
-
+    <>
       {/* ── Page layout ───────────────────────────────────────────────────── */}
-      <div className="max-w-[1160px] mx-auto px-4 py-8 flex gap-6 items-start">
+      <div className="max-w-[1160px] mx-auto px-4 py-8 pb-12 flex gap-6 items-start">
 
         {/* ── Left anchor nav ───────────────────────────────────────────── */}
         <aside className="w-[168px] flex-shrink-0 sticky top-[72px]">
@@ -821,6 +820,6 @@ export function MyResumesPage() {
 
         </div>
       </div>
-    </div>
+    </>
   );
 }

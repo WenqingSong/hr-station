@@ -83,10 +83,9 @@ export function ResumeManagementPage() {
   const activeVersion = resumeVersions.find((v) => v.id === currentVersion);
 
   return (
-    <div className="min-h-screen bg-[#F2F3F5] font-sans text-gray-900">
-
+    <>
       {/* ── Page Content ────────────────────────────────────────────────────── */}
-      <main className="max-w-[960px] mx-auto px-4 py-8 pb-16">
+      <div className="max-w-[960px] mx-auto px-4 py-8 pb-12">
 
         {/* ── Page Title Area ──────────────────────────────────────────────── */}
         <div className="flex items-start justify-between mb-5">
@@ -468,7 +467,7 @@ export function ResumeManagementPage() {
           </div>
         </div>
 
-      </main>
+      </div>
 
       <SelectResumeModal
         isOpen={showSelectModal}
@@ -476,6 +475,6 @@ export function ResumeManagementPage() {
         scene="match-analysis"
         jobTitle="软件开发-后台开发方向"
       />
-    </div>
+    </>
   );
 }

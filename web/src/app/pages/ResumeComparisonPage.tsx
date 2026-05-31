@@ -12,8 +12,8 @@ import {
 
 export function ResumeComparisonPage() {
   return (
-    <div className="min-h-screen bg-[#F5F7FA] font-sans text-slate-800 pb-20">
-      <div className="max-w-[1360px] mx-auto px-6 pt-6">
+    <>
+      <div className="max-w-[1360px] mx-auto px-6 md:px-8 py-6 pb-12">
         
         {/* Header Section */}
         <div className="mb-8">
@@ -461,6 +461,6 @@ export function ResumeComparisonPage() {
         </div>
       </div>
 
-    </div>
+    </>
   );
 }
