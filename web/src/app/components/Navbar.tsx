@@ -15,7 +15,7 @@ export function Navbar() {
         </Link>
 
         <Link
-          to="/my-resumes"
+          to="/resumes"
           className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-[#0052D9]"
         >
           <FileText className="h-4 w-4" />

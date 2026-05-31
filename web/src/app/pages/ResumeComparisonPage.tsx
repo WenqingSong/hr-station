@@ -17,7 +17,7 @@ export function ResumeComparisonPage() {
         
         {/* Header Section */}
         <div className="mb-8">
-          <Link to="/my-resumes" className="flex items-center text-sm text-slate-500 hover:text-blue-600 transition-colors mb-4 group">
+          <Link to="/resumes" className="flex items-center text-sm text-slate-500 hover:text-blue-600 transition-colors mb-4 group">
             <ArrowLeft className="w-4 h-4 mr-1 transition-transform group-hover:-translate-x-0.5" />
             返回我的简历
           </Link>
@@ -448,7 +448,7 @@ export function ResumeComparisonPage() {
           </div>
           
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <Link to="/my-resumes" className="flex-1 md:flex-none px-4 py-2 text-center text-sm font-medium text-slate-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">
+            <Link to="/resumes" className="flex-1 md:flex-none px-4 py-2 text-center text-sm font-medium text-slate-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">
               返回我的简历
             </Link>
             <Link to="/recommend" className="flex-1 md:flex-none px-4 py-2 text-center text-sm font-medium text-[#0052D9] bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors">

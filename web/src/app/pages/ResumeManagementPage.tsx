@@ -97,7 +97,7 @@ export function ResumeManagementPage() {
             </p>
           </div>
           <Link
-            to="/my-resumes/edit"
+            to="/resumes/edit"
             className="flex items-center gap-1.5 px-4 py-2 bg-[#0052D9] text-white text-sm font-medium rounded hover:bg-[#003DA5] transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -208,19 +208,19 @@ export function ResumeManagementPage() {
             开始 AI 分析
           </button>
           <Link
-            to="/my-resumes/edit"
+            to="/resumes/edit"
             className="px-5 py-1.5 border border-[#0052D9] text-[#0052D9] text-sm font-medium rounded hover:bg-blue-50 transition-colors"
           >
             修改简历
           </Link>
           <Link
-            to="/my-resumes/edit"
+            to="/resumes/edit"
             className="px-5 py-1.5 border border-[#0052D9] text-[#0052D9] text-sm font-medium rounded hover:bg-blue-50 transition-colors"
           >
             添加简历
           </Link>
           <Link
-            to="/my-resumes/compare"
+            to="/resumes/compare"
             className="px-5 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50 transition-colors flex items-center gap-1.5"
           >
             <ArrowRightLeft className="w-3.5 h-3.5" />
@@ -259,7 +259,7 @@ export function ResumeManagementPage() {
                 ))}
                 <div className="border-t border-gray-100 px-4 py-2">
                   <Link
-                    to="/my-resumes/edit"
+                    to="/resumes/edit"
                     className="text-xs text-[#0052D9] hover:underline"
                     onClick={() => setVersionOpen(false)}
                   >
@@ -447,20 +447,20 @@ export function ResumeManagementPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              to="/my-resumes/compare"
+              to="/resumes/compare"
               className="px-4 py-1.5 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 transition-colors flex items-center gap-1.5"
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />
               历史简历比较
             </Link>
             <Link
-              to="/my-resumes/edit"
+              to="/resumes/edit"
               className="px-4 py-1.5 border border-[#0052D9] text-[#0052D9] text-sm font-medium rounded hover:bg-blue-50 transition-colors"
             >
               添加简历
             </Link>
             <Link
-              to="/my-resumes/edit"
+              to="/resumes/edit"
               className="px-5 py-1.5 bg-[#0052D9] text-white text-sm font-medium rounded hover:bg-[#003DA5] transition-colors"
             >
               修改简历

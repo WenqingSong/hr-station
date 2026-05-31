@@ -321,7 +321,7 @@ export function MyResumesPage() {
           {/* Page title area */}
           <div className="mb-5">
             <Link
-              to="/my-resumes"
+              to="/resumes"
               className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-3"
             >
               <ChevronLeft className="w-3 h-3" />
@@ -805,7 +805,7 @@ export function MyResumesPage() {
             </div>
             <div className="flex items-center gap-3">
               <Link
-                to="/my-resumes"
+                to="/resumes"
                 className="px-4 py-2 text-gray-500 text-sm hover:text-gray-800 transition-colors"
               >
                 取消

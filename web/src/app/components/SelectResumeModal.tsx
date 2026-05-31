@@ -231,7 +231,7 @@ export function SelectResumeModal({
         <div className="flex items-center justify-between px-7 py-4 border-t border-gray-100 flex-shrink-0">
           {/* Weak management link */}
           <Link
-            to="/my-resumes"
+            to="/resumes"
             onClick={onClose}
             className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0052D9] transition-colors"
           >
