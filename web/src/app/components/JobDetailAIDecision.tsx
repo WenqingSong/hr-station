@@ -76,7 +76,7 @@ export function JobDetailAIDecision() {
         </p>
         <Button 
           className="w-full shadow-sm group bg-[#0052D9] hover:bg-[#0040A8] text-white"
-          onClick={() => navigate("/match-analysis")}
+          onClick={() => navigate("/match")}
         >
           开始岗位匹配分析
           <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />

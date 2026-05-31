@@ -80,7 +80,7 @@ export function JobCard({
             className="px-0"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/job/${id}`);
+              navigate(`/jobs/${id}`);
             }}
           >
             查看详情

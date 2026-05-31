@@ -27,13 +27,18 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: JobListPage },
       { path: "jobs", Component: JobListPage },
-      { path: "job/:id", Component: JobDetailPage },
-      { path: "recommendations", Component: JobRecommendationPage },
-      { path: "match-analysis", Component: JobMatchAnalysisPage },
+      // ── P0 核心路由（5-3.2 已规范统一） ──
+      { path: "jobs/:id", Component: JobDetailPage },
+      { path: "recommend", Component: JobRecommendationPage },
+      { path: "match", Component: JobMatchAnalysisPage },
       { path: "resume-optimization", Component: ResumeOptimizationPage },
       { path: "my-resumes", Component: ResumeManagementPage },
       { path: "my-resumes/edit", Component: MyResumesPage },
       { path: "my-resumes/compare", Component: ResumeComparisonPage },
+      // ── 旧路径兼容重定向（5-3.2 保留，后续清理阶段可移除） ──
+      { path: "job/:id", Component: JobDetailPage },
+      { path: "recommendations", element: <Navigate to="/recommend" replace /> },
+      { path: "match-analysis", element: <Navigate to="/match" replace /> },
       { path: "resume-comparison", element: <Navigate to="/my-resumes/compare" replace /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],

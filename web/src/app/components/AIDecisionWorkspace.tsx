@@ -57,7 +57,7 @@ export function AIDecisionWorkspace() {
         </p>
         <Button 
           className="w-full shadow-sm group"
-          onClick={() => navigate("/recommendations")}
+          onClick={() => navigate("/recommend")}
         >
           推荐最适合的 5 个岗位
           <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />

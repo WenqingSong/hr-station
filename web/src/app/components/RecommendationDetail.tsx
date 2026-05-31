@@ -100,10 +100,10 @@ export function RecommendationDetail() {
             </div>
           </div>
           <div className="flex gap-4">
-            <Button className="flex-1 bg-[#0052D9] hover:bg-[#0040A8] text-white h-11" onClick={() => navigate("/job/1")}>
+            <Button className="flex-1 bg-[#0052D9] hover:bg-[#0040A8] text-white h-11" onClick={() => navigate("/jobs/1")}>
               进入岗位详情<ArrowRight className="w-4 h-4 ml-2" />
             </Button>
-            <Button variant="outline" className="flex-1 border-[#0052D9] text-[#0052D9] hover:bg-blue-50 h-11" onClick={() => navigate("/match-analysis")}>
+            <Button variant="outline" className="flex-1 border-[#0052D9] text-[#0052D9] hover:bg-blue-50 h-11" onClick={() => navigate("/match")}>
               进行岗位匹配分析
             </Button>
           </div>

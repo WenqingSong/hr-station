@@ -186,7 +186,7 @@ export function MatchAnalysisDetail() {
             <Button 
               variant="outline" 
               className="px-6 border-transparent text-[#0052D9] hover:bg-blue-50 h-11"
-              onClick={() => navigate("/recommendations")}
+              onClick={() => navigate("/recommend")}
             >
               查看推荐岗位
             </Button>

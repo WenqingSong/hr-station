@@ -248,7 +248,7 @@ export function ResumeOptimizationDetail() {
             <Button 
               variant="outline" 
               className="flex-1 border-transparent text-[#0052D9] hover:bg-blue-50 h-11"
-              onClick={() => navigate("/job/1")}
+              onClick={() => navigate("/jobs/1")}
             >
               查看岗位详情
             </Button>

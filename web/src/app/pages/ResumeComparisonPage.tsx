@@ -451,7 +451,7 @@ export function ResumeComparisonPage() {
             <Link to="/my-resumes" className="flex-1 md:flex-none px-4 py-2 text-center text-sm font-medium text-slate-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">
               返回我的简历
             </Link>
-            <Link to="/recommendations" className="flex-1 md:flex-none px-4 py-2 text-center text-sm font-medium text-[#0052D9] bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors">
+            <Link to="/recommend" className="flex-1 md:flex-none px-4 py-2 text-center text-sm font-medium text-[#0052D9] bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors">
               用于岗位推荐
             </Link>
             <button className="flex-1 md:flex-none px-6 py-2 text-sm font-medium text-white bg-[#0052D9] rounded shadow-sm hover:bg-[#0047BA] transition-colors shadow-blue-500/20">
