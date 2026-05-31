@@ -233,12 +233,15 @@
 
 ### 6.6 状态判定
 
-**ResumeOptimizationAgent：Mock-only**
+**ResumeOptimizationAgent：LLM + Mock fallback 已接入（4-3.8.1-R 已完成）**
 
 - ✅ Mock Agent 存在
-- ❌ LLM Agent 不存在
-- ❌ 未接入 Pipeline
-- ❌ 无 fallback 行为（因为没有 LLM 路径）
+- ✅ LLM Agent 已创建（`resume_optimization_agent.go`）
+- ✅ 已接入 Pipeline（使用 `TargetResumeOptimization`）
+- ✅ fallback 行为完整（LLM 失败 → Mock 回退，`ResumeOptFallbackError`）
+- ✅ Service 已注入 `pipelineRunner` + `llmEnabled`
+- ✅ `generated_by` 规则清晰（llm_agent / mock_agent / fallback 时 mock_agent + agent_status=fallback）
+- ✅ 测试覆盖 LLM success / fallback / mock-only
 - ❌ generated_by 仅硬编码 "mock_agent"
 - ❌ 无 JSON repair 测试
 - ❌ 无 fake LLM / mock LLM / malformed JSON / error fallback 测试
@@ -249,7 +252,7 @@
 |-------|----------|-------------|----------------|-----------|----------|--------------|---------------|
 | MatchAnalysis | LLM + fallback 已接入 | 已有（fake Pipeline） | 已有（Pipeline repair） | 已有（Pipeline fallback） | 已有（MatchFallbackError→Mock） | 已有（llm_agent / mock_agent） | 否 |
 | Recommendation | LLM + fallback 已接入 | 已有（fake Pipeline） | 已有（Pipeline repair） | 已有（Pipeline fallback） | 已有（RecFallbackError→Mock） | 已有（llm_agent / mock_agent） | 否 |
-| ResumeOptimization | **Mock-only** | **缺失** | **缺失** | **缺失** | **缺失** | 仅 mock_agent（硬编码） | **是** |
+| ResumeOptimization | **LLM + Mock fallback** | ✅ 存在 | ✅ 存在 | ✅ 支持 | ✅ 支持 | LLM 优先 + Mock fallback | 否 |
 
 ## 8. 当前测试覆盖
 
@@ -328,11 +331,11 @@
 
 理由：
 
-1. ResumeOptimizationAgent 当前为 Mock-only，没有 LLM Agent、没有 Pipeline 接入
+1. ResumeOptimizationAgent 已完成 Pipeline 最小集成（4-3.8.1-R），三类 Agent 均具备 LLM + fallback 能力
 2. Pipeline 已支持 `TargetResumeOptimization` 类型
 3. Prompt / Schema 已就绪（`resume_optimization_v1.md` + `resume_optimization_schema.json`）
 4. Go model 已具备 `generated_by` / `agent_status` / `repair_applied` / `fallback_required` 等字段
-5. Service 层需要改造：注入 `pipelineRunner` + `llmEnabled`，实现 LLM 优先 + Mock 回退
+5. Service 层已完成改造：注入 `pipelineRunner` + `llmEnabled`，实现 LLM 优先 + Mock 回退
 
 4-3.8.1-R 目标只能是：
 
