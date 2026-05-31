@@ -1,12 +1,16 @@
 import React from "react";
 import { FileText, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { Badge } from "./ui/Badge";
-import { mockCurrentResume } from "../mocks";
 import { toResumeSummaryViewModel } from "../adapters";
+import type { Resume } from "../types";
 
-const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
+interface MatchAnalysisSidebarRightProps {
+  resume?: Resume;
+  resumeSource?: string;
+}
 
-export function MatchAnalysisSidebarRight() {
+export function MatchAnalysisSidebarRight({ resume, resumeSource = "默认简历" }: MatchAnalysisSidebarRightProps) {
+  const resumeVm = toResumeSummaryViewModel(resume || null as any);
   return (
     <aside className="w-[320px] shrink-0 flex flex-col gap-4">
       {/* Resume Card */}

@@ -1,12 +1,16 @@
 import React from "react";
 import { MapPin, Target, LayoutList, Tags } from "lucide-react";
 import { Badge } from "./ui/Badge";
-import { mockSelectedJob } from "../mocks";
 import { toJobDetailViewModel } from "../adapters";
+import type { JobDetail } from "../types";
 
-const jobVm = toJobDetailViewModel(mockSelectedJob);
+interface MatchAnalysisSidebarLeftProps {
+  job?: JobDetail;
+  jobSource?: string;
+}
 
-export function MatchAnalysisSidebarLeft() {
+export function MatchAnalysisSidebarLeft({ job, jobSource = "默认岗位" }: MatchAnalysisSidebarLeftProps) {
+  const jobVm = toJobDetailViewModel(job || null as any);
   return (
     <aside className="w-[320px] shrink-0 flex flex-col gap-4">
       <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">

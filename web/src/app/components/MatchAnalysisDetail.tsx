@@ -6,12 +6,17 @@ import { useNavigate } from "react-router";
 import { mockMatchAnalysisResponse } from "../mocks";
 import { toMatchAnalysisPageViewModel } from "../adapters";
 
+interface MatchAnalysisDetailProps {
+  currentJobId?: string;
+  currentResumeId?: string;
+}
+
 const matchVm = toMatchAnalysisPageViewModel(
   mockMatchAnalysisResponse.result,
   mockMatchAnalysisResponse.meta
 );
 
-export function MatchAnalysisDetail() {
+export function MatchAnalysisDetail({ currentJobId = "job-backend-dev", currentResumeId = "resume-v2" }: MatchAnalysisDetailProps) {
   const navigate = useNavigate();
 
   const getStrengthStyle = (tone: string) => {
@@ -171,7 +176,7 @@ export function MatchAnalysisDetail() {
           <div className="flex items-center gap-4">
             <Button 
               className="flex-1 bg-[#0052D9] hover:bg-[#0040A8] text-white h-11"
-              onClick={() => navigate("/resume-optimization")}
+              onClick={() => navigate(`/resume-optimization?jobId=${encodeURIComponent(currentJobId)}&resumeId=${encodeURIComponent(currentResumeId)}`)}
             >
               <PlusCircle className="w-4 h-4 mr-2" />
               针对该岗位优化简历
