@@ -1,15 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 import { Sparkles, FileText, Info, AlertCircle, Target, ArrowRight } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
 import { mockCurrentResume, mockSelectedJob } from "../mocks";
 import { toResumeSummaryViewModel } from "../adapters";
+import { SelectResumeModal } from "./SelectResumeModal";
 
 const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
 export function AIDecisionWorkspace() {
   const navigate = useNavigate();
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+
+  const handleConfirmRecommend = (resumeId: string) => {
+    navigate(`/recommend?resumeId=${encodeURIComponent(resumeId)}`);
+  };
   
   return (
     <aside className="w-[340px] shrink-0 sticky top-24 self-start flex flex-col gap-4">
@@ -57,7 +63,7 @@ export function AIDecisionWorkspace() {
         </p>
         <Button 
           className="w-full shadow-sm group"
-          onClick={() => navigate("/recommend")}
+          onClick={() => setIsResumeModalOpen(true)}
         >
           推荐最适合的 5 个岗位
           <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -105,6 +111,13 @@ export function AIDecisionWorkspace() {
           Mock 演示状态
         </div>
       </div>
+
+      <SelectResumeModal
+        isOpen={isResumeModalOpen}
+        onClose={() => setIsResumeModalOpen(false)}
+        onConfirm={handleConfirmRecommend}
+        scene="recommendation"
+      />
     </aside>
   );
 }

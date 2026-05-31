@@ -1,16 +1,24 @@
-import React from "react";
+import React, { useState } from "react";
 import { Sparkles, FileText, Target, ArrowRight, ShieldAlert } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { mockCurrentResume, mockSelectedJob } from "../mocks";
 import { toResumeSummaryViewModel, toJobDetailViewModel } from "../adapters";
+import { SelectResumeModal } from "./SelectResumeModal";
 
 const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 const jobVm = toJobDetailViewModel(mockSelectedJob);
 
 export function JobDetailAIDecision() {
   const navigate = useNavigate();
+  const { id: routeJobId } = useParams();
+  const jobId = routeJobId || mockSelectedJob.id;
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+
+  const handleConfirmMatch = (resumeId: string) => {
+    navigate(`/match?jobId=${encodeURIComponent(jobId)}&resumeId=${encodeURIComponent(resumeId)}`);
+  };
 
   return (
     <aside className="w-[340px] shrink-0 sticky top-24 self-start flex flex-col gap-4">
@@ -76,7 +84,7 @@ export function JobDetailAIDecision() {
         </p>
         <Button 
           className="w-full shadow-sm group bg-[#0052D9] hover:bg-[#0040A8] text-white"
-          onClick={() => navigate("/match")}
+          onClick={() => setIsResumeModalOpen(true)}
         >
           开始岗位匹配分析
           <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -103,6 +111,14 @@ export function JobDetailAIDecision() {
           当前结果来源：Mock 演示
         </div>
       </div>
+
+      <SelectResumeModal
+        isOpen={isResumeModalOpen}
+        onClose={() => setIsResumeModalOpen(false)}
+        onConfirm={handleConfirmMatch}
+        scene="match-analysis"
+        jobTitle={jobVm.title}
+      />
     </aside>
   );
 }
