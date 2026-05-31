@@ -1,6 +1,10 @@
 import React from "react";
 import { FileText, Sparkles, Target, TrendingUp } from "lucide-react";
 import { Badge } from "./ui/Badge";
+import { mockCurrentResume } from "../mocks";
+import { toResumeSummaryViewModel } from "../adapters";
+
+const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
 export function ResumeOptimizationSidebarRight() {
   return (
@@ -17,9 +21,9 @@ export function ResumeOptimizationSidebarRight() {
           </button>
         </div>
         <div className="mb-4">
-          <h3 className="font-bold text-gray-900 text-[16px] mb-3">V2 后端开发简历</h3>
+          <h3 className="font-bold text-gray-900 text-[16px] mb-3">{resumeVm.name}</h3>
           <div className="flex flex-wrap gap-1.5">
-            {["后端开发", "Go", "MySQL", "Redis", "微服务"].map((tag) => (
+            {[resumeVm.directionLabel, ...resumeVm.skillTags.slice(0, 4)].map((tag) => (
               <Badge key={tag} variant="outline" className="text-[11px] px-1.5 text-gray-600 bg-gray-50 font-normal">
                 {tag}
               </Badge>
@@ -27,7 +31,7 @@ export function ResumeOptimizationSidebarRight() {
           </div>
         </div>
         <p className="text-[12px] text-gray-400">
-          包含 3 个项目经历，最近更新：2 小时前
+          包含 {resumeVm.projectCount} 个项目经历，最近更新：{resumeVm.updatedAt}
         </p>
 
         <div className="mt-5 pt-4 border-t border-gray-100">
@@ -38,19 +42,19 @@ export function ResumeOptimizationSidebarRight() {
           <ul className="space-y-2 text-[12px] text-gray-600 leading-relaxed">
             <li className="flex gap-2">
               <span className="text-gray-400 shrink-0">求职方向：</span>
-              <span className="text-gray-800 font-medium">后端开发</span>
+              <span className="text-gray-800 font-medium">{resumeVm.directionLabel}</span>
             </li>
             <li className="flex gap-2">
               <span className="text-gray-400 shrink-0">技能关键词：</span>
-              <span className="text-gray-800">Go、MySQL、Redis、Docker</span>
+              <span className="text-gray-800">{resumeVm.skillTags.slice(0, 4).join('、')}</span>
             </li>
             <li className="flex gap-2">
               <span className="text-gray-400 shrink-0">项目经历：</span>
-              <span className="text-gray-800">Go 微服务订单系统、RBAC 权限管理系统、缓存优化项目</span>
+              <span className="text-gray-800">{resumeVm.projectCount} 个</span>
             </li>
             <li className="flex gap-2">
-              <span className="text-gray-400 shrink-0">当前版本：</span>
-              <span className="text-gray-800">V2</span>
+              <span className="text-gray-400 shrink-0">简历完整度：</span>
+              <span className="text-gray-800">{resumeVm.completeness}%</span>
             </li>
           </ul>
         </div>

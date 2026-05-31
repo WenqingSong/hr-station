@@ -1,6 +1,11 @@
 import React from "react";
 import { ChevronLeft, Briefcase, FileText, Activity } from "lucide-react";
 import { useNavigate } from "react-router";
+import { mockSelectedJob, mockCurrentResume } from "../mocks";
+import { toJobDetailViewModel, toResumeSummaryViewModel } from "../adapters";
+
+const jobVm = toJobDetailViewModel(mockSelectedJob);
+const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
 export function ResumeOptimizationHeader() {
   const navigate = useNavigate();
@@ -29,7 +34,7 @@ export function ResumeOptimizationHeader() {
           <span className="text-gray-400">目标岗位：</span>
           <div className="flex items-center text-gray-700 font-medium">
             <Briefcase className="w-3 h-3 mr-1 text-[#0052D9]" />
-            软件开发-后台开发方向
+            {jobVm.title}
           </div>
         </div>
         <div className="w-px h-3 bg-gray-200"></div>
@@ -37,7 +42,7 @@ export function ResumeOptimizationHeader() {
           <span className="text-gray-400">当前简历：</span>
           <div className="flex items-center text-gray-700 font-medium">
             <FileText className="w-3 h-3 mr-1 text-[#0052D9]" />
-            V2 后端开发简历
+            {resumeVm.name}
           </div>
         </div>
         <div className="w-px h-3 bg-gray-200"></div>

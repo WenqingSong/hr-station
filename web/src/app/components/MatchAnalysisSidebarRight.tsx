@@ -1,6 +1,10 @@
 import React from "react";
 import { FileText, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { Badge } from "./ui/Badge";
+import { mockCurrentResume } from "../mocks";
+import { toResumeSummaryViewModel } from "../adapters";
+
+const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
 export function MatchAnalysisSidebarRight() {
   return (
@@ -17,9 +21,9 @@ export function MatchAnalysisSidebarRight() {
           </button>
         </div>
         <div className="mb-4">
-          <h3 className="font-bold text-gray-900 text-[16px] mb-3">V2 后端开发简历</h3>
+          <h3 className="font-bold text-gray-900 text-[16px] mb-3">{resumeVm.name}</h3>
           <div className="flex flex-wrap gap-1.5">
-            {["后端开发", "Go", "MySQL", "Redis", "微服务"].map((tag) => (
+            {[resumeVm.directionLabel, ...resumeVm.skillTags.slice(0, 4)].map((tag) => (
               <Badge key={tag} variant="outline" className="text-[11px] px-1.5 text-gray-600 bg-gray-50 font-normal">
                 {tag}
               </Badge>
@@ -27,7 +31,7 @@ export function MatchAnalysisSidebarRight() {
           </div>
         </div>
         <p className="text-[12px] text-gray-400">
-          包含 3 个项目经历，最近更新：2 小时前
+          包含 {resumeVm.projectCount} 个项目经历，最近更新：{resumeVm.updatedAt}
         </p>
 
         <div className="mt-5 pt-4 border-t border-gray-100">
@@ -36,13 +40,7 @@ export function MatchAnalysisSidebarRight() {
             简历核心证据
           </h4>
           <ul className="space-y-2 text-[12px] text-gray-600">
-            {[
-              "Go 微服务项目",
-              "MySQL / Redis 缓存优化",
-              "后台接口开发",
-              "RBAC 权限系统",
-              "Docker 部署经验"
-            ].map((item, i) => (
+            {resumeVm.skillTags.slice(0, 5).map((item, i) => (
               <li key={i} className="flex items-center gap-2">
                 <div className="w-1 h-1 rounded-full bg-gray-300"></div>
                 {item}
@@ -57,11 +55,7 @@ export function MatchAnalysisSidebarRight() {
             当前简历缺口
           </h4>
           <ul className="space-y-2 text-[12px] text-amber-700/90">
-            {[
-              "Linux 使用经验描述不足",
-              "高并发数据缺失",
-              "线上问题排查案例不足"
-            ].map((item, i) => (
+            {resumeVm.gapItems.slice(0, 3).map((item, i) => (
               <li key={i} className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
                 {item}

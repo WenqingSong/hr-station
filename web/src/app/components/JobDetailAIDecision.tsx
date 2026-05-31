@@ -3,6 +3,11 @@ import { Sparkles, FileText, Target, ArrowRight, ShieldAlert } from "lucide-reac
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
+import { mockCurrentResume, mockSelectedJob } from "../mocks";
+import { toResumeSummaryViewModel, toJobDetailViewModel } from "../adapters";
+
+const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
+const jobVm = toJobDetailViewModel(mockSelectedJob);
 
 export function JobDetailAIDecision() {
   const navigate = useNavigate();
@@ -26,14 +31,14 @@ export function JobDetailAIDecision() {
           <Target className="h-3.5 w-3.5" />
           当前岗位
         </div>
-        <h3 className="font-bold text-gray-900 text-sm mb-2">软件开发-后台开发方向</h3>
+        <h3 className="font-bold text-gray-900 text-sm mb-2">{jobVm.title}</h3>
         <div className="flex flex-wrap gap-1.5 mb-2.5">
-          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">技术</Badge>
-          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">应届毕业生</Badge>
+          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm.typeLabel}</Badge>
+          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm.categoryLabel}</Badge>
           <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">后台开发</Badge>
         </div>
         <p className="text-[11px] text-gray-400">
-          工作地点：深圳 / 北京 / 上海 / 广州 / 成都
+          工作地点：{jobVm.locationsText}
         </p>
       </div>
 
@@ -49,17 +54,16 @@ export function JobDetailAIDecision() {
           </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-bold text-gray-900 text-sm mb-2">V2 后端开发简历</h3>
+          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm.name}</h3>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">后端开发</Badge>
-            <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">Go</Badge>
-            <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">MySQL</Badge>
-            <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">Redis</Badge>
-            <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">微服务</Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{resumeVm.directionLabel}</Badge>
+            {resumeVm.skillTags.slice(0, 4).map((skill) => (
+              <Badge key={skill} variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{skill}</Badge>
+            ))}
           </div>
         </div>
         <p className="text-[11px] text-gray-400">
-          包含 3 个项目经历，最近更新：2 小时前
+          包含 {resumeVm.projectCount} 个项目经历，最近更新：{resumeVm.updatedAt}
         </p>
       </div>
 

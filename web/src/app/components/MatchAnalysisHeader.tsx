@@ -1,6 +1,11 @@
 import React from "react";
 import { ChevronLeft, Briefcase, FileText, Activity } from "lucide-react";
 import { useNavigate } from "react-router";
+import { mockSelectedJob, mockCurrentResume } from "../mocks";
+import { toJobDetailViewModel, toResumeSummaryViewModel } from "../adapters";
+
+const jobVm = toJobDetailViewModel(mockSelectedJob);
+const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
 export function MatchAnalysisHeader() {
   const navigate = useNavigate();
@@ -28,7 +33,7 @@ export function MatchAnalysisHeader() {
           <span className="text-gray-400">当前岗位：</span>
           <div className="flex items-center text-gray-800 font-medium">
             <Briefcase className="w-3.5 h-3.5 mr-1.5 text-[#0052D9]" />
-            软件开发-后台开发方向
+            {jobVm.title}
           </div>
         </div>
         
@@ -38,7 +43,7 @@ export function MatchAnalysisHeader() {
           <span className="text-gray-400">当前简历：</span>
           <div className="flex items-center text-gray-800 font-medium">
             <FileText className="w-3.5 h-3.5 mr-1.5 text-[#0052D9]" />
-            V2 后端开发简历
+            {resumeVm.name}
           </div>
         </div>
 

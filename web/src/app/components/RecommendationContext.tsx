@@ -1,6 +1,10 @@
 import React from "react";
 import { FileText, Sparkles, AlertCircle } from "lucide-react";
 import { Badge } from "./ui/Badge";
+import { mockCurrentResume } from "../mocks";
+import { toResumeSummaryViewModel } from "../adapters";
+
+const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
 export function RecommendationContext() {
   return (
@@ -17,9 +21,9 @@ export function RecommendationContext() {
           </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-bold text-gray-900 text-[15px] mb-2">V2 后端开发简历</h3>
+          <h3 className="font-bold text-gray-900 text-[15px] mb-2">{resumeVm.name}</h3>
           <div className="flex flex-wrap gap-1.5">
-            {["后端开发", "Go", "MySQL", "Redis", "微服务"].map((tag) => (
+            {[resumeVm.directionLabel, ...resumeVm.skillTags.slice(0, 4)].map((tag) => (
               <Badge key={tag} variant="outline" className="text-[11px] px-1.5 text-gray-600 bg-gray-50 font-normal">
                 {tag}
               </Badge>
@@ -27,7 +31,7 @@ export function RecommendationContext() {
           </div>
         </div>
         <p className="text-[12px] text-gray-400">
-          包含 3 个项目经历，最近更新：2 小时前
+          包含 {resumeVm.projectCount} 个项目经历，最近更新：{resumeVm.updatedAt}
         </p>
       </div>
 
@@ -37,15 +41,15 @@ export function RecommendationContext() {
         <ul className="space-y-3 text-[13px] text-gray-600">
           <li className="flex items-start">
             <span className="w-[70px] shrink-0 text-gray-400">求职方向：</span>
-            <span className="font-medium text-gray-800">后端开发</span>
+            <span className="font-medium text-gray-800">{resumeVm.directionLabel}</span>
           </li>
           <li className="flex items-start">
             <span className="w-[70px] shrink-0 text-gray-400">核心技能：</span>
-            <span className="font-medium text-gray-800">Go / MySQL / Redis</span>
+            <span className="font-medium text-gray-800">{resumeVm.skillTags.slice(0, 3).join(' / ')}</span>
           </li>
           <li className="flex items-start">
             <span className="w-[70px] shrink-0 text-gray-400">项目经历：</span>
-            <span className="font-medium text-gray-800 leading-relaxed">微服务、接口开发、数据库设计</span>
+            <span className="font-medium text-gray-800 leading-relaxed">{resumeVm.projectCount} 个项目</span>
           </li>
           <li className="flex items-start pt-2 border-t border-gray-50">
             <span className="w-[70px] shrink-0 text-gray-400">目标岗位池：</span>
@@ -61,15 +65,16 @@ export function RecommendationContext() {
           <h3 className="font-bold text-amber-900 text-[14px]">影响推荐排序的 3 个因素</h3>
         </div>
         <ul className="space-y-2 text-[12px] text-amber-800/80 list-disc pl-5 marker:text-amber-300">
-          <li>云原生项目证据偏少</li>
-          <li>高并发压测结果缺失</li>
-          <li>Linux 使用经验表达不足</li>
+          {resumeVm.gapItems.slice(0, 3).map((gap, i) => (
+            <li key={i}>{gap}</li>
+          ))}
         </ul>
       </div>
 
       {/* Mock Status */}
       <div className="mt-2 flex justify-center">
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 text-gray-400 text-[11px] opacity-70">
+          <Sparkles className="h-3.5 w-3.5" />
           当前结果来源：Mock 演示
         </div>
       </div>

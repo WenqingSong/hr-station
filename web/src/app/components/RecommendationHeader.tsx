@@ -1,6 +1,10 @@
 import React from "react";
-import { ArrowLeft, Target, Layers, MapPin } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
+import { mockCurrentResume } from "../mocks";
+import { toResumeSummaryViewModel } from "../adapters";
+
+const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
 export function RecommendationHeader() {
   const navigate = useNavigate();
@@ -23,12 +27,12 @@ export function RecommendationHeader() {
       <div className="mt-5 flex flex-wrap items-center gap-6 pt-4 border-t border-gray-100 text-sm">
         <div className="flex items-center gap-2">
           <span className="text-gray-400">当前简历：</span>
-          <span className="font-medium text-gray-800">V2 后端开发简历</span>
+          <span className="font-medium text-gray-800">{resumeVm.name}</span>
         </div>
         <div className="w-px h-3.5 bg-gray-200"></div>
         <div className="flex items-center gap-2">
           <span className="text-gray-400">筛选范围：</span>
-          <span className="text-gray-700">2026 校园招聘 / 软件开发 / 深圳</span>
+          <span className="text-gray-700">校园招聘 / 软件开发 / 深圳</span>
         </div>
         <div className="w-px h-3.5 bg-gray-200"></div>
         <div className="flex items-center gap-2">

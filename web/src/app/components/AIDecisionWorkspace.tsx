@@ -3,6 +3,10 @@ import { Sparkles, FileText, Info, AlertCircle, Target, ArrowRight } from "lucid
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
+import { mockCurrentResume, mockSelectedJob } from "../mocks";
+import { toResumeSummaryViewModel } from "../adapters";
+
+const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
 export function AIDecisionWorkspace() {
   const navigate = useNavigate();
@@ -32,17 +36,16 @@ export function AIDecisionWorkspace() {
           </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-bold text-gray-900 text-sm mb-2">V2 后端开发简历</h3>
+          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm.name}</h3>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="secondary" className="text-[10px] px-1.5">后端开发</Badge>
-            <Badge variant="secondary" className="text-[10px] px-1.5">Go</Badge>
-            <Badge variant="secondary" className="text-[10px] px-1.5">MySQL</Badge>
-            <Badge variant="secondary" className="text-[10px] px-1.5">Redis</Badge>
-            <Badge variant="secondary" className="text-[10px] px-1.5">微服务</Badge>
+            <Badge variant="secondary" className="text-[10px] px-1.5">{resumeVm.directionLabel}</Badge>
+            {resumeVm.skillTags.slice(0, 4).map((skill) => (
+              <Badge key={skill} variant="secondary" className="text-[10px] px-1.5">{skill}</Badge>
+            ))}
           </div>
         </div>
         <p className="text-xs text-gray-400">
-          包含 3 个项目经历，最近更新：2 小时前
+          包含 {resumeVm.projectCount} 个项目经历，最近更新：{resumeVm.updatedAt}
         </p>
       </div>
 
@@ -68,7 +71,7 @@ export function AIDecisionWorkspace() {
           <Target className="h-4 w-4 text-[#0052D9]" />
           当前选择岗位
         </div>
-        <h3 className="font-bold text-[#0052D9] text-sm mb-1">软件开发-后台开发方向</h3>
+        <h3 className="font-bold text-[#0052D9] text-sm mb-1">{mockSelectedJob.title}</h3>
         <p className="text-xs text-gray-500">
           已选中岗位，可进入详情页查看 JD。
         </p>
