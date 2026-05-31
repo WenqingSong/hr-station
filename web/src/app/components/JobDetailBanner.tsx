@@ -2,8 +2,8 @@ import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Badge } from "./ui/Badge";
-import { mockSelectedJob } from "../mocks";
-import { toJobDetailViewModel } from "../adapters";
+import { mockSelectedJob } from "../../mocks";
+import { toJobDetailViewModel } from "../../adapters";
 
 const jobVm = toJobDetailViewModel(mockSelectedJob);
 

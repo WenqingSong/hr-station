@@ -9,8 +9,8 @@ import {
   Briefcase,
   ChevronRight,
 } from "lucide-react";
-import { mockResumeOptions } from "../mocks";
-import { toResumeOptionViewModels } from "../adapters";
+import { mockResumeOptions } from "../../mocks";
+import { toResumeOptionViewModels } from "../../adapters";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

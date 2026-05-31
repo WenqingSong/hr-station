@@ -3,8 +3,8 @@ import { CheckCircle2, ShieldAlert, Zap, ArrowRight, Sparkles, Activity, PlusCir
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
-import { mockMatchAnalysisResponse } from "../mocks";
-import { toMatchAnalysisPageViewModel } from "../adapters";
+import { mockMatchAnalysisResponse } from "../../mocks";
+import { toMatchAnalysisPageViewModel } from "../../adapters";
 
 interface MatchAnalysisDetailProps {
   currentJobId?: string;

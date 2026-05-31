@@ -2,8 +2,8 @@ import React from "react";
 import { MapPin, AlertCircle, ChevronRight } from "lucide-react";
 import { Badge } from "./ui/Badge";
 import { cn } from "../utils";
-import { mockRecommendationResponse } from "../mocks";
-import { toRecommendationPageViewModel } from "../adapters";
+import { mockRecommendationResponse } from "../../mocks";
+import { toRecommendationPageViewModel } from "../../adapters";
 
 const recVm = toRecommendationPageViewModel(
   mockRecommendationResponse.result,

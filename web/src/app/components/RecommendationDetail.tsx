@@ -3,8 +3,8 @@ import { CheckCircle2, ShieldAlert, Zap, ArrowRight } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
-import { mockRecommendationResponse } from "../mocks";
-import { toRecommendationPageViewModel } from "../adapters";
+import { mockRecommendationResponse } from "../../mocks";
+import { toRecommendationPageViewModel } from "../../adapters";
 
 interface RecommendationDetailProps {
   currentResumeId?: string;

@@ -1,8 +1,8 @@
 import React from "react";
 import { MapPin, Target, LayoutList, Tags } from "lucide-react";
 import { Badge } from "./ui/Badge";
-import { toJobDetailViewModel } from "../adapters";
-import type { JobDetail } from "../types";
+import { toJobDetailViewModel } from "../../adapters";
+import type { JobDetail } from "../../types";
 
 interface MatchAnalysisSidebarLeftProps {
   job?: JobDetail;

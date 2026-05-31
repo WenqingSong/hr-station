@@ -6,7 +6,7 @@ import { ResumeOptimizationDetail } from "../components/ResumeOptimizationDetail
 import { ResumeOptimizationSidebarRight } from "../components/ResumeOptimizationSidebarRight";
 import {
   mockSelectedJob, mockJobDetails, mockCurrentResume, mockResumeVersions,
-} from "../mocks";
+} from "../../mocks";
 
 export function ResumeOptimizationPage() {
   const [searchParams] = useSearchParams();

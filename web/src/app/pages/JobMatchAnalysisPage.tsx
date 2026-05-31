@@ -6,7 +6,7 @@ import { MatchAnalysisDetail } from "../components/MatchAnalysisDetail";
 import { MatchAnalysisSidebarRight } from "../components/MatchAnalysisSidebarRight";
 import {
   mockSelectedJob, mockJobDetails, mockCurrentResume, mockResumeVersions,
-} from "../mocks";
+} from "../../mocks";
 
 export function JobMatchAnalysisPage() {
   const [searchParams] = useSearchParams();

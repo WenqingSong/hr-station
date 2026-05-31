@@ -3,8 +3,8 @@ import { Search, MapPin } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { JobCard } from "./JobCard";
-import { mockJobs } from "../mocks";
-import { toJobCardViewModels } from "../adapters";
+import { mockJobs } from "../../mocks";
+import { toJobCardViewModels } from "../../adapters";
 
 const jobCards = toJobCardViewModels(mockJobs);
 

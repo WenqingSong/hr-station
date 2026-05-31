@@ -1,8 +1,8 @@
 import React from "react";
 import { ChevronLeft, Briefcase, FileText, Activity } from "lucide-react";
 import { useNavigate } from "react-router";
-import { toJobDetailViewModel, toResumeSummaryViewModel } from "../adapters";
-import type { JobDetail, Resume } from "../types";
+import { toJobDetailViewModel, toResumeSummaryViewModel } from "../../adapters";
+import type { JobDetail, Resume } from "../../types";
 
 interface ResumeOptimizationHeaderProps {
   job?: JobDetail;

@@ -3,8 +3,8 @@ import { Sparkles, FileText, Target, ArrowRight, ShieldAlert } from "lucide-reac
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate, useParams } from "react-router";
-import { mockCurrentResume, mockSelectedJob } from "../mocks";
-import { toResumeSummaryViewModel, toJobDetailViewModel } from "../adapters";
+import { mockCurrentResume, mockSelectedJob } from "../../mocks";
+import { toResumeSummaryViewModel, toJobDetailViewModel } from "../../adapters";
 import { SelectResumeModal } from "./SelectResumeModal";
 
 const resumeVm = toResumeSummaryViewModel(mockCurrentResume);

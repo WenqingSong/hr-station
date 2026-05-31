@@ -1,8 +1,8 @@
 import React from "react";
 import { FileText, Sparkles, AlertCircle } from "lucide-react";
 import { Badge } from "./ui/Badge";
-import { mockCurrentResume } from "../mocks";
-import { toResumeSummaryViewModel } from "../adapters";
+import { mockCurrentResume } from "../../mocks";
+import { toResumeSummaryViewModel } from "../../adapters";
 
 const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 

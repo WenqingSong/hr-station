@@ -3,8 +3,8 @@ import { Activity, Wrench, Sparkles, AlertCircle, RefreshCw, FileEdit, CheckCirc
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
-import { mockResumeOptimizationResponse } from "../mocks";
-import { toResumeOptimizationPageViewModel } from "../adapters";
+import { mockResumeOptimizationResponse } from "../../mocks";
+import { toResumeOptimizationPageViewModel } from "../../adapters";
 
 interface ResumeOptimizationDetailProps {
   currentJobId?: string;

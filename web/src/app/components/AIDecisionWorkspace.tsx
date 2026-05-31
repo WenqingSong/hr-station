@@ -3,8 +3,8 @@ import { Sparkles, FileText, Info, AlertCircle, Target, ArrowRight } from "lucid
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
-import { mockCurrentResume, mockSelectedJob } from "../mocks";
-import { toResumeSummaryViewModel } from "../adapters";
+import { mockCurrentResume, mockSelectedJob } from "../../mocks";
+import { toResumeSummaryViewModel } from "../../adapters";
 import { SelectResumeModal } from "./SelectResumeModal";
 
 const resumeVm = toResumeSummaryViewModel(mockCurrentResume);

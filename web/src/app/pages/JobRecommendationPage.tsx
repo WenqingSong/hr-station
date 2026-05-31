@@ -4,7 +4,7 @@ import { RecommendationHeader } from "../components/RecommendationHeader";
 import { RecommendationSidebar } from "../components/RecommendationSidebar";
 import { RecommendationDetail } from "../components/RecommendationDetail";
 import { RecommendationContext } from "../components/RecommendationContext";
-import { mockCurrentResume, mockResumeVersions } from "../mocks";
+import { mockCurrentResume, mockResumeVersions } from "../../mocks";
 
 export function JobRecommendationPage() {
   const [searchParams] = useSearchParams();

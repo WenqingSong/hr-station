@@ -1,6 +1,6 @@
 import React from "react";
-import { mockSelectedJob } from "../mocks";
-import { toJobDetailViewModel } from "../adapters";
+import { mockSelectedJob } from "../../mocks";
+import { toJobDetailViewModel } from "../../adapters";
 
 const jobVm = toJobDetailViewModel(mockSelectedJob);
 

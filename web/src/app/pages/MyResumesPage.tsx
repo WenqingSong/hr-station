@@ -112,7 +112,7 @@ function FieldRow({ label, required, children, hint }: {
         {children}
         {hint && <p className="mt-1.5 text-xs text-gray-400">{hint}</p>}
       </div>
-    </>
+    </div>
   );
 }
 

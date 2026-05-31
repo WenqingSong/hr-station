@@ -1,8 +1,8 @@
 import React from "react";
 import { FileText, Sparkles, Target, TrendingUp } from "lucide-react";
 import { Badge } from "./ui/Badge";
-import { toResumeSummaryViewModel } from "../adapters";
-import type { Resume } from "../types";
+import { toResumeSummaryViewModel } from "../../adapters";
+import type { Resume } from "../../types";
 
 interface ResumeOptimizationSidebarRightProps {
   resume?: Resume;
