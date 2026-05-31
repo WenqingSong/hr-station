@@ -331,7 +331,7 @@ export function MyResumesPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-semibold text-gray-900">{mode === "add" ? "添加简历" : "编辑简历"}</h1>
+                  <h1 className="text-xl font-semibold text-gray-900">{mode === "add" ? "添加简历" : "修改简历"}</h1>
                   <span className="px-2 py-0.5 bg-blue-50 border border-blue-100 rounded text-xs text-[#0052D9]">
                     {mode === "add" ? "新建模式" : "修改模式"}
                   </span>
@@ -832,7 +832,7 @@ export function MyResumesPage() {
           {savedHint && (
             <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-green-600" />
-              已保存为前端演示态，真实保存将在后续接入。
+              已保存本次演示修改
             </div>
           )}
 

@@ -27,7 +27,7 @@ export function MyResumesSidebar() {
           </div>
           <div className="pt-3 border-t border-gray-100 flex items-center gap-1.5 text-gray-400 text-[12px]">
             <Sparkles className="w-3.5 h-3.5" />
-            当前结果来源：Mock 演示
+            当前为演示数据
           </div>
         </div>
       </div>
