@@ -1,0 +1,163 @@
+// ─── API Client 基础层 ─────────────────────────────────────────────────────────
+
+import type { ApiResponse } from '../types';
+import type { ApiRequestOptions } from './types';
+import { ApiClientError } from './errors';
+
+// ─── Base URL ──────────────────────────────────────────────────────────────────
+
+const DEFAULT_API_BASE_URL = '/api';
+
+export const API_BASE_URL: string =
+  (typeof import.meta !== 'undefined' &&
+    import.meta.env?.VITE_API_BASE_URL?.trim?.()) ||
+  DEFAULT_API_BASE_URL;
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+/** 拼接 baseUrl + path，去除重复 / */
+function joinUrl(baseUrl: string, path: string): string {
+  const base = baseUrl.replace(/\/+$/, '');
+  const p = (path || '').replace(/^\/+/, '');
+  return `${base}/${p}`;
+}
+
+/** 类型守卫：判断值是否符合 ApiResponse 结构 */
+function isApiResponse<TData>(value: unknown): value is ApiResponse<TData> {
+  if (value === null || value === undefined) return false;
+  if (typeof value !== 'object') return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj.code === 'number';
+}
+
+/** 解析 JSON 响应体 */
+async function parseJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text) {
+    throw new ApiClientError('Empty response body', {
+      status: response.status,
+    });
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ApiClientError('Failed to parse response JSON', {
+      status: response.status,
+      details: text.substring(0, 200),
+    });
+  }
+}
+
+// ─── 核心请求 ──────────────────────────────────────────────────────────────────
+
+/**
+ * 底层请求函数：发起 fetch 并返回完整 ApiResponse。
+ * - HTTP 非 2xx → 抛出 ApiClientError
+ * - JSON 解析失败 → 抛出 ApiClientError
+ * - 响应不符合 { code, message, data } → 抛出 ApiClientError
+ * - code !== 0 → 抛出 ApiClientError
+ */
+export async function requestRaw<TData, TBody = unknown>(
+  path: string,
+  options?: ApiRequestOptions<TBody>,
+): Promise<ApiResponse<TData>> {
+  const url = joinUrl(API_BASE_URL, path);
+  const method = options?.method ?? 'GET';
+
+  const init: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+    signal: options?.signal,
+  };
+
+  // GET/HEAD 不应带 body
+  if (options?.body !== undefined && method !== 'GET' && method !== 'HEAD') {
+    init.body = JSON.stringify(options.body);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (err) {
+    throw new ApiClientError(
+      err instanceof Error ? err.message : 'Network request failed',
+    );
+  }
+
+  if (!response.ok) {
+    throw new ApiClientError(
+      `HTTP ${response.status}: ${response.statusText}`,
+      { status: response.status },
+    );
+  }
+
+  const parsed = await parseJsonResponse(response);
+
+  if (!isApiResponse<TData>(parsed)) {
+    throw new ApiClientError('Invalid response structure: missing code field', {
+      status: response.status,
+    });
+  }
+
+  if (parsed.code !== 0) {
+    throw new ApiClientError(parsed.message || 'API error', {
+      status: response.status,
+      code: parsed.code,
+      details: parsed.data,
+    });
+  }
+
+  return parsed;
+}
+
+// ─── 快捷方法 ──────────────────────────────────────────────────────────────────
+
+/**
+ * 请求并返回 ApiResponse.data。
+ * 字段校验、错误处理由 requestRaw 承担。
+ */
+export async function request<TData, TBody = unknown>(
+  path: string,
+  options?: ApiRequestOptions<TBody>,
+): Promise<TData> {
+  const result = await requestRaw<TData, TBody>(path, options);
+  return result.data;
+}
+
+/** GET 请求 */
+export function get<TData>(
+  path: string,
+  options?: Omit<ApiRequestOptions, 'method' | 'body'>,
+): Promise<TData> {
+  return request<TData>(path, { ...options, method: 'GET' });
+}
+
+/** POST 请求 */
+export function post<TData, TBody = unknown>(
+  path: string,
+  body?: TBody,
+  options?: Omit<ApiRequestOptions<TBody>, 'method' | 'body'>,
+): Promise<TData> {
+  return request<TData, TBody>(path, { ...options, method: 'POST', body });
+}
+
+/** PUT 请求 */
+export function put<TData, TBody = unknown>(
+  path: string,
+  body?: TBody,
+  options?: Omit<ApiRequestOptions<TBody>, 'method' | 'body'>,
+): Promise<TData> {
+  return request<TData, TBody>(path, { ...options, method: 'PUT', body });
+}
+
+/** PATCH 请求 */
+export function patch<TData, TBody = unknown>(
+  path: string,
+  body?: TBody,
+  options?: Omit<ApiRequestOptions<TBody>, 'method' | 'body'>,
+): Promise<TData> {
+  return request<TData, TBody>(path, { ...options, method: 'PATCH', body });
+}
