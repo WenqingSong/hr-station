@@ -260,12 +260,12 @@
 
 | 路径 | 测试文件 | 状态 |
 |------|----------|------|
-| LLM success（fake） | match_agent_test.go / match_service_test.go | ✅ 已有 |
+| LLM success（fake） | match_agent_test.go / match_service_test.go / agent_pipeline_integration_test.go | ✅ 已有 |
 | LLM repaired（fake） | pipeline_test.go | ✅ 已有 |
-| LLM error → fallback | match_agent_test.go / match_service_test.go / pipeline_test.go | ✅ 已有 |
-| malformed JSON → repair | pipeline_test.go | ✅ 已有 |
+| LLM error → fallback | match_agent_test.go / match_service_test.go / pipeline_test.go / agent_pipeline_integration_test.go | ✅ 已有 |
+| malformed JSON → repair | pipeline_test.go / agent_pipeline_integration_test.go | ✅ 已有 |
 | Schema validation fail → repair | pipeline_test.go | ✅ 已有 |
-| repair fail → fallback | pipeline_test.go | ✅ 已有 |
+| repair fail → fallback | pipeline_test.go / agent_pipeline_integration_test.go | ✅ 已有 |
 | LLM disabled → Mock | match_service_test.go | ✅ 已有 |
 | LLM config missing → Mock | match_service_test.go | ✅ 已有 |
 | field mapping fail → fallback | match_agent_test.go | ✅ 已有 |
@@ -279,8 +279,8 @@
 
 | 路径 | 测试文件 | 状态 |
 |------|----------|------|
-| LLM success（fake） | recommendation_agent_test.go / recommendation_service_test.go | ✅ 已有 |
-| LLM error → fallback | recommendation_agent_test.go / recommendation_service_test.go | ✅ 已有 |
+| LLM success（fake） | recommendation_agent_test.go / recommendation_service_test.go / agent_pipeline_integration_test.go | ✅ 已有 |
+| LLM error → fallback | recommendation_agent_test.go / recommendation_service_test.go / agent_pipeline_integration_test.go | ✅ 已有 |
 | LLM disabled → Mock | recommendation_service_test.go | ✅ 已有 |
 | field mapping fail → fallback | recommendation_agent_test.go | ✅ 已有 |
 | candidate filter（无效 job_id） | recommendation_agent_test.go | ✅ 已有 |
@@ -299,51 +299,60 @@
 | Mock apply_readiness 断言 | resume_optimization_mock_test.go | ✅ 已有 |
 | Mock optimization_stop_signal | resume_optimization_mock_test.go | ✅ 已有 |
 | Mock top_fix_items | resume_optimization_mock_test.go | ✅ 已有 |
-| **LLM success（fake）** | — | ❌ 缺失 |
-| **LLM error → fallback** | — | ❌ 缺失 |
-| **malformed JSON → repair** | — | ❌ 缺失 |
-| **fallback generated_by 断言** | — | ❌ 缺失 |
+| **LLM success（fake）** | resume_optimization_agent_test.go / agent_pipeline_integration_test.go | ✅ 已有 |
+| **LLM error → fallback** | resume_optimization_agent_test.go / agent_pipeline_integration_test.go | ✅ 已有 |
+| **malformed JSON → repair** | agent_pipeline_integration_test.go | ✅ 已有（4-3.8.1） |
+| **repair failed → fallback** | agent_pipeline_integration_test.go | ✅ 已有（4-3.8.1） |
+| **fallback generated_by 断言** | resume_optimization_service_test.go / agent_pipeline_integration_test.go | ✅ 已有 |
 
-## 9. 4-3.8.1 测试计划
+## 9. 4-3.8.1 测试计划（已完成）
 
-### 9.1 MatchAnalysisAgent 和 RecommendationAgent
+### 9.1 统一集成测试文件
 
-这两个 Agent 已完成 LLM + fallback 接入，4-3.8.1 应补齐以下集成验收测试：
+`server/internal/agent/agent_pipeline_integration_test.go` 包含三类 Agent 的统一测试：
 
-1. **统一 fake LLM success 测试**：使用固定简历 + 固定 JD，断言 generated_by="llm_agent"
-2. **统一 fake malformed JSON 测试**：Pipeline 返回 malformed JSON → repair → 断言 repair_applied=true
-3. **统一 fake LLM error 测试**：Pipeline fallback → Mock → 断言 generated_by="mock_agent"
-4. **统一 fallback generated_by 测试**：断言 fallback 时 generated_by="mock_agent" + agent_status="fallback"
-5. **统一字段断言**：
-   - apply_readiness 非空
-   - optimization_stop_signal 非空
-   - top_fix_items 字段存在
-   - generated_by 值正确
-   - evidence / summary / suggestion 字段存在
+1. **MatchAnalysisAgent 集成测试**：
+   - ✅ LLM success（含 apply_readiness / optimization_stop_signal / top_fix_items 断言）
+   - ✅ LLM error → fallback（MatchFallbackError）
+   - ✅ Malformed JSON → Pipeline repair success（agent_status=repaired）
+   - ✅ Malformed JSON → repair failed → fallback（json_repair_failed）
+   - ✅ Mock direct
+   - ✅ Mock fallback metadata（generated_by=mock_agent, agent_status=fallback）
 
-### 9.2 ResumeOptimizationAgent
+2. **RecommendationAgent 集成测试**：
+   - ✅ LLM success（含 apply_readiness / optimization_stop_signal / top_fix_items 断言）
+   - ✅ LLM error → fallback（RecFallbackError）
+   - ✅ Malformed JSON → Pipeline repair success（agent_status=repaired）
+   - ✅ Malformed JSON → repair failed → fallback（json_repair_schema_failed）
+   - ✅ Mock direct
+   - ✅ Mock fallback metadata
 
-此 Agent 仍为 Mock-only，**不具备 4-3.8.1 测试基础**。需要先接入 Pipeline。
+3. **ResumeOptimizationAgent 集成测试**：
+   - ✅ LLM success（含 apply_readiness / optimization_stop_signal / top_fix_items 断言）
+   - ✅ LLM error → fallback（ResumeOptFallbackError）
+   - ✅ Malformed JSON → Pipeline repair success（agent_status=repaired）
+   - ✅ Malformed JSON → repair failed → fallback（json_repair_failed）
+   - ✅ Mock direct
+   - ✅ Mock fallback metadata
 
-## 10. 是否需要 4-3.8.1-R
+4. **跨 Agent 测试**：
+   - ✅ generated_by / agent_status 规则验证
+   - ✅ 三类 Agent 战略字段统一验证（apply_readiness / optimization_stop_signal / top_fix_items）
+   - ✅ 默认战略字段验证（LLM 输出缺字段时默认值）
+   - ✅ 接口合规性交叉检查
 
-**需要插入 4-3.8.1-R：ResumeOptimization Pipeline 最小接入。**
+## 10. 4-3.8.1 已完成
 
-理由：
+4-3.8.1 已完成三类 Agent LLM / fallback 本地集成测试补齐。
 
-1. ResumeOptimizationAgent 已完成 Pipeline 最小集成（4-3.8.1-R），三类 Agent 均具备 LLM + fallback 能力
-2. Pipeline 已支持 `TargetResumeOptimization` 类型
-3. Prompt / Schema 已就绪（`resume_optimization_v1.md` + `resume_optimization_schema.json`）
-4. Go model 已具备 `generated_by` / `agent_status` / `repair_applied` / `fallback_required` 等字段
-5. Service 层已完成改造：注入 `pipelineRunner` + `llmEnabled`，实现 LLM 优先 + Mock 回退
+新增 `agent_pipeline_integration_test.go` 统一测试文件，覆盖：
+- 三类 Agent LLM success / LLM error fallback / malformed JSON repair success / malformed JSON repair failed fallback / Mock direct / Mock fallback metadata
+- generated_by / agent_status 规则验证
+- apply_readiness / optimization_stop_signal / top_fix_items 统一断言
+- 默认战略字段验证
+- 接口合规性交叉检查
 
-4-3.8.1-R 目标只能是：
-
-1. 创建 `ResumeOptimizationAgent`（LLM Agent），含 `Optimizer` 接口、`OptimizationFallbackError`、PromptValues 组装、字段映射
-2. 保留 `ResumeOptimizationMockAgent` 作为 fallback
-3. 保持 Prompt / Schema / Go model 一致
-4. Service 层注入 PipelineRunner + llmEnabled
-5. 不进前端
+下一步进入 4-3.8.2 三类 Agent 集成验收收口。
 6. 不改页面
 7. 不改启动链路
 
