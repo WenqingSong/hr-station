@@ -6,13 +6,17 @@ import { useNavigate } from "react-router";
 import { mockRecommendationResponse } from "../mocks";
 import { toRecommendationPageViewModel } from "../adapters";
 
+interface RecommendationDetailProps {
+  currentResumeId?: string;
+}
+
 const recVm = toRecommendationPageViewModel(
   mockRecommendationResponse.result,
   mockRecommendationResponse.meta
 );
 const firstJob = recVm.recommendedJobs[0];
 
-export function RecommendationDetail() {
+export function RecommendationDetail({ currentResumeId = "resume-v2" }: RecommendationDetailProps) {
   const navigate = useNavigate();
   const getStrengthStyle = (tone: string) => {
     switch (tone) {
@@ -103,7 +107,7 @@ export function RecommendationDetail() {
             <Button className="flex-1 bg-[#0052D9] hover:bg-[#0040A8] text-white h-11" onClick={() => navigate("/jobs/1")}>
               进入岗位详情<ArrowRight className="w-4 h-4 ml-2" />
             </Button>
-            <Button variant="outline" className="flex-1 border-[#0052D9] text-[#0052D9] hover:bg-blue-50 h-11" onClick={() => navigate("/match")}>
+            <Button variant="outline" className="flex-1 border-[#0052D9] text-[#0052D9] hover:bg-blue-50 h-11" onClick={() => navigate(`/match?resumeId=${encodeURIComponent(currentResumeId)}`)}>
               进行岗位匹配分析
             </Button>
           </div>

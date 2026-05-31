@@ -1,12 +1,13 @@
 import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
-import { mockCurrentResume } from "../mocks";
-import { toResumeSummaryViewModel } from "../adapters";
 
-const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
+interface RecommendationHeaderProps {
+  resumeName?: string;
+  sourceLabel?: string;
+}
 
-export function RecommendationHeader() {
+export function RecommendationHeader({ resumeName = "V2 后端开发简历", sourceLabel = "默认简历" }: RecommendationHeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -21,23 +22,18 @@ export function RecommendationHeader() {
 
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">AI 岗位推荐</h1>
-        <p className="text-[15px] text-gray-600">基于当前简历，从岗位池中推荐最值得优先关注的 5 个岗位。</p>
+        <p className="text-[15px] text-gray-600">基于已选择简历，从岗位池中推荐最值得优先关注的 5 个岗位。</p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-6 pt-4 border-t border-gray-100 text-sm">
         <div className="flex items-center gap-2">
           <span className="text-gray-400">当前简历：</span>
-          <span className="font-medium text-gray-800">{resumeVm.name}</span>
+          <span className="font-medium text-gray-800">{resumeName}</span>
         </div>
         <div className="w-px h-3.5 bg-gray-200"></div>
         <div className="flex items-center gap-2">
-          <span className="text-gray-400">筛选范围：</span>
-          <span className="text-gray-700">校园招聘 / 软件开发 / 深圳</span>
-        </div>
-        <div className="w-px h-3.5 bg-gray-200"></div>
-        <div className="flex items-center gap-2">
-          <span className="text-gray-400">岗位池：</span>
-          <span className="text-gray-700">共 90 个岗位</span>
+          <span className="text-gray-400">推荐来源：</span>
+          <span className="text-[#0052D9] font-medium bg-blue-50 px-2 py-0.5 rounded-sm">{sourceLabel}</span>
         </div>
         <div className="w-px h-3.5 bg-gray-200"></div>
         <div className="flex items-center gap-2">

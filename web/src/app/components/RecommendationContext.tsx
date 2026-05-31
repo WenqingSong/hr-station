@@ -6,7 +6,12 @@ import { toResumeSummaryViewModel } from "../adapters";
 
 const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
-export function RecommendationContext() {
+interface RecommendationContextProps {
+  resumeName?: string;
+  sourceLabel?: string;
+}
+
+export function RecommendationContext({ resumeName = resumeVm.name, sourceLabel = "默认简历" }: RecommendationContextProps) {
   return (
     <aside className="w-[320px] shrink-0 flex flex-col gap-4">
       {/* Resume Card */}
@@ -14,14 +19,11 @@ export function RecommendationContext() {
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-2 text-gray-500 text-[13px]">
             <FileText className="h-4 w-4" />
-            当前简历
+            当前用于推荐的简历
           </div>
-          <button className="text-[12px] text-[#0052D9] hover:underline">
-            切换简历
-          </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-bold text-gray-900 text-[15px] mb-2">{resumeVm.name}</h3>
+          <h3 className="font-bold text-gray-900 text-[15px] mb-2">{resumeName}</h3>
           <div className="flex flex-wrap gap-1.5">
             {[resumeVm.directionLabel, ...resumeVm.skillTags.slice(0, 4)].map((tag) => (
               <Badge key={tag} variant="outline" className="text-[11px] px-1.5 text-gray-600 bg-gray-50 font-normal">
@@ -30,9 +32,10 @@ export function RecommendationContext() {
             ))}
           </div>
         </div>
-        <p className="text-[12px] text-gray-400">
-          包含 {resumeVm.projectCount} 个项目经历，最近更新：{resumeVm.updatedAt}
-        </p>
+        <div className="flex items-center gap-2 text-[12px]">
+          <span className="text-gray-400">推荐来源：</span>
+          <span className="text-[#0052D9] font-medium">{sourceLabel}</span>
+        </div>
       </div>
 
       {/* Basis Card */}
