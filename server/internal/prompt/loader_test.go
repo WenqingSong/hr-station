@@ -176,3 +176,69 @@ func TestLoader_ResolvePath_UnknownName(t *testing.T) {
 		t.Fatal("expected error for unknown prompt name, got nil")
 	}
 }
+
+func TestResolveDir_ExistingPath(t *testing.T) {
+	// testBaseDir is a known existing directory.
+	result := resolveDir(testBaseDir)
+	if result != testBaseDir {
+		t.Errorf("resolveDir(existing) = %q, want %q", result, testBaseDir)
+	}
+}
+
+func TestResolveDir_ServerPrefixStrip(t *testing.T) {
+	// When cwd is the server/ directory, "server/prompts" should resolve to "prompts".
+	// We simulate this by creating a temp dir structure.
+	tmpDir := t.TempDir()
+	serverDir := filepath.Join(tmpDir, "server", "prompts")
+	if err := os.MkdirAll(serverDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save and restore cwd.
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+
+	// Change to the "server" subdirectory.
+	if err := os.Chdir(filepath.Join(tmpDir, "server")); err != nil {
+		t.Fatal(err)
+	}
+
+	// "server/prompts" doesn't exist from server/ dir, but "prompts" does.
+	result := resolveDir("server/prompts")
+	expected := "prompts"
+	if result != expected {
+		t.Errorf("resolveDir(\"server/prompts\") from server/ = %q, want %q", result, expected)
+	}
+}
+
+func TestResolveDir_NonExistent(t *testing.T) {
+	// Non-existent paths that don't match "server/" prefix should return as-is.
+	result := resolveDir("/nonexistent/prompts")
+	if result != "/nonexistent/prompts" {
+		t.Errorf("resolveDir(nonexistent) = %q, want %q", result, "/nonexistent/prompts")
+	}
+}
+
+func TestNewLoader_ResolvesServerPrefix(t *testing.T) {
+	// When cwd is server/ and baseDir is "server/prompts", NewLoader should
+	// resolve to "prompts" automatically.
+	tmpDir := t.TempDir()
+	serverDir := filepath.Join(tmpDir, "server", "prompts")
+	if err := os.MkdirAll(serverDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+
+	if err := os.Chdir(filepath.Join(tmpDir, "server")); err != nil {
+		t.Fatal(err)
+	}
+
+	l := NewLoader("server/prompts")
+	// The loader should have resolved to "prompts" and be able to load.
+	// (It won't find actual prompt files in the temp dir, but baseDir should be correct.)
+	if l.baseDir != "prompts" {
+		t.Errorf("NewLoader(\"server/prompts\").baseDir = %q, want %q", l.baseDir, "prompts")
+	}
+}

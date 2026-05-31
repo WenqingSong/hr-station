@@ -163,3 +163,58 @@ func TestDocument_Draft(t *testing.T) {
 		t.Error("Draft() is empty, expected $schema URI")
 	}
 }
+
+func TestResolveDir_ExistingPath(t *testing.T) {
+	result := resolveDir(testBaseDir)
+	if result != testBaseDir {
+		t.Errorf("resolveDir(existing) = %q, want %q", result, testBaseDir)
+	}
+}
+
+func TestResolveDir_ServerPrefixStrip(t *testing.T) {
+	tmpDir := t.TempDir()
+	schemaDir := filepath.Join(tmpDir, "server", "prompts", "schema")
+	if err := os.MkdirAll(schemaDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+
+	if err := os.Chdir(filepath.Join(tmpDir, "server")); err != nil {
+		t.Fatal(err)
+	}
+
+	result := resolveDir("server/prompts/schema")
+	expected := "prompts/schema"
+	if result != expected {
+		t.Errorf("resolveDir(\"server/prompts/schema\") from server/ = %q, want %q", result, expected)
+	}
+}
+
+func TestResolveDir_NonExistent(t *testing.T) {
+	result := resolveDir("/nonexistent/schema")
+	if result != "/nonexistent/schema" {
+		t.Errorf("resolveDir(nonexistent) = %q, want %q", result, "/nonexistent/schema")
+	}
+}
+
+func TestNewLoader_ResolvesServerPrefix(t *testing.T) {
+	tmpDir := t.TempDir()
+	schemaDir := filepath.Join(tmpDir, "server", "prompts", "schema")
+	if err := os.MkdirAll(schemaDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+
+	if err := os.Chdir(filepath.Join(tmpDir, "server")); err != nil {
+		t.Fatal(err)
+	}
+
+	l := NewLoader("server/prompts/schema")
+	if l.baseDir != "prompts/schema" {
+		t.Errorf("NewLoader(\"server/prompts/schema\").baseDir = %q, want %q", l.baseDir, "prompts/schema")
+	}
+}

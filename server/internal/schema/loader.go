@@ -9,6 +9,33 @@ import (
 	"strings"
 )
 
+// resolveDir tries to find an existing directory matching baseDir.
+// It tries the baseDir as-is first, then strips a "server/" prefix
+// to handle the case where the process runs from the server/ directory
+// but the config uses "server/prompts/schema" (meant for project root).
+func resolveDir(baseDir string) string {
+	// Try the baseDir as-is first.
+	if fi, err := os.Stat(baseDir); err == nil && fi.IsDir() {
+		return baseDir
+	}
+
+	// If baseDir starts with "server/" or "server\", try without the prefix.
+	stripped := ""
+	if strings.HasPrefix(baseDir, "server/") {
+		stripped = baseDir[7:]
+	} else if strings.HasPrefix(baseDir, "server\\") {
+		stripped = baseDir[7:]
+	}
+	if stripped != "" {
+		if fi, err := os.Stat(stripped); err == nil && fi.IsDir() {
+			return stripped
+		}
+	}
+
+	// Return original — will fail later with a clear file-not-found error.
+	return baseDir
+}
+
 // mapping maps each SchemaName to its file name relative to baseDir.
 var mapping = map[SchemaName]string{
 	SchemaMatchAnalysis:      "match_analysis_schema.json",
@@ -24,8 +51,10 @@ type Loader struct {
 // NewLoader creates a new Schema Loader.
 // baseDir should point to the directory containing schema .json files
 // (e.g. "server/prompts/schema").
+// If baseDir does not exist as a directory, NewLoader tries alternative
+// paths (e.g. stripping a "server/" prefix) before giving up.
 func NewLoader(baseDir string) *Loader {
-	return &Loader{baseDir: baseDir}
+	return &Loader{baseDir: resolveDir(baseDir)}
 }
 
 // Load reads and parses the JSON Schema for the given logical name.

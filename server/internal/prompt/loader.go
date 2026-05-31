@@ -8,6 +8,33 @@ import (
 	"strings"
 )
 
+// resolveDir tries to find an existing directory matching baseDir.
+// It tries the baseDir as-is first, then strips a "server/" prefix
+// to handle the case where the process runs from the server/ directory
+// but the config uses "server/prompts" (meant for project root).
+func resolveDir(baseDir string) string {
+	// Try the baseDir as-is first.
+	if fi, err := os.Stat(baseDir); err == nil && fi.IsDir() {
+		return baseDir
+	}
+
+	// If baseDir starts with "server/" or "server\", try without the prefix.
+	stripped := ""
+	if strings.HasPrefix(baseDir, "server/") {
+		stripped = baseDir[7:]
+	} else if strings.HasPrefix(baseDir, "server\\") {
+		stripped = baseDir[7:]
+	}
+	if stripped != "" {
+		if fi, err := os.Stat(stripped); err == nil && fi.IsDir() {
+			return stripped
+		}
+	}
+
+	// Return original — will fail later with a clear file-not-found error.
+	return baseDir
+}
+
 // mapping maps each PromptName to its file name relative to baseDir.
 var mapping = map[PromptName]string{
 	PromptMatchAnalysis:      "match_analysis_v1.md",
@@ -24,8 +51,10 @@ type Loader struct {
 // NewLoader creates a new Prompt Loader.
 // baseDir should point to the directory containing prompt .md files
 // (e.g. "server/prompts").
+// If baseDir does not exist as a directory, NewLoader tries alternative
+// paths (e.g. stripping a "server/" prefix) before giving up.
 func NewLoader(baseDir string) *Loader {
-	return &Loader{baseDir: baseDir}
+	return &Loader{baseDir: resolveDir(baseDir)}
 }
 
 // Load reads the Prompt template for the given logical name.
