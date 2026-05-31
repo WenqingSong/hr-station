@@ -70,3 +70,5 @@ const response = await runRecommendation();
 ## 7. 后续 5-2.4 输入
 
 可基于 `runRecommendation()` 等函数 + adapters 封装 `loadRecommendationViewModel()` 等 loader。
+
+✅ 5-2.4 已完成：9 个 ViewModel Loader 函数已落地于 `web/src/api/viewModels.ts`（120 行），详见 `docs/07-前端设计/API返回到ViewModel统一消费封装.md`。

@@ -66,6 +66,7 @@ try { return await requestFn(); } catch { return fallbackFn(); }
 - 未引入 axios
 - 未使用 /api/v1
 
-## 7. 后续 5-2.3 输入
+## 7. 后续 5-2.3 / 5-2.4 输入
 
-可基于现有 `client.get/post()` + `withFallback` 模式构建三类 Agent API。
+可基于现有 `client.get/post()` + `withFallback` 模式构建三类 Agent API（5-2.3 已完成）。
+可基于现有 API 函数 + adapters 封装 ViewModel Loader（5-2.4 已完成，见 `docs/07-前端设计/API返回到ViewModel统一消费封装.md`）。

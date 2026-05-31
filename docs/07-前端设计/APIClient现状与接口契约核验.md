@@ -189,16 +189,20 @@ Mock fallback：`mockRecommendationResponse` / `mockMatchAnalysisResponse` / `mo
 ### 8.4 ViewModel Loader (5-2.4)
 
 ```
-web/src/api/selectors.ts
-  - loadRecommendationViewModel()
-  - loadMatchAnalysisViewModel()
-  - loadResumeOptimizationViewModel()
+web/src/api/viewModels.ts
   - loadJobListViewModels()
-  - loadJobDetailViewModel()
+  - loadJobDetailViewModel(jobId)
+  - loadSelectedJobDetailViewModel()
+  - loadCurrentResumeSummaryViewModel()
   - loadResumeOptionViewModels()
+  - loadResumeComparisonViewModel(baseId, targetId)
+  - loadResumeSummaryViewModel(resumeId)
+  - loadRecommendationViewModel(input?)
+  - loadMatchAnalysisViewModel(jobId, input?)
+  - loadResumeOptimizationViewModel(input?)
 ```
 
-组合 API 调用 + adapter 转换 → 页面直接消费 ViewModel
+✅ 5-2.4 已完成：9 个 Loader 函数，串联 API 调用 + Adapter 转换 → 页面 ViewModel。详见 `docs/07-前端设计/API返回到ViewModel统一消费封装.md`。
 
 ## 9. 接口契约矩阵
 
@@ -222,7 +226,7 @@ web/src/api/selectors.ts
 | 5-2.1 | `api/client.ts` / `errors.ts` / `index.ts` | `request`/`get`/`post` | — | 否 |
 | 5-2.2 | `api/jobs.ts` / `api/resumes.ts` | `getJobs`/`getResumes` | ✅ | 否 |
 | 5-2.3 | `api/agents.ts` | `runRecommendation`/`runMatchAnalysis`/`runResumeOptimization` | ✅ | 否 |
-| 5-2.4 | `api/selectors.ts` | `load*ViewModel` 函数族 | ✅ | 否 |
+| 5-2.4 | `api/viewModels.ts` | `load*ViewModel` 函数族（9 个） | ✅ | 否 |
 | 5-2.5 | docs only | 验收 | — | 否 |
 
 ## 11. P0 / P1 边界

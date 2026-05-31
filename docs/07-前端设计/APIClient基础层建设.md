@@ -72,6 +72,6 @@ request    → T（仅 data）
 
 ## 8. 后续 5-2.2/5-2.3/5-2.4 输入
 
-- 5-2.2：`api/jobs.ts` / `api/resumes.ts`，基于 client 封装业务请求 + mock fallback
-- 5-2.3：`api/agents.ts`，封装三类 Agent API + data.result+data.meta 消费
-- 5-2.4：`api/selectors.ts`，API 返回 → ViewModel 统一封装
+- 5-2.2：`api/jobs.ts` / `api/resumes.ts`，基于 client 封装业务请求 + mock fallback ✅ 已完成
+- 5-2.3：`api/agents.ts`，封装三类 Agent API + data.result+data.meta 消费 ✅ 已完成
+- 5-2.4：`api/viewModels.ts`，API 返回 → ViewModel 统一封装 ✅ 已完成（9 个 Loader 函数，120 行）
