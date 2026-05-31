@@ -353,8 +353,24 @@
 - 接口合规性交叉检查
 
 下一步进入 4-3.8.2 三类 Agent 集成验收收口。
-6. 不改页面
-7. 不改启动链路
+
+## 11. 4-3.8.2 已完成
+
+4-3.8.2 已完成三类业务 Agent 集成验收收口。
+
+验收结论：
+- 三类 Agent 均已具备 LLM + fallback 基础能力
+- LLM / fallback 验收矩阵全 pass
+- Prompt / Schema / Go 字段一致性已核验
+- generated_by / agent_status 规则清晰
+- JSON Schema 3 个均 VALID
+- go test ./... 通过
+- make llm-check 可用
+- 无真实 Key 风险
+- 无全容器路线回归
+- 状态文档一致
+
+阶段 4-3.8 已完成。下一步进入 4-3.9 或阶段 4 后续收口。
 
 ## 11. 当前风险
 
