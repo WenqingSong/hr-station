@@ -2,7 +2,7 @@
 
 > 创建时间：2026-05-30
 > 所属阶段：4-3.0
-> 当前阶段：4-3.9.0 已完成（三类 Agent 输出字段与前端现状核验，确认 MatchAnalysis/Recommendation 部分承接、ResumeOptimization 完全不具备前端承接能力，下一步 4-3.9.1 映射方案设计）
+> 当前阶段：4-3.9.1 已完成（Agent 输出到前端模块映射方案，三 Agent 闭环设计 + 页面信息架构 + 字段到模块映射 + P0/P1/P2 优先级，下一步 4-3.9.2 前端实现拆分计划与验收标准冻结）
 > 依据文档：阶段4-2LLMClient与Hunyuan接入方案、阶段4-2集成验收报告、阶段4-2LLM基础设施汇总、Agent总览、岗位匹配Agent、岗位推荐Agent、LLMClient设计、Hunyuan接入准备、Prompt模板、JSON输出规范、失败兜底与Mock回退策略、match_mock.go、recommendation_mock.go、match_service.go、recommendation_service.go、match.go、recommendation.go、pipeline/pipeline.go、pipeline/types.go
 
 ## 1. 阶段目标
