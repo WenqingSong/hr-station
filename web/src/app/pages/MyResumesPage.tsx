@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import {
   ChevronLeft,
   ChevronUp,
@@ -119,10 +119,12 @@ function FieldRow({ label, required, children, hint }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function MyResumesPage() {
-  const mode: "edit" | "add" = "edit";
+  const location = useLocation();
+  const mode: "edit" | "add" = location.pathname.includes("/new") ? "add" : "edit";
+  const [savedHint, setSavedHint] = useState(false);
 
   // ── Resume basic ────────────────────────────────────────────────────────────
-  const [resumeName, setResumeName] = useState("V2 后端开发简历");
+  const [resumeName, setResumeName] = useState(mode === "add" ? "V3 新简历" : "V2 后端开发简历");
   const [jobDirection, setJobDirection] = useState("后端开发");
   const [resumeDesc, setResumeDesc] = useState(
     "用于后端开发、云计算开发等技术岗位的 AI 推荐与匹配分析。"
@@ -329,16 +331,19 @@ export function MyResumesPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-semibold text-gray-900">编辑简历</h1>
+                  <h1 className="text-xl font-semibold text-gray-900">{mode === "add" ? "添加简历" : "编辑简历"}</h1>
                   <span className="px-2 py-0.5 bg-blue-50 border border-blue-100 rounded text-xs text-[#0052D9]">
-                    修改模式
+                    {mode === "add" ? "新建模式" : "修改模式"}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-gray-500">
                   维护用于岗位推荐、岗位匹配分析和简历优化的简历信息。
                 </p>
               </div>
-              <button className="px-4 py-1.5 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors">
+              <button
+                className="px-4 py-1.5 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors"
+                onClick={() => setSavedHint(true)}
+              >
                 保存草稿
               </button>
             </div>
@@ -795,7 +800,7 @@ export function MyResumesPage() {
           {/* ── Bottom action area — static, in page flow ─────────────── */}
           <div className="mt-8 pt-5 border-t border-gray-200 flex items-center justify-between">
             <div className="text-sm text-gray-500 flex items-center gap-3">
-              <span>当前模式：<span className="text-gray-700 font-medium">修改简历</span></span>
+              <span>当前模式：<span className="text-gray-700 font-medium">{mode === "add" ? "添加简历" : "修改简历"}</span></span>
               <span className="w-px h-4 bg-gray-200" />
               <span className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" />
@@ -809,14 +814,27 @@ export function MyResumesPage() {
               >
                 取消
               </Link>
-              <button className="px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors">
+              <button
+                className="px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors"
+                onClick={() => setSavedHint(true)}
+              >
                 保存草稿
               </button>
-              <button className="px-5 py-2 bg-[#0052D9] text-white text-sm font-medium rounded hover:bg-[#003DA5] transition-colors">
-                保存并设为当前简历
+              <button
+                className="px-5 py-2 bg-[#0052D9] text-white text-sm font-medium rounded hover:bg-[#003DA5] transition-colors"
+                onClick={() => setSavedHint(true)}
+              >
+                {mode === "add" ? "保存新简历" : "保存并设为当前简历"}
               </button>
             </div>
           </div>
+
+          {savedHint && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
+              已保存为前端演示态，真实保存将在后续接入。
+            </div>
+          )}
 
         </div>
       </div>
