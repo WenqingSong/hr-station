@@ -156,3 +156,5 @@ export async function loadRecommendationViewModel(
 5. 是否无页面直接 fetch；
 6. 是否无后端改动；
 7. 是否 docs 缺口已补齐。
+
+✅ 5-2.5 API Client 与响应消费适配验收 **pass**。全链路闭环，具备进入 5-3 条件。详见 `docs/07-前端设计/APIClient与响应消费适配验收.md`。

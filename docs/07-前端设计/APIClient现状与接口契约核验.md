@@ -260,3 +260,7 @@ web/src/api/viewModels.ts
 - 前端 types/mocks/adapters 三层完整
 - API Client 设计输入明确
 - P0/P1 边界清晰
+
+## 13. 5-2.5 验收结论
+
+✅ 5-2.5 API Client 与响应消费适配验收 **pass**。全链路闭环：client / jobs / resumes / agents / viewModels 边界清晰，Mock fallback 完整，data.result + data.meta 消费链路完整，零 axios / 零 /api/v1 / 零 selectors / 页面零 import api / 后端零修改。详见 `docs/07-前端设计/APIClient与响应消费适配验收.md`。
