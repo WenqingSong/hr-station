@@ -1,10 +1,15 @@
-import React from "react";
-import { mockSelectedJob } from "../../mocks";
-import { toJobDetailViewModel } from "../../adapters";
-
-const jobVm = toJobDetailViewModel(mockSelectedJob);
+import React, { useState, useEffect } from "react";
+import { loadSelectedJobDetailViewModel } from "../../api";
+import type { JobDetailViewModel } from "../../adapters";
 
 export function JobDetailJD() {
+  const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
+
+  useEffect(() => {
+    loadSelectedJobDetailViewModel().then(setJobVm).catch(() => {});
+  }, []);
+
+  if (!jobVm) return null;
   return (
     <div className="flex-1 bg-white border border-gray-200 rounded-lg p-10 min-w-[760px] max-w-[820px] shadow-sm">
       <div className="space-y-10 text-gray-700 text-[15px] leading-relaxed">

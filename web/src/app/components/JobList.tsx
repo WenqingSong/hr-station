@@ -1,15 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, MapPin } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { JobCard } from "./JobCard";
-import { mockJobs } from "../../mocks";
-import { toJobCardViewModels } from "../../adapters";
-
-const jobCards = toJobCardViewModels(mockJobs);
+import { loadJobListViewModels } from "../../api";
+import type { JobCardViewModel } from "../../adapters";
 
 export function JobList() {
   const [selectedJobId, setSelectedJobId] = useState<string>("job_backend_001");
+  const [jobCards, setJobCards] = useState<JobCardViewModel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadJobListViewModels()
+      .then(setJobCards)
+      .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <main className="flex-1 max-w-[820px] pb-24">
@@ -55,6 +63,15 @@ export function JobList() {
 
       {/* Job Cards List */}
       <div className="space-y-4">
+        {loading && (
+          <p className="text-sm text-gray-400 py-12 text-center">正在加载岗位列表…</p>
+        )}
+        {error && (
+          <p className="text-sm text-amber-600 py-12 text-center">已切换到演示数据</p>
+        )}
+        {!loading && !error && jobCards.length === 0 && (
+          <p className="text-sm text-gray-400 py-12 text-center">暂无岗位数据</p>
+        )}
         {jobCards.map((job) => (
           <JobCard
             key={job.id}

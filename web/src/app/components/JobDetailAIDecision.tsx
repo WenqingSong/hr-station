@@ -1,20 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sparkles, FileText, Target, ArrowRight, ShieldAlert } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate, useParams } from "react-router";
-import { mockCurrentResume, mockSelectedJob } from "../../mocks";
-import { toResumeSummaryViewModel, toJobDetailViewModel } from "../../adapters";
+import { loadCurrentResumeSummaryViewModel, loadJobDetailViewModel } from "../../api";
+import type { ResumeSummaryViewModel, JobDetailViewModel } from "../../adapters";
 import { SelectResumeModal } from "./SelectResumeModal";
-
-const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
-const jobVm = toJobDetailViewModel(mockSelectedJob);
 
 export function JobDetailAIDecision() {
   const navigate = useNavigate();
   const { id: routeJobId } = useParams();
-  const jobId = routeJobId || mockSelectedJob.id;
+  const jobId = routeJobId || "1";
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
+  const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
+
+  useEffect(() => {
+    loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {});
+    loadJobDetailViewModel(jobId).then(setJobVm).catch(() => {});
+  }, [jobId]);
 
   const handleConfirmMatch = (resumeId: string) => {
     navigate(`/match?jobId=${encodeURIComponent(jobId)}&resumeId=${encodeURIComponent(resumeId)}`);
@@ -39,14 +43,14 @@ export function JobDetailAIDecision() {
           <Target className="h-3.5 w-3.5" />
           当前岗位
         </div>
-        <h3 className="font-bold text-gray-900 text-sm mb-2">{jobVm.title}</h3>
+        <h3 className="font-bold text-gray-900 text-sm mb-2">{jobVm?.title || "加载中…"}</h3>
         <div className="flex flex-wrap gap-1.5 mb-2.5">
-          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm.typeLabel}</Badge>
-          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm.categoryLabel}</Badge>
+          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm?.typeLabel || ""}</Badge>
+          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm?.categoryLabel || ""}</Badge>
           <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">后台开发</Badge>
         </div>
         <p className="text-[11px] text-gray-400">
-          工作地点：{jobVm.locationsText}
+          工作地点：{jobVm?.locationsText || ""}
         </p>
       </div>
 
@@ -62,16 +66,16 @@ export function JobDetailAIDecision() {
           </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm.name}</h3>
+          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm?.name || "加载中…"}</h3>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{resumeVm.directionLabel}</Badge>
-            {resumeVm.skillTags.slice(0, 4).map((skill) => (
+            <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{resumeVm?.directionLabel || ""}</Badge>
+            {resumeVm?.skillTags.slice(0, 4).map((skill) => (
               <Badge key={skill} variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{skill}</Badge>
             ))}
           </div>
         </div>
         <p className="text-[11px] text-gray-400">
-          包含 {resumeVm.projectCount} 个项目经历，最近更新：{resumeVm.updatedAt}
+          包含 {resumeVm?.projectCount ?? 0} 个项目经历，最近更新：{resumeVm?.updatedAt || ""}
         </p>
       </div>
 
@@ -117,7 +121,7 @@ export function JobDetailAIDecision() {
         onClose={() => setIsResumeModalOpen(false)}
         onConfirm={handleConfirmMatch}
         scene="match-analysis"
-        jobTitle={jobVm.title}
+        jobTitle={jobVm?.title || ""}
       />
     </aside>
   );

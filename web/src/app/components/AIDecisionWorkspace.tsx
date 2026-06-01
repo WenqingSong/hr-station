@@ -1,17 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sparkles, FileText, Info, AlertCircle, Target, ArrowRight } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
-import { mockCurrentResume, mockSelectedJob } from "../../mocks";
-import { toResumeSummaryViewModel } from "../../adapters";
+import { loadCurrentResumeSummaryViewModel, loadSelectedJobDetailViewModel } from "../../api";
+import type { ResumeSummaryViewModel, JobDetailViewModel } from "../../adapters";
 import { SelectResumeModal } from "./SelectResumeModal";
-
-const resumeVm = toResumeSummaryViewModel(mockCurrentResume);
 
 export function AIDecisionWorkspace() {
   const navigate = useNavigate();
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
+  const [jobTitle, setJobTitle] = useState("加载中…");
+
+  useEffect(() => {
+    loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {});
+    loadSelectedJobDetailViewModel().then((j) => setJobTitle(j.title)).catch(() => {});
+  }, []);
 
   const handleConfirmRecommend = (resumeId: string) => {
     navigate(`/recommend?resumeId=${encodeURIComponent(resumeId)}`);
@@ -42,16 +47,16 @@ export function AIDecisionWorkspace() {
           </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm.name}</h3>
+          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm?.name || "加载中…"}</h3>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="secondary" className="text-[10px] px-1.5">{resumeVm.directionLabel}</Badge>
-            {resumeVm.skillTags.slice(0, 4).map((skill) => (
+            <Badge variant="secondary" className="text-[10px] px-1.5">{resumeVm?.directionLabel || ""}</Badge>
+            {resumeVm?.skillTags.slice(0, 4).map((skill) => (
               <Badge key={skill} variant="secondary" className="text-[10px] px-1.5">{skill}</Badge>
             ))}
           </div>
         </div>
         <p className="text-xs text-gray-400">
-          包含 {resumeVm.projectCount} 个项目经历，最近更新：{resumeVm.updatedAt}
+          包含 {resumeVm?.projectCount ?? 0} 个项目经历，最近更新：{resumeVm?.updatedAt || ""}
         </p>
       </div>
 
@@ -77,7 +82,7 @@ export function AIDecisionWorkspace() {
           <Target className="h-4 w-4 text-[#0052D9]" />
           当前选择岗位
         </div>
-        <h3 className="font-bold text-[#0052D9] text-sm mb-1">{mockSelectedJob.title}</h3>
+        <h3 className="font-bold text-[#0052D9] text-sm mb-1">{jobTitle}</h3>
         <p className="text-xs text-gray-500">
           已选中岗位，可进入详情页查看 JD。
         </p>

@@ -9,8 +9,8 @@ import {
   Briefcase,
   ChevronRight,
 } from "lucide-react";
-import { mockResumeOptions } from "../../mocks";
-import { toResumeOptionViewModels } from "../../adapters";
+import { loadResumeOptionViewModels } from "../../api";
+import type { ResumeOptionViewModel } from "../../adapters";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,8 +23,6 @@ interface SelectResumeModalProps {
   scene?: Scene;
   jobTitle?: string;
 }
-
-const resumeOptions = toResumeOptionViewModels(mockResumeOptions);
 
 const SCENE_CONFIG: Record<Scene, { label: string; desc: string }> = {
   "recommendation": {
@@ -47,11 +45,13 @@ export function SelectResumeModal({
   jobTitle = "软件开发-后台开发方向",
 }: SelectResumeModalProps) {
   const [selected, setSelected] = useState("v2");
+  const [resumeOptions, setResumeOptions] = useState<ResumeOptionViewModel[]>([]);
   const selectedResumeId = selected === "v3" ? "v2" : selected;
 
   useEffect(() => {
     if (isOpen) {
       setSelected("v2");
+      loadResumeOptionViewModels().then(setResumeOptions).catch(() => {});
     }
   }, [isOpen]);
 
@@ -111,6 +111,9 @@ export function SelectResumeModal({
 
         {/* ── Resume cards ────────────────────────────────────────────── */}
         <div className="px-7 py-5 space-y-3 overflow-y-auto flex-1">
+          {resumeOptions.length === 0 && (
+            <p className="text-sm text-gray-400 py-8 text-center">正在加载简历列表…</p>
+          )}
           {resumeOptions.map((resume) => {
             const isMismatch = !!resume.mismatchReason;
             const isSelected = !isMismatch && selectedResumeId === resume.id;

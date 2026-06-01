@@ -1,14 +1,19 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Badge } from "./ui/Badge";
-import { mockSelectedJob } from "../../mocks";
-import { toJobDetailViewModel } from "../../adapters";
-
-const jobVm = toJobDetailViewModel(mockSelectedJob);
+import { loadSelectedJobDetailViewModel } from "../../api";
+import type { JobDetailViewModel } from "../../adapters";
 
 export function JobDetailBanner() {
   const navigate = useNavigate();
+  const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
+
+  useEffect(() => {
+    loadSelectedJobDetailViewModel().then(setJobVm).catch(() => {});
+  }, []);
+
+  if (!jobVm) return null;
   
   return (
     <div className="w-full bg-[#0052D9] relative overflow-hidden text-white">
