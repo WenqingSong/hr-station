@@ -77,6 +77,18 @@ export async function loadResumeOptionViewModels(): Promise<ResumeOptionViewMode
   return toResumeOptionViewModels(options);
 }
 
+/** 从真实 API versions 构建简历选项（10-1 新增） */
+export async function loadResumeOptionViewModelsFromApi(): Promise<ResumeOptionViewModel[]> {
+  try {
+    const versions = await getResumes(); // GET /resumes/versions → Resume[]
+    return toResumeOptionViewModelsFromApi(versions);
+  } catch {
+    // fallback 到 mocks（异常兜底）
+    const options = await getResumeOptions(); // fallback to mockResumeOptions
+    return toResumeOptionViewModels(options);
+  }
+}
+
 /** 加载简历管理页完整 ViewModel（含教育/项目/经历/技能/自评） */
 export async function loadResumeManagementPageViewModel(): Promise<ResumeManagementViewModel | null> {
   try {

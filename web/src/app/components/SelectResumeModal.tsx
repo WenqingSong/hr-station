@@ -9,7 +9,7 @@ import {
   Briefcase,
   ChevronRight,
 } from "lucide-react";
-import { loadResumeOptionViewModels } from "../../api";
+import { loadResumeOptionViewModelsFromApi } from "../../api";
 import type { ResumeOptionViewModel } from "../../adapters";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,17 +44,19 @@ export function SelectResumeModal({
   scene = "match-analysis",
   jobTitle = "软件开发-后台开发方向",
 }: SelectResumeModalProps) {
-  const [selected, setSelected] = useState("v2");
+  const [selected, setSelected] = useState("1");
   const [resumeOptions, setResumeOptions] = useState<ResumeOptionViewModel[]>([]);
   const [loading, setLoading] = useState(false);
-  const selectedResumeId = selected === "v3" ? "v2" : selected;
 
   useEffect(() => {
     if (isOpen) {
-      setSelected("v2");
       setLoading(true);
-      loadResumeOptionViewModels()
-        .then(setResumeOptions)
+      loadResumeOptionViewModelsFromApi()
+        .then((opts) => {
+          setResumeOptions(opts);
+          // 默认选中最新版本（第一个 = 最新）
+          if (opts.length > 0) setSelected(opts[0].id);
+        })
         .catch(() => {})
         .finally(() => setLoading(false));
     }
@@ -65,7 +67,7 @@ export function SelectResumeModal({
   const sceneInfo = SCENE_CONFIG[scene];
 
   function handleConfirm() {
-    onConfirm?.(selectedResumeId);
+    onConfirm?.(selected);
     onClose();
   }
 
@@ -123,7 +125,7 @@ export function SelectResumeModal({
           ) : (
           resumeOptions.map((resume) => {
             const isMismatch = !!resume.mismatchReason;
-            const isSelected = !isMismatch && selectedResumeId === resume.id;
+            const isSelected = !isMismatch && selected === resume.id;
 
             return (
               <div

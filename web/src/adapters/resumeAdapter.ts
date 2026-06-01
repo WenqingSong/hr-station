@@ -128,6 +128,28 @@ export function toResumeOptionViewModels(
   return options.map(toResumeOptionViewModel);
 }
 
+// ─── API versions → Options（10-1） ──────────────────────────────────────────
+
+/** 从真实 Resume 版本列表构建简历选项 VM */
+export function toResumeOptionViewModelsFromApi(
+  resumes: Resume[],
+): ResumeOptionViewModel[] {
+  return resumes.map((r, i) => {
+    const versionNo = r.version ? parseInt(r.version, 10) : i + 1;
+    return {
+      id: String(versionNo),
+      name: r.name || `版本 ${versionNo}`,
+      statusLabel: i === 0 ? "当前使用" : "历史版本",
+      directionLabel: r.direction_label || "",
+      tags: r.skills?.slice(0, 3) || [],
+      projectCount: r.projects?.length || 0,
+      updatedAt: r.updated_at || "",
+      isDefault: i === 0,
+      isRecommended: i === 0,
+    };
+  });
+}
+
 // ─── Management Page VM ─────────────────────────────────────────────────────────
 
 /** 从完整 Resume 构建管理页 ViewModel，含空值兜底 */
