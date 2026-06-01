@@ -315,7 +315,7 @@
 
 | 阶段 | 目标 | 是否改代码 | 依赖 | 验收标准 |
 |:--:|------|:--:|------|------|
-| 8-1 | 前端 Auth API Client 与类型补齐 | 是 (frontend-only) | 8-0 | `auth.ts` 实现 register/login/me 三函数；Auth 类型定义完整 |
+| ~~8-1~~ | ~~前端 Auth API Client 与类型补齐~~ | ~~是 (frontend-only)~~ | ~~8-0~~ | ✅ 已完成 |
 | 8-2 | 登录 / 注册页面与路由接入 | 是 (frontend-only) | 8-1 | LoginPage / RegisterPage 可访问；支持注册后自动登录 |
 | 8-3 | 全局 token 注入与 401 处理 | 是 (frontend-only) | 8-2 | client.ts 自动带 Authorization；401 统一跳登录；token 持久化恢复 |
 | 8-4 | 用户态回归验收 | 否 (verification) | 8-3 | 全链路：注册→登录→me→刷新恢复→401跳登录→退出登录 全部通过 |
