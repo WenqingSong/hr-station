@@ -224,6 +224,34 @@ func (s *ResumeOptimizationService) saveSnapshot(
 	}
 }
 
+// GetLatestOptimization returns the most recent optimization result for a user.
+// Returns nil if no previous results exist.
+func (s *ResumeOptimizationService) GetLatestOptimization(ctx context.Context, userID uint64) (*ResumeOptimizationResponse, error) {
+	if s.optimizationRepo == nil {
+		return nil, nil
+	}
+	snapshot, err := s.optimizationRepo.GetLatestByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest optimization: %w", err)
+	}
+	if snapshot == nil {
+		return nil, nil
+	}
+
+	var result model.ResumeOptimizationResult
+	if err := json.Unmarshal(snapshot.ResultJSON, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal optimization result: %w", err)
+	}
+
+	return &ResumeOptimizationResponse{
+		OptimizationID: snapshot.ID,
+		GeneratedBy:    "stored",
+		Result:         &result,
+		CreatedAt:      snapshot.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Meta: model.NewAgentResponseMeta(model.AgentNameResumeOptimization),
+	}, nil
+}
+
 // validateOptimizeRequest validates the resume optimization request.
 func validateOptimizeRequest(req ResumeOptimizationRequest) error {
 	if strings.TrimSpace(req.ResumeText) == "" {

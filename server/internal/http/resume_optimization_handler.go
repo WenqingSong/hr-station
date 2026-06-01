@@ -20,13 +20,43 @@ func NewResumeOptimizationHandler(resumeOptimizationService *service.ResumeOptim
 	return &ResumeOptimizationHandler{resumeOptimizationService: resumeOptimizationService}
 }
 
-// Optimize handles POST /api/resumes/optimize — generates mock resume optimization.
+// Optimize dispatches POST (generate) and GET (retrieve latest) for /api/resumes/optimize.
 func (h *ResumeOptimizationHandler) Optimize(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	switch r.Method {
+	case http.MethodGet:
+		h.getLatest(w, r)
+		return
+	case http.MethodPost:
+		h.generate(w, r)
+		return
+	default:
 		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
+	}
+}
+
+// getLatest handles GET /api/resumes/optimize — returns the most recent optimization result.
+func (h *ResumeOptimizationHandler) getLatest(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
 		return
 	}
 
+	resp, err := h.resumeOptimizationService.GetLatestOptimization(r.Context(), userID)
+	if err != nil {
+		handleResumeOptimizationError(w, err)
+		return
+	}
+	if resp == nil {
+		response.Error(w, apperror.ErrNotFound.HTTPStatus, apperror.ErrNotFound.Code, "no previous optimization found")
+		return
+	}
+
+	response.OK(w, resp)
+}
+
+// generate handles POST /api/resumes/optimize — generates and saves a new optimization.
+func (h *ResumeOptimizationHandler) generate(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
 		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
