@@ -8,6 +8,8 @@ import { ResumeOptimizationPage } from "./pages/ResumeOptimizationPage";
 import { MyResumesPage } from "./pages/MyResumesPage";
 import { ResumeManagementPage } from "./pages/ResumeManagementPage";
 import { ResumeComparisonPage } from "./pages/ResumeComparisonPage";
+import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/RegisterPage";
 
 function RootLayout() {
   return (
@@ -37,6 +39,9 @@ export const router = createBrowserRouter([
       { path: "resumes/edit", Component: MyResumesPage },
       { path: "resumes/new", Component: MyResumesPage },
       { path: "resumes/compare", Component: ResumeComparisonPage },
+      // ── Auth 页面（8-2 新增） ──
+      { path: "login", Component: LoginPage },
+      { path: "register", Component: RegisterPage },
       // ── 旧路径兼容重定向（5-3.2/5-3.2-R 保留，后续清理阶段可移除） ──
       { path: "job/:id", Component: JobDetailPage },
       { path: "recommendations", element: <Navigate to="/recommend" replace /> },

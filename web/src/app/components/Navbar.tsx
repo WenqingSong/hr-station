@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { FileText, LogIn } from "lucide-react";
 import { Link } from "react-router";
 
 export function Navbar() {
@@ -14,13 +14,22 @@ export function Navbar() {
           </span>
         </Link>
 
-        <Link
-          to="/resumes"
-          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-[#0052D9]"
-        >
-          <FileText className="h-4 w-4" />
-          我的简历
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            to="/login"
+            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-[#0052D9]"
+          >
+            <LogIn className="h-4 w-4" />
+            登录
+          </Link>
+          <Link
+            to="/resumes"
+            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-[#0052D9]"
+          >
+            <FileText className="h-4 w-4" />
+            我的简历
+          </Link>
+        </div>
       </div>
     </nav>
   );
