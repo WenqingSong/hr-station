@@ -82,3 +82,5 @@ API_BASE_URL 默认 `/api`，路径正确对齐。
 **可以。** Jobs API 联调成功，前后端通路验证通过。
 
 **下一步：6-2 Resumes API 联调。**
+
+> **更新 2026-06-01**：6-2 Resumes API 联调已完成（pass ✅），可进入 6-3。详见 `docs/08-后端联调/ResumesAPI联调当前简历简历版本.md`。

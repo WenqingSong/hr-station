@@ -71,7 +71,10 @@ export async function getResumeOptions(): Promise<ResumeOption[]> {
 
 /**
  * 获取简历版本比较。
- * 优先调用 GET /resumes/versions/compare?base_id=xxx&target_id=xxx，失败返回 mock。
+ * 后端期望 GET /resumes/versions/compare?from=1&to=2（版本号）。
+ * 优先调用真实 API，失败返回 mock。
+ * 注意：当前前端使用 resumeId（字符串），后端使用 versionNo（整数），
+ * 真实调用时需 adapter 层做 ID→版本号转换或后端增强。
  */
 export async function compareResumes(
   baseId: string,
@@ -80,7 +83,7 @@ export async function compareResumes(
   return withFallback(
     () =>
       get<ResumeVersionComparison>(
-        `/resumes/versions/compare?base_id=${encodeURIComponent(baseId)}&target_id=${encodeURIComponent(targetId)}`,
+        `/resumes/versions/compare?from=${encodeURIComponent(baseId)}&to=${encodeURIComponent(targetId)}`,
       ),
     () => mockResumeComparison,
   );
