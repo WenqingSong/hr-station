@@ -97,7 +97,8 @@ const STATUS_LABELS: Record<string, string> = {
   inactive: '未激活',
 };
 
-export function toResumeSummaryViewModel(resume: Resume): ResumeSummaryViewModel {
+export function toResumeSummaryViewModel(resume?: Resume | null): ResumeSummaryViewModel {
+  if (!resume) return { id: '', name: '', version: '', statusLabel: '', directionLabel: '', completeness: 0, updatedAt: '', skillTags: [], gapItems: [], projectCount: 0, profileSummary: '' };
   return {
     id: resume.id,
     name: resume.name,

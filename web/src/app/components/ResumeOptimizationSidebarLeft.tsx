@@ -10,7 +10,7 @@ interface ResumeOptimizationSidebarLeftProps {
 }
 
 export function ResumeOptimizationSidebarLeft({ job, jobSource = "默认岗位" }: ResumeOptimizationSidebarLeftProps) {
-  const jobVm = toJobDetailViewModel(job || null as any);
+  const jobVm = toJobDetailViewModel(job);
   return (
     <aside className="w-[320px] shrink-0 flex flex-col gap-4">
       <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">

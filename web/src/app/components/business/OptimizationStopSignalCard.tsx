@@ -13,7 +13,7 @@ export function OptimizationStopSignalCard({ type }: OptimizationStopSignalCardP
       title: "可以停止优化，进入投递",
       desc: "已达到该岗位的最优呈现状态",
       buttonText: "一键投递",
-      variant: "primary" as const,
+      variant: "default" as const,
     },
     fix_needed: {
       title: "修复 Top 3 后再投递",

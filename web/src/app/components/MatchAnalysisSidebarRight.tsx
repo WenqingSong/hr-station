@@ -10,7 +10,7 @@ interface MatchAnalysisSidebarRightProps {
 }
 
 export function MatchAnalysisSidebarRight({ resume, resumeSource = "当前简历" }: MatchAnalysisSidebarRightProps) {
-  const resumeVm = toResumeSummaryViewModel(resume || null as any);
+  const resumeVm = toResumeSummaryViewModel(resume);
   return (
     <aside className="w-[320px] shrink-0 flex flex-col gap-4">
       {/* Resume Card */}

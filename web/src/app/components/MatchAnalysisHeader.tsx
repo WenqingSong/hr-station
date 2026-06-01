@@ -13,8 +13,8 @@ interface MatchAnalysisHeaderProps {
 
 export function MatchAnalysisHeader({ job, resume, jobSource = "目标岗位", resumeSource = "当前简历" }: MatchAnalysisHeaderProps) {
   const navigate = useNavigate();
-  const jobVm = toJobDetailViewModel(job || null as any);
-  const resumeVm = toResumeSummaryViewModel(resume || null as any);
+  const jobVm = toJobDetailViewModel(job);
+  const resumeVm = toResumeSummaryViewModel(resume);
 
   return (
     <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm flex flex-col gap-4">

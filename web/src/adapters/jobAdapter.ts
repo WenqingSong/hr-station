@@ -64,7 +64,8 @@ export function toJobCardViewModels(jobs: Job[]): JobCardViewModel[] {
   return jobs.map(toJobCardViewModel);
 }
 
-export function toJobDetailViewModel(job: JobDetail): JobDetailViewModel {
+export function toJobDetailViewModel(job?: JobDetail | null): JobDetailViewModel {
+  if (!job) return { id: '', title: '', businessGroup: '', locationsText: '', tags: [], shortDescription: '', statusLabel: '', categoryLabel: '', typeLabel: '', bannerSummary: '', responsibilities: [], requirements: [], bonusPoints: [], keywords: [] };
   return {
     ...toJobCardViewModel(job),
     bannerSummary: job.banner_summary,

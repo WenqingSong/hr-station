@@ -3,7 +3,7 @@
 import type { ApiResponse } from '../types';
 
 /** HTTP 方法 */
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
 
 /** API 请求选项 */
 export interface ApiRequestOptions<TBody = unknown> {

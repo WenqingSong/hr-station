@@ -11,7 +11,7 @@ interface ResumeOptimizationDetailProps {
   data?: ResumeOptimizationPageViewModel | null;
 }
 
-const CollapsibleSection = ({ title, icon: Icon, children, defaultOpen = false }: { title: string, icon: any, children: React.ReactNode, defaultOpen?: boolean }) => {
+const CollapsibleSection = ({ title, icon: Icon, children, defaultOpen = false }: { title: string, icon: React.ComponentType<{ className?: string }>, children: React.ReactNode, defaultOpen?: boolean }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
     <section className="border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm">
