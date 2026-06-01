@@ -25,6 +25,7 @@ import {
   toJobDetailViewModel,
   toResumeSummaryViewModel,
   toResumeOptionViewModels,
+  toResumeManagementViewModel,
   toResumeComparisonViewModel,
   toRecommendationPageViewModel,
   toMatchAnalysisPageViewModel,
@@ -33,6 +34,7 @@ import {
   type JobDetailViewModel,
   type ResumeSummaryViewModel,
   type ResumeOptionViewModel,
+  type ResumeManagementViewModel,
   type ResumeComparisonViewModel,
   type RecommendationPageViewModel,
   type MatchAnalysisPageViewModel,
@@ -73,6 +75,16 @@ export async function loadCurrentResumeSummaryViewModel(): Promise<ResumeSummary
 export async function loadResumeOptionViewModels(): Promise<ResumeOptionViewModel[]> {
   const options = await getResumeOptions();
   return toResumeOptionViewModels(options);
+}
+
+/** 加载简历管理页完整 ViewModel（含教育/项目/经历/技能/自评） */
+export async function loadResumeManagementPageViewModel(): Promise<ResumeManagementViewModel | null> {
+  try {
+    const resume = await getCurrentResume();
+    return toResumeManagementViewModel(resume);
+  } catch {
+    return null; // 无简历或加载失败 → 返回 null，页面展示空态
+  }
 }
 
 /** 加载简历版本比较 ViewModel */

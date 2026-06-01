@@ -2,6 +2,9 @@
 
 import type {
   Resume,
+  ResumeEducation,
+  ResumeExperience,
+  ResumeProject,
   ResumeOption,
   ResumeVersionComparison,
   ResumeKeywordChange,
@@ -22,6 +25,28 @@ export interface ResumeSummaryViewModel {
   gapItems: string[];
   projectCount: number;
   profileSummary: string;
+}
+
+/** 简历管理页完整 ViewModel — 用于 ResumeManagementPage 真实数据展示 */
+export interface ResumeManagementViewModel {
+  // Summary
+  summary: ResumeSummaryViewModel;
+  // Personal info
+  displayName: string;
+  displaySchool: string;
+  displayMajor: string;
+  displayPhone: string;
+  displayEmail: string;
+  displayLocation: string;
+  directionLabel: string;
+  // Arrays
+  education: ResumeEducation[];
+  experiences: ResumeExperience[];
+  projects: ResumeProject[];
+  skills: string[];
+  selfEvaluation: string;
+  // No-profile indicator
+  hasResume: boolean;
 }
 
 export interface ResumeOptionViewModel {
@@ -101,6 +126,35 @@ export function toResumeOptionViewModels(
   options: ResumeOption[],
 ): ResumeOptionViewModel[] {
   return options.map(toResumeOptionViewModel);
+}
+
+// ─── Management Page VM ─────────────────────────────────────────────────────────
+
+/** 从完整 Resume 构建管理页 ViewModel，含空值兜底 */
+export function toResumeManagementViewModel(
+  resume: Resume,
+): ResumeManagementViewModel {
+  const summary = toResumeSummaryViewModel(resume);
+  const p = resume.profile ?? ({} as Resume['profile']);
+
+  return {
+    summary,
+    displayName: p.name || resume.name || '暂未填写',
+    displaySchool: p.school || '暂未填写',
+    displayMajor: p.major || '',
+    displayPhone: p.phone || '',
+    displayEmail: p.email || '',
+    displayLocation: resume.expected_cities?.length
+      ? resume.expected_cities.join(' / ')
+      : '暂未填写',
+    directionLabel: resume.direction_label || '暂未填写',
+    education: Array.isArray(resume.education) ? resume.education : [],
+    experiences: Array.isArray(resume.experiences) ? resume.experiences : [],
+    projects: Array.isArray(resume.projects) ? resume.projects : [],
+    skills: Array.isArray(resume.skills) ? resume.skills : [],
+    selfEvaluation: resume.self_evaluation || '',
+    hasResume: !!(p.name || resume.name || p.school),
+  };
 }
 
 export function toResumeComparisonViewModel(

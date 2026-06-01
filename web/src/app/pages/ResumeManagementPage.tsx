@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { SelectResumeModal } from "../components/SelectResumeModal";
 import {
@@ -16,41 +16,9 @@ import {
   Code2,
   Award,
   MessageSquare,
-  ChevronDown,
 } from "lucide-react";
-import { loadCurrentResumeSummaryViewModel } from "../../api";
-import type { ResumeSummaryViewModel } from "../../adapters";
-
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-const resumeVersions = [
-  { id: "v2", label: "V2 后端开发简历", active: true },
-  { id: "v1", label: "V1 通用后端简历", active: false },
-  { id: "v3", label: "V3 产品方向简历", active: false },
-];
-
-const skills = ["Go", "MySQL", "Redis", "Docker", "微服务", "RBAC", "接口开发", "缓存优化"];
-
-const projects = [
-  {
-    name: "Go 微服务订单系统",
-    stack: "Go / MySQL / Redis / Docker / 微服务",
-    desc: "负责订单服务核心接口设计与实现，使用 MySQL 完成订单数据建模，结合 Redis 缓存优化高频查询路径。",
-    role: "接口设计、数据库设计、缓存优化、错误处理、权限校验",
-  },
-  {
-    name: "RBAC 权限管理系统",
-    stack: "Go / MySQL / Casbin / JWT",
-    desc: "设计并实现用户、角色、菜单与接口权限的关联校验，提升后台系统权限管理的可维护性。",
-    role: "权限模型设计、接口开发、角色配置",
-  },
-  {
-    name: "缓存优化项目",
-    stack: "Redis / MySQL / 查询优化",
-    desc: "针对高频查询场景设计缓存策略，减少重复数据库访问，降低核心查询响应时间。",
-    role: "缓存方案设计、SQL 优化、性能测试",
-  },
-];
+import { loadResumeManagementPageViewModel } from "../../api";
+import type { ResumeManagementViewModel } from "../../adapters";
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
@@ -65,7 +33,6 @@ function ResumeSection({
 }) {
   return (
     <div className="bg-white border border-gray-200">
-      {/* Section header */}
       <div className="flex items-center gap-2.5 px-8 py-4 border-b border-gray-100">
         <span className="text-[#0052D9]">{icon}</span>
         <h2 className="font-semibold text-gray-900">{title}</h2>
@@ -75,27 +42,62 @@ function ResumeSection({
   );
 }
 
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <div className="max-w-[960px] mx-auto px-4 py-8 pb-12">
+      <div className="bg-white border border-gray-200 rounded-sm p-12 text-center">
+        <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-700 mb-2">你还没有创建简历</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          添加一份简历后，这里会展示你的教育经历、项目经历、技能与求职方向。
+        </p>
+        <Link
+          to="/resumes/edit"
+          className="inline-flex items-center gap-1.5 px-5 py-2 bg-[#0052D9] text-white text-sm font-medium rounded hover:bg-[#003DA5] transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          添加简历
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ResumeManagementPage() {
-  const [currentVersion, setCurrentVersion] = useState("v2");
-  const [versionOpen, setVersionOpen] = useState(false);
+  const [vm, setVm] = useState<ResumeManagementViewModel | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showSelectModal, setShowSelectModal] = useState(false);
-  const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
-  const [resumeError, setResumeError] = useState(false);
 
   useEffect(() => {
-    loadCurrentResumeSummaryViewModel()
-      .then(setResumeVm)
-      .catch(() => setResumeError(true));
+    loadResumeManagementPageViewModel()
+      .then(setVm)
+      .finally(() => setLoading(false));
   }, []);
 
-  const activeVersion = resumeVersions.find((v) => v.id === currentVersion);
-  const loadedVersionLabel = resumeVm ? `V${resumeVm.version} ${resumeVm.name}` : (resumeError ? "暂无简历数据" : "");
+  // Loading state
+  if (loading) {
+    return (
+      <div className="max-w-[960px] mx-auto px-4 py-8 pb-12">
+        <div className="bg-white border border-gray-200 rounded-sm p-12 text-center">
+          <p className="text-sm text-gray-400">加载中…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No resume / error state
+  if (!vm || !vm.hasResume) {
+    return <EmptyState />;
+  }
+
+  const versionLabel = `V${vm.summary.version} ${vm.summary.name}`;
 
   return (
     <>
-      {/* ── Page Content ────────────────────────────────────────────────────── */}
       <div className="max-w-[960px] mx-auto px-4 py-8 pb-12">
 
         {/* ── Page Title Area ──────────────────────────────────────────────── */}
@@ -119,22 +121,20 @@ export function ResumeManagementPage() {
         <div className="bg-white border border-gray-200 rounded-sm px-5 py-3 mb-5 flex items-center gap-6">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="text-gray-400">当前简历：</span>
-            <span className="font-medium text-gray-900">{loadedVersionLabel}</span>
+            <span className="font-medium text-gray-900">{versionLabel}</span>
           </div>
           <div className="w-px h-4 bg-gray-200" />
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="text-gray-400">简历完整度：</span>
             <div className="flex items-center gap-2">
               <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-[#0052D9] rounded-full" style={{ width: "78%" }} />
+                <div
+                  className="h-full bg-[#0052D9] rounded-full"
+                  style={{ width: `${Math.max(vm.summary.completeness, 10)}%` }}
+                />
               </div>
-              <span className="font-semibold text-[#0052D9]">78%</span>
+              <span className="font-semibold text-[#0052D9]">{vm.summary.completeness}%</span>
             </div>
-          </div>
-          <div className="w-px h-4 bg-gray-200" />
-          <div className="flex items-center gap-1.5 text-sm text-gray-500">
-            <Clock className="w-3.5 h-3.5" />
-            最近更新：2 小时前
           </div>
           <div className="w-px h-4 bg-gray-200" />
           <div className="flex items-center gap-1.5 text-sm text-green-600">
@@ -146,65 +146,52 @@ export function ResumeManagementPage() {
         {/* ── Blue Personal Info Card ──────────────────────────────────────── */}
         <div className="bg-[#0052D9] rounded-sm mb-0.5 overflow-hidden">
           <div className="px-8 py-6 flex items-start gap-6">
-
-            {/* Center info */}
             <div className="flex-1 min-w-0">
-              {/* Name + tags */}
               <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-white font-semibold text-xl">测试候选人 A</h2>
-                <span className="px-2 py-0.5 bg-white/15 border border-white/25 rounded text-white text-xs">应届毕业生</span>
-                <span className="px-2 py-0.5 bg-white/15 border border-white/25 rounded text-white text-xs">后端开发</span>
-                <span className="px-2 py-0.5 bg-white/15 border border-white/25 rounded text-white text-xs">2026 校园招聘</span>
+                <h2 className="text-white font-semibold text-xl">{vm.displayName}</h2>
+                <span className="px-2 py-0.5 bg-white/15 border border-white/25 rounded text-white text-xs">{vm.directionLabel}</span>
               </div>
 
-              {/* Basic info row */}
               <div className="flex items-center gap-4 mb-3">
-                <span className="text-white/70 text-sm">男 · 23岁 · 本科</span>
-                <span className="w-px h-3 bg-white/30" />
-                <span className="text-white/70 text-sm">某大学 · 软件工程</span>
-                <span className="w-px h-3 bg-white/30" />
-                <span className="text-white/70 text-sm">毕业时间：2026</span>
+                {vm.displaySchool !== '暂未填写' && (
+                  <>
+                    <span className="text-white/70 text-sm">{vm.displaySchool}{vm.displayMajor ? ` · ${vm.displayMajor}` : ''}</span>
+                    <span className="w-px h-3 bg-white/30" />
+                  </>
+                )}
+                <span className="text-white/70 text-sm">{vm.directionLabel}</span>
               </div>
 
-              {/* Contact row */}
               <div className="flex items-center gap-5 mb-3">
-                <span className="flex items-center gap-1.5 text-white/80 text-sm">
-                  <Phone className="w-3.5 h-3.5" />
-                  182****9164
-                </span>
-                <span className="flex items-center gap-1.5 text-white/80 text-sm">
-                  <Mail className="w-3.5 h-3.5" />
-                  candidate@example.com
-                </span>
+                {vm.displayPhone && (
+                  <span className="flex items-center gap-1.5 text-white/80 text-sm">
+                    <Phone className="w-3.5 h-3.5" />
+                    {vm.displayPhone}
+                  </span>
+                )}
+                {vm.displayEmail && (
+                  <span className="flex items-center gap-1.5 text-white/80 text-sm">
+                    <Mail className="w-3.5 h-3.5" />
+                    {vm.displayEmail}
+                  </span>
+                )}
                 <span className="flex items-center gap-1.5 text-white/80 text-sm">
                   <MapPin className="w-3.5 h-3.5" />
-                  深圳 / 北京 / 上海
+                  {vm.displayLocation}
                 </span>
               </div>
 
-              {/* Job direction */}
-              <div className="flex items-start gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-white/50 text-xs">求职方向：</span>
-                  <span className="text-white text-sm font-medium">后端开发</span>
-                </div>
-                <span className="w-px h-3.5 bg-white/30 mt-0.5" />
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-white/50 text-xs">目标岗位：</span>
-                  <span className="text-white text-sm">软件开发-后台开发方向</span>
-                  <span className="text-white/50 text-xs">/</span>
-                  <span className="text-white text-sm">云计算开发实习生</span>
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="text-white/50 text-xs">求职方向：</span>
+                <span className="text-white text-sm font-medium">{vm.directionLabel}</span>
               </div>
             </div>
 
-            {/* Right: resume version — compact, no button cluster */}
             <div className="flex-shrink-0 text-right min-w-[150px]">
               <div className="text-white/50 text-xs mb-1.5">当前简历版本</div>
-              <div className="text-white font-medium text-sm mb-2">{loadedVersionLabel}</div>
+              <div className="text-white font-medium text-sm mb-2">{versionLabel}</div>
               <div className="text-white/65 text-xs">当前使用｜可用于 AI 分析</div>
             </div>
-
           </div>
         </div>
 
@@ -239,66 +226,7 @@ export function ResumeManagementPage() {
           <div className="flex-1" />
         </div>
 
-        {/* ── Version Switcher (lightweight) ───────────────────────────────── */}
-        <div className="bg-white border border-gray-200 px-8 py-3 mb-4 flex items-center gap-3">
-          <span className="text-sm text-gray-500 flex-shrink-0">简历版本：</span>
-          <div className="relative">
-            <button
-              onClick={() => setVersionOpen(!versionOpen)}
-              className="flex items-center gap-2 px-3 py-1 border border-gray-300 rounded text-sm text-gray-800 hover:border-[#0052D9] transition-colors bg-white"
-            >
-              <span className="font-medium text-[#0052D9]">{activeVersion?.label}</span>
-              <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-[#0052D9] rounded border border-blue-100 ml-1">当前</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-            </button>
-            {versionOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-md z-10 min-w-[200px]">
-                {resumeVersions.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => { setCurrentVersion(v.id); setVersionOpen(false); }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
-                      v.id === currentVersion ? "text-[#0052D9]" : "text-gray-700"
-                    }`}
-                  >
-                    <span>{v.label}</span>
-                    {v.id === currentVersion && (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#0052D9]" />
-                    )}
-                  </button>
-                ))}
-                <div className="border-t border-gray-100 px-4 py-2">
-                  <Link
-                    to="/resumes/edit"
-                    className="text-xs text-[#0052D9] hover:underline"
-                    onClick={() => setVersionOpen(false)}
-                  >
-                    + 添加新版本
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="w-px h-4 bg-gray-200" />
-          <div className="flex items-center gap-3">
-            {resumeVersions.filter(v => v.id !== currentVersion).map(v => (
-              <button
-                key={v.id}
-                onClick={() => setCurrentVersion(v.id)}
-                className="text-sm text-gray-500 hover:text-[#0052D9] transition-colors"
-              >
-                {v.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex-1" />
-          <button className="text-xs text-gray-400 hover:text-[#0052D9] transition-colors flex items-center gap-1">
-            <ArrowRightLeft className="w-3 h-3" />
-            历史比较
-          </button>
-        </div>
-
-        {/* ── AI Status (lightweight one line) ────────────────────────────── */}
+        {/* ── AI Status ────────────────────────────────────────────────────── */}
         <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 border border-blue-100 mb-4 rounded-sm">
           <Sparkles className="w-3.5 h-3.5 text-[#0052D9] flex-shrink-0" />
           <span className="text-xs text-[#0052D9]">
@@ -309,151 +237,132 @@ export function ResumeManagementPage() {
         </div>
 
         {/* ══════════ Resume Modules ══════════════════════════════════════════ */}
-
         <div className="space-y-0.5">
 
-          {/* 1. 求职意向 ──────────────────────────────────────────────────── */}
-          <ResumeSection icon={<Briefcase className="w-4 h-4" />} title="求职意向">
-            <div className="grid grid-cols-2 gap-y-4 gap-x-12">
-              <div>
-                <div className="text-xs text-gray-400 mb-1">求职方向</div>
-                <div className="text-sm text-gray-800">后端开发</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">岗位类型</div>
-                <div className="text-sm text-gray-800">校园招聘 / 实习生</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">目标岗位</div>
-                <div className="text-sm text-gray-800 leading-relaxed">
-                  软件开发-后台开发方向<br />
-                  云计算开发实习生
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">可到岗时间</div>
-                <div className="text-sm text-gray-800">2026 年毕业后 / 可实习</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">期望城市</div>
-                <div className="text-sm text-gray-800">深圳 / 北京 / 上海</div>
-              </div>
-            </div>
-          </ResumeSection>
-
-          {/* 2. 教育经历 ──────────────────────────────────────────────────── */}
+          {/* 1. 教育经历 */}
           <ResumeSection icon={<GraduationCap className="w-4 h-4" />} title="教育经历">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-1.5">
-                  <span className="font-medium text-gray-900">某大学</span>
-                  <span className="text-gray-400 text-xs">本科</span>
-                </div>
-                <div className="text-sm text-gray-600 mb-2.5">软件工程</div>
-                <div className="text-xs text-gray-400 leading-relaxed">
-                  相关课程：数据结构、操作系统、计算机网络、数据库、软件工程
-                </div>
-              </div>
-              <div className="text-sm text-gray-400 text-right flex-shrink-0 ml-8">
-                2022.09 - 2026.06
-              </div>
-            </div>
-          </ResumeSection>
-
-          {/* 3. 实习经历 ──────────────────────────────────────────────────── */}
-          <ResumeSection icon={<Briefcase className="w-4 h-4" />} title="实习经历">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-1.5">
-                  <span className="font-medium text-gray-900">ExampleTech</span>
-                  <span className="text-sm text-gray-600">后端开发实习生</span>
-                </div>
-                <div className="text-sm text-gray-600 leading-relaxed">
-                  参与后台接口开发和数据库表设计，协助完成用户权限、订单查询和缓存优化等功能。
-                </div>
-              </div>
-              <div className="text-sm text-gray-400 text-right flex-shrink-0 ml-8">
-                2025.06 - 2025.09
-              </div>
-            </div>
-          </ResumeSection>
-
-          {/* 4. 项目经历 ──────────────────────────────────────────────────── */}
-          <ResumeSection icon={<Code2 className="w-4 h-4" />} title="项目经历">
-            <div className="space-y-6">
-              {projects.map((proj, i) => (
+            {vm.education.length === 0 ? (
+              <p className="text-sm text-gray-400">暂未填写教育经历</p>
+            ) : (
+              vm.education.map((edu, i) => (
                 <div key={i}>
-                  {i > 0 && <div className="h-px bg-gray-100 mb-6 -mt-6" />}
-                  <div className="flex items-start justify-between mb-2">
-                    <span className="font-medium text-gray-900">{proj.name}</span>
-                    <span className="text-xs text-gray-400 flex-shrink-0 ml-8">{proj.stack}</span>
-                  </div>
-                  <p className="text-sm text-gray-600 leading-relaxed mb-2">{proj.desc}</p>
-                  <div className="flex items-start gap-1.5">
-                    <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">个人职责：</span>
-                    <span className="text-xs text-gray-600">{proj.role}</span>
+                  {i > 0 && <div className="h-px bg-gray-100 my-4" />}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <span className="font-medium text-gray-900">{edu.school || '暂未填写'}</span>
+                        {edu.degree && <span className="text-gray-400 text-xs">{edu.degree}</span>}
+                      </div>
+                      {edu.major && <div className="text-sm text-gray-600 mb-2.5">{edu.major}</div>}
+                      {edu.courses?.length > 0 && (
+                        <div className="text-xs text-gray-400 leading-relaxed">
+                          相关课程：{edu.courses.join('、')}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-400 text-right flex-shrink-0 ml-8">
+                      {edu.start_date || ''} {edu.end_date ? `- ${edu.end_date}` : ''}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
           </ResumeSection>
 
-          {/* 5. 技能信息 ──────────────────────────────────────────────────── */}
+          {/* 2. 实习/工作经历 */}
+          <ResumeSection icon={<Briefcase className="w-4 h-4" />} title="实习 / 工作经历">
+            {vm.experiences.length === 0 ? (
+              <p className="text-sm text-gray-400">暂未填写实习 / 工作经历</p>
+            ) : (
+              vm.experiences.map((exp, i) => (
+                <div key={i}>
+                  {i > 0 && <div className="h-px bg-gray-100 my-4" />}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <span className="font-medium text-gray-900">{exp.company || '暂未填写'}</span>
+                        {exp.role && <span className="text-sm text-gray-600">{exp.role}</span>}
+                      </div>
+                      {exp.description && (
+                        <div className="text-sm text-gray-600 leading-relaxed">{exp.description}</div>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-400 text-right flex-shrink-0 ml-8">
+                      {exp.start_date || ''} {exp.end_date ? `- ${exp.end_date}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </ResumeSection>
+
+          {/* 3. 项目经历 */}
+          <ResumeSection icon={<Code2 className="w-4 h-4" />} title="项目经历">
+            {vm.projects.length === 0 ? (
+              <p className="text-sm text-gray-400">暂未填写项目经历</p>
+            ) : (
+              <div className="space-y-6">
+                {vm.projects.map((proj, i) => (
+                  <div key={proj.id || i}>
+                    {i > 0 && <div className="h-px bg-gray-100 mb-6 -mt-6" />}
+                    <div className="flex items-start justify-between mb-2">
+                      <span className="font-medium text-gray-900">{proj.name}</span>
+                      <span className="text-xs text-gray-400 flex-shrink-0 ml-8">
+                        {proj.tech_stack?.join(' / ') || ''}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed mb-2">{proj.description}</p>
+                    {proj.responsibilities?.length > 0 && (
+                      <div className="flex items-start gap-1.5">
+                        <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">个人职责：</span>
+                        <span className="text-xs text-gray-600">{proj.responsibilities.join('、')}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ResumeSection>
+
+          {/* 4. 技能信息 */}
           <ResumeSection icon={<Code2 className="w-4 h-4" />} title="技能信息">
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs text-gray-400 mb-2.5">技术技能</div>
-                <div className="flex flex-wrap gap-2">
-                  {skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="px-3 py-1 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
+            {vm.skills.length === 0 ? (
+              <p className="text-sm text-gray-400">暂未填写技能</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {vm.skills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="px-3 py-1 bg-gray-50 border border-gray-200 rounded text-sm text-gray-700"
+                  >
+                    {skill}
+                  </span>
+                ))}
               </div>
-              <div className="h-px bg-gray-100" />
-              <div>
-                <div className="text-xs text-gray-400 mb-2">语言能力</div>
-                <div className="text-sm text-gray-700">英语：CET-4</div>
-              </div>
-            </div>
+            )}
           </ResumeSection>
 
-          {/* 6. 获奖 / 证书 / 竞赛 ───────────────────────────────────────── */}
+          {/* 5. 获奖 / 证书 — kept as placeholder until backend supports */}
           <ResumeSection icon={<Award className="w-4 h-4" />} title="获奖 / 证书 / 竞赛">
-            <div className="space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="text-sm text-gray-800">蓝桥杯省赛奖项</div>
-                <div className="text-sm text-gray-400 flex-shrink-0 ml-8">2024</div>
-              </div>
-              <div className="h-px bg-gray-100" />
-              <div className="flex items-start justify-between">
-                <div className="text-sm text-gray-800">校级程序设计竞赛奖项</div>
-                <div className="text-sm text-gray-400 flex-shrink-0 ml-8">2023</div>
-              </div>
-            </div>
+            <p className="text-sm text-gray-400">暂未填写获奖 / 证书 / 竞赛信息</p>
           </ResumeSection>
 
-          {/* 7. 自我评价 ──────────────────────────────────────────────────── */}
+          {/* 6. 自我评价 */}
           <ResumeSection icon={<MessageSquare className="w-4 h-4" />} title="自我评价">
-            <p className="text-sm text-gray-700 leading-relaxed">
-              具备 Go 后端开发基础，熟悉 MySQL、Redis 和常见 Web 后端开发流程，了解微服务、权限控制和接口设计。
-              希望从事后端开发、云计算开发等方向，对高并发系统和基础设施有浓厚兴趣。
-            </p>
+            {vm.selfEvaluation ? (
+              <p className="text-sm text-gray-700 leading-relaxed">{vm.selfEvaluation}</p>
+            ) : (
+              <p className="text-sm text-gray-400">暂未填写自我评价</p>
+            )}
           </ResumeSection>
 
         </div>
 
-        {/* ── Bottom Action Area — static, in page flow ─────────────────────── */}
+        {/* ── Bottom Action Area ───────────────────────────────────────────── */}
         <div className="mt-8 pt-5 border-t border-gray-200 flex items-center justify-between">
           <div className="flex items-center gap-3 text-sm text-gray-500">
-            <Clock className="w-3.5 h-3.5" />
-            最近更新：2 小时前
-            <span className="w-px h-4 bg-gray-200" />
-            当前简历：<span className="text-gray-800 font-medium">{loadedVersionLabel}</span>
+            <span>当前简历：</span>
+            <span className="text-gray-800 font-medium">{versionLabel}</span>
           </div>
           <div className="flex items-center gap-3">
             <Link
