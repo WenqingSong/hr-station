@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { 
   ArrowLeft, 
@@ -9,8 +10,27 @@ import {
   ArrowUpCircle,
   FileText
 } from "lucide-react";
+import { loadResumeComparisonViewModel } from "../../api";
+import type { ResumeComparisonViewModel } from "../../adapters";
 
 export function ResumeComparisonPage() {
+  const [comparison, setComparison] = useState<ResumeComparisonViewModel | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadResumeComparisonViewModel("1", "2")
+      .then(setComparison)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-[1360px] mx-auto px-6 py-12 text-center text-gray-400">
+        正在加载版本对比…
+      </div>
+    );
+  }
   return (
     <>
       <div className="max-w-[1360px] mx-auto px-6 md:px-8 py-6 pb-12">
@@ -33,7 +53,7 @@ export function ResumeComparisonPage() {
             <div className="flex flex-col">
               <span className="text-xs text-slate-500 mb-1">旧版本</span>
               <button className="flex items-center text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded border border-gray-200 transition-colors">
-                V1 通用后端简历
+                {comparison?.baseName || "V1 通用后端简历"}
                 <ChevronDown className="w-4 h-4 ml-2 text-slate-400" />
               </button>
             </div>
@@ -45,14 +65,14 @@ export function ResumeComparisonPage() {
             <div className="flex flex-col">
               <span className="text-xs text-slate-500 mb-1">新版本</span>
               <button className="flex items-center text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded border border-blue-200 transition-colors">
-                V2 后端开发简历
+                {comparison?.targetName || "V2 后端开发简历"}
                 <ChevronDown className="w-4 h-4 ml-2 text-blue-400" />
               </button>
             </div>
           </div>
 
           <div className="flex items-center text-sm">
-            <span className="text-slate-500 mr-3">当前建议版本：<span className="font-medium text-slate-900">V2 后端开发简历</span></span>
+            <span className="text-slate-500 mr-3">当前建议版本：<span className="font-medium text-slate-900">{comparison?.targetName || "V2 后端开发简历"}</span></span>
             <span className="inline-flex items-center px-2 py-1 rounded bg-blue-50 text-blue-600 text-xs font-medium border border-blue-100">
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
               推荐设为当前简历
@@ -67,7 +87,7 @@ export function ResumeComparisonPage() {
           <div className="lg:col-span-3">
             <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm sticky top-20">
               <div className="mb-4">
-                <h3 className="font-semibold text-slate-900 mb-2">旧版本：V1 通用后端简历</h3>
+                <h3 className="font-semibold text-slate-900 mb-2">旧版本：{comparison?.baseName || "V1 通用后端简历"}</h3>
                 <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
                   历史版本
                 </span>
@@ -357,7 +377,7 @@ export function ResumeComparisonPage() {
             <section className="bg-blue-50/50 rounded-xl border border-blue-100 p-6">
               <h2 className="text-base font-semibold text-blue-900 mb-3">建议结论</h2>
               <p className="text-sm text-blue-800 mb-5 leading-relaxed">
-                建议将 <span className="font-semibold">V2 后端开发简历</span> 设为当前简历，并优先用于后台开发、云计算开发等技术岗位的岗位推荐和岗位匹配分析。
+                建议将 <span className="font-semibold">{comparison?.targetName || "V2 后端开发简历"}</span> 设为当前简历，并优先用于后台开发、云计算开发等技术岗位的岗位推荐和岗位匹配分析。
               </p>
               <div className="flex flex-wrap gap-3">
                 <button className="bg-[#0052D9] hover:bg-[#0047BA] text-white px-5 py-2 rounded shadow-sm text-sm font-medium transition-colors">
@@ -378,7 +398,7 @@ export function ResumeComparisonPage() {
           <div className="lg:col-span-3">
             <div className="bg-white rounded-xl border border-blue-200 ring-1 ring-blue-50 p-5 shadow-md sticky top-20">
               <div className="mb-4">
-                <h3 className="font-semibold text-slate-900 mb-2">新版本：V2 后端开发简历</h3>
+                <h3 className="font-semibold text-slate-900 mb-2">新版本：{comparison?.targetName || "V2 后端开发简历"}</h3>
                 <div className="flex gap-2">
                   <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
                     当前使用
@@ -438,9 +458,9 @@ export function ResumeComparisonPage() {
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 text-sm">
             <div className="text-slate-500 flex items-center">
               当前比较：
-              <span className="font-medium text-slate-700 ml-1">V1 通用后端简历</span>
+              <span className="font-medium text-slate-700 ml-1">{comparison?.baseName || "V1 通用后端简历"}</span>
               <ArrowRight className="w-3.5 h-3.5 mx-2 text-slate-400" />
-              <span className="font-medium text-blue-600">V2 后端开发简历</span>
+              <span className="font-medium text-blue-600">{comparison?.targetName || "V2 后端开发简历"}</span>
             </div>
             <div className="text-xs text-slate-500 border-l-0 md:border-l border-gray-200 md:pl-6">
               <span className="hidden md:inline">推荐下一步：</span>1. 设为当前简历 <span className="mx-1 text-slate-300">|</span> 2. 进行岗位推荐 <span className="mx-1 text-slate-300">|</span> 3. 匹配分析

@@ -11,6 +11,8 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { loadCurrentResumeSummaryViewModel } from "../../api";
+import type { ResumeSummaryViewModel } from "../../adapters";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,13 +124,28 @@ export function MyResumesPage() {
   const location = useLocation();
   const mode: "edit" | "add" = location.pathname.includes("/new") ? "add" : "edit";
   const [savedHint, setSavedHint] = useState(false);
+  const [currentResume, setCurrentResume] = useState<ResumeSummaryViewModel | null>(null);
+
+  // 编辑模式：加载当前简历用于预填
+  useEffect(() => {
+    if (mode === "edit") {
+      loadCurrentResumeSummaryViewModel().then(setCurrentResume).catch(() => {});
+    }
+  }, [mode]);
 
   // ── Resume basic ────────────────────────────────────────────────────────────
-  const [resumeName, setResumeName] = useState(mode === "add" ? "V3 新简历" : "V2 后端开发简历");
+  const [resumeName, setResumeName] = useState(mode === "add" ? "V3 新简历" : "加载中…");
   const [jobDirection, setJobDirection] = useState("后端开发");
   const [resumeDesc, setResumeDesc] = useState(
     "用于后端开发、云计算开发等技术岗位的 AI 推荐与匹配分析。"
   );
+
+  // 加载后回填基础字段
+  useEffect(() => {
+    if (currentResume && mode === "edit") {
+      setResumeName(currentResume.name);
+    }
+  }, [currentResume, mode]);
   const [setAsCurrent, setSetAsCurrent] = useState(true);
 
   // ── Personal info ───────────────────────────────────────────────────────────

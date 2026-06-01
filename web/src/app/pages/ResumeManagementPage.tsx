@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { SelectResumeModal } from "../components/SelectResumeModal";
 import {
@@ -18,6 +18,8 @@ import {
   MessageSquare,
   ChevronDown,
 } from "lucide-react";
+import { loadCurrentResumeSummaryViewModel } from "../../api";
+import type { ResumeSummaryViewModel } from "../../adapters";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -79,8 +81,14 @@ export function ResumeManagementPage() {
   const [currentVersion, setCurrentVersion] = useState("v2");
   const [versionOpen, setVersionOpen] = useState(false);
   const [showSelectModal, setShowSelectModal] = useState(false);
+  const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
+
+  useEffect(() => {
+    loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {});
+  }, []);
 
   const activeVersion = resumeVersions.find((v) => v.id === currentVersion);
+  const loadedVersionLabel = resumeVm ? `V${resumeVm.version} ${resumeVm.name}` : "加载中…";
 
   return (
     <>
@@ -108,7 +116,7 @@ export function ResumeManagementPage() {
         <div className="bg-white border border-gray-200 rounded-sm px-5 py-3 mb-5 flex items-center gap-6">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span className="text-gray-400">当前简历：</span>
-            <span className="font-medium text-gray-900">{activeVersion?.label}</span>
+            <span className="font-medium text-gray-900">{loadedVersionLabel}</span>
           </div>
           <div className="w-px h-4 bg-gray-200" />
           <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -190,7 +198,7 @@ export function ResumeManagementPage() {
             {/* Right: resume version — compact, no button cluster */}
             <div className="flex-shrink-0 text-right min-w-[150px]">
               <div className="text-white/50 text-xs mb-1.5">当前简历版本</div>
-              <div className="text-white font-medium text-sm mb-2">{activeVersion?.label}</div>
+              <div className="text-white font-medium text-sm mb-2">{loadedVersionLabel}</div>
               <div className="text-white/65 text-xs">当前使用｜可用于 AI 分析</div>
             </div>
 
@@ -442,7 +450,7 @@ export function ResumeManagementPage() {
             <Clock className="w-3.5 h-3.5" />
             最近更新：2 小时前
             <span className="w-px h-4 bg-gray-200" />
-            当前简历：<span className="text-gray-800 font-medium">{activeVersion?.label}</span>
+            当前简历：<span className="text-gray-800 font-medium">{loadedVersionLabel}</span>
           </div>
           <div className="flex items-center gap-3">
             <Link
