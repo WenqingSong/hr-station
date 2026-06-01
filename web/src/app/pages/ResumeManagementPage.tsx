@@ -393,7 +393,6 @@ export function ResumeManagementPage() {
         isOpen={showSelectModal}
         onClose={() => setShowSelectModal(false)}
         scene="match-analysis"
-        jobTitle="软件开发-后台开发方向"
       />
     </>
   );
