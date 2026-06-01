@@ -168,6 +168,7 @@ resumeId → version_no 映射硬编码：
 | 10-1 | SelectResumeModal / Resume Options 真实化 | 是 | 10-0 | 简历选项来自真实 API，类型匹配 |
 | 10-2 | 推荐页上下文真实化 | 是 | 10-1 | 上下文展示与 Agent 请求数据一致 |
 | 10-3 | 匹配页上下文真实化 | 是 | 10-1 | 目标岗位+当前简历上下文真实 |
+| 10-3-R | 匹配页 selected resume version detail 对齐 | 是 | 10-3 | 四链路 versionNo 一致，10-3 partial_pass→pass |
 | 10-4 | 简历优化页上下文真实化 | 是 | 10-1 | resume_text/target_job 从真实数据组装 |
 | 10-5 | Agent 页面上下文一致性回归 | 否 | 10-4 | 全链路：请求=展示 |
 

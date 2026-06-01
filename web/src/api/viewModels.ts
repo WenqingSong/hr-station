@@ -9,12 +9,14 @@ import {
   getResumeOptions,
   getResumeVersions,
   compareResumes,
+  get,
 } from './index';
 import {
   runRecommendation,
   runMatchAnalysis,
   runResumeOptimization,
 } from './index';
+import type { Resume } from '../types';
 import type {
   RecommendationRequest,
   MatchAnalysisRequest,
@@ -120,6 +122,23 @@ export async function loadResumeSummaryViewModel(
 ): Promise<ResumeSummaryViewModel> {
   const resume = await getResumeDetail(resumeId);
   return toResumeSummaryViewModel(resume);
+}
+
+// ─── Resume Version Detail Loader ─────────────────────────────────────────────
+
+/**
+ * 根据 versionNo 获取简历版本详情（10-3-R：匹配页 selected resume version detail 对齐）。
+ * 调用 GET /resumes/versions/{versionNo}，返回 Resume | null。
+ * 与 getCurrentResume() 不同，该方法返回指定版本的详情，确保页面展示与 Agent 请求一致。
+ */
+export async function loadResumeVersionDetail(
+  versionNo: number,
+): Promise<Resume | null> {
+  try {
+    return await get<Resume>(`/resumes/versions/${versionNo}`);
+  } catch {
+    return null;
+  }
 }
 
 // ─── Agent ViewModel Loader ───────────────────────────────────────────────────
