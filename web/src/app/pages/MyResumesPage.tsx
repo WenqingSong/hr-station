@@ -11,8 +11,9 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { loadCurrentResumeSummaryViewModel } from "../../api";
-import type { ResumeSummaryViewModel } from "../../adapters";
+import { loadResumeManagementPageViewModel } from "../../api";
+import type { ResumeManagementViewModel } from "../../adapters";
+import type { ResumeEducation, ResumeExperience, ResumeProject } from "../../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,109 +125,120 @@ export function MyResumesPage() {
   const location = useLocation();
   const mode: "edit" | "add" = location.pathname.includes("/new") ? "add" : "edit";
   const [savedHint, setSavedHint] = useState(false);
-  const [currentResume, setCurrentResume] = useState<ResumeSummaryViewModel | null>(null);
+  const [formVm, setFormVm] = useState<ResumeManagementViewModel | null>(null);
+  const [loading, setLoading] = useState(mode === "edit");
   const [resumeError, setResumeError] = useState(false);
 
-  // 编辑模式：加载当前简历用于预填
+  // 编辑模式：加载完整 current resume
   useEffect(() => {
     if (mode === "edit") {
-      loadCurrentResumeSummaryViewModel()
-        .then(setCurrentResume)
-        .catch(() => setResumeError(true));
+      setLoading(true);
+      loadResumeManagementPageViewModel()
+        .then((vm) => { setFormVm(vm); setLoading(false); })
+        .catch(() => { setResumeError(true); setLoading(false); });
     }
   }, [mode]);
 
   // ── Resume basic ────────────────────────────────────────────────────────────
-  const [resumeName, setResumeName] = useState(mode === "add" ? "V3 新简历" : "");
-  const [jobDirection, setJobDirection] = useState("后端开发");
-  const [resumeDesc, setResumeDesc] = useState(
-    "用于后端开发、云计算开发等技术岗位的 AI 推荐与匹配分析。"
-  );
+  const [resumeName, setResumeName] = useState(mode === "add" ? "" : "");
+  const [jobDirection, setJobDirection] = useState("");
+  const [resumeDesc, setResumeDesc] = useState("");
 
-  // 加载后回填基础字段
+  // 编辑模式：从 VM 回填基础字段
   useEffect(() => {
-    if (currentResume && mode === "edit") {
-      setResumeName(currentResume.name);
+    if (formVm && mode === "edit") {
+      setResumeName(formVm.summary.name || "");
+      setJobDirection(formVm.directionLabel || "");
     }
-  }, [currentResume, mode]);
+  }, [formVm, mode]);
+
   const [setAsCurrent, setSetAsCurrent] = useState(true);
 
   // ── Personal info ───────────────────────────────────────────────────────────
-  const [name] = useState("测试候选人 A");
-  const [age] = useState("23");
-  const [degree] = useState("本科");
-  const [school] = useState("某大学");
-  const [major] = useState("软件工程");
-  const [gradYear] = useState("2026");
-  const [phone] = useState("182****9164");
-  const [email] = useState("candidate@example.com");
+  const [personalName, setPersonalName] = useState("");
+  const [age, setAge] = useState("");
+  const [degree, setDegree] = useState("本科");
+  const [school, setSchool] = useState("");
+  const [major, setMajor] = useState("");
+  const [gradYear, setGradYear] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
 
   // ── Job intention ───────────────────────────────────────────────────────────
-  const [direction, setDirection] = useState("后端开发");
-  const [cities, setCities] = useState("深圳 / 北京 / 上海");
+  const [direction, setDirection] = useState("");
+  const [cities, setCities] = useState("");
   const [jobType, setJobType] = useState("校园招聘 / 实习");
 
   // ── Education ───────────────────────────────────────────────────────────────
-  const [educations, setEducations] = useState<Education[]>([
-    {
-      id: 1,
-      school: "某大学",
-      major: "软件工程",
-      degree: "本科",
-      startDate: "2022.09",
-      endDate: "2026.06",
-      courses: "数据结构、操作系统、计算机网络、数据库、软件工程",
-    },
-  ]);
+  const [educations, setEducations] = useState<Education[]>([]);
 
   // ── Internship ──────────────────────────────────────────────────────────────
-  const [internships, setInternships] = useState<Internship[]>([
-    {
-      id: 1,
-      company: "ExampleTech",
-      position: "后端开发实习生",
-      startDate: "2025.06",
-      endDate: "2025.09",
-      content:
-        "参与后台接口开发和数据库表设计，协助完成用户权限、订单查询和缓存优化等功能。",
-    },
-  ]);
+  const [internships, setInternships] = useState<Internship[]>([]);
 
   // ── Projects ────────────────────────────────────────────────────────────────
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: 1,
-      name: "Go 微服务订单系统",
-      stack: "Go / MySQL / Redis / Docker / 微服务",
-      desc: "负责订单服务核心接口设计与实现，使用 MySQL 完成订单数据建模，结合 Redis 缓存优化高频查询路径。",
-      role: "接口设计、数据库设计、缓存优化、错误处理、权限校验",
-    },
-    {
-      id: 2,
-      name: "RBAC 权限管理系统",
-      stack: "Go / MySQL / Casbin / JWT",
-      desc: "设计并实现用户、角色、菜单与接口权限的关联校验，提升后台系统权限管理的可维护性。",
-      role: "权限模型设计、接口鉴权、后台管理接口开发",
-    },
-    {
-      id: 3,
-      name: "缓存优化项目",
-      stack: "Redis / MySQL / 查询优化",
-      desc: "针对高频查询场景设计缓存策略，减少重复数据库访问。",
-      role: "缓存策略设计、查询优化、接口性能优化",
-    },
-  ]);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   // ── Skills ──────────────────────────────────────────────────────────────────
-  const [skills, setSkills] = useState<string[]>([
-    "Go", "MySQL", "Redis", "Docker", "微服务", "RBAC", "接口开发", "缓存优化",
-  ]);
+  const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
 
   // ── Self summary ─────────────────────────────────────────────────────────────
-  const [summary, setSummary] = useState(
-    "具备 Go 后端开发基础，熟悉 MySQL、Redis 和常见 Web 后端开发流程，了解微服务、权限控制和接口设计。希望从事后端开发、云计算开发等方向。"
-  );
+  const [summary, setSummary] = useState("");
+
+  // 编辑模式：formVm → 表单 state 完整回填
+  useEffect(() => {
+    if (!formVm || mode !== "edit") return;
+
+    // Personal info
+    setPersonalName(formVm.displayName !== "暂未填写" ? formVm.displayName : "");
+    setPhone(formVm.displayPhone || "");
+    setEmail(formVm.displayEmail || "");
+    setSchool(formVm.displaySchool !== "暂未填写" ? formVm.displaySchool : "");
+    setMajor(formVm.displayMajor || "");
+
+    // Job intention
+    setDirection(formVm.directionLabel !== "暂未填写" ? formVm.directionLabel : "");
+    setCities(formVm.displayLocation !== "暂未填写" ? formVm.displayLocation : "");
+
+    // Education
+    const eduList: Education[] = (formVm.education || []).map((e: ResumeEducation, i: number) => ({
+      id: i + 1,
+      school: e.school || "",
+      major: e.major || "",
+      degree: e.degree || "本科",
+      startDate: e.start_date || "",
+      endDate: e.end_date || "",
+      courses: (e.courses || []).join("、"),
+    }));
+    setEducations(eduList.length > 0 ? eduList : []);
+
+    // Internship / experience
+    const expList: Internship[] = (formVm.experiences || []).map((e: ResumeExperience, i: number) => ({
+      id: i + 1,
+      company: e.company || "",
+      position: e.role || "",
+      startDate: e.start_date || "",
+      endDate: e.end_date || "",
+      content: e.description || "",
+    }));
+    setInternships(expList);
+
+    // Projects
+    const projList: Project[] = (formVm.projects || []).map((p: ResumeProject, i: number) => ({
+      id: i + 1,
+      name: p.name || "",
+      stack: (p.tech_stack || []).join(" / ") || "",
+      desc: p.description || "",
+      role: (p.responsibilities || []).join("、"),
+    }));
+    setProjects(projList);
+
+    // Skills
+    setSkills(Array.isArray(formVm.skills) ? formVm.skills : []);
+
+    // Self evaluation
+    setSummary(formVm.selfEvaluation || "");
+  }, [formVm, mode]);
 
   // ── Active anchor ────────────────────────────────────────────────────────────
   const [activeSection, setActiveSection] = useState("resume-basic");
@@ -369,10 +381,17 @@ export function MyResumesPage() {
             </div>
           </div>
 
+          {/* Loading state for edit mode */}
+          {mode === "edit" && loading && (
+            <div className="bg-white border border-gray-200 px-5 py-3 mb-4 text-sm text-gray-400 text-center">
+              正在加载简历数据…
+            </div>
+          )}
+
           {/* Fallback notice for edit mode */}
           {mode === "edit" && resumeError && (
             <div className="bg-amber-50 border border-amber-200 px-5 py-3 mb-4 text-sm text-amber-700">
-              简历接口暂时不可用，已展示演示数据。
+              简历接口暂时不可用，已展示空表单。稍后重试或联系支持。
             </div>
           )}
 
@@ -380,7 +399,7 @@ export function MyResumesPage() {
           <div className="bg-white border border-gray-200 px-5 py-3 mb-4 flex items-center gap-5 flex-wrap">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-gray-400">当前简历：</span>
-              <span className="font-medium text-gray-900">{resumeName || "正在加载简历数据…"}</span>
+              <span className="font-medium text-gray-900">{resumeName || (mode === "edit" ? "正在加载…" : "新建简历")}</span>
             </div>
             <span className="w-px h-4 bg-gray-200" />
             <div className="flex items-center gap-2 text-sm">
@@ -467,13 +486,13 @@ export function MyResumesPage() {
             <div className="space-y-5">
               <div className="grid grid-cols-2 gap-x-8 gap-y-5">
                 <FieldRow label="姓名" required>
-                  <input className={inputCls} defaultValue={name} placeholder="姓名" />
+                  <input className={inputCls} value={personalName} onChange={(e) => setPersonalName(e.target.value)} placeholder="姓名" />
                 </FieldRow>
                 <FieldRow label="年龄">
-                  <input className={inputCls} defaultValue={age} placeholder="年龄" />
+                  <input className={inputCls} value={age} onChange={(e) => setAge(e.target.value)} placeholder="年龄" />
                 </FieldRow>
                 <FieldRow label="学历" required>
-                  <select className={inputCls} defaultValue={degree}>
+                  <select className={inputCls} value={degree} onChange={(e) => setDegree(e.target.value)}>
                     <option>本科</option>
                     <option>硕士</option>
                     <option>博士</option>
@@ -481,21 +500,21 @@ export function MyResumesPage() {
                   </select>
                 </FieldRow>
                 <FieldRow label="毕业时间">
-                  <input className={inputCls} defaultValue={gradYear} placeholder="如：2026" />
+                  <input className={inputCls} value={gradYear} onChange={(e) => setGradYear(e.target.value)} placeholder="如：2026" />
                 </FieldRow>
                 <FieldRow label="学校" required>
-                  <input className={inputCls} defaultValue={school} placeholder="学校名称" />
+                  <input className={inputCls} value={school} onChange={(e) => setSchool(e.target.value)} placeholder="学校名称" />
                 </FieldRow>
                 <FieldRow label="专业" required>
-                  <input className={inputCls} defaultValue={major} placeholder="专业名称" />
+                  <input className={inputCls} value={major} onChange={(e) => setMajor(e.target.value)} placeholder="专业名称" />
                 </FieldRow>
               </div>
               <div className="border-t border-gray-100 pt-5 grid grid-cols-2 gap-x-8 gap-y-5">
                 <FieldRow label="手机号">
-                  <input className={inputCls} defaultValue={phone} placeholder="手机号（脱敏展示）" />
+                  <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="手机号（脱敏展示）" />
                 </FieldRow>
                 <FieldRow label="邮箱">
-                  <input className={inputCls} defaultValue={email} placeholder="邮箱地址" />
+                  <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱地址" />
                 </FieldRow>
               </div>
             </div>
