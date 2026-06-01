@@ -144,6 +144,7 @@ func main() {
 		MatchHandler:               matchHandler,
 		VersionCompareHandler:      versionCompareHandler,
 		ResumeOptimizationHandler:  resumeOptimizationHandler,
+		FrontendURL:                cfg.Server.FrontendURL,
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)

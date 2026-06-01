@@ -2,7 +2,10 @@ package httpserver
 
 import (
 	"context"
+	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -28,6 +31,7 @@ type RouterDeps struct {
 	MatchHandler               *MatchHandler
 	VersionCompareHandler      *VersionCompareHandler
 	ResumeOptimizationHandler  *ResumeOptimizationHandler
+	FrontendURL                string
 }
 
 // NewRouter creates and returns the main HTTP handler with all routes registered
@@ -63,6 +67,12 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("/api/jobs/", deps.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dispatchJobRoutes(w, r, deps)
 	})))
+
+	// Frontend reverse proxy: forward all non-API requests to Vite dev server
+	if deps.FrontendURL != "" {
+		frontendProxy := newFrontendProxy(deps.FrontendURL)
+		mux.Handle("/", frontendProxy)
+	}
 
 	// Apply middleware chain (outermost first)
 	handler := middleware.RequestLogger(mux)
@@ -114,4 +124,39 @@ func dispatchJobRoutes(w http.ResponseWriter, r *http.Request, deps RouterDeps) 
 
 	// Default: treat as job detail request: /api/jobs/{id}
 	deps.JobHandler.Detail(w, r)
+}
+
+// newFrontendProxy creates a reverse proxy to the Vite dev server.
+// It forwards all requests (including WebSocket for HMR) to the frontend.
+func newFrontendProxy(frontendURL string) http.Handler {
+	target, err := url.Parse(frontendURL)
+	if err != nil {
+		log.Printf("[router] invalid FRONTEND_URL %q: %v", frontendURL, err)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "frontend proxy misconfigured", http.StatusInternalServerError)
+		})
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.Host = target.Host
+	}
+
+	// Upgrade handler for Vite HMR WebSocket
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.ToLower(r.Header.Get("Upgrade")) == "websocket" {
+			// WebSocket proxy
+			wsProxy := httputil.NewSingleHostReverseProxy(target)
+			wsProxy.Director = func(req *http.Request) {
+				req.URL.Scheme = "ws"
+				req.URL.Host = target.Host
+				req.Host = target.Host
+			}
+			wsProxy.ServeHTTP(w, r)
+			return
+		}
+		proxy.ServeHTTP(w, r)
+	})
 }

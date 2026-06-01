@@ -34,7 +34,8 @@ type AppConfig struct {
 
 // ServerConfig holds HTTP server configuration.
 type ServerConfig struct {
-	Port string
+	Port        string
+	FrontendURL string
 }
 
 // DatabaseConfig holds MySQL database connection configuration.
@@ -99,7 +100,8 @@ func Load() *Config {
 			Env:  getEnv("APP_ENV", "local"),
 		},
 		Server: ServerConfig{
-			Port: getEnv("SERVER_PORT", "8080"),
+			Port:        getEnv("SERVER_PORT", "8080"),
+			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
 		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "127.0.0.1"),
