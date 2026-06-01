@@ -6,7 +6,7 @@
 //   - 不写 token storage（localStorage / sessionStorage）
 //   - 不自动注入 Authorization（留到 8-3）
 //   - 不使用 fallback / mock（Auth 失败必须让调用方感知）
-//   - getMe 接收 token 参数，手动传 Authorization header
+//   - getMe 传入 token 显式传 Authorization（业务 API 已由 client.ts 自动注入）
 
 import { get, post } from './client';
 import type {

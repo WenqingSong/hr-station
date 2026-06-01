@@ -3,6 +3,7 @@
 import type { ApiResponse } from '../types';
 import type { ApiRequestOptions } from './types';
 import { ApiClientError } from './errors';
+import { clearAuthToken, getAuthToken } from './authStorage';
 
 // ─── Base URL ──────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,30 @@ async function parseJsonResponse(response: Response): Promise<unknown> {
   }
 }
 
+/**
+ * 构建请求 headers。
+ * - 默认 Content-Type: application/json
+ * - 调用方传入的 headers 优先（包括显式 Authorization）
+ * - 如果调用方未传 Authorization，从 storage 中注入 token
+ */
+function buildHeaders(explicitHeaders?: Record<string, string>): Record<string, string> {
+  const base: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  const merged = { ...base, ...explicitHeaders };
+
+  // 仅当调用方未显式传 Authorization 时，自动从 storage 注入
+  if (!merged.Authorization && !merged.authorization) {
+    const token = getAuthToken();
+    if (token) {
+      merged['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  return merged;
+}
+
 // ─── 核心请求 ──────────────────────────────────────────────────────────────────
 
 /**
@@ -66,10 +91,7 @@ export async function requestRaw<TData, TBody = unknown>(
 
   const init: RequestInit = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers: buildHeaders(options?.headers),
     signal: options?.signal,
   };
 
@@ -88,6 +110,10 @@ export async function requestRaw<TData, TBody = unknown>(
   }
 
   if (!response.ok) {
+    // 401 统一清 token，但不跳转页面（路由跳转由 8-4 处理）
+    if (response.status === 401) {
+      clearAuthToken();
+    }
     throw new ApiClientError(
       `HTTP ${response.status}: ${response.statusText}`,
       { status: response.status },

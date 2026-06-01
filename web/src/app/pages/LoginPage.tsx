@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { login } from "../../api/auth";
+import { setAuthToken } from "../../api/authStorage";
 import type { LoginRequest } from "../../types/auth";
 
 export function LoginPage() {
@@ -26,8 +27,8 @@ export function LoginPage() {
     setLoading(true);
     try {
       const input: LoginRequest = { email: email.trim(), password };
-      // 调用 login，拿到 token，但不持久化（留到 8-3）
-      await login(input);
+      const response = await login(input);
+      setAuthToken(response.token);
       navigate("/");
     } catch (err: unknown) {
       const msg =
