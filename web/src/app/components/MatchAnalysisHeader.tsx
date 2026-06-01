@@ -54,7 +54,7 @@ export function MatchAnalysisHeader({ job, resume, jobSource = "目标岗位", r
           <span className="text-gray-400">分析状态：</span>
           <div className="flex items-center text-gray-600 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
             <Activity className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
-            演示数据
+            分析完成
           </div>
         </div>
       </div>

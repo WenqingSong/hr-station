@@ -26,7 +26,7 @@ export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
   }, [jobId]);
 
   if (loading) return <div className="bg-[#0052D9] text-white text-center py-12 text-sm">正在加载岗位详情…</div>;
-  if (!jobVm) return <div className="bg-blue-50 text-gray-500 text-center py-12 text-sm">岗位接口暂时不可用，已展示演示数据。</div>;
+  if (!jobVm) return <div className="bg-blue-50 text-gray-500 text-center py-12 text-sm">岗位数据加载失败，请稍后重试。</div>;
   
   return (
     <div className="w-full bg-[#0052D9] relative overflow-hidden text-white">
@@ -45,9 +45,8 @@ export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
         <h1 className="text-[28px] font-bold mb-3 tracking-tight">{jobVm.title}</h1>
         
         <div className="flex items-center gap-3 mb-4">
-          <Badge className="bg-white/10 text-white border-transparent hover:bg-white/20 font-normal px-2.5 py-0.5 rounded-sm">{jobVm.typeLabel}</Badge>
-          <Badge className="bg-white/10 text-white border-transparent hover:bg-white/20 font-normal px-2.5 py-0.5 rounded-sm">{jobVm.categoryLabel}</Badge>
-          <Badge className="bg-white/10 text-white border-transparent hover:bg-white/20 font-normal px-2.5 py-0.5 rounded-sm">校园招聘</Badge>
+          {jobVm.typeLabel && <Badge className="bg-white/10 text-white border-transparent hover:bg-white/20 font-normal px-2.5 py-0.5 rounded-sm">{jobVm.typeLabel}</Badge>}
+          {jobVm.categoryLabel && <Badge className="bg-white/10 text-white border-transparent hover:bg-white/20 font-normal px-2.5 py-0.5 rounded-sm">{jobVm.categoryLabel}</Badge>}
         </div>
 
         <div className="flex flex-col gap-2.5 text-sm text-blue-50/90 max-w-3xl">

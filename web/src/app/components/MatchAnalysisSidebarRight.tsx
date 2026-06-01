@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { FileText, CheckCircle2, AlertCircle } from "lucide-react";
 import { Badge } from "./ui/Badge";
 import { toResumeSummaryViewModel } from "../../adapters";
 import type { Resume } from "../../types";
@@ -69,13 +69,6 @@ export function MatchAnalysisSidebarRight({ resume, resumeSource = "当前简历
         </div>
       </div>
 
-      {/* Demo data notice */}
-      <div className="mt-2 flex justify-center">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 text-gray-400 text-[11px] opacity-70">
-          <Sparkles className="h-3.5 w-3.5" />
-          当前为演示数据
-        </div>
-      </div>
     </aside>
   );
 }

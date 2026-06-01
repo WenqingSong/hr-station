@@ -22,10 +22,8 @@ export function MatchAnalysisSidebarLeft({ job, jobSource = "默认岗位" }: Ma
         <h2 className="font-bold text-gray-900 text-[18px] mb-3">{jobVm.title}</h2>
         
         <div className="flex flex-wrap gap-1.5 mb-4">
-          <Badge variant="secondary" className="text-[11px] px-1.5 font-normal">{jobVm.typeLabel}</Badge>
-          <Badge variant="secondary" className="text-[11px] px-1.5 font-normal">{jobVm.categoryLabel}</Badge>
-          <Badge variant="secondary" className="text-[11px] px-1.5 font-normal">后台开发</Badge>
-          <Badge variant="secondary" className="text-[11px] px-1.5 font-normal">校园招聘</Badge>
+          {jobVm.typeLabel && <Badge variant="secondary" className="text-[11px] px-1.5 font-normal">{jobVm.typeLabel}</Badge>}
+          {jobVm.categoryLabel && <Badge variant="secondary" className="text-[11px] px-1.5 font-normal">{jobVm.categoryLabel}</Badge>}
         </div>
 
         <div className="flex items-center text-[13px] text-gray-600 mb-5">
@@ -50,13 +48,9 @@ export function MatchAnalysisSidebarLeft({ job, jobSource = "默认岗位" }: Ma
             <Tags className="w-3.5 h-3.5 text-gray-400" />
             JD 关键词
           </h3>
-          <div className="flex flex-wrap gap-1.5">
-            {["Go", "MySQL", "Redis", "微服务", "高并发", "Linux", "数据库", "接口开发"].map((kw) => (
-              <span key={kw} className="text-[11px] px-2 py-0.5 bg-gray-50 border border-gray-100 text-gray-600 rounded-sm">
-                {kw}
-              </span>
-            ))}
-          </div>
+          <p className="text-[12px] text-gray-400">
+            关键词提取需要真实 JD 匹配分析结果，当前未获取到。
+          </p>
         </div>
       </div>
     </aside>

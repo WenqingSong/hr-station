@@ -66,7 +66,7 @@ export function ResumeOptimizationHeader({ job, resume, jobSource = "目标岗�
           <span className="text-gray-400">优化状态：</span>
           <div className="flex items-center text-gray-500">
             <Activity className="w-3 h-3 mr-1 text-gray-400" />
-            演示数据
+            优化完成
           </div>
         </div>
       </div>

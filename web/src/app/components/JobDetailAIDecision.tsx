@@ -47,7 +47,7 @@ export function JobDetailAIDecision() {
       )}
       {!loading && !resumeVm && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-          简历接口暂时不可用，已展示演示数据。
+          简历数据暂未加载，请先创建或选择一份简历。
         </div>
       )}
 
@@ -59,9 +59,8 @@ export function JobDetailAIDecision() {
         </div>
         <h3 className="font-bold text-gray-900 text-sm mb-2">{jobVm?.title || ""}</h3>
         <div className="flex flex-wrap gap-1.5 mb-2.5">
-          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm?.typeLabel || ""}</Badge>
-          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm?.categoryLabel || ""}</Badge>
-          <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">后台开发</Badge>
+          {jobVm?.typeLabel && <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm.typeLabel}</Badge>}
+          {jobVm?.categoryLabel && <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm.categoryLabel}</Badge>}
         </div>
         <p className="text-[11px] text-gray-400">
           工作地点：{jobVm?.locationsText || ""}
@@ -120,14 +119,6 @@ export function JobDetailAIDecision() {
           <li>项目经历是否完整</li>
           <li>技能关键词是否覆盖后端方向</li>
         </ul>
-      </div>
-
-      {/* Status Badge */}
-      <div className="mt-2 flex justify-center">
-        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-gray-400 text-[10px] opacity-80">
-          <Sparkles className="h-3 w-3" />
-          当前结果来源：Mock 演示
-        </div>
       </div>
 
       <SelectResumeModal

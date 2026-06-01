@@ -7,7 +7,7 @@ interface RecommendationHeaderProps {
   sourceLabel?: string;
 }
 
-export function RecommendationHeader({ resumeName = "V2 后端开发简历", sourceLabel = "当前简历" }: RecommendationHeaderProps) {
+export function RecommendationHeader({ resumeName = "", sourceLabel = "当前简历" }: RecommendationHeaderProps) {
   const navigate = useNavigate();
 
   return (

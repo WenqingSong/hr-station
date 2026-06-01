@@ -10,7 +10,7 @@ interface RecommendationDetailProps {
   data?: RecommendationPageViewModel | null;
 }
 
-export function RecommendationDetail({ currentResumeId = "resume-v2", data }: RecommendationDetailProps) {
+export function RecommendationDetail({ currentResumeId = "", data }: RecommendationDetailProps) {
   const navigate = useNavigate();
 
   if (!data || !data.recommendedJobs.length) {
@@ -109,7 +109,7 @@ export function RecommendationDetail({ currentResumeId = "resume-v2", data }: Re
             </div>
           </div>
           <div className="flex gap-4">
-            <Button className="flex-1 bg-[#0052D9] hover:bg-[#0040A8] text-white h-11" onClick={() => navigate("/jobs/1")}>
+            <Button className="flex-1 bg-[#0052D9] hover:bg-[#0040A8] text-white h-11" onClick={() => navigate(`/jobs/${encodeURIComponent(firstJob.jobId)}`)}>
               进入岗位详情<ArrowRight className="w-4 h-4 ml-2" />
             </Button>
             <Button variant="outline" className="flex-1 border-[#0052D9] text-[#0052D9] hover:bg-blue-50 h-11" onClick={() => navigate(`/match?jobId=${encodeURIComponent(firstJob.jobId)}&resumeId=${encodeURIComponent(currentResumeId)}`)}>

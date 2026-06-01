@@ -42,7 +42,7 @@ export function SelectResumeModal({
   onClose,
   onConfirm,
   scene = "match-analysis",
-  jobTitle = "软件开发-后台开发方向",
+  jobTitle = "",
 }: SelectResumeModalProps) {
   const [selected, setSelected] = useState("1");
   const [resumeOptions, setResumeOptions] = useState<ResumeOptionViewModel[]>([]);

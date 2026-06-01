@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, Sparkles, Target, TrendingUp } from "lucide-react";
+import { FileText, Target, TrendingUp } from "lucide-react";
 import { Badge } from "./ui/Badge";
 import { toResumeSummaryViewModel } from "../../adapters";
 import type { Resume } from "../../types";
@@ -66,29 +66,11 @@ export function ResumeOptimizationSidebarRight({ resume, resumeSource = "当前�
         <div className="mt-5 pt-4 border-t border-gray-100">
           <h4 className="font-bold text-gray-700 text-[13px] mb-3 flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
-            本次优化预计影响
+            优化说明
           </h4>
-          <ul className="space-y-2 text-[12px] text-gray-500">
-            {[
-              "后台开发匹配度提升",
-              "JD 关键词覆盖更完整",
-              "项目经历表达更贴近岗位要求",
-              "投递前风险降低"
-            ].map((item, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <div className="w-1 h-1 rounded-full bg-gray-300"></div>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Demo data notice */}
-      <div className="mt-2 flex justify-center">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 text-gray-400 text-[11px] opacity-70">
-          <Sparkles className="h-3.5 w-3.5" />
-          当前为演示数据
+          <p className="text-[12px] text-gray-500 leading-relaxed">
+            优化建议基于目标岗位 JD 与当前简历的匹配分析结果生成，不替你编造经历。
+          </p>
         </div>
       </div>
     </aside>
