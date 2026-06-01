@@ -86,21 +86,11 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, user)
 }
 
-// handleAuthError maps service errors to HTTP responses.
+// handleAuthError maps service errors to HTTP responses using errors.As.
 func handleAuthError(w http.ResponseWriter, err error) {
-	msg := err.Error()
-	switch msg {
-	case "email is required", "password is required", "password must be at least 6 characters":
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, msg)
-	case "email already registered":
-		response.Error(w, http.StatusBadRequest, 41001, msg)
-	case "invalid email or password":
-		response.Error(w, http.StatusUnauthorized, 41002, msg)
-	case "user not found":
-		response.Error(w, http.StatusNotFound, apperror.ErrNotFound.Code, apperror.ErrNotFound.Message)
-	case "invalid token":
-		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
-	default:
-		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
+	if ae := apperror.AsAppError(err); ae != nil {
+		response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)
+		return
 	}
+	response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
 }

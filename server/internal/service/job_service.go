@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/repository"
 )
@@ -152,7 +153,7 @@ func (s *JobService) GetDetail(ctx context.Context, id uint64) (*JobResponse, er
 		return nil, fmt.Errorf("failed to get job detail: %w", err)
 	}
 	if job == nil {
-		return nil, fmt.Errorf("job not found")
+		return nil, apperror.ErrJobNotFound
 	}
 	return toJobResponse(job), nil
 }

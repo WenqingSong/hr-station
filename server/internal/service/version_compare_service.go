@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	apperror "offer-catcher/server/internal/errors"
 	"fmt"
 	"time"
 
@@ -50,13 +50,13 @@ func NewVersionCompareService(
 func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req VersionCompareRequest) (*VersionCompareResponse, error) {
 	// Validate from/to
 	if req.FromVersionNo <= 0 {
-		return nil, errors.New("invalid from version number")
+		return nil, apperror.New(apperror.CodeInvalidParam, "invalid from version number", 400)
 	}
 	if req.ToVersionNo <= 0 {
-		return nil, errors.New("invalid to version number")
+		return nil, apperror.New(apperror.CodeInvalidParam, "invalid to version number", 400)
 	}
 	if req.FromVersionNo == req.ToVersionNo {
-		return nil, errors.New("from and to version numbers must be different")
+		return nil, apperror.New(apperror.CodeInvalidParam, "from and to version numbers must be different", 400)
 	}
 
 	// Get from version
@@ -65,7 +65,7 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 		return nil, fmt.Errorf("failed to get from version: %w", err)
 	}
 	if fromVersion == nil {
-		return nil, errors.New("from version not found")
+		return nil, apperror.ErrResumeFromVerNotFound
 	}
 
 	// Get to version
@@ -74,7 +74,7 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 		return nil, fmt.Errorf("failed to get to version: %w", err)
 	}
 	if toVersion == nil {
-		return nil, errors.New("to version not found")
+		return nil, apperror.ErrResumeToVerNotFound
 	}
 
 	// Generate comparison via mock agent

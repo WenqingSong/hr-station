@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	apperror "offer-catcher/server/internal/errors"
 	"fmt"
 	"log"
 	"time"
@@ -92,7 +92,7 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 		return nil, fmt.Errorf("failed to list jobs: %w", err)
 	}
 	if len(jobs) == 0 {
-		return nil, errors.New("no jobs available")
+		return nil, apperror.ErrJobNotFound
 	}
 
 	// Try LLM Pipeline if enabled
@@ -124,7 +124,7 @@ func (s *RecommendationService) getResume(ctx context.Context, userID uint64, re
 			return nil, fmt.Errorf("failed to get resume version: %w", err)
 		}
 		if resume == nil {
-			return nil, errors.New("resume version not found")
+			return nil, apperror.ErrResumeNotFound
 		}
 	} else {
 		resume, err = s.resumeRepo.GetCurrentByUserID(ctx, userID)
@@ -132,7 +132,7 @@ func (s *RecommendationService) getResume(ctx context.Context, userID uint64, re
 			return nil, fmt.Errorf("failed to get current resume: %w", err)
 		}
 		if resume == nil {
-			return nil, errors.New("resume not found")
+			return nil, apperror.ErrResumeNotAvailable
 		}
 	}
 	return resume, nil

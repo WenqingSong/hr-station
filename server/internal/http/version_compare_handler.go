@@ -77,21 +77,11 @@ func (h *VersionCompareHandler) Compare(w http.ResponseWriter, r *http.Request) 
 	response.OK(w, resp)
 }
 
-// handleVersionCompareError maps version compare service errors to HTTP responses.
+// handleVersionCompareError maps version compare service errors to HTTP responses using errors.As.
 func handleVersionCompareError(w http.ResponseWriter, err error) {
-	msg := err.Error()
-	switch msg {
-	case "invalid from version number":
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid from version number")
-	case "invalid to version number":
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid to version number")
-	case "from and to version numbers must be different":
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "from and to version numbers must be different")
-	case "from version not found":
-		response.Error(w, http.StatusNotFound, 42001, "resume version not found")
-	case "to version not found":
-		response.Error(w, http.StatusNotFound, 42001, "resume version not found")
-	default:
-		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
+	if ae := apperror.AsAppError(err); ae != nil {
+		response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)
+		return
 	}
+	response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
 }

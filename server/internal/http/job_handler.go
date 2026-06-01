@@ -132,13 +132,11 @@ func (h *JobHandler) Facets(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, resp)
 }
 
-// handleJobError maps job service errors to HTTP responses.
+// handleJobError maps job service errors to HTTP responses using errors.As.
 func handleJobError(w http.ResponseWriter, err error) {
-	msg := err.Error()
-	switch msg {
-	case "job not found":
-		response.Error(w, http.StatusNotFound, 43001, "job not found")
-	default:
-		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
+	if ae := apperror.AsAppError(err); ae != nil {
+		response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)
+		return
 	}
+	response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
 }

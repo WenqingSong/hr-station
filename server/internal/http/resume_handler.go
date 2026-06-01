@@ -152,15 +152,11 @@ func (h *ResumeHandler) VersionDetail(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, resp)
 }
 
-// handleResumeError maps resume service errors to HTTP responses.
+// handleResumeError maps resume service errors to HTTP responses using errors.As.
 func handleResumeError(w http.ResponseWriter, err error) {
-	msg := err.Error()
-	switch msg {
-	case "invalid version number":
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, msg)
-	case "resume version not found":
-		response.Error(w, http.StatusNotFound, 42001, "resume version not found")
-	default:
-		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
+	if ae := apperror.AsAppError(err); ae != nil {
+		response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)
+		return
 	}
+	response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
 }

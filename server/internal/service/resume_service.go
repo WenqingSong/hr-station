@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
+	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/repository"
 )
@@ -158,7 +158,7 @@ func (s *ResumeService) ListVersions(ctx context.Context, userID uint64) (*Versi
 // GetByVersionNo returns a specific resume version by version number.
 func (s *ResumeService) GetByVersionNo(ctx context.Context, userID uint64, versionNo int) (*ResumeVersionResponse, error) {
 	if versionNo < 1 {
-		return nil, errors.New("invalid version number")
+		return nil, apperror.New(apperror.CodeInvalidParam, "invalid version number", 400)
 	}
 
 	resume, err := s.resumeRepo.GetByUserIDAndVersionNo(ctx, userID, versionNo)
@@ -166,7 +166,7 @@ func (s *ResumeService) GetByVersionNo(ctx context.Context, userID uint64, versi
 		return nil, fmt.Errorf("failed to get resume version: %w", err)
 	}
 	if resume == nil {
-		return nil, errors.New("resume version not found")
+		return nil, apperror.ErrResumeNotFound
 	}
 
 	return toResumeVersionResponse(resume), nil

@@ -49,17 +49,11 @@ func (h *ResumeOptimizationHandler) Optimize(w http.ResponseWriter, r *http.Requ
 	response.OK(w, resp)
 }
 
-// handleResumeOptimizationError maps resume optimization service errors to HTTP responses.
+// handleResumeOptimizationError maps resume optimization service errors to HTTP responses using errors.As.
 func handleResumeOptimizationError(w http.ResponseWriter, err error) {
-	msg := err.Error()
-	switch msg {
-	case "resume_text is required":
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "resume_text is required")
-	case "target_job is required":
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "target_job is required")
-	case "target_job.title or target_job.jd_text is required":
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "target_job.title or target_job.jd_text is required")
-	default:
-		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
+	if ae := apperror.AsAppError(err); ae != nil {
+		response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)
+		return
 	}
+	response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
 }

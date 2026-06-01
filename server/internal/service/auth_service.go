@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
+	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/repository"
 )
@@ -65,13 +65,13 @@ func NewAuthService(userRepo *repository.UserRepository, jwtSecret string, jwtEx
 // Register registers a new user and returns an auth response with JWT.
 func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
 	if req.Email == "" {
-		return nil, errors.New("email is required")
+		return nil, apperror.New(apperror.CodeInvalidParam, "email is required", 400)
 	}
 	if req.Password == "" {
-		return nil, errors.New("password is required")
+		return nil, apperror.New(apperror.CodeInvalidParam, "password is required", 400)
 	}
 	if len(req.Password) < 6 {
-		return nil, errors.New("password must be at least 6 characters")
+		return nil, apperror.New(apperror.CodeInvalidParam, "password must be at least 6 characters", 400)
 	}
 
 	// Check if email already exists
@@ -80,7 +80,7 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*AuthR
 		return nil, fmt.Errorf("failed to check email: %w", err)
 	}
 	if existing != nil {
-		return nil, errors.New("email already registered")
+		return nil, apperror.ErrEmailRegistered
 	}
 
 	// Hash password
@@ -117,10 +117,10 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*AuthR
 // Login authenticates a user and returns an auth response with JWT.
 func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
 	if req.Email == "" {
-		return nil, errors.New("email is required")
+		return nil, apperror.New(apperror.CodeInvalidParam, "email is required", 400)
 	}
 	if req.Password == "" {
-		return nil, errors.New("password is required")
+		return nil, apperror.New(apperror.CodeInvalidParam, "password is required", 400)
 	}
 
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
@@ -128,11 +128,11 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*AuthRespons
 		return nil, fmt.Errorf("failed to find user: %w", err)
 	}
 	if user == nil {
-		return nil, errors.New("invalid email or password")
+		return nil, apperror.ErrInvalidCreds
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return nil, errors.New("invalid email or password")
+		return nil, apperror.ErrInvalidCreds
 	}
 
 	token, err := s.generateToken(user.ID, user.Email)
@@ -157,7 +157,7 @@ func (s *AuthService) Me(ctx context.Context, userID uint64) (*AuthUser, error) 
 		return nil, fmt.Errorf("failed to find user: %w", err)
 	}
 	if user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.ErrNotFound
 	}
 
 	return &AuthUser{
@@ -176,12 +176,12 @@ func (s *AuthService) ParseToken(tokenString string) (uint64, error) {
 		return []byte(s.jwtSecret), nil
 	})
 	if err != nil {
-		return 0, errors.New("invalid token")
+		return 0, apperror.ErrUnauthorized
 	}
 
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
-		return 0, errors.New("invalid token")
+		return 0, apperror.ErrUnauthorized
 	}
 
 	return claims.UserID, nil

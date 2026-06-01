@@ -1,6 +1,7 @@
 package apperror
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -45,6 +46,15 @@ func Wrap(code int, message string, httpStatus int, err error) *AppError {
 	}
 }
 
+// AsAppError extracts an *AppError from err via errors.As.
+func AsAppError(err error) *AppError {
+	var ae *AppError
+	if errors.As(err, &ae) {
+		return ae
+	}
+	return nil
+}
+
 // Base error codes
 const (
 	CodeOK                    = 0
@@ -58,6 +68,25 @@ const (
 	CodeDependencyUnavailable = 50300
 )
 
+// Auth module codes (410xx)
+const (
+	CodeEmailRegistered  = 41001
+	CodeInvalidCreds     = 41002
+)
+
+// Resume module codes (420xx)
+const (
+	CodeResumeNotFound        = 42001
+	CodeResumeNotAvailable    = 42002
+	CodeResumeFromVersionNotFound = 42003
+	CodeResumeToVersionNotFound   = 42004
+)
+
+// Jobs / Agent module codes (430xx)
+const (
+	CodeJobNotFound = 43001
+)
+
 // Predefined base errors
 var (
 	ErrBadRequest            = New(CodeBadRequest, "bad request", http.StatusBadRequest)
@@ -68,4 +97,23 @@ var (
 	ErrMethodNotAllowed      = New(CodeMethodNotAllowed, "method not allowed", http.StatusMethodNotAllowed)
 	ErrInternal              = New(CodeInternal, "internal server error", http.StatusInternalServerError)
 	ErrDependencyUnavailable = New(CodeDependencyUnavailable, "dependency unavailable", http.StatusServiceUnavailable)
+)
+
+// Auth errors
+var (
+	ErrEmailRegistered = New(CodeEmailRegistered, "email already registered", http.StatusBadRequest)
+	ErrInvalidCreds    = New(CodeInvalidCreds, "invalid email or password", http.StatusUnauthorized)
+)
+
+// Resume errors
+var (
+	ErrResumeNotFound          = New(CodeResumeNotFound, "resume version not found", http.StatusNotFound)
+	ErrResumeNotAvailable      = New(CodeResumeNotAvailable, "resume not found", http.StatusNotFound)
+	ErrResumeFromVerNotFound   = New(CodeResumeFromVersionNotFound, "from version not found", http.StatusNotFound)
+	ErrResumeToVerNotFound     = New(CodeResumeToVersionNotFound, "to version not found", http.StatusNotFound)
+)
+
+// Job errors
+var (
+	ErrJobNotFound = New(CodeJobNotFound, "job not found", http.StatusNotFound)
 )

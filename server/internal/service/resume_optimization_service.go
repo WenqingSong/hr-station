@@ -3,8 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+
+	apperror "offer-catcher/server/internal/errors"
 	"log"
 	"strings"
 	"time"
@@ -226,18 +227,18 @@ func (s *ResumeOptimizationService) saveSnapshot(
 // validateOptimizeRequest validates the resume optimization request.
 func validateOptimizeRequest(req ResumeOptimizationRequest) error {
 	if strings.TrimSpace(req.ResumeText) == "" {
-		return errors.New("resume_text is required")
+		return apperror.New(apperror.CodeInvalidParam, "resume_text is required", 400)
 	}
 
 	if req.TargetJob == nil {
-		return errors.New("target_job is required")
+		return apperror.New(apperror.CodeInvalidParam, "target_job is required", 400)
 	}
 
 	hasTitle := strings.TrimSpace(req.TargetJob.Title) != ""
 	hasJDText := strings.TrimSpace(req.TargetJob.JDText) != ""
 
 	if !hasTitle && !hasJDText {
-		return errors.New("target_job.title or target_job.jd_text is required")
+		return apperror.New(apperror.CodeInvalidParam, "target_job.title or target_job.jd_text is required", 400)
 	}
 
 	return nil

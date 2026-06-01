@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
+	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/agent"
 	"offer-catcher/server/internal/agent/pipeline"
 	"offer-catcher/server/internal/model"
@@ -75,7 +77,7 @@ func TestResumeOptimizationService_Optimize_EmptyResumeText(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty resume_text")
 	}
-	if err.Error() != "resume_text is required" {
+	var ae *apperror.AppError; if !errors.As(err, &ae) || ae.Message != "resume_text is required" {
 		t.Errorf("expected 'resume_text is required' error, got: %v", err)
 	}
 }
@@ -92,7 +94,7 @@ func TestResumeOptimizationService_Optimize_NoTargetJob(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing target_job")
 	}
-	if err.Error() != "target_job is required" {
+	var ae2 *apperror.AppError; if !errors.As(err, &ae2) || ae2.Message != "target_job is required" {
 		t.Errorf("expected 'target_job is required' error, got: %v", err)
 	}
 }
@@ -110,7 +112,7 @@ func TestResumeOptimizationService_Optimize_NoTitleOrJDText(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing title and jd_text")
 	}
-	if err.Error() != "target_job.title or target_job.jd_text is required" {
+	var ae3 *apperror.AppError; if !errors.As(err, &ae3) || ae3.Message != "target_job.title or target_job.jd_text is required" {
 		t.Errorf("expected 'target_job.title or target_job.jd_text is required' error, got: %v", err)
 	}
 }

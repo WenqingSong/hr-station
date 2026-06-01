@@ -66,17 +66,11 @@ func (h *RecommendationHandler) Recommend(w http.ResponseWriter, r *http.Request
 	response.OK(w, resp)
 }
 
-// handleRecommendationError maps recommendation service errors to HTTP responses.
+// handleRecommendationError maps recommendation service errors to HTTP responses using errors.As.
 func handleRecommendationError(w http.ResponseWriter, err error) {
-	msg := err.Error()
-	switch msg {
-	case "resume not found":
-		response.Error(w, http.StatusNotFound, 42001, "resume not found")
-	case "resume version not found":
-		response.Error(w, http.StatusNotFound, 42001, "resume version not found")
-	case "no jobs available":
-		response.Error(w, http.StatusNotFound, 43001, "no jobs available")
-	default:
-		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
+	if ae := apperror.AsAppError(err); ae != nil {
+		response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)
+		return
 	}
+	response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
 }

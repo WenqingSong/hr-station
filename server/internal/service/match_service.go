@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	apperror "offer-catcher/server/internal/errors"
 	"fmt"
 	"log"
 	"time"
@@ -76,7 +76,7 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 		return nil, fmt.Errorf("failed to get job: %w", err)
 	}
 	if job == nil {
-		return nil, errors.New("job not found")
+		return nil, apperror.ErrJobNotFound
 	}
 
 	// Try LLM Pipeline if enabled
@@ -108,7 +108,7 @@ func (s *MatchService) getResume(ctx context.Context, userID uint64, req MatchRe
 			return nil, fmt.Errorf("failed to get resume version: %w", err)
 		}
 		if resume == nil {
-			return nil, errors.New("resume version not found")
+			return nil, apperror.ErrResumeNotFound
 		}
 	} else {
 		resume, err = s.resumeRepo.GetCurrentByUserID(ctx, userID)
@@ -116,7 +116,7 @@ func (s *MatchService) getResume(ctx context.Context, userID uint64, req MatchRe
 			return nil, fmt.Errorf("failed to get current resume: %w", err)
 		}
 		if resume == nil {
-			return nil, errors.New("resume not found")
+			return nil, apperror.ErrResumeNotAvailable
 		}
 	}
 	return resume, nil
