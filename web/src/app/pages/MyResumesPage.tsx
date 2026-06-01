@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { loadResumeManagementPageViewModel } from "../../api";
+import { createResume, updateResume } from "../../api/resumes";
 import type { ResumeManagementViewModel } from "../../adapters";
 import type { ResumeEducation, ResumeExperience, ResumeProject } from "../../types";
 
@@ -124,7 +125,9 @@ function FieldRow({ label, required, children, hint }: {
 export function MyResumesPage() {
   const location = useLocation();
   const mode: "edit" | "add" = location.pathname.includes("/new") ? "add" : "edit";
-  const [savedHint, setSavedHint] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveErrorMsg, setSaveErrorMsg] = useState("");
   const [formVm, setFormVm] = useState<ResumeManagementViewModel | null>(null);
   const [loading, setLoading] = useState(mode === "edit");
   const [resumeError, setResumeError] = useState(false);
@@ -239,6 +242,63 @@ export function MyResumesPage() {
     // Self evaluation
     setSummary(formVm.selfEvaluation || "");
   }, [formVm, mode]);
+
+  // ── Save handler ─────────────────────────────────────────────────────────────
+
+  async function handleSave() {
+    setSaveSuccess(false);
+    setSaveErrorMsg("");
+    setSaving(true);
+
+    const payload: Record<string, unknown> = {
+      name: resumeName || personalName || "未命名简历",
+      phone: phone || "",
+      email: email || "",
+      location: cities?.split(" / ")[0] || "",
+      target_city: cities || "",
+      target_role: direction || jobDirection || "",
+      education: educations.map((e) => ({
+        school: e.school,
+        degree: e.degree,
+        major: e.major,
+        start: e.startDate,
+        end: e.endDate,
+      })),
+      experience: internships.map((i) => ({
+        company: i.company,
+        role: i.position,
+        start: i.startDate,
+        end: i.endDate,
+        description: i.content,
+      })),
+      project: projects.map((p) => ({
+        name: p.name,
+        role: p.role,
+        description: p.desc,
+      })),
+      skills: skills.filter((s) => s.trim().length > 0),
+      self_evaluation: summary || "",
+    };
+
+    try {
+      if (mode === "add") {
+        await createResume(payload as any);
+        setSaveSuccess(true);
+      } else {
+        await updateResume("", payload as any);
+        setSaveSuccess(true);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("401") || msg.includes("Unauthorized")) {
+        setSaveErrorMsg("登录状态已失效，请重新登录后再保存。");
+      } else {
+        setSaveErrorMsg("保存失败，请稍后重试。");
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // ── Active anchor ────────────────────────────────────────────────────────────
   const [activeSection, setActiveSection] = useState("resume-basic");
@@ -372,12 +432,6 @@ export function MyResumesPage() {
                   维护用于岗位推荐、岗位匹配分析和简历优化的简历信息。
                 </p>
               </div>
-              <button
-                className="px-4 py-1.5 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors"
-                onClick={() => setSavedHint(true)}
-              >
-                保存草稿
-              </button>
             </div>
           </div>
 
@@ -861,24 +915,32 @@ export function MyResumesPage() {
                 取消
               </Link>
               <button
-                className="px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors"
-                onClick={() => setSavedHint(true)}
+                className="px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
+                onClick={handleSave}
+                disabled={saving}
               >
-                保存草稿
+                {saving ? "保存中…" : "保存草稿"}
               </button>
               <button
-                className="px-5 py-2 bg-[#0052D9] text-white text-sm font-medium rounded hover:bg-[#003DA5] transition-colors"
-                onClick={() => setSavedHint(true)}
+                className="px-5 py-2 bg-[#0052D9] text-white text-sm font-medium rounded hover:bg-[#003DA5] transition-colors disabled:opacity-50"
+                onClick={handleSave}
+                disabled={saving}
               >
-                {mode === "add" ? "保存新简历" : "保存并设为当前简历"}
+                {saving ? "保存中…" : mode === "add" ? "保存新简历" : "保存并设为当前简历"}
               </button>
             </div>
           </div>
 
-          {savedHint && (
+          {saveSuccess && (
             <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-green-600" />
-              已保存本次演示修改
+              {mode === "add" ? "简历已创建成功" : "修改已保存，已生成新的简历版本"}
+            </div>
+          )}
+
+          {saveErrorMsg && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600 flex items-center gap-2">
+              {saveErrorMsg}
             </div>
           )}
 
