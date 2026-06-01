@@ -2,6 +2,7 @@
 -- Offer 捕手 - 数据库初始化脚本
 -- 阶段 3-2：表结构与种子数据
 -- 阶段 4-1.3.1：jobs 表扩展（新增 external_source / external_id / raw_json / data_quality 等字段）
+-- 阶段 10-P-4-1：新增 resume_optimization_results 表（修复 P0 表缺失）
 -- MySQL 8.0 / InnoDB / utf8mb4
 --
 -- 约定：
@@ -20,6 +21,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ============================================================
 
 DROP TABLE IF EXISTS `version_compare_results`;
+DROP TABLE IF EXISTS `resume_optimization_results`;
 DROP TABLE IF EXISTS `match_analyses`;
 DROP TABLE IF EXISTS `recommendation_results`;
 DROP TABLE IF EXISTS `resume_versions`;
@@ -161,6 +163,21 @@ CREATE TABLE `version_compare_results` (
   CONSTRAINT `fk_compare_from` FOREIGN KEY (`from_version_id`) REFERENCES `resume_versions` (`id`),
   CONSTRAINT `fk_compare_to` FOREIGN KEY (`to_version_id`) REFERENCES `resume_versions` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='版本对比结果表';
+
+-- -----------------------------------------------------------
+-- 2.7 resume_optimization_results - 简历优化结果快照
+-- -----------------------------------------------------------
+CREATE TABLE `resume_optimization_results` (
+  `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`     BIGINT UNSIGNED NOT NULL,
+  `job_id`      BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '可选，0 表示无岗位引用',
+  `result_json` JSON             NOT NULL,
+  `created_at`  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_opt_user_created` (`user_id`, `created_at`),
+  KEY `idx_opt_job` (`job_id`),
+  CONSTRAINT `fk_opt_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='简历优化结果表';
 
 SET FOREIGN_KEY_CHECKS = 1;
 
