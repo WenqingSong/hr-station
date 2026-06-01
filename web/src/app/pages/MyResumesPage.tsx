@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { loadResumeManagementPageViewModel } from "../../api";
-import { createResume, updateResume } from "../../api/resumes";
+import { createResume, updateResume, getCurrentResume, getResumes } from "../../api/resumes";
 import type { ResumeManagementViewModel } from "../../adapters";
 import type { ResumeEducation, ResumeExperience, ResumeProject } from "../../types";
 
@@ -126,7 +126,7 @@ export function MyResumesPage() {
   const location = useLocation();
   const mode: "edit" | "add" = location.pathname.includes("/new") ? "add" : "edit";
   const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
   const [saveErrorMsg, setSaveErrorMsg] = useState("");
   const [formVm, setFormVm] = useState<ResumeManagementViewModel | null>(null);
   const [loading, setLoading] = useState(mode === "edit");
@@ -246,7 +246,7 @@ export function MyResumesPage() {
   // ── Save handler ─────────────────────────────────────────────────────────────
 
   async function handleSave() {
-    setSaveSuccess(false);
+    setSaveSuccessMsg("");
     setSaveErrorMsg("");
     setSaving(true);
 
@@ -283,11 +283,18 @@ export function MyResumesPage() {
     try {
       if (mode === "add") {
         await createResume(payload as any);
-        setSaveSuccess(true);
       } else {
         await updateResume("", payload as any);
-        setSaveSuccess(true);
       }
+
+      // 保存成功后刷新 current 和 versions，确认后端最新状态
+      await Promise.allSettled([getCurrentResume(), getResumes()]);
+
+      setSaveSuccessMsg(
+        mode === "add"
+          ? "简历已创建成功，当前简历已更新。"
+          : "修改已保存，已生成新的简历版本。当前简历已更新。",
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("401") || msg.includes("Unauthorized")) {
@@ -931,10 +938,10 @@ export function MyResumesPage() {
             </div>
           </div>
 
-          {saveSuccess && (
+          {saveSuccessMsg && (
             <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-green-600" />
-              {mode === "add" ? "简历已创建成功" : "修改已保存，已生成新的简历版本"}
+              {saveSuccessMsg}
             </div>
           )}
 
