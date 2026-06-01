@@ -5,17 +5,25 @@ import { Badge } from "./ui/Badge";
 import { loadSelectedJobDetailViewModel } from "../../api";
 import type { JobDetailViewModel } from "../../adapters";
 
-export function JobDetailBanner() {
+interface JobDetailBannerProps {
+  jobId?: string;
+}
+
+export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
   const navigate = useNavigate();
   const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSelectedJobDetailViewModel()
+    if (!jobId) {
+      setLoading(false);
+      return;
+    }
+    loadSelectedJobDetailViewModel(jobId)
       .then(setJobVm)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [jobId]);
 
   if (loading) return <div className="bg-[#0052D9] text-white text-center py-12 text-sm">正在加载岗位详情…</div>;
   if (!jobVm) return <div className="bg-blue-50 text-gray-500 text-center py-12 text-sm">岗位接口暂时不可用，已展示演示数据。</div>;

@@ -7,11 +7,6 @@ import type {
   MatchAnalysisResult,
   ResumeOptimizationResult,
 } from '../types';
-import {
-  mockRecommendationResponse,
-  mockMatchAnalysisResponse,
-  mockResumeOptimizationResponse,
-} from '../mocks';
 
 // ─── 请求类型 ──────────────────────────────────────────────────────────────────
 
@@ -37,92 +32,66 @@ export type RecommendationAgentResponse = AgentResponseEnvelope<RecommendationRe
 export type MatchAnalysisAgentResponse = AgentResponseEnvelope<MatchAnalysisResult>;
 export type ResumeOptimizationAgentResponse = AgentResponseEnvelope<ResumeOptimizationResult>;
 
-// ─── Helper ────────────────────────────────────────────────────────────────────
-
-async function withMockFallback<T>(
-  requestFn: () => Promise<T>,
-  fallbackFn: () => T,
-): Promise<T> {
-  try {
-    return await requestFn();
-  } catch {
-    return fallbackFn();
-  }
-}
-
 // ─── 岗位推荐 ──────────────────────────────────────────────────────────────────
 
 /**
- * 运行岗位推荐 — 优先调用后端 POST /jobs/recommend（{ resume_version_no, limit }），失败返回 mock。
- * 后端当前走 Mock Agent（llm_api_key_missing fallback），响应包含 result.recommended_jobs。
+ * 运行岗位推荐。
+ * 调用 POST /api/jobs/recommend（{ resume_version_no, limit }）。失败时错误直接向上传播。
  */
 export async function runRecommendation(
   input?: Partial<RecommendationRequest>,
 ): Promise<RecommendationAgentResponse> {
   const payload: RecommendationRequest = {
-    resume_version_no: 2,
+    resume_version_no: 0,
     limit: 5,
     ...input,
   };
 
-  return withMockFallback(
-    () =>
-      post<RecommendationAgentResponse, RecommendationRequest>(
-        '/jobs/recommend',
-        payload,
-      ),
-    () => mockRecommendationResponse,
+  return post<RecommendationAgentResponse, RecommendationRequest>(
+    '/jobs/recommend',
+    payload,
   );
 }
 
 // ─── 岗位匹配分析 ──────────────────────────────────────────────────────────────
 
 /**
- * 运行岗位匹配分析 — 优先调用后端 POST /jobs/{jobId}/match（{ resume_version_no }），失败返回 mock。
- * jobId 通过 path 参数传递，resume_version_no 通过 body 传递。
+ * 运行岗位匹配分析。
+ * 调用 POST /api/jobs/{jobId}/match（{ resume_version_no }）。失败时错误直接向上传播。
  */
 export async function runMatchAnalysis(
   jobId: string,
   input?: Partial<MatchAnalysisRequest>,
 ): Promise<MatchAnalysisAgentResponse> {
   const payload: MatchAnalysisRequest = {
-    resume_version_no: 2,
+    resume_version_no: 0,
     ...input,
   };
 
-  return withMockFallback(
-    () =>
-      post<MatchAnalysisAgentResponse, MatchAnalysisRequest>(
-        `/jobs/${encodeURIComponent(jobId)}/match`,
-        payload,
-      ),
-    () => mockMatchAnalysisResponse,
+  return post<MatchAnalysisAgentResponse, MatchAnalysisRequest>(
+    `/jobs/${encodeURIComponent(jobId)}/match`,
+    payload,
   );
 }
 
 // ─── 简历优化 ──────────────────────────────────────────────────────────────────
 
 /**
- * 运行简历优化 — 优先调用后端 POST /resumes/optimize，失败返回 mock。
- * 后端期望：{ resume_text, target_job: { title, jd_text }, target_section?, user_intention? }
+ * 运行简历优化。
+ * 调用 POST /api/resumes/optimize（{ resume_text, target_job, target_section?, user_intention? }）。
+ * 失败时错误直接向上传播。
  */
 export async function runResumeOptimization(
   input?: Partial<ResumeOptimizationRequest>,
 ): Promise<ResumeOptimizationAgentResponse> {
   const payload: ResumeOptimizationRequest = {
-    resume_text: "候选人后端开发经验",
-    target_job: { title: "后端开发工程师", jd_text: "要求Go/MySQL/Redis等后端能力" },
-    target_section: "project",
-    user_intention: "请优化项目经历表达，突出后端开发能力。",
+    resume_text: '',
+    target_job: { title: '', jd_text: '' },
     ...input,
   };
 
-  return withMockFallback(
-    () =>
-      post<ResumeOptimizationAgentResponse, ResumeOptimizationRequest>(
-        '/resumes/optimize',
-        payload,
-      ),
-    () => mockResumeOptimizationResponse,
+  return post<ResumeOptimizationAgentResponse, ResumeOptimizationRequest>(
+    '/resumes/optimize',
+    payload,
   );
 }

@@ -2,46 +2,27 @@
 
 import { get } from './client';
 import type { Job, JobDetail } from '../types';
-import { mockJobs, mockJobDetails, mockSelectedJob, getMockJobById } from '../mocks';
-
-/** Mock fallback helper — swallows errors and returns fallback data. */
-async function withFallback<T>(requestFn: () => Promise<T>, fallbackFn: () => T): Promise<T> {
-  try {
-    return await requestFn();
-  } catch {
-    return fallbackFn();
-  }
-}
 
 /**
  * 获取岗位列表。
- * 优先调用 GET /jobs，失败返回 mockJobs。
+ * 调用 GET /api/jobs。失败时错误直接向上传播。
  */
 export async function getJobs(): Promise<Job[]> {
-  return withFallback(
-    () => get<Job[]>('/jobs'),
-    () => mockJobs,
-  );
+  return get<Job[]>('/jobs');
 }
 
 /**
  * 获取岗位详情。
- * 优先调用 GET /jobs/{jobId}，失败尝试 mock，兜底返回 mockSelectedJob。
+ * 调用 GET /api/jobs/{jobId}。失败时错误直接向上传播。
  */
 export async function getJobDetail(jobId: string): Promise<JobDetail> {
-  return withFallback(
-    () => get<JobDetail>(`/jobs/${jobId}`),
-    () => getMockJobById(jobId) ?? mockSelectedJob,
-  );
+  return get<JobDetail>(`/jobs/${jobId}`);
 }
 
 /**
- * 获取 Demo 默认岗位。
- * 直接返回 mockSelectedJob。
+ * 获取指定岗位详情（由调用方传入 jobId）。
+ * 调用 GET /api/jobs/{id}。失败时错误直接向上传播。
  */
-export async function getSelectedJob(): Promise<JobDetail> {
-  return withFallback(
-    () => get<JobDetail>(`/jobs/${mockSelectedJob.id}`),
-    () => mockSelectedJob,
-  );
+export async function getSelectedJob(jobId: string): Promise<JobDetail> {
+  return get<JobDetail>(`/jobs/${jobId}`);
 }

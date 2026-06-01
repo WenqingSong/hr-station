@@ -61,9 +61,9 @@ export async function loadJobDetailViewModel(
   return toJobDetailViewModel(job);
 }
 
-/** 加载 Demo 默认岗位 ViewModel */
-export async function loadSelectedJobDetailViewModel(): Promise<JobDetailViewModel> {
-  const job = await getSelectedJob();
+/** 加载指定岗位详情 ViewModel */
+export async function loadSelectedJobDetailViewModel(jobId: string): Promise<JobDetailViewModel> {
+  const job = await getSelectedJob(jobId);
   return toJobDetailViewModel(job);
 }
 
@@ -81,20 +81,14 @@ export async function loadResumeOptionViewModels(): Promise<ResumeOptionViewMode
   return toResumeOptionViewModels(options);
 }
 
-/** 从真实 API versions 构建简历选项（10-1-R：使用 ResumeVersionListItem） */
+/** 从真实 API versions 构建简历选项。
+ * 调用 GET /api/resumes/versions。失败时错误直接向上传播。 */
 export async function loadResumeOptionViewModelsFromApi(): Promise<ResumeOptionViewModel[]> {
-  try {
-    const versions = await getResumeVersions(); // {versions, total} → versions[]
-    if (versions.length > 0) {
-      return toResumeOptionViewModelsFromVersions(versions);
-    }
-    // versions 为空，fallback
-    const options = await getResumeOptions();
-    return toResumeOptionViewModels(options);
-  } catch {
-    const options = await getResumeOptions();
-    return toResumeOptionViewModels(options);
+  const versions = await getResumeVersions();
+  if (versions.length > 0) {
+    return toResumeOptionViewModelsFromVersions(versions);
   }
+  return [];
 }
 
 /** 加载简历管理页完整 ViewModel（含教育/项目/经历/技能/自评） */
@@ -118,9 +112,9 @@ export async function loadResumeComparisonViewModel(
 
 /** 加载指定简历摘要 ViewModel */
 export async function loadResumeSummaryViewModel(
-  resumeId: string,
+  versionNo: number,
 ): Promise<ResumeSummaryViewModel> {
-  const resume = await getResumeDetail(resumeId);
+  const resume = await getResumeDetail(versionNo);
   return toResumeSummaryViewModel(resume);
 }
 

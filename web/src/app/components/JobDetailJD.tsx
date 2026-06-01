@@ -2,16 +2,24 @@ import React, { useState, useEffect } from "react";
 import { loadSelectedJobDetailViewModel } from "../../api";
 import type { JobDetailViewModel } from "../../adapters";
 
-export function JobDetailJD() {
+interface JobDetailJDProps {
+  jobId?: string;
+}
+
+export function JobDetailJD({ jobId }: JobDetailJDProps) {
   const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSelectedJobDetailViewModel()
+    if (!jobId) {
+      setLoading(false);
+      return;
+    }
+    loadSelectedJobDetailViewModel(jobId)
       .then(setJobVm)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [jobId]);
 
   if (loading) return <div className="flex-1 flex items-center justify-center text-gray-400 text-sm py-20">正在加载岗位详情…</div>;
   if (!jobVm) return <div className="flex-1 flex items-center justify-center text-gray-500 text-sm py-20">暂无岗位详情</div>;

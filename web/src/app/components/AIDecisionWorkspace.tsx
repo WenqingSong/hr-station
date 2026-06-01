@@ -7,7 +7,11 @@ import { loadCurrentResumeSummaryViewModel, loadSelectedJobDetailViewModel } fro
 import type { ResumeSummaryViewModel, JobDetailViewModel } from "../../adapters";
 import { SelectResumeModal } from "./SelectResumeModal";
 
-export function AIDecisionWorkspace() {
+interface AIDecisionWorkspaceProps {
+  selectedJobId?: string;
+}
+
+export function AIDecisionWorkspace({ selectedJobId }: AIDecisionWorkspaceProps) {
   const navigate = useNavigate();
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
@@ -15,11 +19,18 @@ export function AIDecisionWorkspace() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
+    const promises: Promise<unknown>[] = [
       loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {}),
-      loadSelectedJobDetailViewModel().then((j) => setJobTitle(j.title)).catch(() => setJobTitle("演示岗位")),
-    ]).finally(() => setLoading(false));
-  }, []);
+    ];
+    if (selectedJobId) {
+      promises.push(
+        loadSelectedJobDetailViewModel(selectedJobId).then((j) => setJobTitle(j.title)).catch(() => setJobTitle(""))
+      );
+    } else {
+      promises.push(Promise.resolve(setJobTitle("")));
+    }
+    Promise.all(promises).finally(() => setLoading(false));
+  }, [selectedJobId]);
 
   const handleConfirmRecommend = (resumeId: string) => {
     navigate(`/recommend?resumeId=${encodeURIComponent(resumeId)}`);
