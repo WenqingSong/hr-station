@@ -14,10 +14,13 @@ export function JobDetailAIDecision() {
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
   const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {});
-    loadJobDetailViewModel(jobId).then(setJobVm).catch(() => {});
+    Promise.all([
+      loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {}),
+      loadJobDetailViewModel(jobId).then(setJobVm).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, [jobId]);
 
   const handleConfirmMatch = (resumeId: string) => {
@@ -37,13 +40,19 @@ export function JobDetailAIDecision() {
         </p>
       </div>
 
+      {loading && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400">
+          正在加载岗位详情…
+        </div>
+      )}
+
       {/* Currently Selected Job */}
       <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="flex items-center gap-2 text-gray-500 text-xs mb-3">
           <Target className="h-3.5 w-3.5" />
           当前岗位
         </div>
-        <h3 className="font-bold text-gray-900 text-sm mb-2">{jobVm?.title || "加载中…"}</h3>
+        <h3 className="font-bold text-gray-900 text-sm mb-2">{jobVm?.title || ""}</h3>
         <div className="flex flex-wrap gap-1.5 mb-2.5">
           <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm?.typeLabel || ""}</Badge>
           <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm?.categoryLabel || ""}</Badge>
@@ -66,7 +75,7 @@ export function JobDetailAIDecision() {
           </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm?.name || "加载中…"}</h3>
+          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm?.name || ""}</h3>
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{resumeVm?.directionLabel || ""}</Badge>
             {resumeVm?.skillTags.slice(0, 4).map((skill) => (

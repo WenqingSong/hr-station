@@ -11,11 +11,14 @@ export function AIDecisionWorkspace() {
   const navigate = useNavigate();
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
-  const [jobTitle, setJobTitle] = useState("加载中…");
+  const [jobTitle, setJobTitle] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {});
-    loadSelectedJobDetailViewModel().then((j) => setJobTitle(j.title)).catch(() => {});
+    Promise.all([
+      loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {}),
+      loadSelectedJobDetailViewModel().then((j) => setJobTitle(j.title)).catch(() => setJobTitle("演示岗位")),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const handleConfirmRecommend = (resumeId: string) => {
@@ -35,6 +38,12 @@ export function AIDecisionWorkspace() {
         </p>
       </div>
 
+      {loading && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400">
+          正在加载岗位数据…
+        </div>
+      )}
+
       {/* Current Resume Card */}
       <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="flex justify-between items-start mb-3">
@@ -47,7 +56,7 @@ export function AIDecisionWorkspace() {
           </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm?.name || "加载中…"}</h3>
+          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm?.name || ""}</h3>
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="secondary" className="text-[10px] px-1.5">{resumeVm?.directionLabel || ""}</Badge>
             {resumeVm?.skillTags.slice(0, 4).map((skill) => (

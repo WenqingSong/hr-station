@@ -134,7 +134,7 @@ export function MyResumesPage() {
   }, [mode]);
 
   // ── Resume basic ────────────────────────────────────────────────────────────
-  const [resumeName, setResumeName] = useState(mode === "add" ? "V3 新简历" : "加载中…");
+  const [resumeName, setResumeName] = useState(mode === "add" ? "V3 新简历" : "");
   const [jobDirection, setJobDirection] = useState("后端开发");
   const [resumeDesc, setResumeDesc] = useState(
     "用于后端开发、云计算开发等技术岗位的 AI 推荐与匹配分析。"
@@ -370,7 +370,7 @@ export function MyResumesPage() {
           <div className="bg-white border border-gray-200 px-5 py-3 mb-4 flex items-center gap-5 flex-wrap">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-gray-400">当前简历：</span>
-              <span className="font-medium text-gray-900">V2 后端开发简历</span>
+              <span className="font-medium text-gray-900">{resumeName || "正在加载简历数据…"}</span>
             </div>
             <span className="w-px h-4 bg-gray-200" />
             <div className="flex items-center gap-2 text-sm">

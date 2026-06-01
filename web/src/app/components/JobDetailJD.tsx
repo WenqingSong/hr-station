@@ -4,12 +4,17 @@ import type { JobDetailViewModel } from "../../adapters";
 
 export function JobDetailJD() {
   const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSelectedJobDetailViewModel().then(setJobVm).catch(() => {});
+    loadSelectedJobDetailViewModel()
+      .then(setJobVm)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  if (!jobVm) return null;
+  if (loading) return <div className="flex-1 flex items-center justify-center text-gray-400 text-sm py-20">正在加载岗位详情…</div>;
+  if (!jobVm) return <div className="flex-1 flex items-center justify-center text-gray-500 text-sm py-20">暂无岗位详情</div>;
   return (
     <div className="flex-1 bg-white border border-gray-200 rounded-lg p-10 min-w-[760px] max-w-[820px] shadow-sm">
       <div className="space-y-10 text-gray-700 text-[15px] leading-relaxed">

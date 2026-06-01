@@ -88,7 +88,7 @@ export function ResumeManagementPage() {
   }, []);
 
   const activeVersion = resumeVersions.find((v) => v.id === currentVersion);
-  const loadedVersionLabel = resumeVm ? `V${resumeVm.version} ${resumeVm.name}` : "加载中…";
+  const loadedVersionLabel = resumeVm ? `V${resumeVm.version} ${resumeVm.name}` : "";
 
   return (
     <>
