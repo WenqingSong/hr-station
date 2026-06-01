@@ -1,6 +1,6 @@
 // ─── Resumes API ───────────────────────────────────────────────────────────────
 
-import { get, post, put, patch } from './client';
+import { get, post } from './client';
 import type {
   Resume,
   ResumeOption,
@@ -105,27 +105,26 @@ export async function createResume(input: Partial<Resume>): Promise<Resume> {
 
 /**
  * 更新简历。
- * 优先 PUT /resumes/detail?id={resumeId}，失败返回 mock。
+ * 后端采用版本迭代模型：每次 POST /resumes 生成新版本代替修改。
+ * 优先 POST /resumes，失败返回 mock。
  */
 export async function updateResume(
-  resumeId: string,
+  _resumeId: string,
   input: Partial<Resume>,
 ): Promise<Resume> {
   return withFallback(
-    () =>
-      put<Resume>(`/resumes/detail?id=${encodeURIComponent(resumeId)}`, input),
-    () => getMockResumeById(resumeId) ?? mockCurrentResume,
+    () => post<Resume>('/resumes', input),
+    () => mockCurrentResume,
   );
 }
 
 /**
  * 设为当前简历。
- * 优先 PATCH /resumes/current，失败返回 mock。
- * 当前用于前端 Demo 占位，真实保存能力后续阶段再接。
+ * 后端设计：current = 最新版本（按 version_no DESC LIMIT 1），无需单独设置接口。
+ * 当前保留为 Demo 占位，直接返回 mock。
  */
 export async function setCurrentResume(resumeId: string): Promise<Resume> {
-  return withFallback(
-    () => patch<Resume>('/resumes/current', { resume_id: resumeId }),
-    () => getMockResumeById(resumeId) ?? mockCurrentResume,
-  );
+  // 后端无 set-current 接口，前端 Demo 场景直接返回 mock。
+  // 如需切换当前简历，通过再次 POST /resumes 创建新版本即可自动成为 current。
+  return getMockResumeById(resumeId) ?? mockCurrentResume;
 }
