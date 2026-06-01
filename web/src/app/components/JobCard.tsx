@@ -1,5 +1,5 @@
 import React from "react";
-import { MapPin, Briefcase } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Badge } from "./ui/Badge";
 import { Button } from "./ui/Button";
@@ -13,6 +13,7 @@ export interface JobCardProps {
   skills: string[];
   location: string;
   description: string;
+  statusLabel?: string;
   selected?: boolean;
   onSelect?: (id: string) => void;
 }
@@ -25,6 +26,7 @@ export function JobCard({
   skills,
   location,
   description,
+  statusLabel,
   selected,
   onSelect,
 }: JobCardProps) {
@@ -53,10 +55,12 @@ export function JobCard({
               <MapPin className="h-3.5 w-3.5" />
               <span>{location}</span>
             </div>
-            <div className="flex items-center text-sm text-[#0052D9] gap-1 bg-blue-50 px-2 py-0.5 rounded-sm ml-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#0052D9]"></span>
-              招聘中
-            </div>
+            {statusLabel && (
+              <div className="flex items-center text-sm text-[#0052D9] gap-1 bg-blue-50 px-2 py-0.5 rounded-sm ml-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0052D9]"></span>
+                {statusLabel}
+              </div>
+            )}
           </div>
         </div>
       </div>
