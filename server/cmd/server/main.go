@@ -25,6 +25,7 @@ import (
 
 func main() {
 	cfg := config.Load()
+	cfg.Validate()
 
 	// Initialize MySQL connection
 	mysqlDB, err := database.NewMySQL(cfg.Database)

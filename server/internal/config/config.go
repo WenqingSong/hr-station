@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -151,6 +153,23 @@ func Load() *Config {
 	cfg.LogLevel = cfg.Log.Level
 
 	return cfg
+}
+
+// Validate checks for configuration issues and warns on insecure defaults.
+func (c *Config) Validate() {
+	weakJWTSecrets := []string{"change-me-in-local", "change-me", "secret", "your-secret", ""}
+	for _, weak := range weakJWTSecrets {
+		if c.JWT.Secret == weak {
+			log.Printf("[warn] JWT_SECRET is set to a weak default (%q). Please set a strong secret in .env for non-local environments.", c.JWT.Secret)
+			break
+		}
+	}
+	if c.Database.Password == "password" {
+		log.Printf("[warn] DB_PASSWORD is set to the default 'password'. Consider changing it for security.")
+	}
+	if c.JWT.Secret == "" {
+		fmt.Fprintln(os.Stderr, "WARNING: JWT_SECRET is empty. Authentication will be insecure.")
+	}
 }
 
 // getEnv reads an environment variable or returns a default value.

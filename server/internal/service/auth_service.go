@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -62,16 +64,36 @@ func NewAuthService(userRepo *repository.UserRepository, jwtSecret string, jwtEx
 	}
 }
 
+func validateEmail(email string) error {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return apperror.New(apperror.CodeInvalidParam, "email is required", 400)
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		return apperror.New(apperror.CodeInvalidParam, "invalid email format", 400)
+	}
+	return nil
+}
+
+func validatePassword(password string) error {
+	password = strings.TrimSpace(password)
+	if password == "" {
+		return apperror.New(apperror.CodeInvalidParam, "password is required", 400)
+	}
+	if len(password) < 6 {
+		return apperror.New(apperror.CodeInvalidParam, "password must be at least 6 characters", 400)
+	}
+	return nil
+}
+
 // Register registers a new user and returns an auth response with JWT.
 func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
-	if req.Email == "" {
-		return nil, apperror.New(apperror.CodeInvalidParam, "email is required", 400)
+	req.Email = strings.TrimSpace(req.Email)
+	if err := validateEmail(req.Email); err != nil {
+		return nil, err
 	}
-	if req.Password == "" {
-		return nil, apperror.New(apperror.CodeInvalidParam, "password is required", 400)
-	}
-	if len(req.Password) < 6 {
-		return nil, apperror.New(apperror.CodeInvalidParam, "password must be at least 6 characters", 400)
+	if err := validatePassword(req.Password); err != nil {
+		return nil, err
 	}
 
 	// Check if email already exists
@@ -116,10 +138,11 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*AuthR
 
 // Login authenticates a user and returns an auth response with JWT.
 func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
-	if req.Email == "" {
-		return nil, apperror.New(apperror.CodeInvalidParam, "email is required", 400)
+	req.Email = strings.TrimSpace(req.Email)
+	if err := validateEmail(req.Email); err != nil {
+		return nil, err
 	}
-	if req.Password == "" {
+	if strings.TrimSpace(req.Password) == "" {
 		return nil, apperror.New(apperror.CodeInvalidParam, "password is required", 400)
 	}
 
