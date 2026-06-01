@@ -105,9 +105,11 @@ export async function loadResumeManagementPageViewModel(): Promise<ResumeManagem
 export async function loadResumeComparisonViewModel(
   baseId: string,
   targetId: string,
+  baseName: string,
+  targetName: string,
 ): Promise<ResumeComparisonViewModel> {
   const comparison = await compareResumes(baseId, targetId);
-  return toResumeComparisonViewModel(comparison);
+  return toResumeComparisonViewModel(comparison, baseName, targetName);
 }
 
 /** 加载指定简历摘要 ViewModel */

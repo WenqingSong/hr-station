@@ -112,13 +112,50 @@ export interface ResumeVersionsResponse {
   total: number;
 }
 
-/** 简历版本比较（历史比��页） */
-export interface ResumeVersionComparison {
-  base_resume: Resume;
-  target_resume: Resume;
-  summary: string;
-  keyword_changes: ResumeKeywordChange[];
-  project_changes: ResumeProjectChange[];
+/** 版本对比 — 字段级变化 */
+export interface FieldChange {
+  field: string;
+  before: string;
+  after: string;
+  change_type: string;
+  impact: string;
+}
+
+/** 版本对比 — 风险变化 */
+export interface RiskChange {
+  risk: string;
+  before: string;
+  after: string;
+  trend: string;
+}
+
+/** 版本对比 — 建议完成状态 */
+export interface SuggestionCompletion {
+  suggestion: string;
+  status: string;
+  evidence: string;
+}
+
+/** 版本对比 — 分析结果（对应后端 VersionCompareAnalysis） */
+export interface VersionCompareResult {
+  from_version_no: number;
+  to_version_no: number;
+  score_before: number;
+  score_after: number;
+  score_change: number;
+  field_changes: FieldChange[];
+  risk_changes: RiskChange[];
+  suggestion_completion: SuggestionCompletion[];
+  key_improvements: string[];
   remaining_risks: string[];
-  recommendation: string;
+  summary: string;
+  authenticity_notice: string;
+}
+
+/** 简历版本比较响应（对应后端 VersionCompareResponse） */
+export interface ResumeVersionComparison {
+  compare_id: number;
+  generated_by: string;
+  result: VersionCompareResult;
+  created_at: string;
 }

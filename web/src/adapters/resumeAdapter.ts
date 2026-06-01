@@ -8,8 +8,6 @@ import type {
   ResumeOption,
   ResumeVersionComparison,
   ResumeVersionListItem,
-  ResumeKeywordChange,
-  ResumeProjectChange,
 } from '../types';
 
 // ─── ViewModel 类型 ────────────────────────────────────────────────────────────
@@ -67,11 +65,21 @@ export interface ResumeOptionViewModel {
 export interface ResumeComparisonViewModel {
   baseName: string;
   targetName: string;
-  summary: string;
-  keywordChanges: ResumeKeywordChange[];
-  projectChanges: ResumeProjectChange[];
+  compareId: number;
+  generatedBy: string;
+  fromVersionNo: number;
+  toVersionNo: number;
+  scoreBefore: number;
+  scoreAfter: number;
+  scoreChange: number;
+  fieldChanges: { field: string; before: string; after: string; changeType: string; impact: string }[];
+  riskChanges: { risk: string; before: string; after: string; trend: string }[];
+  suggestionCompletion: { suggestion: string; status: string; evidence: string }[];
+  keyImprovements: string[];
   remainingRisks: string[];
-  recommendation: string;
+  summary: string;
+  authenticityNotice: string;
+  createdAt: string;
 }
 
 // ─── 转换函数 ──────────────────────────────────────────────────────────────────
@@ -179,14 +187,42 @@ export function toResumeManagementViewModel(
 
 export function toResumeComparisonViewModel(
   comparison: ResumeVersionComparison,
+  baseName: string,
+  targetName: string,
 ): ResumeComparisonViewModel {
+  const r = comparison.result;
   return {
-    baseName: comparison.base_resume.name,
-    targetName: comparison.target_resume.name,
-    summary: comparison.summary,
-    keywordChanges: comparison.keyword_changes,
-    projectChanges: comparison.project_changes,
-    remainingRisks: comparison.remaining_risks,
-    recommendation: comparison.recommendation,
+    baseName,
+    targetName,
+    compareId: comparison.compare_id,
+    generatedBy: comparison.generated_by,
+    fromVersionNo: r.from_version_no,
+    toVersionNo: r.to_version_no,
+    scoreBefore: r.score_before,
+    scoreAfter: r.score_after,
+    scoreChange: r.score_change,
+    fieldChanges: (r.field_changes || []).map((fc) => ({
+      field: fc.field,
+      before: fc.before,
+      after: fc.after,
+      changeType: fc.change_type,
+      impact: fc.impact,
+    })),
+    riskChanges: (r.risk_changes || []).map((rc) => ({
+      risk: rc.risk,
+      before: rc.before,
+      after: rc.after,
+      trend: rc.trend,
+    })),
+    suggestionCompletion: (r.suggestion_completion || []).map((sc) => ({
+      suggestion: sc.suggestion,
+      status: sc.status,
+      evidence: sc.evidence,
+    })),
+    keyImprovements: r.key_improvements || [],
+    remainingRisks: r.remaining_risks || [],
+    summary: r.summary,
+    authenticityNotice: r.authenticity_notice || '',
+    createdAt: comparison.created_at,
   };
 }
