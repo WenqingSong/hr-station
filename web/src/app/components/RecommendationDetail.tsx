@@ -3,21 +3,26 @@ import { CheckCircle2, ShieldAlert, Zap, ArrowRight } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
-import { mockRecommendationResponse } from "../../mocks";
-import { toRecommendationPageViewModel } from "../../adapters";
+import type { RecommendationPageViewModel } from "../../adapters";
 
 interface RecommendationDetailProps {
   currentResumeId?: string;
+  data?: RecommendationPageViewModel | null;
 }
 
-const recVm = toRecommendationPageViewModel(
-  mockRecommendationResponse.result,
-  mockRecommendationResponse.meta
-);
-const firstJob = recVm.recommendedJobs[0];
-
-export function RecommendationDetail({ currentResumeId = "resume-v2" }: RecommendationDetailProps) {
+export function RecommendationDetail({ currentResumeId = "resume-v2", data }: RecommendationDetailProps) {
   const navigate = useNavigate();
+
+  if (!data || !data.recommendedJobs.length) {
+    return (
+      <div className="flex-1 min-w-[560px] max-w-[680px] bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex items-center justify-center py-20">
+        <p className="text-gray-400 text-sm">暂无推荐结果，请先选择简历并发起推荐。</p>
+      </div>
+    );
+  }
+
+  const firstJob = data.recommendedJobs[0];
+
   const getStrengthStyle = (tone: string) => {
     switch (tone) {
       case 'green': return "bg-green-50 text-green-700 border border-green-200";
@@ -62,7 +67,7 @@ export function RecommendationDetail({ currentResumeId = "resume-v2" }: Recommen
               <div className="col-span-2 text-center">证据强度</div>
             </div>
             <div className="divide-y divide-gray-100 text-[13px]">
-              {recVm.evidenceChain.map((ev, i) => (
+              {data.evidenceChain.map((ev, i) => (
                 <div key={i} className="grid grid-cols-12 gap-4 p-3 items-center hover:bg-gray-50 transition-colors">
                   <div className="col-span-5 text-gray-800">{ev.jdRequirement}</div>
                   <div className="col-span-5 text-gray-600">{ev.resumeEvidence}</div>
@@ -83,7 +88,7 @@ export function RecommendationDetail({ currentResumeId = "resume-v2" }: Recommen
           </h3>
           <div className="bg-amber-50/30 border border-amber-100/50 rounded-md p-4">
             <ul className="space-y-2.5">
-              {recVm.riskItems.map((risk, i) => (
+              {data.riskItems.map((risk, i) => (
                 <li key={i} className="flex items-center gap-2.5 text-[13px] text-amber-700">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-400/80 shrink-0"></div>
                   {risk}
@@ -99,8 +104,8 @@ export function RecommendationDetail({ currentResumeId = "resume-v2" }: Recommen
             <Zap className="w-5 h-5 text-[#0052D9] shrink-0 mt-0.5" />
             <div className="text-[14px] text-gray-700 leading-relaxed">
               <p className="font-medium text-gray-900 mb-1">投递建议</p>
-              {recVm.nextActions[0] || "建议优先进入岗位详情页，再进行岗位匹配分析。"}<br/>
-              {recVm.nextActions[1] || "如果时间有限，可先修复 Top 3 简历问题后投递。"}
+              {data.nextActions[0] || "建议优先进入岗位详情页，再进行岗位匹配分析。"}<br/>
+              {data.nextActions[1] || "如果时间有限，可先修复 Top 3 简历问题后投递。"}
             </div>
           </div>
           <div className="flex gap-4">

@@ -3,18 +3,13 @@ import { Activity, Wrench, Sparkles, AlertCircle, RefreshCw, FileEdit, CheckCirc
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
-import { mockResumeOptimizationResponse } from "../../mocks";
-import { toResumeOptimizationPageViewModel } from "../../adapters";
+import type { ResumeOptimizationPageViewModel } from "../../adapters";
 
 interface ResumeOptimizationDetailProps {
   currentJobId?: string;
   currentResumeId?: string;
+  data?: ResumeOptimizationPageViewModel | null;
 }
-
-const optVm = toResumeOptimizationPageViewModel(
-  mockResumeOptimizationResponse.result,
-  mockResumeOptimizationResponse.meta
-);
 
 const CollapsibleSection = ({ title, icon: Icon, children, defaultOpen = false }: { title: string, icon: any, children: React.ReactNode, defaultOpen?: boolean }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -35,12 +30,20 @@ const CollapsibleSection = ({ title, icon: Icon, children, defaultOpen = false }
   );
 };
 
-export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", currentResumeId = "resume-v2" }: ResumeOptimizationDetailProps) {
+export function ResumeOptimizationDetail({ currentJobId = "", currentResumeId = "", data }: ResumeOptimizationDetailProps) {
   const navigate = useNavigate();
+
+  if (!data) {
+    return (
+      <div className="flex-1 min-w-[660px] max-w-[780px] bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex items-center justify-center py-20">
+        <p className="text-gray-400 text-sm">暂无简历优化建议，请先选择目标岗位和简历发起优化。</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 min-w-[660px] max-w-[780px] bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
-      {/* Module 1: Optimization Conclusion (P0) */}
+      {/* Module 1: Optimization Conclusion */}
       <div className="bg-gradient-to-br from-[#F4F8FF] to-white p-6 border-b border-blue-100">
         <h2 className="text-[16px] font-bold text-gray-900 mb-4 flex items-center gap-2">
           <Activity className="w-4 h-4 text-[#0052D9]" />
@@ -51,31 +54,31 @@ export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", cur
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white px-5 py-4 rounded-lg border-l-4 border-l-amber-500 border-y border-r border-gray-200 shadow-sm flex items-center justify-between">
               <div className="text-[13px] text-gray-500">投递准备度</div>
-              <div className="text-[15px] font-bold text-amber-600">先修复后投递</div>
+              <div className="text-[15px] font-bold text-amber-600">{data.applyReadiness || "先修复后投递"}</div>
             </div>
             
             <div className="bg-white px-5 py-4 rounded-lg border-l-4 border-l-[#0052D9] border-y border-r border-gray-200 shadow-sm flex items-center justify-between">
               <div className="text-[13px] text-gray-500">优化停止信号</div>
-              <div className="text-[15px] font-bold text-[#0052D9]">修复 Top 3 后再投递</div>
+              <div className="text-[15px] font-bold text-[#0052D9]">{data.optimizationStopSignal || "修复 Top 3 后再投递"}</div>
             </div>
           </div>
           
           <p className="text-[13px] text-gray-700 leading-relaxed bg-blue-50/50 p-3 rounded">
             <span className="font-bold text-gray-900 mr-2">诊断摘要：</span>
-            当前简历与后台开发岗位方向匹配，但 Linux 使用经验、高并发压测结果和线上问题排查案例证据不足。建议先完成 3 个关键修复，再进入投递。
+            {data.summary || "请基于岗位要求优化简历表达。"}
           </p>
         </div>
       </div>
 
       <div className="p-6 space-y-8">
-        {/* Module 2: Top 3 Quick Fixes (P0) */}
+        {/* Module 2: Top 3 Quick Fixes */}
         <section>
           <h3 className="font-bold text-gray-900 mb-4 text-[16px] flex items-center gap-2">
             <Wrench className="w-4 h-4 text-[#0052D9]" />
             投递前最应该先修的 3 件事
           </h3>
           <div className="space-y-4">
-            {optVm.topFixItems.map((task, i) => (
+            {data.topFixItems.map((task, i) => (
               <div key={i} className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-md">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white border border-gray-300 text-gray-700 text-[13px] font-bold shrink-0">
                   {i + 1}
@@ -107,7 +110,7 @@ export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", cur
           </div>
         </section>
 
-        {/* Module 5: Verification Checklist (P0) */}
+        {/* Module: Verification Checklist */}
         <section>
           <h3 className="font-bold text-gray-900 mb-4 text-[16px] flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-[#0052D9]" />
@@ -115,7 +118,7 @@ export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", cur
           </h3>
           <div className="bg-orange-50/40 border border-orange-100 rounded-md p-4">
             <ul className="space-y-3 text-[13px]">
-              {optVm.missingEvidencePlan.map((item, i) => (
+              {data.missingEvidencePlan.map((item, i) => (
                 <li key={i} className="flex items-center justify-between gap-4 border-b border-orange-100/50 pb-2 last:border-0 last:pb-0">
                   <div className="flex items-center gap-2 text-gray-800">
                     <div className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0"></div>
@@ -128,8 +131,8 @@ export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", cur
           </div>
         </section>
 
-        {/* Module 6: Before & After Example (P0) */}
-        {optVm.rewriteExamples[0] && (
+        {/* Module: Before & After */}
+        {data.rewriteExamples[0] && (
         <section>
           <h3 className="font-bold text-gray-900 mb-4 text-[16px] flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#0052D9]" />
@@ -138,23 +141,23 @@ export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", cur
           <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden bg-gray-50">
             <div className="flex-1 p-4 border-r border-gray-200">
               <div className="text-[12px] font-bold text-gray-500 mb-2">原简历表达</div>
-              <div className="text-[13px] text-gray-700">{optVm.rewriteExamples[0].before}</div>
+              <div className="text-[13px] text-gray-700">{data.rewriteExamples[0].before}</div>
             </div>
             <div className="flex flex-col items-center justify-center px-4 bg-white">
               <div className="text-[11px] text-[#0052D9] font-medium mb-1 text-center">优化建议</div>
               <ChevronRight className="w-4 h-4 text-gray-300" />
-              <div className="text-[10px] text-gray-500 mt-1 text-center w-24">{optVm.rewriteExamples[0].suggestion}</div>
+              <div className="text-[10px] text-gray-500 mt-1 text-center w-24">{data.rewriteExamples[0].suggestion}</div>
             </div>
             <div className="flex-[1.5] p-4 bg-blue-50/30 border-l border-blue-100">
               <div className="text-[12px] font-bold text-[#0052D9] mb-2 flex justify-between">
                 优化后示例
               </div>
               <div className="text-[13px] text-gray-800 leading-relaxed">
-                {optVm.rewriteExamples[0].after}
+                {data.rewriteExamples[0].after}
               </div>
               <div className="text-[11px] text-amber-600 mt-3 pt-3 border-t border-blue-100/50 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
-                {optVm.rewriteExamples[0].verificationNotice}
+                {data.rewriteExamples[0].verificationNotice}
               </div>
             </div>
           </div>
@@ -163,9 +166,8 @@ export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", cur
 
         <div className="h-px bg-gray-200 w-full my-6"></div>
 
-        {/* Collapsible P1 Modules */}
+        {/* Collapsible Modules */}
         <div className="space-y-4">
-          {/* Module 3: Keyword Alignment (P1) */}
           <CollapsibleSection title="展开查看：JD 关键词对齐建议" icon={RefreshCw}>
             <div className="border border-gray-200 rounded-md overflow-hidden">
               <div className="grid grid-cols-12 gap-4 bg-gray-50 p-3 text-[13px] font-medium text-gray-600 border-b border-gray-200">
@@ -174,7 +176,7 @@ export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", cur
                 <div className="col-span-6">建议动作</div>
               </div>
               <div className="divide-y divide-gray-100 text-[13px] leading-relaxed">
-                {optVm.keywordAlignment.map((kw, i) => (
+                {data.keywordAlignment.map((kw, i) => (
                   <div key={i} className="grid grid-cols-12 gap-4 p-3 items-center hover:bg-gray-50 transition-colors">
                     <div className="col-span-3 font-medium text-gray-800">{kw.keyword}</div>
                     <div className="col-span-3">
@@ -189,10 +191,9 @@ export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", cur
             </div>
           </CollapsibleSection>
 
-          {/* Module 4: Project Experience Optimization (P1) */}
-          <CollapsibleSection title={`展开查看：项目经历详细优化建议 (${optVm.projectOptimization.length}条)`} icon={FileEdit}>
+          <CollapsibleSection title={`展开查看：项目经历详细优化建议 (${data.projectOptimization.length}条)`} icon={FileEdit}>
             <div className="space-y-4">
-              {optVm.projectOptimization.map((proj, i) => (
+              {data.projectOptimization.map((proj, i) => (
                 <div key={i} className="border border-gray-200 rounded-md p-4">
                   <div className="font-bold text-gray-900 text-[15px] mb-3">{proj.projectName}</div>
                   <div className="space-y-3 text-[13px]">
@@ -221,14 +222,14 @@ export function ResumeOptimizationDetail({ currentJobId = "job-backend-dev", cur
           </CollapsibleSection>
         </div>
 
-        {/* Module 7: Pre-delivery Confirmation & Actions (P0) */}
+        {/* Module: Final Checklist & Actions */}
         <section className="bg-white border border-gray-200 shadow-sm rounded-md p-5 mt-8">
           <div className="mb-5">
             <h3 className="font-bold text-gray-900 mb-3 text-[15px] flex items-center gap-2">
               投递前确认
             </h3>
             <div className="grid grid-cols-2 gap-3 text-[13px] text-gray-700">
-              {optVm.finalChecklist.map((item, i) => (
+              {data.finalChecklist.map((item, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-gray-300" /> {item}
                 </div>

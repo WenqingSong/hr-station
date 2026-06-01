@@ -2,16 +2,14 @@ import React from "react";
 import { MapPin, AlertCircle, ChevronRight } from "lucide-react";
 import { Badge } from "./ui/Badge";
 import { cn } from "../utils";
-import { mockRecommendationResponse } from "../../mocks";
-import { toRecommendationPageViewModel } from "../../adapters";
+import type { RecommendationPageViewModel } from "../../adapters";
 
-const recVm = toRecommendationPageViewModel(
-  mockRecommendationResponse.result,
-  mockRecommendationResponse.meta
-);
+interface RecommendationSidebarProps {
+  data?: RecommendationPageViewModel | null;
+}
 
-export function RecommendationSidebar() {
-  const selectedId = "job_backend_001";
+export function RecommendationSidebar({ data }: RecommendationSidebarProps) {
+  const selectedId = data?.recommendedJobs[0]?.jobId ?? "";
 
   const getLevelStyle = (level: string) => {
     switch (level) {
@@ -26,9 +24,17 @@ export function RecommendationSidebar() {
     }
   };
 
+  if (!data || !data.recommendedJobs.length) {
+    return (
+      <div className="w-[380px] shrink-0 bg-white border border-gray-200 rounded-lg p-6 text-center">
+        <p className="text-gray-400 text-sm">暂无推荐岗位数据</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-[380px] shrink-0 flex flex-col gap-4">
-      {recVm.recommendedJobs.map((job, index) => {
+      {data.recommendedJobs.map((job, index) => {
         const isSelected = job.jobId === selectedId;
         
         return (

@@ -184,7 +184,7 @@ export function JobMatchAnalysisPage() {
       <MatchAnalysisHeader job={job ?? undefined} resume={selectedResumeDetail ?? undefined} jobSource={jobSource} resumeSource={resumeSource} />
       <div className="flex gap-6 mt-6 items-start">
         <MatchAnalysisSidebarLeft job={job ?? undefined} jobSource={jobSource} />
-        <MatchAnalysisDetail currentJobId={jobId} currentResumeId={String(selectedOption.id)} />
+        <MatchAnalysisDetail currentJobId={jobId} currentResumeId={String(selectedOption.id)} data={result} />
         <MatchAnalysisSidebarRight resume={selectedResumeDetail ?? undefined} resumeSource={resumeSource} />
       </div>
     </div>

@@ -123,8 +123,8 @@ export function JobRecommendationPage() {
     <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6 pb-12">
       <RecommendationHeader resumeName={displayName} sourceLabel={statusLabel} />
       <div className="flex gap-6 mt-6 items-start">
-        <RecommendationSidebar />
-        <RecommendationDetail currentResumeId={selectedOption.id} />
+        <RecommendationSidebar data={result} />
+        <RecommendationDetail currentResumeId={selectedOption.id} data={result} />
         <RecommendationContext resumeName={selectedOption.name} sourceLabel={statusLabel} />
       </div>
     </div>

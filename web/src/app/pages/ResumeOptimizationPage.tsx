@@ -252,7 +252,7 @@ export function ResumeOptimizationPage() {
       <ResumeOptimizationHeader job={job} resume={resumeForDisplay} jobSource={jobSource} resumeSource={resumeSource} />
       <div className="flex gap-6 mt-6 items-start">
         <ResumeOptimizationSidebarLeft job={job} jobSource={jobSource} />
-        <ResumeOptimizationDetail currentJobId={jobId} currentResumeId={String(selectedOption.id)} />
+        <ResumeOptimizationDetail currentJobId={jobId} currentResumeId={String(selectedOption.id)} data={result} />
         <ResumeOptimizationSidebarRight resume={resumeForDisplay} resumeSource={resumeSource} />
       </div>
     </div>

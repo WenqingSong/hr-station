@@ -3,21 +3,24 @@ import { CheckCircle2, ShieldAlert, Zap, ArrowRight, Sparkles, Activity, PlusCir
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
-import { mockMatchAnalysisResponse } from "../../mocks";
-import { toMatchAnalysisPageViewModel } from "../../adapters";
+import type { MatchAnalysisPageViewModel } from "../../adapters";
 
 interface MatchAnalysisDetailProps {
   currentJobId?: string;
   currentResumeId?: string;
+  data?: MatchAnalysisPageViewModel | null;
 }
 
-const matchVm = toMatchAnalysisPageViewModel(
-  mockMatchAnalysisResponse.result,
-  mockMatchAnalysisResponse.meta
-);
-
-export function MatchAnalysisDetail({ currentJobId = "job-backend-dev", currentResumeId = "resume-v2" }: MatchAnalysisDetailProps) {
+export function MatchAnalysisDetail({ currentJobId = "", currentResumeId = "", data }: MatchAnalysisDetailProps) {
   const navigate = useNavigate();
+
+  if (!data) {
+    return (
+      <div className="flex-1 min-w-[640px] max-w-[760px] bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex items-center justify-center py-20">
+        <p className="text-gray-400 text-sm">暂无匹配分析结果，请先选择岗位和简历发起分析。</p>
+      </div>
+    );
+  }
 
   const getStrengthStyle = (tone: string) => {
     switch (tone) {
@@ -42,24 +45,24 @@ export function MatchAnalysisDetail({ currentJobId = "job-backend-dev", currentR
             <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm flex flex-col items-center justify-center text-center">
               <div className="text-[13px] text-gray-500 mb-1">匹配分数</div>
               <div className="text-3xl font-black text-[#0052D9] flex items-baseline">
-                {matchVm.matchScore}<span className="text-[12px] text-gray-400 font-medium ml-1">/ 100</span>
+                {data.matchScore}<span className="text-[12px] text-gray-400 font-medium ml-1">/ 100</span>
               </div>
             </div>
             
             <div className="bg-white p-4 rounded-lg border border-amber-100 shadow-sm flex flex-col items-center justify-center text-center">
               <div className="text-[13px] text-gray-500 mb-1">投递准备度</div>
-              <div className="text-[16px] font-bold text-amber-600">先修复后投递</div>
+              <div className="text-[16px] font-bold text-amber-600">{data.applyReadiness || "先修复后投递"}</div>
             </div>
             
             <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col items-center justify-center text-center">
               <div className="text-[13px] text-gray-500 mb-1">优化停止信号</div>
-              <div className="text-[15px] font-bold text-gray-800">修复 Top 3 后再投递</div>
+              <div className="text-[15px] font-bold text-gray-800">{data.optimizationStopSignal || "修复 Top 3 后再投递"}</div>
             </div>
           </div>
           
           <p className="text-[14px] text-gray-700 leading-relaxed bg-white/60 p-3.5 rounded border border-blue-50">
             <span className="font-semibold text-gray-900">一句话总结：</span>
-            {matchVm.summary}
+            {data.summary}
           </p>
         </div>
       </div>
@@ -72,7 +75,7 @@ export function MatchAnalysisDetail({ currentJobId = "job-backend-dev", currentR
             投递前最应该先修的 3 件事
           </h3>
           <div className="space-y-3">
-            {matchVm.topFixItems.map((task, i) => (
+            {data.topFixItems.map((task, i) => (
               <div key={i} className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-100 rounded-md hover:border-blue-100 transition-colors">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white border border-gray-300 text-gray-700 text-[13px] font-bold shrink-0 mt-0.5">
                   {i + 1}
@@ -115,7 +118,7 @@ export function MatchAnalysisDetail({ currentJobId = "job-backend-dev", currentR
               <div className="col-span-3">风险说明</div>
             </div>
             <div className="divide-y divide-gray-100 text-[12px] leading-relaxed">
-              {matchVm.evidenceChain.map((ev, i) => (
+              {data.evidenceChain.map((ev, i) => (
                 <div key={i} className="grid grid-cols-12 gap-4 p-3 items-start hover:bg-gray-50 transition-colors">
                   <div className="col-span-3 text-gray-800">{ev.jdRequirement}</div>
                   <div className="col-span-4 text-gray-600">{ev.resumeEvidence}</div>
@@ -137,7 +140,7 @@ export function MatchAnalysisDetail({ currentJobId = "job-backend-dev", currentR
               你的优势
             </h3>
             <ul className="space-y-2 text-[13px] text-gray-700 bg-green-50/30 p-4 rounded-md border border-green-100/50">
-              {matchVm.matchHighlights.map((item, i) => (
+              {data.matchHighlights.map((item, i) => (
                 <li key={i} className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 mt-1.5"></div>
                   {item}
@@ -153,7 +156,7 @@ export function MatchAnalysisDetail({ currentJobId = "job-backend-dev", currentR
               主要风险
             </h3>
             <ul className="space-y-2 text-[13px] text-amber-800 bg-amber-50/30 p-4 rounded-md border border-amber-100/50">
-              {matchVm.riskItems.map((item, i) => (
+              {data.riskItems.map((item, i) => (
                 <li key={i} className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-1.5"></div>
                   {item}
@@ -169,7 +172,7 @@ export function MatchAnalysisDetail({ currentJobId = "job-backend-dev", currentR
             <Zap className="w-5 h-5 text-[#0052D9] shrink-0 mt-0.5" />
             <div className="text-[14px] text-gray-700 leading-relaxed">
               <p className="font-bold text-gray-900 mb-1">下一步建议</p>
-              {matchVm.nextActions[0] || "建议先修复 Top 3 简历问题，再进入投递。"}
+              {data.nextActions[0] || "建议先修复 Top 3 简历问题，再进入投递。"}
             </div>
           </div>
           
