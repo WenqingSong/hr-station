@@ -125,11 +125,14 @@ export function MyResumesPage() {
   const mode: "edit" | "add" = location.pathname.includes("/new") ? "add" : "edit";
   const [savedHint, setSavedHint] = useState(false);
   const [currentResume, setCurrentResume] = useState<ResumeSummaryViewModel | null>(null);
+  const [resumeError, setResumeError] = useState(false);
 
   // 编辑模式：加载当前简历用于预填
   useEffect(() => {
     if (mode === "edit") {
-      loadCurrentResumeSummaryViewModel().then(setCurrentResume).catch(() => {});
+      loadCurrentResumeSummaryViewModel()
+        .then(setCurrentResume)
+        .catch(() => setResumeError(true));
     }
   }, [mode]);
 
@@ -365,6 +368,13 @@ export function MyResumesPage() {
               </button>
             </div>
           </div>
+
+          {/* Fallback notice for edit mode */}
+          {mode === "edit" && resumeError && (
+            <div className="bg-amber-50 border border-amber-200 px-5 py-3 mb-4 text-sm text-amber-700">
+              简历接口暂时不可用，已展示演示数据。
+            </div>
+          )}
 
           {/* Status bar */}
           <div className="bg-white border border-gray-200 px-5 py-3 mb-4 flex items-center gap-5 flex-wrap">

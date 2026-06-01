@@ -45,6 +45,11 @@ export function JobDetailAIDecision() {
           正在加载岗位详情…
         </div>
       )}
+      {!loading && !resumeVm && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+          简历接口暂时不可用，已展示演示数据。
+        </div>
+      )}
 
       {/* Currently Selected Job */}
       <div className="bg-white border border-gray-200 rounded-lg p-4">

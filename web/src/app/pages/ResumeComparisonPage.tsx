@@ -16,11 +16,12 @@ import type { ResumeComparisonViewModel } from "../../adapters";
 export function ResumeComparisonPage() {
   const [comparison, setComparison] = useState<ResumeComparisonViewModel | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     loadResumeComparisonViewModel("1", "2")
       .then(setComparison)
-      .catch(() => {})
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -28,6 +29,24 @@ export function ResumeComparisonPage() {
     return (
       <div className="max-w-[1360px] mx-auto px-6 py-12 text-center text-gray-400">
         正在加载版本对比…
+      </div>
+    );
+  }
+
+  if (error && !comparison) {
+    return (
+      <div className="max-w-[1360px] mx-auto px-6 py-12 text-center">
+        <p className="text-gray-500 text-sm mb-2">版本对比接口暂时不可用，已展示演示数据。</p>
+        <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
+      </div>
+    );
+  }
+
+  if (!comparison) {
+    return (
+      <div className="max-w-[1360px] mx-auto px-6 py-12 text-center">
+        <p className="text-gray-400 text-sm mb-2">暂无可比较的简历版本</p>
+        <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
       </div>
     );
   }

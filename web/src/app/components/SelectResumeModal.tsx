@@ -46,12 +46,17 @@ export function SelectResumeModal({
 }: SelectResumeModalProps) {
   const [selected, setSelected] = useState("v2");
   const [resumeOptions, setResumeOptions] = useState<ResumeOptionViewModel[]>([]);
+  const [loading, setLoading] = useState(false);
   const selectedResumeId = selected === "v3" ? "v2" : selected;
 
   useEffect(() => {
     if (isOpen) {
       setSelected("v2");
-      loadResumeOptionViewModels().then(setResumeOptions).catch(() => {});
+      setLoading(true);
+      loadResumeOptionViewModels()
+        .then(setResumeOptions)
+        .catch(() => {})
+        .finally(() => setLoading(false));
     }
   }, [isOpen]);
 
@@ -111,10 +116,12 @@ export function SelectResumeModal({
 
         {/* ── Resume cards ────────────────────────────────────────────── */}
         <div className="px-7 py-5 space-y-3 overflow-y-auto flex-1">
-          {resumeOptions.length === 0 && (
+          {loading ? (
             <p className="text-sm text-gray-400 py-8 text-center">正在加载简历列表…</p>
-          )}
-          {resumeOptions.map((resume) => {
+          ) : resumeOptions.length === 0 ? (
+            <p className="text-sm text-gray-400 py-8 text-center">暂无可选择的简历版本</p>
+          ) : (
+          resumeOptions.map((resume) => {
             const isMismatch = !!resume.mismatchReason;
             const isSelected = !isMismatch && selectedResumeId === resume.id;
 
@@ -217,7 +224,8 @@ export function SelectResumeModal({
                 </div>
               </div>
             );
-          })}
+          })
+          )}
 
           {/* Selection guidance */}
           <div className="pt-1 space-y-1.5">

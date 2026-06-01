@@ -82,13 +82,16 @@ export function ResumeManagementPage() {
   const [versionOpen, setVersionOpen] = useState(false);
   const [showSelectModal, setShowSelectModal] = useState(false);
   const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
+  const [resumeError, setResumeError] = useState(false);
 
   useEffect(() => {
-    loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {});
+    loadCurrentResumeSummaryViewModel()
+      .then(setResumeVm)
+      .catch(() => setResumeError(true));
   }, []);
 
   const activeVersion = resumeVersions.find((v) => v.id === currentVersion);
-  const loadedVersionLabel = resumeVm ? `V${resumeVm.version} ${resumeVm.name}` : "";
+  const loadedVersionLabel = resumeVm ? `V${resumeVm.version} ${resumeVm.name}` : (resumeError ? "暂无简历数据" : "");
 
   return (
     <>
