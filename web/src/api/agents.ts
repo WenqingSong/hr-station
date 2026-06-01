@@ -6,15 +6,11 @@ import type {
   RecommendationResult,
   MatchAnalysisResult,
   ResumeOptimizationResult,
-  Resume,
-  JobDetail,
 } from '../types';
 import {
   mockRecommendationResponse,
   mockMatchAnalysisResponse,
   mockResumeOptimizationResponse,
-  mockCurrentResume,
-  mockSelectedJob,
 } from '../mocks';
 
 // ─── 请求类型 ──────────────────────────────────────────────────────────────────
@@ -29,11 +25,10 @@ export interface MatchAnalysisRequest {
 }
 
 export interface ResumeOptimizationRequest {
-  job_id: string;
-  resume_id?: string;
-  resume_snapshot?: Resume;
-  job_snapshot?: JobDetail;
-  match_analysis_snapshot?: MatchAnalysisResult;
+  resume_text?: string;
+  target_job?: { title?: string; jd_text?: string };
+  target_section?: string;
+  user_intention?: string;
 }
 
 // ─── 类型别名 ──────────────────────────────────────────────────────────────────
@@ -109,15 +104,16 @@ export async function runMatchAnalysis(
 
 /**
  * 运行简历优化 — 优先调用后端 POST /resumes/optimize，失败返回 mock。
+ * 后端期望：{ resume_text, target_job: { title, jd_text }, target_section?, user_intention? }
  */
 export async function runResumeOptimization(
   input?: Partial<ResumeOptimizationRequest>,
 ): Promise<ResumeOptimizationAgentResponse> {
   const payload: ResumeOptimizationRequest = {
-    job_id: mockSelectedJob.id,
-    resume_id: mockCurrentResume.id,
-    resume_snapshot: mockCurrentResume,
-    job_snapshot: mockSelectedJob,
+    resume_text: "候选人后端开发经验",
+    target_job: { title: "后端开发工程师", jd_text: "要求Go/MySQL/Redis等后端能力" },
+    target_section: "project",
+    user_intention: "请优化项目经历表达，突出后端开发能力。",
     ...input,
   };
 
