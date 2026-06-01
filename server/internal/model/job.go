@@ -9,16 +9,18 @@ type Job struct {
 	Title             string
 	Department        string
 	City              string
+	Direction         string
 	Category          string
 	JobType           string
 	Description       string
 	Requirements      string
 	SkillKeywordsJSON []byte
+	Status            string
 	ExternalSource    string
 	ExternalID        *string
 	ExternalInnerID   *string
 	SourceURL         *string
-	RawJSON           []byte // stored but not exposed in API responses
+	RawJSON           []byte // stored but not exposed in API responses; json:"-" omitted intentionally
 	DataQuality       string
 	IsFeatured        bool
 	SyncedAt          *time.Time

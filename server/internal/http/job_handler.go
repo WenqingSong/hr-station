@@ -33,20 +33,23 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyword := r.URL.Query().Get("keyword")
-	city := r.URL.Query().Get("city")
-	category := r.URL.Query().Get("category")
-	externalSource := r.URL.Query().Get("external_source")
+	q := r.URL.Query()
+	keyword := q.Get("keyword")
+	direction := q.Get("direction")
+	city := q.Get("city")
+	recruitType := q.Get("recruit_type")
+	category := q.Get("category")
+	externalSource := q.Get("external_source")
 
 	limit := 20
-	if v := r.URL.Query().Get("limit"); v != "" {
+	if v := q.Get("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			limit = n
 		}
 	}
 
 	offset := 0
-	if v := r.URL.Query().Get("offset"); v != "" {
+	if v := q.Get("offset"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			offset = n
 		}
@@ -54,7 +57,9 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.jobService.List(r.Context(), service.JobListRequest{
 		Keyword:        keyword,
+		Direction:      direction,
 		City:           city,
+		RecruitType:    recruitType,
 		Category:       category,
 		ExternalSource: externalSource,
 		Limit:          limit,
@@ -100,6 +105,27 @@ func (h *JobHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.jobService.GetDetail(r.Context(), id)
 	if err != nil {
 		handleJobError(w, err)
+		return
+	}
+
+	response.OK(w, resp)
+}
+
+// Facets handles GET /api/jobs/facets — returns aggregated facet counts.
+func (h *JobHandler) Facets(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
+		return
+	}
+
+	if _, ok := middleware.UserIDFromContext(r.Context()); !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+		return
+	}
+
+	resp, err := h.jobService.GetFacets(r.Context())
+	if err != nil {
+		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
 		return
 	}
 

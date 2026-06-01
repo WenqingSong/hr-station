@@ -62,7 +62,9 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("/api/resumes/optimize", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeOptimizationHandler.Optimize)))
 
 	// Job routes (all require auth)
+	// NOTE: /api/jobs/facets MUST be registered before /api/jobs/ (wildcard prefix)
 	mux.Handle("/api/jobs", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.List)))
+	mux.Handle("/api/jobs/facets", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.Facets)))
 	mux.Handle("/api/jobs/recommend", deps.AuthMiddleware(http.HandlerFunc(deps.RecommendationHandler.Recommend)))
 	mux.Handle("/api/jobs/", deps.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dispatchJobRoutes(w, r, deps)
@@ -98,12 +100,19 @@ func healthzHandler(w http.ResponseWriter, r *http.Request, healthService *healt
 }
 
 // dispatchJobRoutes dispatches /api/jobs/ sub-routes based on path pattern.
+// - /api/jobs/facets     → JobHandler.Facets (GET)
 // - /api/jobs/{id}       → JobHandler.Detail (GET)
 // - /api/jobs/{id}/match → MatchHandler.Analyze (POST)
 func dispatchJobRoutes(w http.ResponseWriter, r *http.Request, deps RouterDeps) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/jobs/")
 	if path == "" {
 		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "job id is required")
+		return
+	}
+
+	// Route /api/jobs/facets
+	if path == "facets" {
+		deps.JobHandler.Facets(w, r)
 		return
 	}
 

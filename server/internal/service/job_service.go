@@ -12,7 +12,9 @@ import (
 // JobListRequest holds the parameters for listing jobs.
 type JobListRequest struct {
 	Keyword        string
+	Direction      string
 	City           string
+	RecruitType    string
 	Category       string
 	ExternalSource string
 	Limit          int
@@ -25,11 +27,14 @@ type JobResponse struct {
 	Title           string          `json:"title"`
 	Department      string          `json:"department"`
 	City            string          `json:"city"`
+	Direction       string          `json:"direction"`
 	Category        string          `json:"category"`
 	JobType         string          `json:"job_type"`
+	RecruitType     string          `json:"recruit_type"`
 	Description     string          `json:"description"`
 	Requirements    string          `json:"requirements"`
 	SkillKeywords   json.RawMessage `json:"skill_keywords"`
+	Status          string          `json:"status"`
 	ExternalSource  string          `json:"external_source"`
 	ExternalID      *string         `json:"external_id,omitempty"`
 	ExternalInnerID *string         `json:"external_inner_id,omitempty"`
@@ -49,10 +54,40 @@ type JobListResponse struct {
 	Offset int            `json:"offset"`
 }
 
+// FacetItem represents a single facet entry.
+type FacetItem struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Count int    `json:"count"`
+}
+
+// JobFacetsResponse represents aggregated facet counts.
+type JobFacetsResponse struct {
+	Directions   []FacetItem `json:"directions"`
+	Cities       []FacetItem `json:"cities"`
+	RecruitTypes []FacetItem `json:"recruit_types"`
+	Categories   []FacetItem `json:"categories"`
+}
+
 // ValidExternalSources defines allowed values for external_source filter.
 var ValidExternalSources = map[string]bool{
 	"local_mock":   true,
 	"tencent_join": true,
+}
+
+// --- label maps for facet output ---
+
+var directionLabels = map[string]string{
+	"软件开发":       "软件开发",
+	"算法与大数据":   "算法与大数据",
+	"产品策划与运营": "产品策划/运营",
+	"设计":          "设计",
+}
+
+var recruitTypeLabels = map[string]string{
+	"校招": "校园招聘",
+	"实习": "实习生",
+	"提前批": "提前批",
 }
 
 // JobService handles job business logic.
@@ -67,12 +102,10 @@ func NewJobService(jobRepo *repository.JobRepository) *JobService {
 
 // List returns a paginated list of jobs matching the request filters.
 func (s *JobService) List(ctx context.Context, req JobListRequest) (*JobListResponse, error) {
-	// Validate external_source if provided
 	if req.ExternalSource != "" && !ValidExternalSources[req.ExternalSource] {
 		return nil, fmt.Errorf("invalid external_source")
 	}
 
-	// Apply defaults and bounds
 	if req.Limit <= 0 {
 		req.Limit = 20
 	}
@@ -85,7 +118,9 @@ func (s *JobService) List(ctx context.Context, req JobListRequest) (*JobListResp
 
 	query := repository.JobQuery{
 		Keyword:        req.Keyword,
+		Direction:      req.Direction,
 		City:           req.City,
+		RecruitType:    req.RecruitType,
 		Category:       req.Category,
 		ExternalSource: req.ExternalSource,
 		Limit:          req.Limit,
@@ -122,8 +157,40 @@ func (s *JobService) GetDetail(ctx context.Context, id uint64) (*JobResponse, er
 	return toJobResponse(job), nil
 }
 
+// GetFacets returns aggregated facet counts for job filtering.
+func (s *JobService) GetFacets(ctx context.Context) (*JobFacetsResponse, error) {
+	f, err := s.jobRepo.GetFacets(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get facets: %w", err)
+	}
+
+	resp := &JobFacetsResponse{}
+
+	for _, d := range f.Directions {
+		label := d.Value
+		if l, ok := directionLabels[d.Value]; ok {
+			label = l
+		}
+		resp.Directions = append(resp.Directions, FacetItem{Value: d.Value, Label: label, Count: d.Count})
+	}
+	for _, c := range f.Cities {
+		resp.Cities = append(resp.Cities, FacetItem{Value: c.Value, Label: c.Value, Count: c.Count})
+	}
+	for _, r := range f.RecruitTypes {
+		label := r.Value
+		if l, ok := recruitTypeLabels[r.Value]; ok {
+			label = l
+		}
+		resp.RecruitTypes = append(resp.RecruitTypes, FacetItem{Value: r.Value, Label: label, Count: r.Count})
+	}
+	for _, c := range f.Categories {
+		resp.Categories = append(resp.Categories, FacetItem{Value: c.Value, Label: c.Value, Count: c.Count})
+	}
+
+	return resp, nil
+}
+
 // toJobResponse converts a model.Job to a JobResponse.
-// Note: raw_json is intentionally excluded from API responses.
 func toJobResponse(j *model.Job) *JobResponse {
 	var skillKeywords json.RawMessage
 	if len(j.SkillKeywordsJSON) > 0 {
@@ -138,16 +205,24 @@ func toJobResponse(j *model.Job) *JobResponse {
 		syncedAtStr = &s
 	}
 
+	status := j.Status
+	if status == "" {
+		status = "active"
+	}
+
 	return &JobResponse{
 		ID:              j.ID,
 		Title:           j.Title,
 		Department:      j.Department,
 		City:            j.City,
+		Direction:       j.Direction,
 		Category:        j.Category,
 		JobType:         j.JobType,
+		RecruitType:     j.JobType, // API 层 recruit_type 映射到 job_type
 		Description:     j.Description,
 		Requirements:    j.Requirements,
 		SkillKeywords:   skillKeywords,
+		Status:          status,
 		ExternalSource:  j.ExternalSource,
 		ExternalID:      j.ExternalID,
 		ExternalInnerID: j.ExternalInnerID,

@@ -80,11 +80,13 @@ CREATE TABLE `jobs` (
   `title`               VARCHAR(200)     NOT NULL,
   `department`          VARCHAR(200)     NOT NULL DEFAULT '',
   `city`                VARCHAR(100)     NOT NULL DEFAULT '',
+  `direction`           VARCHAR(100)     NOT NULL DEFAULT '',
   `category`            VARCHAR(100)     NOT NULL DEFAULT '',
   `job_type`            VARCHAR(100)     NOT NULL DEFAULT '',
   `description`         TEXT             NULL,
   `requirements`        TEXT             NULL,
   `skill_keywords_json` JSON             NULL,
+  `status`              VARCHAR(50)      NOT NULL DEFAULT 'active',
   `external_source`     VARCHAR(50)      NOT NULL DEFAULT 'local_mock' COMMENT '外部数据来源：local_mock / tencent_join',
   `external_id`         VARCHAR(100)     NULL COMMENT '外部岗位ID，腾讯岗位使用postId',
   `external_inner_id`   VARCHAR(100)     NULL COMMENT '外部系统内部ID，腾讯岗位可使用列表id',
@@ -98,6 +100,7 @@ CREATE TABLE `jobs` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_jobs_external_source_id` (`external_source`, `external_id`),
   KEY `idx_jobs_city` (`city`),
+  KEY `idx_jobs_direction` (`direction`),
   KEY `idx_jobs_category` (`category`),
   KEY `idx_jobs_title` (`title`),
   KEY `idx_jobs_external_source` (`external_source`),
@@ -199,53 +202,53 @@ INSERT INTO `resume_versions` (`id`, `user_id`, `version_no`, `name`, `phone`, `
 -- 阶段 4-1.3.1 更新：新增 external_source / external_id / raw_json / data_quality / is_featured / synced_at
 -- 本地 Mock 岗位：external_source=local_mock, data_quality=manual_enriched, is_featured=1
 -- -----------------------------------------------------------
-INSERT INTO `jobs` (`id`, `title`, `department`, `city`, `category`, `job_type`, `description`, `requirements`, `skill_keywords_json`, `external_source`, `external_id`, `external_inner_id`, `source_url`, `raw_json`, `data_quality`, `is_featured`, `synced_at`) VALUES
-(1, 'Go 后端开发工程师', '技术部', '深圳', '后端开发', '校招',
+INSERT INTO `jobs` (`id`, `title`, `department`, `city`, `direction`, `category`, `job_type`, `description`, `requirements`, `skill_keywords_json`, `status`, `external_source`, `external_id`, `external_inner_id`, `source_url`, `raw_json`, `data_quality`, `is_featured`, `synced_at`) VALUES
+(1, 'Go 后端开发工程师', '技术部', '深圳', '软件开发', '后端开发', '校招',
   '负责公司核心业务系统的后端开发与维护，参与微服务架构设计，保障系统高可用与高性能。与产品经理、前端工程师紧密协作，推动业务快速迭代。',
   '1. 计算机相关专业本科及以上学历\n2. 熟练掌握 Go 语言，了解 Goroutine、Channel 等并发模型\n3. 熟悉 MySQL、Redis 等存储系统\n4. 了解微服务架构，有 Docker/Kubernetes 使用经验优先\n5. 良好的沟通能力和团队协作精神',
-  '["Go","MySQL","Redis","Docker","Kubernetes","微服务"]',
+  '["Go","MySQL","Redis","Docker","Kubernetes","微服务"]', 'active',
   'local_mock', 'local_mock_1', NULL, NULL, JSON_OBJECT('source', 'local_mock', 'note', 'seed demo job'), 'manual_enriched', 1, NULL),
 
-(2, '云计算研发工程师', '云平台部', '深圳', '云计算', '校招',
+(2, '云计算研发工程师', '云平台部', '深圳', '软件开发', '云计算', '校招',
   '参与公司云平台核心组件的研发，包括容器编排、资源调度、监控告警等方向。使用 Go 语言开发高性能的云原生基础设施。',
   '1. 计算机相关专业本科及以上学历\n2. 熟练掌握 Go 或 C++ 语言\n3. 熟悉 Linux 操作系统，了解容器技术（Docker/Kubernetes）\n4. 有分布式系统开发经验优先\n5. 对云原生技术有热情，具备快速学习能力',
-  '["Go","Kubernetes","Docker","Linux","分布式系统","容器编排"]',
+  '["Go","Kubernetes","Docker","Linux","分布式系统","容器编排"]', 'active',
   'local_mock', 'local_mock_2', NULL, NULL, JSON_OBJECT('source', 'local_mock', 'note', 'seed demo job'), 'manual_enriched', 1, NULL),
 
-(3, 'AI 应用开发工程师', 'AI应用部', '北京', 'AI应用', '校招',
+(3, 'AI 应用开发工程师', 'AI应用部', '北京', '算法与大数据', 'AI应用', '校招',
   '参与 AI 应用产品的后端开发，构建智能推荐、对话系统、RAG 等应用的 API 服务和工程化落地。',
   '1. 计算机相关专业本科及以上学历\n2. 熟练掌握 Go 或 Python 语言\n3. 熟悉 LLM API 调用（OpenAI/腾讯混元等）\n4. 了解向量数据库和 RAG 架构优先\n5. 有 Prompt 工程经验优先',
-  '["Go","Python","LLM","RAG","向量数据库","Prompt工程"]',
+  '["Go","Python","LLM","RAG","向量数据库","Prompt工程"]', 'active',
   'local_mock', 'local_mock_3', NULL, NULL, JSON_OBJECT('source', 'local_mock', 'note', 'seed demo job'), 'manual_enriched', 1, NULL),
 
-(4, '数据开发工程师', '数据平台部', '上海', '数据开发', '校招',
+(4, '数据开发工程师', '数据平台部', '上海', '算法与大数据', '数据开发', '校招',
   '参与公司大数据平台的开发与维护，建设实时和离线数据处理链路，支持业务数据分析与决策。',
   '1. 计算机或数学相关专业本科及以上学历\n2. 熟悉 SQL，了解 Hive/Spark/Flink 等大数据框架\n3. 掌握至少一门编程语言（Go/Python/Java）\n4. 有数据仓库建设经验优先\n5. 良好的数据敏感度和分析能力',
-  '["SQL","Python","Spark","Flink","Hive","数据仓库"]',
+  '["SQL","Python","Spark","Flink","Hive","数据仓库"]', 'active',
   'local_mock', 'local_mock_4', NULL, NULL, JSON_OBJECT('source', 'local_mock', 'note', 'seed demo job'), 'manual_enriched', 1, NULL),
 
-(5, '测试开发工程师', '质量部', '广州', '测试开发', '校招',
+(5, '测试开发工程师', '质量部', '广州', '软件开发', '测试开发', '校招',
   '负责核心业务的质量保障工作，开发自动化测试框架和工具，推动持续集成和持续交付。',
   '1. 计算机相关专业本科及以上学历\n2. 熟悉至少一门编程语言（Go/Python/Java）\n3. 了解自动化测试框架（如 Selenium、Pytest）\n4. 有 CI/CD 经验优先\n5. 细心、有责任心，善于发现和定位问题',
-  '["Go","Python","自动化测试","CI/CD","Selenium","Pytest"]',
+  '["Go","Python","自动化测试","CI/CD","Selenium","Pytest"]', 'active',
   'local_mock', 'local_mock_5', NULL, NULL, JSON_OBJECT('source', 'local_mock', 'note', 'seed demo job'), 'manual_enriched', 1, NULL),
 
-(6, '产品经理', '产品部', '杭州', '产品', '校招',
+(6, '产品经理', '产品部', '杭州', '产品策划与运营', '产品', '校招',
   '负责公司核心产品的规划与设计，深入理解用户需求，制定产品路线图，推动产品落地与迭代。',
   '1. 本科及以上学历，专业不限\n2. 对互联网产品有浓厚兴趣，有产品实习经验优先\n3. 良好的逻辑思维和数据分析能力\n4. 优秀的沟通能力和跨团队协作能力\n5. 有技术背景优先',
-  '["产品设计","需求分析","数据分析","用户研究","Figma"]',
+  '["产品设计","需求分析","数据分析","用户研究","Figma"]', 'active',
   'local_mock', 'local_mock_6', NULL, NULL, JSON_OBJECT('source', 'local_mock', 'note', 'seed demo job'), 'manual_enriched', 1, NULL),
 
-(7, '前端开发工程师', '前端组', '北京', '前端开发', '校招',
+(7, '前端开发工程师', '前端组', '北京', '软件开发', '前端开发', '校招',
   '负责公司 Web 前端的开发与优化，使用 React/Vue 构建高质量的用户界面，推动前端工程化建设。',
   '1. 计算机相关专业本科及以上学历\n2. 熟练掌握 JavaScript/TypeScript，熟悉 React 或 Vue 框架\n3. 了解前端工程化工具（Webpack/Vite）\n4. 有移动端 H5 或小程序开发经验优先\n5. 对用户体验和代码质量有追求',
-  '["JavaScript","TypeScript","React","Vue","CSS","前端工程化"]',
+  '["JavaScript","TypeScript","React","Vue","CSS","前端工程化"]', 'active',
   'local_mock', 'local_mock_7', NULL, NULL, JSON_OBJECT('source', 'local_mock', 'note', 'seed demo job'), 'manual_enriched', 1, NULL),
 
-(8, '算法工程师', 'AI算法部', '深圳', '算法', '校招',
+(8, '算法工程师', 'AI算法部', '深圳', '算法与大数据', '算法', '校招',
   '参与推荐系统、NLP、搜索排序等方向的算法研发，将前沿 AI 技术落地到业务场景。',
   '1. 计算机或数学相关专业硕士及以上学历\n2. 熟悉机器学习基础理论，了解深度学习框架（PyTorch/TensorFlow）\n3. 有推荐系统或 NLP 项目经验优先\n4. 熟悉 Python，了解 C++ 优先\n5. 有顶会论文发表优先',
-  '["机器学习","深度学习","PyTorch","NLP","推荐系统","Python"]',
+  '["机器学习","深度学习","PyTorch","NLP","推荐系统","Python"]', 'active',
   'local_mock', 'local_mock_8', NULL, NULL, JSON_OBJECT('source', 'local_mock', 'note', 'seed demo job'), 'manual_enriched', 1, NULL);
 
 -- -----------------------------------------------------------
