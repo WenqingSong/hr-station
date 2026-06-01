@@ -7,6 +7,7 @@ import type {
   ResumeProject,
   ResumeOption,
   ResumeVersionComparison,
+  ResumeVersionListItem,
   ResumeKeywordChange,
   ResumeProjectChange,
 } from '../types';
@@ -130,24 +131,21 @@ export function toResumeOptionViewModels(
 
 // ─── API versions → Options（10-1） ──────────────────────────────────────────
 
-/** 从真实 Resume 版本列表构建简历选项 VM */
-export function toResumeOptionViewModelsFromApi(
-  resumes: Resume[],
+/** 从真实版本列表构建简历选项 VM（10-1-R：使用 ResumeVersionListItem） */
+export function toResumeOptionViewModelsFromVersions(
+  versions: ResumeVersionListItem[],
 ): ResumeOptionViewModel[] {
-  return resumes.map((r, i) => {
-    const versionNo = r.version ? parseInt(r.version, 10) : i + 1;
-    return {
-      id: String(versionNo),
-      name: r.name || `版本 ${versionNo}`,
-      statusLabel: i === 0 ? "当前使用" : "历史版本",
-      directionLabel: r.direction_label || "",
-      tags: r.skills?.slice(0, 3) || [],
-      projectCount: r.projects?.length || 0,
-      updatedAt: r.updated_at || "",
-      isDefault: i === 0,
-      isRecommended: i === 0,
-    };
-  });
+  return versions.map((v, i) => ({
+    id: String(v.version_no),
+    name: v.name || `简历版本 V${v.version_no}`,
+    statusLabel: i === 0 ? "当前使用" : "历史版本",
+    directionLabel: v.target_role || "",
+    tags: v.target_city ? [v.target_city] : [],
+    projectCount: 0,
+    updatedAt: v.created_at?.substring(0, 10) || "",
+    isDefault: i === 0,
+    isRecommended: i === 0,
+  }));
 }
 
 // ─── Management Page VM ─────────────────────────────────────────────────────────

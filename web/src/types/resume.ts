@@ -96,6 +96,22 @@ export interface ResumeProjectChange {
   change_note: string;
 }
 
+/** 简历版本列表项（from GET /api/resumes/versions） */
+export interface ResumeVersionListItem {
+  id: number;
+  version_no: number;
+  name: string;
+  target_city: string;
+  target_role: string;
+  created_at: string;
+}
+
+/** 简历版本列表响应 */
+export interface ResumeVersionsResponse {
+  versions: ResumeVersionListItem[];
+  total: number;
+}
+
 /** 简历版本比较（历史比��页） */
 export interface ResumeVersionComparison {
   base_resume: Resume;

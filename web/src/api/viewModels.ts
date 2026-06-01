@@ -7,6 +7,7 @@ import {
   getCurrentResume,
   getResumeDetail,
   getResumeOptions,
+  getResumeVersions,
   compareResumes,
 } from './index';
 import {
@@ -25,6 +26,7 @@ import {
   toJobDetailViewModel,
   toResumeSummaryViewModel,
   toResumeOptionViewModels,
+  toResumeOptionViewModelsFromVersions,
   toResumeManagementViewModel,
   toResumeComparisonViewModel,
   toRecommendationPageViewModel,
@@ -77,14 +79,18 @@ export async function loadResumeOptionViewModels(): Promise<ResumeOptionViewMode
   return toResumeOptionViewModels(options);
 }
 
-/** 从真实 API versions 构建简历选项（10-1 新增） */
+/** 从真实 API versions 构建简历选项（10-1-R：使用 ResumeVersionListItem） */
 export async function loadResumeOptionViewModelsFromApi(): Promise<ResumeOptionViewModel[]> {
   try {
-    const versions = await getResumes(); // GET /resumes/versions → Resume[]
-    return toResumeOptionViewModelsFromApi(versions);
+    const versions = await getResumeVersions(); // {versions, total} → versions[]
+    if (versions.length > 0) {
+      return toResumeOptionViewModelsFromVersions(versions);
+    }
+    // versions 为空，fallback
+    const options = await getResumeOptions();
+    return toResumeOptionViewModels(options);
   } catch {
-    // fallback 到 mocks（异常兜底）
-    const options = await getResumeOptions(); // fallback to mockResumeOptions
+    const options = await getResumeOptions();
     return toResumeOptionViewModels(options);
   }
 }

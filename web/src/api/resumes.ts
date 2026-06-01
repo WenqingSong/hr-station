@@ -5,6 +5,8 @@ import type {
   Resume,
   ResumeOption,
   ResumeVersionComparison,
+  ResumeVersionsResponse,
+  ResumeVersionListItem,
 } from '../types';
 import {
   mockCurrentResume,
@@ -34,6 +36,16 @@ export async function getResumes(): Promise<Resume[]> {
     () => get<Resume[]>('/resumes/versions'),
     () => mockResumeVersions,
   );
+}
+
+/** 获取版本列表（真实 {versions, total} 结构，10-1-R） */
+export async function getResumeVersions(): Promise<ResumeVersionListItem[]> {
+  try {
+    const response = await get<ResumeVersionsResponse>('/resumes/versions');
+    return Array.isArray(response?.versions) ? response.versions : [];
+  } catch {
+    return []; // API 失败返回空数组，让调用方决定 fallback
+  }
 }
 
 /**
