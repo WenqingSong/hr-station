@@ -25,10 +25,7 @@ export interface RecommendationRequest {
 }
 
 export interface MatchAnalysisRequest {
-  job_id: string;
-  resume_id?: string;
-  resume_snapshot?: Resume;
-  job_snapshot?: JobDetail;
+  resume_version_no?: number;
 }
 
 export interface ResumeOptimizationRequest {
@@ -86,17 +83,15 @@ export async function runRecommendation(
 // ─── 岗位匹配分析 ──────────────────────────────────────────────────────────────
 
 /**
- * 运行岗位匹配分析 — 优先调用后端 POST /jobs/{jobId}/match，失败返回 mock。
+ * 运行岗位匹配分析 — 优先调用后端 POST /jobs/{jobId}/match（{ resume_version_no }），失败返回 mock。
+ * jobId 通过 path 参数传递，resume_version_no 通过 body 传递。
  */
 export async function runMatchAnalysis(
   jobId: string,
   input?: Partial<MatchAnalysisRequest>,
 ): Promise<MatchAnalysisAgentResponse> {
   const payload: MatchAnalysisRequest = {
-    job_id: jobId,
-    resume_id: mockCurrentResume.id,
-    resume_snapshot: mockCurrentResume,
-    job_snapshot: mockSelectedJob,
+    resume_version_no: 2,
     ...input,
   };
 
