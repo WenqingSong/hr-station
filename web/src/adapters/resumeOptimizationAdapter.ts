@@ -84,17 +84,20 @@ export function toResumeOptimizationPageViewModel(
   result: ResumeOptimizationResult,
   meta?: AgentResponseMeta,
 ): ResumeOptimizationPageViewModel {
+  const keywordAlignment = Array.isArray(result.keyword_alignment) ? result.keyword_alignment : [];
+  const projectOptimization = Array.isArray(result.project_optimization) ? result.project_optimization : [];
+  const rewriteExamples = Array.isArray(result.rewrite_examples) ? result.rewrite_examples : [];
   return {
-    summary: result.summary,
-    applyReadiness: result.apply_readiness,
-    optimizationStopSignal: result.optimization_stop_signal,
+    summary: result.summary ?? '',
+    applyReadiness: result.apply_readiness ?? '',
+    optimizationStopSignal: result.optimization_stop_signal ?? '',
     topFixItems: toTopFixItemViewModels(result.top_fix_items),
-    keywordAlignment: result.keyword_alignment.map(toKeywordAlignmentViewModel),
-    projectOptimization: result.project_optimization.map(toProjectOptimizationViewModel),
-    missingEvidencePlan: result.missing_evidence_plan,
-    rewriteExamples: result.rewrite_examples.map(toRewriteExampleViewModel),
-    verificationNotice: result.verification_notice,
-    finalChecklist: result.final_checklist,
+    keywordAlignment: keywordAlignment.map(toKeywordAlignmentViewModel),
+    projectOptimization: projectOptimization.map(toProjectOptimizationViewModel),
+    missingEvidencePlan: Array.isArray(result.missing_evidence_plan) ? result.missing_evidence_plan : [],
+    rewriteExamples: rewriteExamples.map(toRewriteExampleViewModel),
+    verificationNotice: result.verification_notice ?? '',
+    finalChecklist: Array.isArray(result.final_checklist) ? result.final_checklist : [],
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
   };
 }

@@ -56,15 +56,16 @@ export function toRecommendationPageViewModel(
   result: RecommendationResult,
   meta?: AgentResponseMeta,
 ): RecommendationPageViewModel {
+  const recommendedJobs = Array.isArray(result.recommended_jobs) ? result.recommended_jobs : [];
   return {
-    summary: result.recommendation_summary,
-    recommendedJobs: result.recommended_jobs.map(toRecommendedJobViewModel),
-    applyReadiness: result.apply_readiness,
-    optimizationStopSignal: result.optimization_stop_signal,
+    summary: result.recommendation_summary ?? '',
+    recommendedJobs: recommendedJobs.map(toRecommendedJobViewModel),
+    applyReadiness: result.apply_readiness ?? '',
+    optimizationStopSignal: result.optimization_stop_signal ?? '',
     topFixItems: toTopFixItemViewModels(result.top_fix_items),
     evidenceChain: toEvidenceItemViewModels(result.evidence_chain),
-    riskItems: result.risk_items,
-    nextActions: result.next_actions,
+    riskItems: Array.isArray(result.risk_items) ? result.risk_items : [],
+    nextActions: Array.isArray(result.next_actions) ? result.next_actions : [],
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
   };
 }

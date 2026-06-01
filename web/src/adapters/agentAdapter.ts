@@ -78,6 +78,7 @@ export function toTopFixItemViewModel(item: TopFixItem): TopFixItemViewModel {
 }
 
 export function toTopFixItemViewModels(items: TopFixItem[]): TopFixItemViewModel[] {
+  if (!Array.isArray(items)) return [];
   return items.map(toTopFixItemViewModel);
 }
 
@@ -94,5 +95,6 @@ export function toEvidenceItemViewModel(item: EvidenceItem): EvidenceItemViewMod
 export function toEvidenceItemViewModels(
   items: EvidenceItem[],
 ): EvidenceItemViewModel[] {
+  if (!Array.isArray(items)) return [];
   return items.map(toEvidenceItemViewModel);
 }
