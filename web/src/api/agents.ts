@@ -20,8 +20,7 @@ import {
 // ─── 请求类型 ──────────────────────────────────────────────────────────────────
 
 export interface RecommendationRequest {
-  resume_id?: string;
-  resume_snapshot?: Resume;
+  resume_version_no?: number;
   limit?: number;
 }
 
@@ -62,14 +61,14 @@ async function withMockFallback<T>(
 // ─── 岗位推荐 ──────────────────────────────────────────────────────────────────
 
 /**
- * 运行岗位推荐 — 优先调用后端 POST /jobs/recommend，失败返回 mock。
+ * 运行岗位推荐 — 优先调用后端 POST /jobs/recommend（{ resume_version_no, limit }），失败返回 mock。
+ * 后端当前走 Mock Agent（llm_api_key_missing fallback），响应包含 result.recommended_jobs。
  */
 export async function runRecommendation(
   input?: Partial<RecommendationRequest>,
 ): Promise<RecommendationAgentResponse> {
   const payload: RecommendationRequest = {
-    resume_id: mockCurrentResume.id,
-    resume_snapshot: mockCurrentResume,
+    resume_version_no: 2,
     limit: 5,
     ...input,
   };
