@@ -15,6 +15,8 @@ const (
 	PromptJSONRepair PromptName = "json_repair"
 	// PromptVersionCompare is the version compare Agent prompt.
 	PromptVersionCompare PromptName = "version_compare"
+	// PromptResumeOptimizationCore is the resume optimization core prompt.
+	PromptResumeOptimizationCore PromptName = "resume_optimization_core"
 )
 
 // Template holds a loaded Prompt template.

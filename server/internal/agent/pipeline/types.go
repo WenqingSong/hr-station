@@ -17,6 +17,7 @@ const (
 	TargetResumeOptimization TargetOutputType = "resume_optimization"
 	// TargetCompare indicates a version compare output.
 	TargetCompare TargetOutputType = "version_compare"
+	TargetResumeOptimizationCore TargetOutputType = "resume_optimization_core"
 )
 
 // validTargetOutputTypes contains all allowed TargetOutputType values.
@@ -24,7 +25,8 @@ var validTargetOutputTypes = map[TargetOutputType]bool{
 	TargetMatchAnalysis:      true,
 	TargetRecommendation:     true,
 	TargetResumeOptimization: true,
-	TargetCompare:            true,
+	TargetCompare:                true,
+	TargetResumeOptimizationCore: true,
 }
 
 // AgentStatus describes the outcome of a pipeline run.

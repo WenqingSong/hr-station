@@ -42,6 +42,7 @@ var mapping = map[PromptName]string{
 	PromptResumeOptimization: "resume_optimization_v1.md",
 	PromptJSONRepair:         "json_repair_v1.md",
 	PromptVersionCompare:     "version_compare_v1.md",
+	PromptResumeOptimizationCore: "resume_optimization_core_v1.md",
 }
 
 // Loader loads Prompt template files from a configured directory.

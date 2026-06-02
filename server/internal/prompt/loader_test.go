@@ -132,17 +132,17 @@ func TestLoader_List(t *testing.T) {
 	l := NewLoader(testBaseDir)
 	names := l.List()
 
-	if len(names) != 5 {
-		t.Fatalf("List returned %d names, want 5", len(names))
+	if len(names) != 6 {
+		t.Fatalf("List returned %d names, want 6", len(names))
 	}
 
-	// Verify the five expected names.
 	expected := map[PromptName]bool{
-		PromptMatchAnalysis:      true,
-		PromptRecommendation:     true,
-		PromptResumeOptimization: true,
-		PromptJSONRepair:         true,
-		PromptVersionCompare:     true,
+		PromptMatchAnalysis:          true,
+		PromptRecommendation:         true,
+		PromptResumeOptimization:     true,
+		PromptJSONRepair:             true,
+		PromptVersionCompare:         true,
+		PromptResumeOptimizationCore: true,
 	}
 	for _, n := range names {
 		if !expected[n] {

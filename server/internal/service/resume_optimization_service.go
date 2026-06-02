@@ -21,6 +21,7 @@ type ResumeOptimizationRequest struct {
 	TargetJob     *model.ResumeOptimizationTargetJob     `json:"target_job,omitempty"`
 	TargetSection string                                 `json:"target_section,omitempty"`
 	UserIntention *model.ResumeOptimizationUserIntention `json:"user_intention,omitempty"`
+	Mode          string                                 `json:"mode,omitempty"` // "core" — use Core Agent
 }
 
 // ResumeOptimizationResponse represents the response for resume optimization.
@@ -62,12 +63,15 @@ func NewResumeOptimizationService(
 // first. If the Pipeline returns fallback_required or mapping fails, it falls
 // back to the Mock Agent. When LLM is disabled, it uses the Mock Agent directly.
 func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64, req ResumeOptimizationRequest) (*ResumeOptimizationResponse, error) {
-	// Validate request
 	if err := validateOptimizeRequest(req); err != nil {
 		return nil, err
 	}
 
-	// Build agent input
+	// Dispatch to Core Agent if mode=core
+	if req.Mode == "core" {
+		return s.optimizeCore(ctx, userID, req)
+	}
+
 	input := &agent.OptimizeInput{
 		ResumeText:    req.ResumeText,
 		TargetSection: req.TargetSection,
@@ -250,6 +254,95 @@ func (s *ResumeOptimizationService) GetLatestOptimization(ctx context.Context, u
 		CreatedAt:      snapshot.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Meta: model.NewAgentResponseMeta(model.AgentNameResumeOptimization),
 	}, nil
+}
+
+// optimizeCore uses the Core Agent (LLM → Mock fallback).
+func (s *ResumeOptimizationService) optimizeCore(ctx context.Context, userID uint64, req ResumeOptimizationRequest) (*ResumeOptimizationResponse, error) {
+	input := &agent.OptimizeInput{ResumeText: req.ResumeText}
+	if req.TargetJob != nil {
+		input.JobTitle = req.TargetJob.Title
+		input.JDText = req.TargetJob.JDText
+	}
+
+	now := time.Now()
+	meta := model.NewAgentResponseMeta(model.AgentNameResumeOptimization)
+
+	// Try LLM Core Agent
+	if s.llmEnabled && s.pipelineRunner != nil {
+		coreAgent := agent.NewCoreLLMAgent(s.pipelineRunner)
+		coreResult, fbErr := coreAgent.Optimize(ctx, input)
+		if fbErr == nil {
+			return &ResumeOptimizationResponse{
+				GeneratedBy: coreResult.GeneratedBy,
+				CreatedAt:   now.Format("2006-01-02T15:04:05Z07:00"),
+				Meta: model.DeriveMetaFromResult(model.AgentNameResumeOptimization,
+					coreResult.GeneratedBy, coreResult.AgentStatus, "", "", false),
+				Result: &model.ResumeOptimizationResult{
+					Summary: coreResult.OptimizationSummary,
+					ApplyReadiness: coreResult.ApplyReadiness,
+					OptimizationStopSignal: coreResult.OptimizationStopSignal,
+					TopFixItems: mapCoreFixToModel(coreResult.TopFixItems),
+					JDEvidenceChain: mapCoreKeywordsToEvidence(coreResult.MissingKeywords),
+					VerificationNotice: coreResult.AuthenticityNotice,
+					GeneratedBy: coreResult.GeneratedBy,
+					AgentStatus: coreResult.AgentStatus,
+				},
+			}, nil
+		}
+		log.Printf("[optimizeCore] LLM fallback: %v", fbErr)
+	}
+
+	// Fallback to Core Mock
+	mockResult := agent.NewCoreMockAgent().Optimize(input)
+	return &ResumeOptimizationResponse{
+		GeneratedBy: "mock_agent",
+		CreatedAt:   now.Format("2006-01-02T15:04:05Z07:00"),
+		Meta:        meta,
+		Result: &model.ResumeOptimizationResult{
+			Summary:           mockResult.OptimizationSummary,
+			ApplyReadiness:    mockResult.ApplyReadiness,
+			TopFixItems:       mapCoreFixToModel(mockResult.TopFixItems),
+			VerificationNotice: mockResult.AuthenticityNotice,
+			GeneratedBy:       "mock_agent",
+			AgentStatus:       "mock_success",
+			LongTermImprovement: mapCoreChecklistToLongTerm(mockResult.FinalChecklist),
+		},
+	}, nil
+}
+
+func mapCoreFixToModel(items []agent.CoreFixItem) []model.ResumeOptimizationFixItem {
+	var out []model.ResumeOptimizationFixItem
+	for _, it := range items {
+		out = append(out, model.ResumeOptimizationFixItem{
+			Issue:            it.Issue,
+			WhyItMatters:     it.WhyItMatters,
+			Action:           it.Action,
+			ExampleReference: it.RewriteExample,
+			SelfCheckQuestion: it.JDEvidence + " | " + it.ResumeGap,
+		})
+	}
+	return out
+}
+
+func mapCoreKeywordsToEvidence(keywords []string) []model.ResumeOptimizationJDEvidenceItem {
+	var out []model.ResumeOptimizationJDEvidenceItem
+	for _, kw := range keywords {
+		out = append(out, model.ResumeOptimizationJDEvidenceItem{
+			JDRequirement:  kw,
+			ResumeEvidence: "简历中暂未看到直接证据",
+			EvidenceStrength: "missing",
+			MatchJudgement: "missing",
+		})
+	}
+	return out
+}
+
+func mapCoreChecklistToLongTerm(items []string) []model.ResumeOptimizationLongTermItem {
+	var out []model.ResumeOptimizationLongTermItem
+	for _, item := range items {
+		out = append(out, model.ResumeOptimizationLongTermItem{Direction: item})
+	}
+	return out
 }
 
 // validateOptimizeRequest validates the resume optimization request.

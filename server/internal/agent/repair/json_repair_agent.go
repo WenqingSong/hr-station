@@ -189,6 +189,8 @@ func schemaNameFromTarget(t TargetOutputType) schema.SchemaName {
 		return schema.SchemaResumeOptimization
 	case TargetCompare:
 		return schema.SchemaVersionCompare
+	case TargetResumeOptimizationCore:
+		return schema.SchemaResumeOptimizationCore
 	default:
 		return schema.SchemaMatchAnalysis
 	}
