@@ -24,6 +24,8 @@ export interface ResumeOptimizationRequest {
   target_job?: { title?: string; jd_text?: string };
   target_section?: string;
   user_intention?: string;
+  /** "core" — use ResumeOptimizationCoreAgent (default: full agent) */
+  mode?: "core";
 }
 
 // ─── 类型别名 ──────────────────────────────────────────────────────────────────

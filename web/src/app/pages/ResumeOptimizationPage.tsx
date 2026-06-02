@@ -72,6 +72,10 @@ export function ResumeOptimizationPage() {
   const resumeId = searchParams.get("resumeId");
   const resumeVersionNo = searchParams.get("resumeVersionNo");
 
+  // 优化模式：standard（默认）/ core
+  const [optimizationMode, setOptimizationMode] = useState<"standard" | "core">("standard");
+  const [modeChanged, setModeChanged] = useState(false);
+
   // 目标岗位
   const [job, setJob] = useState<JobApiItem | null>(null);
   const [loadingJob, setLoadingJob] = useState(!!jobId);
@@ -139,7 +143,7 @@ export function ResumeOptimizationPage() {
       .finally(() => setLoadingResumeDetail(false));
   }, [selectedOption]);
 
-  // 触发优化 Agent（job + resume detail 均加载成功后）
+  // 触发优化 Agent（job + resume detail 均加载成功后、或 mode 变化后）
   useEffect(() => {
     if (!job || !selectedResumeDetail) return;
 
@@ -148,15 +152,22 @@ export function ResumeOptimizationPage() {
 
     setLoadingOptimize(true);
     setOptimizeError(null);
-    loadResumeOptimizationViewModel({
+    const request: Parameters<typeof loadResumeOptimizationViewModel>[0] = {
       resume_text: resumeText,
       target_job: targetJob,
       target_section: "project",
-    })
-      .then(setResult)
+    };
+    if (optimizationMode === "core") {
+      request.mode = "core";
+    }
+    loadResumeOptimizationViewModel(request)
+      .then((vm) => {
+        setModeChanged(false);
+        setResult(vm);
+      })
       .catch(() => setOptimizeError("简历优化失败，请稍后重试。"))
       .finally(() => setLoadingOptimize(false));
-  }, [job, selectedResumeDetail]);
+  }, [job, selectedResumeDetail, optimizationMode]);
 
   // ── 空态：缺 jobId ──
   if (!jobId) {
@@ -250,6 +261,41 @@ export function ResumeOptimizationPage() {
   return (
     <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6 pb-12">
       <ResumeOptimizationHeader job={job} resume={resumeForDisplay} jobSource={jobSource} resumeSource={resumeSource} />
+
+      {/* 优化模式切换 */}
+      <div className="flex items-center gap-3 mt-5 mb-1">
+        <span className="text-[13px] text-gray-500 font-medium">优化模式：</span>
+        <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200">
+          <button
+            type="button"
+            className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+              optimizationMode === "standard"
+                ? "bg-white text-[#0052D9] shadow-sm border border-gray-200"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+            onClick={() => { if (optimizationMode !== "standard") { setOptimizationMode("standard"); setModeChanged(true); } }}
+          >
+            标准优化
+          </button>
+          <button
+            type="button"
+            className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+              optimizationMode === "core"
+                ? "bg-white text-[#0052D9] shadow-sm border border-gray-200"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+            onClick={() => { if (optimizationMode !== "core") { setOptimizationMode("core"); setModeChanged(true); } }}
+          >
+            Core 优化
+          </button>
+        </div>
+        <span className="text-[12px] text-gray-400">
+          {optimizationMode === "core"
+            ? "使用 Optimization Core Agent，输出最关键的 2-3 条优化建议"
+            : "使用完整简历优化链路，含关键词对齐、项目优化等详细建议"}
+        </span>
+      </div>
+
       <div className="flex gap-6 mt-6 items-start">
         <ResumeOptimizationSidebarLeft job={job} jobSource={jobSource} />
         <ResumeOptimizationDetail currentJobId={jobId} currentResumeId={String(selectedOption.id)} data={result} />
