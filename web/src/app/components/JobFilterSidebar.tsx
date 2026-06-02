@@ -9,6 +9,8 @@ export interface JobFilters {
   category?: string;
   business_group?: string;
   skill?: string;
+  application_project?: string;
+  application_subtype?: string;
 }
 
 interface JobFilterSidebarProps {
@@ -95,6 +97,30 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
         )}
         {facets && (
           <div className="space-y-5">
+            {facets.application_projects && facets.application_projects.length > 0 && (
+              <FilterGroup
+                title="应聘项目"
+                items={facets.application_projects}
+                selectedValue={filters.application_project}
+                onSelect={(v) => toggleFilter("application_project", v)}
+              />
+            )}
+            {facets.application_subtypes && facets.application_subtypes.length > 0 && (
+              <FilterGroup
+                title="应聘类型"
+                items={facets.application_subtypes}
+                selectedValue={filters.application_subtype}
+                onSelect={(v) => toggleFilter("application_subtype", v)}
+              />
+            )}
+            {facets.job_types && facets.job_types.length > 0 && (
+              <FilterGroup
+                title="岗位类型"
+                items={facets.job_types}
+                selectedValue={filters.recruit_type}
+                onSelect={(v) => toggleFilter("recruit_type", v)}
+              />
+            )}
             {facets.directions.length > 0 && (
               <FilterGroup
                 title="求职方向"

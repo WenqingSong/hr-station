@@ -18,6 +18,8 @@ export function JobListPage() {
     category: searchParams.get("category") || undefined,
     business_group: searchParams.get("business_group") || undefined,
     skill: searchParams.get("skill") || undefined,
+    application_project: searchParams.get("application_project") || undefined,
+    application_subtype: searchParams.get("application_subtype") || undefined,
   };
   const page = parseInt(searchParams.get("page") || "1", 10) || 1;
 
@@ -34,6 +36,8 @@ export function JobListPage() {
       if (f.category) p.set("category", f.category); else p.delete("category");
       if (f.business_group) p.set("business_group", f.business_group); else p.delete("business_group");
       if (f.skill) p.set("skill", f.skill); else p.delete("skill");
+      if (f.application_project) p.set("application_project", f.application_project); else p.delete("application_project");
+      if (f.application_subtype) p.set("application_subtype", f.application_subtype); else p.delete("application_subtype");
       p.set("page", "1");
       return p;
     });
@@ -51,6 +55,8 @@ export function JobListPage() {
     category: filters.category,
     business_group: filters.business_group,
     skill: filters.skill,
+    application_project: filters.application_project,
+    application_subtype: filters.application_subtype,
     page,
     page_size: PAGE_SIZE,
   };

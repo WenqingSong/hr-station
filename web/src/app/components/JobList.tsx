@@ -27,7 +27,7 @@ export function JobList({ params, onPageChange, onParamsChange }: JobListProps) 
       .then((res) => { setJobCards(toJobCardViewModelsFromApi(res.items)); setTotal(res.total); })
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
       .finally(() => setLoading(false));
-  }, [params.keyword, params.direction, params.city, params.recruit_type, params.category, params.business_group, params.skill, params.page]);
+  }, [params.keyword, params.direction, params.city, params.recruit_type, params.category, params.business_group, params.skill, params.application_project, params.application_subtype, params.page]);
 
   return (
     <main className="flex-1 max-w-[820px] pb-24">
