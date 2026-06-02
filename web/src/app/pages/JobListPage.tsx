@@ -62,27 +62,29 @@ export function JobListPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6">
-      <div className="flex gap-6 items-start">
-        <JobFilterSidebar
-          keyword={keyword}
-          onKeywordChange={setKeyword}
-          filters={filters}
-          onFiltersChange={setFilters}
-        />
-        <JobList
-          params={params}
-          onPageChange={setPage}
-          onParamsChange={(p) => {
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              if (p.keyword) next.set("keyword", p.keyword); else next.delete("keyword");
-              next.set("page", "1");
-              return next;
-            });
-          }}
-        />
-        <AIDecisionWorkspace />
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6">
+        <div className="flex gap-6 items-start">
+          <JobFilterSidebar
+            keyword={keyword}
+            onKeywordChange={setKeyword}
+            filters={filters}
+            onFiltersChange={setFilters}
+          />
+          <JobList
+            params={params}
+            onPageChange={setPage}
+            onParamsChange={(p) => {
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                if (p.keyword) next.set("keyword", p.keyword); else next.delete("keyword");
+                next.set("page", "1");
+                return next;
+              });
+            }}
+          />
+          <AIDecisionWorkspace />
+        </div>
       </div>
     </div>
   );
