@@ -85,7 +85,7 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 
 	now := time.Now()
 	resp := &VersionCompareResponse{
-		GeneratedBy: "mock_agent",
+		GeneratedBy: model.GeneratedByMockAgent,
 		Result:      result,
 		CreatedAt:   now.Format("2006-01-02T15:04:05Z07:00"),
 	}

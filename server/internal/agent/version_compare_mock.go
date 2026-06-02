@@ -8,9 +8,19 @@ import (
 	"offer-catcher/server/internal/model"
 )
 
+// VersionComparer defines the interface for version comparison agents.
+// Mock and LLM implementations both satisfy this interface,
+// allowing the service layer to dispatch uniformly.
+type VersionComparer interface {
+	Compare(from *model.ResumeVersion, to *model.ResumeVersion) (*model.VersionCompareAnalysis, error)
+}
+
 // VersionCompareMockAgent generates mock version comparison using simple rule-based analysis.
 // It does NOT call any real LLM or read LLM_API_KEY.
 type VersionCompareMockAgent struct{}
+
+// Compile-time check: VersionCompareMockAgent satisfies VersionComparer.
+var _ VersionComparer = (*VersionCompareMockAgent)(nil)
 
 // NewVersionCompareMockAgent creates a new VersionCompareMockAgent.
 func NewVersionCompareMockAgent() *VersionCompareMockAgent {
