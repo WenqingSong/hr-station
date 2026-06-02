@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { RecommendationHeader } from "../components/RecommendationHeader";
 import { RecommendationSidebar } from "../components/RecommendationSidebar";
 import { RecommendationDetail } from "../components/RecommendationDetail";
@@ -91,7 +91,7 @@ export function JobRecommendationPage() {
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
         <p className="text-gray-500 text-sm mb-3">你还没有可用于推荐的简历</p>
         <p className="text-gray-400 text-xs mb-4">请先创建一份简历，系统会基于你的简历版本生成岗位推荐。</p>
-        <a href="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</a>
+        <Link to="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</Link>
       </div>
     );
   }

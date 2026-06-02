@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { ResumeOptimizationHeader } from "../components/ResumeOptimizationHeader";
 import { ResumeOptimizationSidebarLeft } from "../components/ResumeOptimizationSidebarLeft";
 import { ResumeOptimizationDetail } from "../components/ResumeOptimizationDetail";
@@ -164,7 +164,7 @@ export function ResumeOptimizationPage() {
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
         <p className="text-gray-500 text-sm mb-3">缺少目标岗位</p>
         <p className="text-gray-400 text-xs mb-4">请先选择一个岗位，再进行简历优化。</p>
-        <a href="/jobs" className="text-[#0052D9] text-sm underline">返回岗位列表</a>
+        <Link to="/jobs" className="text-[#0052D9] text-sm underline">返回岗位列表</Link>
       </div>
     );
   }
@@ -184,7 +184,7 @@ export function ResumeOptimizationPage() {
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
         <p className="text-gray-500 text-sm mb-3">目标岗位加载失败</p>
         <p className="text-gray-400 text-xs mb-4">请返回岗位列表重新选择岗位。</p>
-        <a href="/jobs" className="text-[#0052D9] text-sm underline">返回岗位列表</a>
+        <Link to="/jobs" className="text-[#0052D9] text-sm underline">返回岗位列表</Link>
       </div>
     );
   }
@@ -195,7 +195,7 @@ export function ResumeOptimizationPage() {
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
         <p className="text-gray-500 text-sm mb-3">你还没有可用于优化的简历</p>
         <p className="text-gray-400 text-xs mb-4">请先创建一份简历，系统会基于你的简历内容给出优化建议。</p>
-        <a href="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</a>
+        <Link to="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</Link>
       </div>
     );
   }
@@ -215,7 +215,7 @@ export function ResumeOptimizationPage() {
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
         <p className="text-gray-500 text-sm mb-3">{resumeDetailError}</p>
         <p className="text-gray-400 text-xs mb-4">请重新选择简历版本后再进行优化。</p>
-        <a href="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</a>
+        <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
       </div>
     );
   }

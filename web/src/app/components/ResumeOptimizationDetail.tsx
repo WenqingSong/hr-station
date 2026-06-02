@@ -247,6 +247,13 @@ export function ResumeOptimizationDetail({ currentJobId = "", currentResumeId = 
             <Button 
               variant="outline" 
               className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 h-11"
+              onClick={() => navigate("/resumes/compare")}
+            >
+              版本对比
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 h-11"
               onClick={() => navigate(-1)}
             >
               返回岗位匹配分析

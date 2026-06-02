@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { MatchAnalysisHeader } from "../components/MatchAnalysisHeader";
 import { MatchAnalysisSidebarLeft } from "../components/MatchAnalysisSidebarLeft";
 import { MatchAnalysisDetail } from "../components/MatchAnalysisDetail";
@@ -114,7 +114,7 @@ export function JobMatchAnalysisPage() {
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
         <p className="text-gray-500 text-sm mb-3">缺少目标岗位</p>
         <p className="text-gray-400 text-xs mb-4">请先选择一个岗位，再进行匹配分析。</p>
-        <a href="/jobs" className="text-[#0052D9] text-sm underline">返回岗位列表</a>
+        <Link to="/jobs" className="text-[#0052D9] text-sm underline">返回岗位列表</Link>
       </div>
     );
   }
@@ -134,7 +134,7 @@ export function JobMatchAnalysisPage() {
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
         <p className="text-gray-500 text-sm mb-3">你还没有可用于匹配的简历</p>
         <p className="text-gray-400 text-xs mb-4">请先创建一份简历，系统会基于你的简历版本分析岗位匹配度。</p>
-        <a href="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</a>
+        <Link to="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</Link>
       </div>
     );
   }
@@ -154,7 +154,7 @@ export function JobMatchAnalysisPage() {
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
         <p className="text-gray-500 text-sm mb-3">{resumeDetailError}</p>
         <p className="text-gray-400 text-xs mb-4">请重新选择简历版本后再进行匹配分析。</p>
-        <a href="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</a>
+        <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
       </div>
     );
   }
