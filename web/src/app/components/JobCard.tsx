@@ -43,23 +43,24 @@ export function JobCard({
       )}
     >
       <div className="flex justify-between items-start mb-3">
-        <div>
-          <h3 className={cn("text-lg font-bold mb-2 group-hover:text-[#0052D9] transition-colors", selected && "text-[#0052D9]")}>
+        <div className="flex-1 min-w-0">
+          <h3 className={cn("text-lg font-bold mb-1 group-hover:text-[#0052D9] transition-colors", selected && "text-[#0052D9]")}>
             {title}
           </h3>
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            <Badge variant="secondary">{type}</Badge>
-            <Badge variant="secondary">{department}</Badge>
-            <div className="w-[1px] h-3 bg-gray-300 mx-1"></div>
-            <div className="flex items-center text-sm text-gray-500 gap-1">
-              <MapPin className="h-3.5 w-3.5" />
-              <span>{location}</span>
-            </div>
+          <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500">
+            <span>{department}</span>
+            <span className="w-px h-3 bg-gray-300"></span>
+            <span>{type}</span>
+            <span className="w-px h-3 bg-gray-300"></span>
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {location}
+            </span>
             {statusLabel && (
-              <div className="flex items-center text-sm text-[#0052D9] gap-1 bg-blue-50 px-2 py-0.5 rounded-sm ml-2">
+              <span className="inline-flex items-center gap-1 text-[#0052D9] bg-blue-50 px-1.5 py-0.5 rounded-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#0052D9]"></span>
                 {statusLabel}
-              </div>
+              </span>
             )}
           </div>
         </div>
@@ -69,19 +70,22 @@ export function JobCard({
         {description}
       </p>
 
-      <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
-        <div className="flex gap-2 flex-wrap">
-          {skills.map((skill) => (
-            <Badge key={skill} variant="outline" className="text-gray-500">
+      <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
+        <div className="flex gap-1.5 flex-wrap">
+          {skills.slice(0, 4).map((skill) => (
+            <Badge key={skill} variant="outline" className="text-gray-500 text-[10px] px-1.5">
               {skill}
             </Badge>
           ))}
+          {skills.length > 4 && (
+            <span className="text-[10px] text-gray-400 self-center">+{skills.length - 4}</span>
+          )}
         </div>
-        <div className="flex gap-3 shrink-0">
+        <div className="flex gap-2 shrink-0">
           <Button 
             variant="text" 
             size="sm" 
-            className="px-0"
+            className="px-0 text-[#0052D9]"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/jobs/${id}`);

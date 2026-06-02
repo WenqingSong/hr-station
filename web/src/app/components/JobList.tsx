@@ -42,8 +42,8 @@ export function JobList({ params, onParamsChange, selectedJobId, onSelectedJobId
   return (
     <main className="flex-1 max-w-[820px] pb-24">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">岗位列表</h1>
-        <p className="text-gray-500">浏览当前开放岗位，结合当前简历，让 AI 帮你优先筛选最值得关注的岗位。</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">找到更适合你的实习岗位</h1>
+        <p className="text-gray-500">基于你的简历、技能和岗位需求，筛选值得优先关注的机会。</p>
       </div>
 
       {activeFilters.length > 0 && (
