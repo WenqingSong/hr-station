@@ -168,8 +168,8 @@ func TestSentinelErrors_Exist(t *testing.T) {
 }
 
 func TestAuthSentinelErrors(t *testing.T) {
-	if ErrEmailRegistered.Code != 41001 {
-		t.Errorf("ErrEmailRegistered.Code = %d, want 41001", ErrEmailRegistered.Code)
+	if ErrDuplicatePhone.Code != 41003 {
+		t.Errorf("ErrDuplicatePhone.Code = %d, want 41003", ErrDuplicatePhone.Code)
 	}
 	if ErrInvalidCreds.Code != 41002 {
 		t.Errorf("ErrInvalidCreds.Code = %d, want 41002", ErrInvalidCreds.Code)
@@ -257,7 +257,7 @@ func TestErrorCodes_NoOverlap(t *testing.T) {
 		{"CodeNotFound", CodeNotFound},
 		{"CodeMethodNotAllowed", CodeMethodNotAllowed},
 		{"CodeInternal", CodeInternal},
-		{"CodeEmailRegistered", CodeEmailRegistered},
+		{"CodeDuplicatePhone", CodeDuplicatePhone},
 		{"CodeInvalidCreds", CodeInvalidCreds},
 		{"CodeResumeNotFound", CodeResumeNotFound},
 		{"CodeResumeNotAvailable", CodeResumeNotAvailable},

@@ -70,10 +70,9 @@ const (
 
 // Auth module codes (410xx)
 const (
-	CodeEmailRegistered  = 41001
-	CodeInvalidCreds     = 41002
-	CodeDuplicatePhone   = 41003
-	CodeSessionInvalid   = 41004
+	CodeInvalidCreds    = 41002
+	CodeDuplicatePhone  = 41003
+	CodeSessionInvalid  = 41004
 )
 
 // Resume module codes (420xx)
@@ -103,8 +102,8 @@ var (
 
 // Auth errors
 var (
-	ErrEmailRegistered = New(CodeEmailRegistered, "email already registered", http.StatusBadRequest)
-	ErrInvalidCreds    = New(CodeInvalidCreds, "invalid email or password", http.StatusUnauthorized)
+	ErrDuplicatePhone = New(CodeDuplicatePhone, "phone already registered", http.StatusConflict)
+	ErrInvalidCreds   = New(CodeInvalidCreds, "invalid phone or password", http.StatusUnauthorized)
 )
 
 // Resume errors

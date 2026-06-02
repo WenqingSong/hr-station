@@ -18,23 +18,6 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-// Create inserts a new user with email and password_hash.
-func (r *UserRepository) Create(ctx context.Context, user *model.User) error {
-	result, err := r.db.ExecContext(ctx,
-		"INSERT INTO users (email, phone, password_hash, name) VALUES (?, ?, ?, ?)",
-		user.Email, user.Phone, user.PasswordHash, user.Name,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
-	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get last insert id: %w", err)
-	}
-	user.ID = uint64(id)
-	return nil
-}
-
 // CreateByPhone inserts a new user with phone.
 func (r *UserRepository) CreateByPhone(ctx context.Context, user *model.User) error {
 	result, err := r.db.ExecContext(ctx,
@@ -50,22 +33,6 @@ func (r *UserRepository) CreateByPhone(ctx context.Context, user *model.User) er
 	}
 	user.ID = uint64(id)
 	return nil
-}
-
-// FindByEmail finds a user by email. Returns nil if not found.
-func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*model.User, error) {
-	user := &model.User{}
-	err := r.db.QueryRowContext(ctx,
-		"SELECT id, email, COALESCE(phone,''), password_hash, name, created_at, updated_at FROM users WHERE email = ?",
-		email,
-	).Scan(&user.ID, &user.Email, &user.Phone, &user.PasswordHash, &user.Name, &user.CreatedAt, &user.UpdatedAt)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to find user by email: %w", err)
-	}
-	return user, nil
 }
 
 // FindByPhone finds a user by phone. Returns nil if not found.

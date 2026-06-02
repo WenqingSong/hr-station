@@ -7,55 +7,55 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// validateEmail tests
+// validatePhone tests
 // ---------------------------------------------------------------------------
 
-func TestValidateEmail_Valid(t *testing.T) {
-	emails := []string{
-		"user@example.com",
-		"test@test.co",
-		"a@b.cd",
+func TestValidatePhone_Valid(t *testing.T) {
+	phones := []string{
+		"13800138000",
+		"13900001001",
+		"18812345678",
 	}
-	for _, e := range emails {
-		if err := validateEmail(e); err != nil {
-			t.Errorf("validateEmail(%q) returned error: %v", e, err)
+	for _, p := range phones {
+		if err := validatePhone(p); err != nil {
+			t.Errorf("validatePhone(%q) returned error: %v", p, err)
 		}
 	}
 }
 
-func TestValidateEmail_Empty(t *testing.T) {
-	err := validateEmail("")
+func TestValidatePhone_Empty(t *testing.T) {
+	err := validatePhone("")
 	if err == nil {
-		t.Fatal("validateEmail(\"\") should return error")
+		t.Fatal("validatePhone(\"\") should return error")
 	}
 	ae := apperror.AsAppError(err)
 	if ae == nil {
-		t.Fatal("validateEmail(\"\") should return AppError, not plain error")
+		t.Fatal("validatePhone(\"\") should return AppError, not plain error")
 	}
 	if ae.Code != apperror.CodeInvalidParam {
 		t.Errorf("code = %d, want CodeInvalidParam (%d)", ae.Code, apperror.CodeInvalidParam)
 	}
 }
 
-func TestValidateEmail_InvalidFormat(t *testing.T) {
-	invalids := []string{"not-an-email", "@missing-local", "missing-domain@"}
-	for _, e := range invalids {
-		err := validateEmail(e)
+func TestValidatePhone_InvalidFormat(t *testing.T) {
+	invalids := []string{"12345", "12345678901", "22345678901", "abc1234567"}
+	for _, p := range invalids {
+		err := validatePhone(p)
 		if err == nil {
-			t.Errorf("validateEmail(%q) should return error", e)
+			t.Errorf("validatePhone(%q) should return error", p)
 			continue
 		}
 		ae := apperror.AsAppError(err)
 		if ae == nil {
-			t.Errorf("validateEmail(%q) should return AppError, got %T", e, err)
+			t.Errorf("validatePhone(%q) should return AppError, got %T", p, err)
 		}
 	}
 }
 
-func TestValidateEmail_SpacesOnly(t *testing.T) {
-	err := validateEmail("   ")
+func TestValidatePhone_SpacesOnly(t *testing.T) {
+	err := validatePhone("   ")
 	if err == nil {
-		t.Fatal("validateEmail('   ') should return error after trim")
+		t.Fatal("validatePhone('   ') should return error after trim")
 	}
 	ae := apperror.AsAppError(err)
 	if ae == nil {
@@ -131,8 +131,8 @@ func TestAuthValidation_ErrorsAreAppError(t *testing.T) {
 		name string
 		fn   func() error
 	}{
-		{"empty email", func() error { return validateEmail("") }},
-		{"invalid email", func() error { return validateEmail("bad") }},
+		{"empty phone", func() error { return validatePhone("") }},
+		{"invalid phone", func() error { return validatePhone("abc") }},
 		{"empty password", func() error { return validatePassword("") }},
 		{"short password", func() error { return validatePassword("12345") }},
 	}
