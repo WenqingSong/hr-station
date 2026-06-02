@@ -121,7 +121,7 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
                 onSelect={(v) => toggleFilter("recruit_type", v)}
               />
             )}
-            {facets.directions.length > 0 && (
+            {facets.directions && facets.directions.length > 0 && (
               <FilterGroup
                 title="求职方向"
                 items={facets.directions}
@@ -129,7 +129,7 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
                 onSelect={(v) => toggleFilter("direction", v)}
               />
             )}
-            {facets.cities.length > 0 && (
+            {facets.cities && facets.cities.length > 0 && (
               <FilterGroup
                 title="工作地点"
                 items={facets.cities}
@@ -137,7 +137,7 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
                 onSelect={(v) => toggleFilter("city", v)}
               />
             )}
-            {facets.categories.length > 0 && (
+            {facets.categories && facets.categories.length > 0 && (
               <FilterGroup
                 title="岗位类别"
                 items={facets.categories}
@@ -161,7 +161,7 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
                 onSelect={(v) => toggleFilter("skill", v)}
               />
             )}
-            {!facets.directions.length && !facets.cities.length && !facets.categories.length && !(facets.business_groups||[]).length && !(facets.skills||[]).length && !(facets.application_projects||[]).length && (
+            {!(facets.directions||[]).length && !(facets.cities||[]).length && !(facets.categories||[]).length && !(facets.business_groups||[]).length && !(facets.skills||[]).length && !(facets.application_projects||[]).length && (
               <p className="text-xs text-gray-400 text-center py-4">暂无筛选项</p>
             )}
           </div>
