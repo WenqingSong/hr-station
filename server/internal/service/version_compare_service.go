@@ -15,8 +15,9 @@ import (
 
 // VersionCompareRequest represents a request for version comparison.
 type VersionCompareRequest struct {
-	FromVersionNo int
-	ToVersionNo   int
+	FromVersionNo  int
+	ToVersionNo    int
+	GenerationTier model.GenerationTier
 }
 
 // VersionCompareResponse represents the response for version comparison.
@@ -28,12 +29,14 @@ type VersionCompareResponse struct {
 }
 
 // VersionCompareService handles version comparison business logic.
+// Supports generation_tier: "fast" uses fastRunner, "quality" uses qualityRunner.
 type VersionCompareService struct {
-	resumeRepo     *repository.ResumeRepository
-	compareRepo    *repository.VersionCompareRepository
-	mockAgent      *agent.VersionCompareMockAgent
-	pipelineRunner agent.PipelineRunner
-	llmEnabled     bool
+	resumeRepo    *repository.ResumeRepository
+	compareRepo   *repository.VersionCompareRepository
+	mockAgent     *agent.VersionCompareMockAgent
+	fastRunner    agent.PipelineRunner
+	qualityRunner agent.PipelineRunner
+	llmEnabled    bool
 }
 
 // NewVersionCompareService creates a new VersionCompareService.
@@ -41,20 +44,34 @@ func NewVersionCompareService(
 	resumeRepo *repository.ResumeRepository,
 	compareRepo *repository.VersionCompareRepository,
 	mockAgent *agent.VersionCompareMockAgent,
-	pipelineRunner agent.PipelineRunner,
+	fastRunner agent.PipelineRunner,
+	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
 ) *VersionCompareService {
 	return &VersionCompareService{
-		resumeRepo:     resumeRepo,
-		compareRepo:    compareRepo,
-		mockAgent:      mockAgent,
-		pipelineRunner: pipelineRunner,
-		llmEnabled:     llmEnabled,
+		resumeRepo:    resumeRepo,
+		compareRepo:   compareRepo,
+		mockAgent:     mockAgent,
+		fastRunner:    fastRunner,
+		qualityRunner: qualityRunner,
+		llmEnabled:    llmEnabled,
 	}
+}
+
+// selectRunner returns the appropriate pipeline runner for the given tier.
+func (s *VersionCompareService) selectRunner(tier model.GenerationTier) agent.PipelineRunner {
+	tier = model.NormalizeGenerationTier(string(tier))
+	if tier == model.GenerationTierQuality && s.qualityRunner != nil {
+		return s.qualityRunner
+	}
+	return s.fastRunner
 }
 
 // Compare generates a version comparison for the given user's two resume versions.
 func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req VersionCompareRequest) (*VersionCompareResponse, error) {
+	runner := s.selectRunner(req.GenerationTier)
+	log.Printf("[VersionCompareService] generation_tier=%s", model.NormalizeGenerationTier(string(req.GenerationTier)))
+
 	// Validate from/to
 	if req.FromVersionNo <= 0 {
 		return nil, apperror.New(apperror.CodeInvalidParam, "invalid from version number", 400)
@@ -85,8 +102,8 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 	}
 
 	// Try LLM Pipeline first if enabled
-	if s.llmEnabled && s.pipelineRunner != nil {
-		llmAgent := agent.NewVersionCompareLLMAgent(s.pipelineRunner)
+	if s.llmEnabled && runner != nil {
+		llmAgent := agent.NewVersionCompareLLMAgent(runner)
 		result, fallbackErr := llmAgent.Compare(fromVersion, toVersion)
 		if fallbackErr == nil {
 			resp := &VersionCompareResponse{

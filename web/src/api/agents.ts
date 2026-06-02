@@ -13,10 +13,14 @@ import type {
 export interface RecommendationRequest {
   resume_version_no?: number;
   limit?: number;
+  /** Controls model tier: "fast" (default) or "quality" */
+  generation_tier?: "fast" | "quality";
 }
 
 export interface MatchAnalysisRequest {
   resume_version_no?: number;
+  /** Controls model tier: "fast" (default) or "quality" */
+  generation_tier?: "fast" | "quality";
 }
 
 export interface ResumeOptimizationRequest {
@@ -26,6 +30,8 @@ export interface ResumeOptimizationRequest {
   user_intention?: string;
   /** "core" — use ResumeOptimizationCoreAgent (default: full agent) */
   mode?: "core";
+  /** Controls model tier: "fast" (default) or "quality" */
+  generation_tier?: "fast" | "quality";
 }
 
 // ─── 类型别名 ──────────────────────────────────────────────────────────────────

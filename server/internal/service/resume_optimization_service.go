@@ -17,11 +17,12 @@ import (
 
 // ResumeOptimizationRequest represents a request for resume optimization.
 type ResumeOptimizationRequest struct {
-	ResumeText    string                                 `json:"resume_text"`
-	TargetJob     *model.ResumeOptimizationTargetJob     `json:"target_job,omitempty"`
-	TargetSection string                                 `json:"target_section,omitempty"`
-	UserIntention *model.ResumeOptimizationUserIntention `json:"user_intention,omitempty"`
-	Mode          string                                 `json:"mode,omitempty"` // "core" — use Core Agent
+	ResumeText     string                                 `json:"resume_text"`
+	TargetJob      *model.ResumeOptimizationTargetJob     `json:"target_job,omitempty"`
+	TargetSection  string                                 `json:"target_section,omitempty"`
+	UserIntention  *model.ResumeOptimizationUserIntention `json:"user_intention,omitempty"`
+	Mode           string                                 `json:"mode,omitempty"`           // "core" — use Core Agent
+	GenerationTier model.GenerationTier                   `json:"generation_tier,omitempty"` // "fast" or "quality"
 }
 
 // ResumeOptimizationResponse represents the response for resume optimization.
@@ -35,27 +36,40 @@ type ResumeOptimizationResponse struct {
 
 // ResumeOptimizationService handles resume optimization business logic.
 // It supports LLM Pipeline priority with Mock Agent fallback.
+// Supports generation_tier: "fast" uses fastRunner, "quality" uses qualityRunner.
 type ResumeOptimizationService struct {
 	optimizationRepo *repository.ResumeOptimizationRepository
 	mockAgent        *agent.ResumeOptimizationMockAgent
-	pipelineRunner   agent.PipelineRunner
+	fastRunner       agent.PipelineRunner
+	qualityRunner    agent.PipelineRunner
 	llmEnabled       bool
 }
 
 // NewResumeOptimizationService creates a new ResumeOptimizationService.
-// If pipelineRunner is nil or llmEnabled is false, it falls back to Mock Agent only.
+// If both runners are nil or llmEnabled is false, it falls back to Mock Agent only.
 func NewResumeOptimizationService(
 	optimizationRepo *repository.ResumeOptimizationRepository,
 	mockAgent *agent.ResumeOptimizationMockAgent,
-	pipelineRunner agent.PipelineRunner,
+	fastRunner agent.PipelineRunner,
+	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
 ) *ResumeOptimizationService {
 	return &ResumeOptimizationService{
 		optimizationRepo: optimizationRepo,
 		mockAgent:        mockAgent,
-		pipelineRunner:   pipelineRunner,
+		fastRunner:       fastRunner,
+		qualityRunner:    qualityRunner,
 		llmEnabled:       llmEnabled,
 	}
+}
+
+// selectRunner returns the appropriate pipeline runner for the given tier.
+func (s *ResumeOptimizationService) selectRunner(tier model.GenerationTier) agent.PipelineRunner {
+	tier = model.NormalizeGenerationTier(string(tier))
+	if tier == model.GenerationTierQuality && s.qualityRunner != nil {
+		return s.qualityRunner
+	}
+	return s.fastRunner
 }
 
 // Optimize generates a resume optimization for the given user and request.
@@ -67,9 +81,12 @@ func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64,
 		return nil, err
 	}
 
+	runner := s.selectRunner(req.GenerationTier)
+	log.Printf("[ResumeOptimizationService] generation_tier=%s mode=%s", model.NormalizeGenerationTier(string(req.GenerationTier)), req.Mode)
+
 	// Dispatch to Core Agent if mode=core
 	if req.Mode == "core" {
-		return s.optimizeCore(ctx, userID, req)
+		return s.optimizeCore(ctx, userID, req, runner)
 	}
 
 	input := &agent.OptimizeInput{
@@ -89,8 +106,8 @@ func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64,
 	}
 
 	// Try LLM Pipeline if enabled
-	if s.llmEnabled && s.pipelineRunner != nil {
-		resp, fallbackErr := s.optimizeWithLLM(ctx, userID, input, req)
+	if s.llmEnabled && runner != nil {
+		resp, fallbackErr := s.optimizeWithLLM(ctx, userID, input, req, runner)
 		if fallbackErr == nil {
 			return resp, nil
 		}
@@ -107,8 +124,8 @@ func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64,
 }
 
 // optimizeWithLLM calls the ResumeOptimizationAgent (LLM Pipeline) and builds the response.
-func (s *ResumeOptimizationService) optimizeWithLLM(ctx context.Context, userID uint64, input *agent.OptimizeInput, req ResumeOptimizationRequest) (*ResumeOptimizationResponse, *agent.ResumeOptFallbackError) {
-	llmAgent := agent.NewResumeOptimizationAgent(s.pipelineRunner)
+func (s *ResumeOptimizationService) optimizeWithLLM(ctx context.Context, userID uint64, input *agent.OptimizeInput, req ResumeOptimizationRequest, runner agent.PipelineRunner) (*ResumeOptimizationResponse, *agent.ResumeOptFallbackError) {
+	llmAgent := agent.NewResumeOptimizationAgent(runner)
 	result, err := llmAgent.Optimize(ctx, input)
 	if err != nil {
 		if fbErr, ok := err.(*agent.ResumeOptFallbackError); ok {
@@ -257,7 +274,7 @@ func (s *ResumeOptimizationService) GetLatestOptimization(ctx context.Context, u
 }
 
 // optimizeCore uses the Core Agent (LLM → Mock fallback).
-func (s *ResumeOptimizationService) optimizeCore(ctx context.Context, userID uint64, req ResumeOptimizationRequest) (*ResumeOptimizationResponse, error) {
+func (s *ResumeOptimizationService) optimizeCore(ctx context.Context, userID uint64, req ResumeOptimizationRequest, runner agent.PipelineRunner) (*ResumeOptimizationResponse, error) {
 	input := &agent.OptimizeInput{ResumeText: req.ResumeText}
 	if req.TargetJob != nil {
 		input.JobTitle = req.TargetJob.Title
@@ -268,8 +285,8 @@ func (s *ResumeOptimizationService) optimizeCore(ctx context.Context, userID uin
 	meta := model.NewAgentResponseMeta(model.AgentNameResumeOptimization)
 
 	// Try LLM Core Agent
-	if s.llmEnabled && s.pipelineRunner != nil {
-		coreAgent := agent.NewCoreLLMAgent(s.pipelineRunner)
+	if s.llmEnabled && runner != nil {
+		coreAgent := agent.NewCoreLLMAgent(runner)
 		coreResult, fbErr := coreAgent.Optimize(ctx, input)
 		if fbErr == nil {
 			return &ResumeOptimizationResponse{

@@ -15,7 +15,8 @@ import (
 
 // MatchRequest represents a request for job match analysis.
 type MatchRequest struct {
-	ResumeVersionNo int `json:"resume_version_no"`
+	ResumeVersionNo int                `json:"resume_version_no"`
+	GenerationTier  model.GenerationTier `json:"generation_tier,omitempty"`
 }
 
 // MatchResponse represents the response for job match analysis.
@@ -30,33 +31,46 @@ type MatchResponse struct {
 
 // MatchService handles job match analysis business logic.
 // It supports LLM Pipeline priority with Mock Agent fallback.
+// Supports generation_tier: "fast" uses fastRunner, "quality" uses qualityRunner.
 type MatchService struct {
-	resumeRepo     *repository.ResumeRepository
-	jobRepo        *repository.JobRepository
-	matchRepo      *repository.MatchRepository
-	mockAgent      *agent.MatchMockAgent
-	pipelineRunner agent.PipelineRunner
-	llmEnabled     bool
+	resumeRepo    *repository.ResumeRepository
+	jobRepo       *repository.JobRepository
+	matchRepo     *repository.MatchRepository
+	mockAgent     *agent.MatchMockAgent
+	fastRunner    agent.PipelineRunner
+	qualityRunner agent.PipelineRunner
+	llmEnabled    bool
 }
 
 // NewMatchService creates a new MatchService.
-// If pipelineRunner is nil or llmEnabled is false, it falls back to Mock Agent only.
+// If both runners are nil or llmEnabled is false, it falls back to Mock Agent only.
 func NewMatchService(
 	resumeRepo *repository.ResumeRepository,
 	jobRepo *repository.JobRepository,
 	matchRepo *repository.MatchRepository,
 	mockAgent *agent.MatchMockAgent,
-	pipelineRunner agent.PipelineRunner,
+	fastRunner agent.PipelineRunner,
+	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
 ) *MatchService {
 	return &MatchService{
-		resumeRepo:     resumeRepo,
-		jobRepo:        jobRepo,
-		matchRepo:      matchRepo,
-		mockAgent:      mockAgent,
-		pipelineRunner: pipelineRunner,
-		llmEnabled:     llmEnabled,
+		resumeRepo:    resumeRepo,
+		jobRepo:       jobRepo,
+		matchRepo:     matchRepo,
+		mockAgent:     mockAgent,
+		fastRunner:    fastRunner,
+		qualityRunner: qualityRunner,
+		llmEnabled:    llmEnabled,
 	}
+}
+
+// selectRunner returns the appropriate pipeline runner for the given tier.
+func (s *MatchService) selectRunner(tier model.GenerationTier) agent.PipelineRunner {
+	tier = model.NormalizeGenerationTier(string(tier))
+	if tier == model.GenerationTierQuality && s.qualityRunner != nil {
+		return s.qualityRunner
+	}
+	return s.fastRunner
 }
 
 // Analyze generates a match analysis for the given user and job.
@@ -64,6 +78,9 @@ func NewMatchService(
 // first. If the Pipeline returns fallback_required or mapping fails, it falls
 // back to the Mock Agent. When LLM is disabled, it uses the Mock Agent directly.
 func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64, req MatchRequest) (*MatchResponse, error) {
+	runner := s.selectRunner(req.GenerationTier)
+	log.Printf("[MatchService] generation_tier=%s", model.NormalizeGenerationTier(string(req.GenerationTier)))
+
 	// Get resume version
 	resume, err := s.getResume(ctx, userID, req)
 	if err != nil {
@@ -80,8 +97,8 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 	}
 
 	// Try LLM Pipeline if enabled
-	if s.llmEnabled && s.pipelineRunner != nil {
-		resp, fallbackErr := s.analyzeWithLLM(ctx, resume, job)
+	if s.llmEnabled && runner != nil {
+		resp, fallbackErr := s.analyzeWithLLM(ctx, resume, job, runner)
 		if fallbackErr == nil {
 			return resp, nil
 		}
@@ -123,8 +140,8 @@ func (s *MatchService) getResume(ctx context.Context, userID uint64, req MatchRe
 }
 
 // analyzeWithLLM calls the MatchAnalysisAgent (LLM Pipeline) and builds the response.
-func (s *MatchService) analyzeWithLLM(ctx context.Context, resume *model.ResumeVersion, job *model.Job) (*MatchResponse, *agent.MatchFallbackError) {
-	llmAgent := agent.NewMatchAnalysisAgent(s.pipelineRunner)
+func (s *MatchService) analyzeWithLLM(ctx context.Context, resume *model.ResumeVersion, job *model.Job, runner agent.PipelineRunner) (*MatchResponse, *agent.MatchFallbackError) {
+	llmAgent := agent.NewMatchAnalysisAgent(runner)
 	result, err := llmAgent.Analyze(ctx, resume, job)
 	if err != nil {
 		if fbErr, ok := err.(*agent.MatchFallbackError); ok {

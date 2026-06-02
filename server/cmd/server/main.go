@@ -148,23 +148,23 @@ func main() {
 		log.Println("[offer-catcher-server] LLM disabled, using Mock Agent only")
 	}
 
-	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, qualityRunner, llmEnabled)
+	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, fastRunner, qualityRunner, llmEnabled)
 	matchHandler := httpserver.NewMatchHandler(matchService)
 
-	// Initialize recommendation service with Fast tier (deepseek-v4-flash)
-	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, llmEnabled)
+	// Initialize recommendation service with both runners (tier selected per request)
+	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, qualityRunner, llmEnabled)
 	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
 
-	// Initialize version compare module with Quality tier (deepseek-v4-pro-202606)
+	// Initialize version compare module with both runners (tier selected per request)
 	versionCompareRepo := repository.NewVersionCompareRepository(mysqlDB.DB)
 	versionCompareMockAgent := agent.NewVersionCompareMockAgent()
-	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent, qualityRunner, llmEnabled)
+	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent, fastRunner, qualityRunner, llmEnabled)
 	versionCompareHandler := httpserver.NewVersionCompareHandler(versionCompareService)
 
-	// Initialize resume optimization module with Quality tier (deepseek-v4-pro-202606)
+	// Initialize resume optimization module with both runners (tier selected per request)
 	resumeOptimizationRepo := repository.NewResumeOptimizationRepository(mysqlDB.DB)
 	resumeOptimizationMockAgent := agent.NewResumeOptimizationMockAgent()
-	resumeOptimizationService := service.NewResumeOptimizationService(resumeOptimizationRepo, resumeOptimizationMockAgent, qualityRunner, llmEnabled)
+	resumeOptimizationService := service.NewResumeOptimizationService(resumeOptimizationRepo, resumeOptimizationMockAgent, fastRunner, qualityRunner, llmEnabled)
 	resumeOptimizationHandler := httpserver.NewResumeOptimizationHandler(resumeOptimizationService)
 
 	// Initialize CORS middleware with config

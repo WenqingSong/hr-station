@@ -6,6 +6,7 @@ import (
 
 	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/middleware"
+	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/response"
 	"offer-catcher/server/internal/service"
 )
@@ -63,9 +64,12 @@ func (h *VersionCompareHandler) Compare(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	tier := r.URL.Query().Get("generation_tier")
+
 	req := service.VersionCompareRequest{
-		FromVersionNo: fromVersionNo,
-		ToVersionNo:   toVersionNo,
+		FromVersionNo:  fromVersionNo,
+		ToVersionNo:    toVersionNo,
+		GenerationTier: model.NormalizeGenerationTier(tier),
 	}
 
 	resp, err := h.versionCompareService.Compare(r.Context(), userID, req)

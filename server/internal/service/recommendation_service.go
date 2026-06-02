@@ -15,8 +15,9 @@ import (
 
 // RecommendationRequest represents a request for job recommendations.
 type RecommendationRequest struct {
-	ResumeVersionNo int `json:"resume_version_no"`
-	Limit           int `json:"limit"`
+	ResumeVersionNo int                `json:"resume_version_no"`
+	Limit           int                `json:"limit"`
+	GenerationTier  model.GenerationTier `json:"generation_tier,omitempty"`
 }
 
 // RecommendationResponse represents the response for job recommendations.
@@ -38,23 +39,26 @@ type RecommendationBusinessResult struct {
 
 // RecommendationService handles job recommendation business logic.
 // It supports LLM Pipeline priority with Mock Agent fallback.
+// Supports generation_tier: "fast" uses fastRunner, "quality" uses qualityRunner.
 type RecommendationService struct {
 	resumeRepo         *repository.ResumeRepository
 	jobRepo            *repository.JobRepository
 	recommendationRepo *repository.RecommendationRepository
 	mockAgent          *agent.RecommendationMockAgent
-	pipelineRunner     agent.PipelineRunner
+	fastRunner         agent.PipelineRunner
+	qualityRunner      agent.PipelineRunner
 	llmEnabled         bool
 }
 
 // NewRecommendationService creates a new RecommendationService.
-// If pipelineRunner is nil or llmEnabled is false, it falls back to Mock Agent only.
+// If both runners are nil or llmEnabled is false, it falls back to Mock Agent only.
 func NewRecommendationService(
 	resumeRepo *repository.ResumeRepository,
 	jobRepo *repository.JobRepository,
 	recommendationRepo *repository.RecommendationRepository,
 	mockAgent *agent.RecommendationMockAgent,
-	pipelineRunner agent.PipelineRunner,
+	fastRunner agent.PipelineRunner,
+	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
 ) *RecommendationService {
 	return &RecommendationService{
@@ -62,9 +66,19 @@ func NewRecommendationService(
 		jobRepo:            jobRepo,
 		recommendationRepo: recommendationRepo,
 		mockAgent:          mockAgent,
-		pipelineRunner:     pipelineRunner,
+		fastRunner:         fastRunner,
+		qualityRunner:      qualityRunner,
 		llmEnabled:         llmEnabled,
 	}
+}
+
+// SelectRunner returns the appropriate pipeline runner for the given tier.
+func (s *RecommendationService) selectRunner(tier model.GenerationTier) agent.PipelineRunner {
+	tier = model.NormalizeGenerationTier(string(tier))
+	if tier == model.GenerationTierQuality && s.qualityRunner != nil {
+		return s.qualityRunner
+	}
+	return s.fastRunner
 }
 
 // Recommend generates job recommendations for the given user based on their resume.
@@ -79,6 +93,10 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 	if req.Limit > 5 {
 		req.Limit = 5
 	}
+
+	// Select runner based on generation_tier
+	runner := s.selectRunner(req.GenerationTier)
+	log.Printf("[RecommendationService] generation_tier=%s", model.NormalizeGenerationTier(string(req.GenerationTier)))
 
 	// Get resume version
 	resume, err := s.getResume(ctx, userID, req)
@@ -96,8 +114,8 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 	}
 
 	// Try LLM Pipeline if enabled
-	if s.llmEnabled && s.pipelineRunner != nil {
-		resp, fallbackErr := s.recommendWithLLM(ctx, userID, resume, jobs, req.Limit)
+	if s.llmEnabled && runner != nil {
+		resp, fallbackErr := s.recommendWithLLM(ctx, userID, resume, jobs, req.Limit, runner)
 		if fallbackErr == nil {
 			return resp, nil
 		}
@@ -139,8 +157,8 @@ func (s *RecommendationService) getResume(ctx context.Context, userID uint64, re
 }
 
 // recommendWithLLM calls the RecommendationAgent (LLM Pipeline) and builds the response.
-func (s *RecommendationService) recommendWithLLM(ctx context.Context, userID uint64, resume *model.ResumeVersion, jobs []*model.Job, limit int) (*RecommendationResponse, *agent.RecFallbackError) {
-	llmAgent := agent.NewRecommendationAgent(s.pipelineRunner)
+func (s *RecommendationService) recommendWithLLM(ctx context.Context, userID uint64, resume *model.ResumeVersion, jobs []*model.Job, limit int, runner agent.PipelineRunner) (*RecommendationResponse, *agent.RecFallbackError) {
+	llmAgent := agent.NewRecommendationAgent(runner)
 	recommendedJobs, err := llmAgent.Recommend(ctx, resume, jobs)
 	if err != nil {
 		if fbErr, ok := err.(*agent.RecFallbackError); ok {
