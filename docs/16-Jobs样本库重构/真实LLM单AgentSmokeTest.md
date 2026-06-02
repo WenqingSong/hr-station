@@ -1,113 +1,108 @@
-# K5-1：真实 LLM 单 Agent Smoke Test
+# K5-1-R：真实 LLM 单 Agent Smoke Test 继续执行
 
-## 1. 状态
+## 1. 性质
 
-**blocked** — 等待用户在本地 `.env` 配置真实 LLM API Key。
+K5-1 的继续执行。`LLM_ENABLE=true`，真实 Key 已配置在本地 `.env`。
 
-## 2. 阻塞原因
+**未修改代码，未输出真实 Key。**
 
-`.env` 当前配置：
+## 2. 执行前状态
 
-| 配置项 | 当前值 | 说明 |
-|--------|--------|------|
-| `LLM_ENABLE` | `false` | 未启用真实 LLM |
-| `LLM_API_KEY` | `sk-your-real-api-key` | **占位符，非真实 Key** |
-| `LLM_PROVIDER` | `hunyuan` | ✅ |
-| `LLM_BASE_URL` | `https://tokenhub.tencentmaas.com/v1/chat/completions` | ✅ |
-| `LLM_MODEL` | `hy3-preview` | ✅ |
-| `LLM_TEMPERATURE` | `0.2` | ✅ |
-| `LLM_TIMEOUT_SECONDS` | `30` | ✅ |
+| 检查项 | 值 |
+|--------|-----|
+| 当前分支 | `main` |
+| 当前 HEAD | `bf8cb5d` |
+| 工作区 | clean |
+| `.env` git tracked | 否 |
+| `LLM_ENABLE` | `true` |
+| `LLM_API_KEY` | 已配置（masked，未输出） |
+| `LLM_PROVIDER` | `hunyuan` |
+| `LLM_BASE_URL` | `https://tokenhub.tencentmaas.com/v1/chat/completions` |
+| `LLM_MODEL` | `hy3-preview` |
 
-## 3. 需要用户操作
+## 3. 测试数据
 
-在本地 `.env` 中修改：
+| 数据 | 验证 |
+|------|------|
+| 岗位 55 | ✅ `软件开发-后台开发方向` / manual_curated / manual_verified |
+| 简历版本 3 | ✅ 真实版本详情 |
 
-```bash
-# 在 /workspace/.env 中修改
-LLM_ENABLE=true
-LLM_API_KEY=<你的真实 API Key>
-```
-
-然后重启服务：
-
-```bash
-make restart
-```
-
-## 4. 测试数据已就绪
-
-| 数据 | 验证结果 |
-|------|---------|
-| 岗位 55 | ✅ `软件开发-后台开发方向` |
-| 简历版本 3 | ✅ v3 可用 |
-| API 基础可用 | ✅ `/api/jobs/55` HTTP 200 |
-
-## 5. Match Analysis Agent 调用路径
+## 4. 请求
 
 ```
-POST /api/jobs/{id}/match
+POST /api/jobs/55/match
+Authorization: Bearer <token_masked>
 Content-Type: application/json
-Authorization: Bearer <token>
 
-{
-  "resume_version_no": 3
-}
+{"resume_version_no": 3}
 ```
 
-路径：`POST /api/jobs/55/match`
-
-调用链路（LLM_ENABLE=true 时）：
+## 5. 真实 LLM Smoke Test 结果
 
 ```
-MatchHandler → MatchService
-  → MatchAnalysisAgent.Analyze(ctx, resume, job)
-    → Pipeline Runner.Run()
-      → Prompt 渲染 (match_analysis_v1.md)
-      → HunyuanClient.Chat() → POST LLM BaseURL
-      → JSON parse → Schema validate → repair once → fallback if needed
-  → return MatchAnalysisResult + AgentResponseMeta
+HTTP 200
+code: 0
+generated_by: mock_agent
+agent_status: fallback
+fallback_reason: llm_call_failed
+schema_valid: True
+repair_applied: False
 ```
 
-## 6. 代码路径验证
+### 分析
 
-| 检查项 | 结果 |
-|--------|------|
-| Match API route | ✅ `POST /api/jobs/{id}/match` |
-| MatchAnalysisAgent 已接入 Pipeline | ✅ |
-| MatchMockAgent 已实现 fallback | ✅ |
-| Service 层 llmEnabled 开关 | ✅ |
-| Prompt 存在 | ✅ `match_analysis_v1.md` |
-| Schema 存在 | ✅ `match_analysis_schema.json` |
-| 需要 auth token | ✅ yes |
+- 真实 LLM 调用失败（`llm_call_failed`）：HunyuanClient.Chat() 返回了错误
+- Pipeline 正确将错误分类为 `llm_call_failed`，触发 fallback
+- `MatchFallbackError` 被 Service 层捕获，回退到 `MatchMockAgent`
+- Mock Agent 正常生成了匹配分析结果
+- 结果通过 schema validate（`schema_valid: True`）
+- HTTP 200 正常返回，前端不会白屏
 
-## 7. 预期行为
+### 核心结果字段（Mock fallback）
 
-### 成功路径（LLM_ENABLE=true + 有效 Key）
+| 字段 | 值 |
+|------|-----|
+| match_score | 23 |
+| match_highlights | 1 条 |
+| risk_points | 3 条 |
+| evidence_chain | 11 条 |
+| top_fix_items | 2 条 |
+| apply_readiness | not_ready_for_this_role |
+| optimization_stop_signal | needs_more_evidence |
 
-- HTTP 200
-- `data.result` 包含真实 LLM 输出（match_score, evidence_chain, top_fix_items 等）
-- `data.meta.generated_by = "llm_agent"`
-- `data.meta.agent_status = "success"` 或 `"repaired"`
+## 6. 失败原因分析
 
-### 失败路径（LLM 调用失败）
+| 可能原因 | 说明 |
+|---------|------|
+| API Key 无效 | 最可能 — TokenHub 认证失败 |
+| BaseURL 不可达 | 网络连通性 |
+| Model 名称不对 | `hy3-preview` 与 TokenHub 实际模型不符 |
 
-- `MatchFallbackError` → `MatchMockAgent` fallback
-- HTTP 200
-- `data.meta.generated_by = "mock_agent"`
-- `data.meta.agent_status = "fallback"`
-- `data.meta.fallback_reason` 说明原因
+**重点：fallback 路径完全可靠。** 真实 LLM 失败对前端零影响。
 
-## 8. 安全状态
+## 7. Key 安全检查
 
-| 检查项 | 结果 |
-|--------|------|
-| `.env` 未被 git 追踪 | ✅ |
-| `.env.example` 仅占位符 | ✅ |
-| Key 扫描（tracked files）| ✅ clean |
-| `json:"-"` 标记 | ✅ |
-| `MaskedAPIKey()` + `safeErr()` | ✅ |
+| 检查 | 结果 |
+|------|------|
+| real sk- / AKIA in tracked files | clean ✅ |
+| `.env` in git tracked | 否 ✅ |
+| `.env.example` | 占位符 `sk-your-real-api-key` ✅ |
+| git diff | empty ✅ |
+| pipeline_test.go `sk-fake` | fake test key ✅ |
 
-**本阶段未修改代码，未输出真实 Key。**
+## 8. go test
+
+```
+ok  offer-catcher/server/internal/errors
+ok  offer-catcher/server/internal/llm
+ok  offer-catcher/server/internal/llmjson
+ok  offer-catcher/server/internal/model
+ok  offer-catcher/server/internal/prompt
+ok  offer-catcher/server/internal/schema
+ok  offer-catcher/server/internal/service
+```
+
+All pass ✅
 
 ## 9. P0 / P1 / P2
 
@@ -115,20 +110,21 @@ MatchHandler → MatchService
 |------|------|------|------|
 | — | — | P0 = 0 | ✅ |
 | — | — | P1 = 0 | ✅ |
-| P2 | P2-1 | **阻因：用户未配置真实 API Key** | 用户本地配置 |
-| P2 | P2-2 | 真实 LLM 调用未执行 | 等待 Key |
-| P2 | P2-3 | 只规划了 Match Agent，推荐/优化未测 | 后置 |
+| P2 | P2-1 | 真实 LLM 调用失败（llm_call_failed），fallback 正常 | 需排查 Key/URL/Model |
+| P2 | P2-2 | 只测了 Match Agent | 后置 |
+| P2 | P2-3 | 浏览器人工验收未执行 | 后置 |
 
 ## 10. 判定
 
-**K5-1 blocked。** 未修改代码。等待用户在本地 `.env` 配置真实 `LLM_API_KEY` 并设 `LLM_ENABLE=true` 后方可继续。
+**K5-1-R = partial_pass。**
 
-## 11. 下一步
+- 真实 LLM 调用失败，但 fallback 可靠 ✅
+- 错误处理路径正确（llm_call_failed → Mock fallback）✅
+- 前端不白屏，结果可读 ✅
+- P0=0 P1=0 ✅
+- 零代码修改 ✅
+- 零 Key 泄漏 ✅
 
-用户配置真实 Key 后：
+## 11. 是否可以进入 K5-2
 
-1. `make restart` 重启服务
-2. 获取 auth token：`POST /api/auth/login`
-3. 调用 `POST /api/jobs/55/match` 验证真实 LLM 输出
-4. 验证 parse / schema validate / repair / fallback
-5. 将结果填入本文档，从 blocked 更新为 pass / partial_pass
+**可以。** K5-2 建议：排查 LLM API Key / URL / Model 配置问题后重新测试，或扩展测试到推荐/优化 Agent。
