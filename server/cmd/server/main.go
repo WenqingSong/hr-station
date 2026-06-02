@@ -21,6 +21,9 @@ import (
 	"offer-catcher/server/internal/repository"
 	"offer-catcher/server/internal/schema"
 	"offer-catcher/server/internal/service"
+	"offer-catcher/server/internal/session"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -46,9 +49,25 @@ func main() {
 	// Initialize health check
 	healthService := health.NewService(cfg.App.Name, cfg.App.Env, mysqlDB)
 
+	// Initialize Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		log.Printf("[warn] Redis connection failed: %v. Session validation will not work.", err)
+	} else {
+		log.Println("[offer-catcher-server] Redis connected")
+	}
+	defer redisClient.Close()
+
+	// Initialize session manager
+	sessionMgr := session.NewManager(redisClient, cfg.Session.TTLSeconds)
+
 	// Initialize auth module
 	userRepo := repository.NewUserRepository(mysqlDB.DB)
-	authService := service.NewAuthService(userRepo, cfg.JWT.Secret, cfg.JWT.ExpireHours)
+	authService := service.NewAuthService(userRepo, sessionMgr, cfg.JWT.Secret, cfg.JWT.ExpireHours)
 	authHandler := httpserver.NewAuthHandler(authService)
 	authMiddleware := middleware.Auth(authService)
 

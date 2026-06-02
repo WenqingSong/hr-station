@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { FileText, LogIn, LogOut, Sparkles } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { getAuthToken, clearAuthToken } from "../../api/authStorage";
+import { logout } from "../../api/auth";
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -21,7 +22,8 @@ export function Navbar() {
     return () => window.removeEventListener("storage", checkAuth);
   }, []);
 
-  function handleLogout() {
+  async function handleLogout() {
+    try { await logout(); } catch (_) { /* ignore if API fails */ }
     clearAuthToken();
     setIsLoggedIn(false);
     navigate("/");

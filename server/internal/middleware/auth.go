@@ -2,26 +2,24 @@ package middleware
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 
 	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/response"
+	"offer-catcher/server/internal/service"
 )
 
-// contextKey is a custom type for context keys to avoid collisions.
 type contextKey string
 
-const userIDContextKey contextKey = "user_id"
+const (
+	userIDKey    contextKey = "user_id"
+	sessionIDKey contextKey = "session_id"
+)
 
-// TokenParser is an interface for parsing JWT tokens.
-type TokenParser interface {
-	ParseToken(tokenString string) (uint64, error)
-}
-
-// Auth returns middleware that validates JWT Bearer tokens
-// and puts the user_id into the request context.
-func Auth(tokenParser TokenParser) func(http.Handler) http.Handler {
+// Auth returns middleware that validates JWT token and Redis session.
+func Auth(authService *service.AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -36,13 +34,23 @@ func Auth(tokenParser TokenParser) func(http.Handler) http.Handler {
 				return
 			}
 
-			userID, err := tokenParser.ParseToken(parts[1])
+			tokenString := parts[1]
+			userID, sessionID, err := authService.ParseToken(tokenString)
 			if err != nil {
+				log.Printf("[auth] token parse error: %v", err)
 				response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), userIDContextKey, userID)
+			// Validate Redis session
+			if err := authService.ValidateSession(r.Context(), userID, sessionID); err != nil {
+				log.Printf("[auth] session invalid: %v", err)
+				response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), userIDKey, userID)
+			ctx = context.WithValue(ctx, sessionIDKey, sessionID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -50,6 +58,12 @@ func Auth(tokenParser TokenParser) func(http.Handler) http.Handler {
 
 // UserIDFromContext extracts the user ID from the request context.
 func UserIDFromContext(ctx context.Context) (uint64, bool) {
-	userID, ok := ctx.Value(userIDContextKey).(uint64)
-	return userID, ok
+	id, ok := ctx.Value(userIDKey).(uint64)
+	return id, ok
+}
+
+// SessionIDFromContext extracts the session ID from the request context.
+func SessionIDFromContext(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(sessionIDKey).(string)
+	return id, ok
 }

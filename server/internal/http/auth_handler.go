@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"offer-catcher/server/internal/errors"
+	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/middleware"
+	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/response"
 	"offer-catcher/server/internal/service"
 )
 
-// AuthHandler handles authentication HTTP requests.
+// AuthHandler handles HTTP requests for authentication.
 type AuthHandler struct {
 	authService *service.AuthService
 }
@@ -22,12 +23,7 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 
 // Register handles POST /api/auth/register
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
-		return
-	}
-
-	var req service.RegisterRequest
+	var req model.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid request body")
 		return
@@ -44,12 +40,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 // Login handles POST /api/auth/login
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
-		return
-	}
-
-	var req service.LoginRequest
+	var req model.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid request body")
 		return
@@ -66,11 +57,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 // Me handles GET /api/auth/me
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
-		return
-	}
-
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
 		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
@@ -86,7 +72,28 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, user)
 }
 
-// handleAuthError maps service errors to HTTP responses using errors.As.
+// Logout handles POST /api/auth/logout
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+		return
+	}
+	sessionID, ok := middleware.SessionIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, "session not found")
+		return
+	}
+
+	if err := h.authService.Logout(r.Context(), userID, sessionID); err != nil {
+		handleAuthError(w, err)
+		return
+	}
+
+	response.OK(w, map[string]string{"message": "已退出登录"})
+}
+
+// handleAuthError maps auth service errors to HTTP responses using errors.As.
 func handleAuthError(w http.ResponseWriter, err error) {
 	if ae := apperror.AsAppError(err); ae != nil {
 		response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)

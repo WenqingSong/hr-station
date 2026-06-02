@@ -34,6 +34,24 @@ services:
     networks:
       - offer_catcher_net
 
+  redis:
+    image: redis:7-alpine
+    container_name: offer-catcher-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - offer_catcher_net
+
   nginx:
     image: nginx:alpine
     container_name: offer-catcher-nginx
@@ -53,6 +71,7 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:
 
 networks:
   offer_catcher_net:

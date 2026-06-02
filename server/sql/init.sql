@@ -37,13 +37,14 @@ DROP TABLE IF EXISTS `users`;
 -- -----------------------------------------------------------
 CREATE TABLE `users` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `email`         VARCHAR(255)     NOT NULL,
+  `email`         VARCHAR(255)     NOT NULL DEFAULT '',
+  `phone`         VARCHAR(20)      NOT NULL DEFAULT '',
   `password_hash` VARCHAR(255)     NOT NULL,
   `name`          VARCHAR(100)     NOT NULL DEFAULT '',
   `created_at`    DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`    DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_users_email` (`email`)
+  UNIQUE KEY `uk_users_phone` (`phone`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
 -- -----------------------------------------------------------
@@ -191,9 +192,9 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- Demo 密码统一为 123456，password_hash 使用 bcrypt 生成
 -- 注意：Demo 密码不应在生产环境使用
 -- -----------------------------------------------------------
-INSERT INTO `users` (`id`, `email`, `password_hash`, `name`) VALUES
-(1, 'arthur@example.com',       '$2a$10$hUKwISi3F6uHLRj.cFkUkO23HNLW9nH60me2O9fm7q2Hr/Z1nTG3u', 'Arthur'),
-(2, 'demo@offer-catcher.com',   '$2a$10$hUKwISi3F6uHLRj.cFkUkO23HNLW9nH60me2O9fm7q2Hr/Z1nTG3u', 'Demo用户');
+INSERT INTO `users` (`id`, `email`, `phone`, `password_hash`, `name`) VALUES
+(1, 'arthur@example.com',       '13800138000', '$2a$10$hUKwISi3F6uHLRj.cFkUkO23HNLW9nH60me2O9fm7q2Hr/Z1nTG3u', 'Arthur'),
+(2, 'demo@offer-catcher.com',   '13900139000', '$2a$10$hUKwISi3F6uHLRj.cFkUkO23HNLW9nH60me2O9fm7q2Hr/Z1nTG3u', 'Demo用户');
 
 -- -----------------------------------------------------------
 -- 3.2 种子简历版本

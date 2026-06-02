@@ -47,3 +47,11 @@ export function getMe(token: string): Promise<AuthUser> {
     },
   });
 }
+
+/**
+ * 退出登录。
+ * POST /auth/logout → { message }
+ */
+export function logout(): Promise<{ message: string }> {
+  return post<{ message: string }>('/auth/logout', {});
+}

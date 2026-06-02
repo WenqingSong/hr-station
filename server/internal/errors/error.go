@@ -72,6 +72,8 @@ const (
 const (
 	CodeEmailRegistered  = 41001
 	CodeInvalidCreds     = 41002
+	CodeDuplicatePhone   = 41003
+	CodeSessionInvalid   = 41004
 )
 
 // Resume module codes (420xx)

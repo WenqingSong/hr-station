@@ -24,6 +24,8 @@ type Config struct {
 	JWT      JWTConfig
 	CORS     CORSConfig
 	LLM      LLMConfig
+	Redis    RedisConfig
+	Session  SessionConfig
 	Feature  FeatureConfig
 	Log      LogConfig
 }
@@ -62,6 +64,20 @@ type CORSConfig struct {
 	AllowedMethods   string
 	AllowedHeaders   string
 	AllowCredentials bool
+}
+
+// RedisConfig holds Redis connection configuration.
+type RedisConfig struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
+	Addr     string
+}
+
+// SessionConfig holds session TTL configuration.
+type SessionConfig struct {
+	TTLSeconds int
 }
 
 // LLMConfig holds LLM API configuration.
@@ -122,6 +138,16 @@ func Load() *Config {
 			AllowedMethods:   getEnv("CORS_ALLOWED_METHODS", "GET, POST, PUT, PATCH, DELETE, OPTIONS"),
 			AllowedHeaders:   getEnv("CORS_ALLOWED_HEADERS", "Content-Type, Authorization, X-Requested-With"),
 			AllowCredentials: getEnvAsBool("CORS_ALLOW_CREDENTIALS", false),
+		},
+		Redis: RedisConfig{
+			Host:     getEnv("REDIS_HOST", "127.0.0.1"),
+			Port:     getEnv("REDIS_PORT", "6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnvAsInt("REDIS_DB", 0),
+			Addr:     getEnv("REDIS_HOST", "127.0.0.1") + ":" + getEnv("REDIS_PORT", "6379"),
+		},
+		Session: SessionConfig{
+			TTLSeconds: getEnvAsInt("REDIS_SESSION_TTL", 604800),
 		},
 		LLM: LLMConfig{
 			Enable:            getEnvAsBool("LLM_ENABLE", false),

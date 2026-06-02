@@ -51,6 +51,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	// Protected auth routes
 	mux.Handle("/api/auth/me", deps.AuthMiddleware(http.HandlerFunc(deps.AuthHandler.Me)))
+	mux.Handle("/api/auth/logout", deps.AuthMiddleware(http.HandlerFunc(deps.AuthHandler.Logout)))
 
 	// Resume routes (all require auth)
 	mux.Handle("/api/resumes", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Create)))
