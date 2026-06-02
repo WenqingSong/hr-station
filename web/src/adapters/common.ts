@@ -15,26 +15,25 @@ export function formatListText(items: string[], emptyText = '暂无'): string {
 /**
  * Agent 来源 → 展示标签映射。
  * 基于 generated_by + agent_status 组合判断。
+ *
+ * 设计冻结：
+ * - 用户可见页面不展示 Mock / fallback / generated_by / agent_status 等技术标签
+ * - 所有正常完成的状态统一展示产品化文案
+ * - generated_by / agent_status 仅作为内部元数据保留
  */
 export function formatAgentSourceLabel(meta?: AgentResponseMeta): StatusBadge {
   if (!meta) return { label: '状态未知', tone: 'gray' };
 
   const { generated_by, agent_status } = meta;
 
-  if (generated_by === 'llm_agent' && agent_status === 'success') {
-    return { label: 'LLM 生成', tone: 'blue' };
-  }
   if (generated_by === 'llm_agent' && agent_status === 'repaired') {
     return { label: '已自动修复', tone: 'green' };
   }
-  if (agent_status === 'fallback') {
-    return { label: '兜底结果', tone: 'orange' };
-  }
-  if (agent_status === 'mock_success') {
-    return { label: 'Mock 演示结果', tone: 'gray' };
+  if (agent_status === 'success' || agent_status === 'repaired' || agent_status === 'fallback' || agent_status === 'mock_success') {
+    return { label: '分析完成', tone: 'blue' };
   }
   if (agent_status === 'error') {
-    return { label: '异常但可用', tone: 'red' };
+    return { label: '分析异常', tone: 'red' };
   }
   return { label: '状态未知', tone: 'gray' };
 }
