@@ -137,14 +137,6 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
                 onSelect={(v) => toggleFilter("city", v)}
               />
             )}
-            {facets.recruit_types.length > 0 && (
-              <FilterGroup
-                title="招聘类型"
-                items={facets.recruit_types}
-                selectedValue={filters.recruit_type}
-                onSelect={(v) => toggleFilter("recruit_type", v)}
-              />
-            )}
             {facets.categories.length > 0 && (
               <FilterGroup
                 title="岗位类别"
@@ -169,7 +161,7 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
                 onSelect={(v) => toggleFilter("skill", v)}
               />
             )}
-            {!facets.directions.length && !facets.cities.length && !facets.recruit_types.length && !facets.categories.length && !(facets.business_groups||[]).length && !(facets.skills||[]).length && (
+            {!facets.directions.length && !facets.cities.length && !facets.categories.length && !(facets.business_groups||[]).length && !(facets.skills||[]).length && !(facets.application_projects||[]).length && (
               <p className="text-xs text-gray-400 text-center py-4">暂无筛选项</p>
             )}
           </div>
