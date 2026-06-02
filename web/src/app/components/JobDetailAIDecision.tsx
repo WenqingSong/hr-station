@@ -12,7 +12,7 @@ type ModalAction = "match" | "optimize";
 export function JobDetailAIDecision() {
   const navigate = useNavigate();
   const { id: routeJobId } = useParams();
-  const jobId = routeJobId || "1";
+  const jobId = routeJobId || "";
   const [modalAction, setModalAction] = useState<ModalAction | null>(null);
   const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
   const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
