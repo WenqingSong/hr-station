@@ -54,8 +54,8 @@ export interface JobListParams {
   city?: string;
   recruit_type?: string;
   category?: string;
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 /**
@@ -101,7 +101,7 @@ function buildQuery(params?: JobListParams): string {
   if (params.city) parts.push(`city=${encodeURIComponent(params.city)}`);
   if (params.recruit_type) parts.push(`recruit_type=${encodeURIComponent(params.recruit_type)}`);
   if (params.category) parts.push(`category=${encodeURIComponent(params.category)}`);
-  if (params.limit) parts.push(`limit=${params.limit}`);
-  if (params.offset) parts.push(`offset=${params.offset}`);
+  if (params.page) parts.push(`page=${params.page}`);
+  if (params.page_size) parts.push(`page_size=${params.page_size}`);
   return parts.length ? `?${parts.join('&')}` : '';
 }

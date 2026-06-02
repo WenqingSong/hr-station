@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search } from "lucide-react";
-import { Checkbox } from "./ui/Checkbox";
+import { Search, Check, X } from "lucide-react";
 import { getJobFacets, type JobFacets } from "../../api/jobs";
 
 export interface JobFilters {
@@ -21,79 +20,117 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
   const [facets, setFacets] = useState<JobFacets | null>(null);
   const [facetsLoading, setFacetsLoading] = useState(true);
   const [facetsError, setFacetsError] = useState<string | null>(null);
+  const [localKeyword, setLocalKeyword] = useState(keyword);
+
+  useEffect(() => { setLocalKeyword(keyword); }, [keyword]);
 
   useEffect(() => {
     getJobFacets()
       .then(setFacets)
-      .catch((e) => setFacetsError(e instanceof Error ? e.message : "加载筛选失败"))
+      .catch(() => setFacetsError("筛选条件加载失败"))
       .finally(() => setFacetsLoading(false));
   }, []);
 
   const toggleFilter = (key: keyof JobFilters, value: string) => {
-    const newVal = filters[key] === value ? undefined : value;
-    onFiltersChange({ ...filters, [key]: newVal });
+    onFiltersChange({ ...filters, [key]: filters[key] === value ? undefined : value });
   };
 
-  const isActive = (key: keyof JobFilters, value: string) => filters[key] === value;
+  const handleSearch = () => { onKeywordChange(localKeyword); };
+  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter") handleSearch(); };
+
+  const activeCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    <aside className="w-[260px] shrink-0 sticky top-24 self-start bg-white border border-gray-200 p-4 rounded-md">
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="搜索岗位 / 技能关键词"
-          value={keyword}
-          onChange={(e) => onKeywordChange(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0052D9] focus:border-[#0052D9] placeholder:text-gray-400"
-        />
+    <aside className="w-[260px] shrink-0 sticky top-24 self-start bg-white border border-gray-200 rounded-lg">
+      {/* Search */}
+      <div className="p-4 pb-3 border-b border-gray-100">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="搜索岗位 / 技能关键词"
+            value={localKeyword}
+            onChange={(e) => setLocalKeyword(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0052D9] focus:border-[#0052D9] placeholder:text-gray-400"
+          />
+        </div>
       </div>
 
-      {facetsLoading && (
-        <p className="text-xs text-gray-400 text-center py-4">正在加载筛选项…</p>
-      )}
-      {facetsError && (
-        <p className="text-xs text-gray-400 text-center py-4">筛选加载失败</p>
-      )}
-      {facets && (
-        <div className="space-y-6">
-          {facets.directions.length > 0 && (
-            <FilterGroup
-              title="求职方向"
-              items={facets.directions}
-              activeValue={filters.direction}
-              onToggle={(v) => toggleFilter("direction", v)}
-            />
-          )}
-          {facets.cities.length > 0 && (
-            <FilterGroup
-              title="工作地点"
-              items={facets.cities}
-              activeValue={filters.city}
-              onToggle={(v) => toggleFilter("city", v)}
-            />
-          )}
-          {facets.recruit_types.length > 0 && (
-            <FilterGroup
-              title="招聘类型"
-              items={facets.recruit_types}
-              activeValue={filters.recruit_type}
-              onToggle={(v) => toggleFilter("recruit_type", v)}
-            />
-          )}
-          {facets.categories.length > 0 && (
-            <FilterGroup
-              title="岗位类别"
-              items={facets.categories}
-              activeValue={filters.category}
-              onToggle={(v) => toggleFilter("category", v)}
-            />
-          )}
-          {!facets.directions.length && !facets.cities.length && !facets.recruit_types.length && !facets.categories.length && (
-            <p className="text-xs text-gray-400 text-center py-4">暂无筛选项</p>
-          )}
+      {/* Active filter chips */}
+      {activeCount > 0 && (
+        <div className="px-4 py-2 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-500">已选 {activeCount} 项</span>
+            <button
+              className="text-xs text-[#0052D9] hover:underline"
+              onClick={() => onFiltersChange({})}
+            >
+              清空筛选
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {Object.entries(filters).map(([key, val]) =>
+              val ? (
+                <span key={key} className="inline-flex items-center gap-1 text-xs bg-blue-50 text-[#0052D9] px-2 py-0.5 rounded-full cursor-pointer hover:bg-blue-100 transition-colors"
+                  onClick={() => toggleFilter(key as keyof JobFilters, val)}>
+                  {val}
+                  <X className="h-3 w-3" />
+                </span>
+              ) : null
+            )}
+          </div>
         </div>
       )}
+
+      {/* Facets */}
+      <div className="p-4 pt-3">
+        {facetsLoading && (
+          <p className="text-xs text-gray-400 text-center py-8">正在加载筛选项…</p>
+        )}
+        {facetsError && (
+          <p className="text-xs text-gray-400 text-center py-8">{facetsError}</p>
+        )}
+        {facets && (
+          <div className="space-y-5">
+            {facets.directions.length > 0 && (
+              <FilterGroup
+                title="求职方向"
+                items={facets.directions}
+                selectedValue={filters.direction}
+                onSelect={(v) => toggleFilter("direction", v)}
+              />
+            )}
+            {facets.cities.length > 0 && (
+              <FilterGroup
+                title="工作地点"
+                items={facets.cities}
+                selectedValue={filters.city}
+                onSelect={(v) => toggleFilter("city", v)}
+              />
+            )}
+            {facets.recruit_types.length > 0 && (
+              <FilterGroup
+                title="招聘类型"
+                items={facets.recruit_types}
+                selectedValue={filters.recruit_type}
+                onSelect={(v) => toggleFilter("recruit_type", v)}
+              />
+            )}
+            {facets.categories.length > 0 && (
+              <FilterGroup
+                title="岗位类别"
+                items={facets.categories}
+                selectedValue={filters.category}
+                onSelect={(v) => toggleFilter("category", v)}
+              />
+            )}
+            {!facets.directions.length && !facets.cities.length && !facets.recruit_types.length && !facets.categories.length && (
+              <p className="text-xs text-gray-400 text-center py-4">暂无筛选项</p>
+            )}
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
@@ -101,42 +138,42 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
 function FilterGroup({
   title,
   items,
-  activeValue,
-  onToggle,
+  selectedValue,
+  onSelect,
 }: {
   title: string;
   items: { value: string; label: string; count: number }[];
-  activeValue?: string;
-  onToggle: (value: string) => void;
+  selectedValue?: string;
+  onSelect: (value: string) => void;
 }) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold text-gray-900">{title}</h3>
-      </div>
-      <div className="space-y-3">
-        {items.map((item) => (
-          <div
-            key={item.value}
-            className="flex items-center justify-between group cursor-pointer"
-            onClick={() => onToggle(item.value)}
-          >
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id={`${title}-${item.value}`}
-                checked={activeValue === item.value}
-                onChange={() => onToggle(item.value)}
-              />
-              <label
-                htmlFor={`${title}-${item.value}`}
-                className="text-sm text-gray-600 cursor-pointer group-hover:text-[#0052D9]"
-              >
-                {item.label}
-              </label>
-            </div>
-            <span className="text-xs text-gray-400">{item.count > 0 ? item.count : ""}</span>
-          </div>
-        ))}
+      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{title}</h3>
+      <div className="space-y-0.5">
+        {items.map((item) => {
+          const isSelected = selectedValue === item.value;
+          return (
+            <button
+              key={item.value}
+              onClick={() => onSelect(item.value)}
+              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-sm transition-colors ${
+                isSelected
+                  ? "bg-blue-50 text-[#0052D9] font-medium"
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <span className="flex items-center gap-2 truncate">
+                {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
+                <span className="truncate">{item.label}</span>
+              </span>
+              {item.count > 0 && (
+                <span className={`text-xs shrink-0 ml-2 ${isSelected ? "text-[#0052D9]" : "text-gray-400"}`}>
+                  {item.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
