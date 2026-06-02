@@ -14,7 +14,7 @@ import type { ResumeOptionViewModel } from "../../adapters";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Scene = "recommendation" | "match-analysis";
+type Scene = "recommendation" | "match-analysis" | "resume-optimization";
 
 interface SelectResumeModalProps {
   isOpen: boolean;
@@ -32,6 +32,10 @@ const SCENE_CONFIG: Record<Scene, { label: string; desc: string }> = {
   "match-analysis": {
     label: "岗位匹配分析",
     desc: "系统将对比岗位 JD 与所选简历，生成匹配度、证据链和投递建议。",
+  },
+  "resume-optimization": {
+    label: "简历优化",
+    desc: "系统将基于目标岗位 JD 分析当前简历，给出具体的修改建议和优化方案。",
   },
 };
 
@@ -104,7 +108,7 @@ export function SelectResumeModal({
             <span className="text-xs text-gray-500">
               当前操作：<span className="font-medium text-gray-800">{sceneInfo.label}</span>
             </span>
-            {scene === "match-analysis" && jobTitle && (
+            {scene !== "recommendation" && jobTitle && (
               <>
                 <span className="w-px h-3 bg-gray-300" />
                 <span className="text-xs text-gray-500">

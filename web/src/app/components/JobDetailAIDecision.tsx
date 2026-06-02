@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, FileText, Target, ArrowRight, ShieldAlert } from "lucide-react";
+import { Sparkles, FileText, Target, ArrowRight, ShieldAlert, FileEdit } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate, useParams } from "react-router";
@@ -7,11 +7,13 @@ import { loadCurrentResumeSummaryViewModel, loadJobDetailViewModel } from "../..
 import type { ResumeSummaryViewModel, JobDetailViewModel } from "../../adapters";
 import { SelectResumeModal } from "./SelectResumeModal";
 
+type ModalAction = "match" | "optimize";
+
 export function JobDetailAIDecision() {
   const navigate = useNavigate();
   const { id: routeJobId } = useParams();
   const jobId = routeJobId || "1";
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [modalAction, setModalAction] = useState<ModalAction | null>(null);
   const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
   const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,8 +25,12 @@ export function JobDetailAIDecision() {
     ]).finally(() => setLoading(false));
   }, [jobId]);
 
-  const handleConfirmMatch = (resumeId: string) => {
-    navigate(`/match?jobId=${encodeURIComponent(jobId)}&resumeId=${encodeURIComponent(resumeId)}`);
+  const handleConfirm = (resumeId: string) => {
+    if (modalAction === "match") {
+      navigate(`/match?jobId=${encodeURIComponent(jobId)}&resumeId=${encodeURIComponent(resumeId)}`);
+    } else if (modalAction === "optimize") {
+      navigate(`/resume-optimization?jobId=${encodeURIComponent(jobId)}&resumeId=${encodeURIComponent(resumeId)}`);
+    }
   };
 
   return (
@@ -97,15 +103,25 @@ export function JobDetailAIDecision() {
         <div className="absolute top-0 left-0 w-full h-1 bg-[#0052D9]"></div>
         <h3 className="font-bold text-gray-900 mb-2 mt-1 text-[15px]">想知道这个岗位适不适合你？</h3>
         <p className="text-xs text-gray-600 mb-5 leading-relaxed">
-          系统将基于当前岗位 JD 和当前简历，分析匹配度、证据链、风险短板和投递前优化优先级。
+          系统将基于当前岗位 JD 和所选简历，进行分析和优化。
         </p>
-        <Button 
-          className="w-full shadow-sm group bg-[#0052D9] hover:bg-[#0040A8] text-white"
-          onClick={() => setIsResumeModalOpen(true)}
-        >
-          开始岗位匹配分析
-          <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-        </Button>
+        <div className="flex flex-col gap-3">
+          <Button 
+            className="w-full shadow-sm group bg-[#0052D9] hover:bg-[#0040A8] text-white"
+            onClick={() => setModalAction("match")}
+          >
+            分析岗位匹配度
+            <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </Button>
+          <Button 
+            variant="outline"
+            className="w-full shadow-sm group border-[#0052D9] text-[#0052D9] hover:bg-blue-50"
+            onClick={() => setModalAction("optimize")}
+          >
+            生成简历优化建议
+            <FileEdit className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </Button>
+        </div>
       </div>
 
       {/* Pre-delivery Tip Card */}
@@ -122,10 +138,17 @@ export function JobDetailAIDecision() {
       </div>
 
       <SelectResumeModal
-        isOpen={isResumeModalOpen}
-        onClose={() => setIsResumeModalOpen(false)}
-        onConfirm={handleConfirmMatch}
+        isOpen={modalAction === "match"}
+        onClose={() => setModalAction(null)}
+        onConfirm={handleConfirm}
         scene="match-analysis"
+        jobTitle={jobVm?.title || ""}
+      />
+      <SelectResumeModal
+        isOpen={modalAction === "optimize"}
+        onClose={() => setModalAction(null)}
+        onConfirm={handleConfirm}
+        scene="resume-optimization"
         jobTitle={jobVm?.title || ""}
       />
     </aside>

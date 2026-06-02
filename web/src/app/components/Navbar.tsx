@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react";
 import { FileText, LogIn, LogOut, Sparkles } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import { getAuthToken, clearAuthToken } from "../../api/authStorage";
 
 export function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  useEffect(() => {
+    setIsLoggedIn(!!getAuthToken());
+  }, [location]);
+
+  // 监听 storage 变化（跨 tab 同步）
   useEffect(() => {
     function checkAuth() {
       setIsLoggedIn(!!getAuthToken());
     }
-    checkAuth();
-    // 监听 storage 变化（跨 tab 同步）
     window.addEventListener("storage", checkAuth);
     return () => window.removeEventListener("storage", checkAuth);
   }, []);
