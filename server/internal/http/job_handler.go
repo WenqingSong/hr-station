@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	apperror "offer-catcher/server/internal/errors"
-	"offer-catcher/server/internal/middleware"
 	"offer-catcher/server/internal/response"
 	"offer-catcher/server/internal/service"
 )
@@ -21,15 +20,10 @@ func NewJobHandler(jobService *service.JobService) *JobHandler {
 	return &JobHandler{jobService: jobService}
 }
 
-// List handles GET /api/jobs — returns a paginated list of jobs.
+// List handles GET /api/jobs — returns a paginated list of jobs (public).
 func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
-		return
-	}
-
-	if _, ok := middleware.UserIDFromContext(r.Context()); !ok {
-		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
 		return
 	}
 
@@ -73,15 +67,10 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, resp)
 }
 
-// Detail handles GET /api/jobs/{id} — returns a single job detail.
+// Detail handles GET /api/jobs/{id} — returns a single job detail (public).
 func (h *JobHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
-		return
-	}
-
-	if _, ok := middleware.UserIDFromContext(r.Context()); !ok {
-		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
 		return
 	}
 
@@ -107,15 +96,10 @@ func (h *JobHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, resp)
 }
 
-// Facets handles GET /api/jobs/facets — returns aggregated facet counts.
+// Facets handles GET /api/jobs/facets — returns aggregated facet counts (public).
 func (h *JobHandler) Facets(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
-		return
-	}
-
-	if _, ok := middleware.UserIDFromContext(r.Context()); !ok {
-		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
 		return
 	}
 
