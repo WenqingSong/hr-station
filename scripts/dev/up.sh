@@ -13,7 +13,7 @@ source "${SCRIPT_DIR}/common.sh"
 # ---- 状态追踪 ----
 FAILURES=()
 CURRENT_STEP=0
-TOTAL_STEPS=10
+TOTAL_STEPS=11
 
 step_header() {
     CURRENT_STEP=$((CURRENT_STEP + 1))
@@ -118,6 +118,38 @@ if [ "$mysql_ready" = true ]; then
     fi
 else
     add_failure "MySQL 不可用，跳过数据库检查"
+fi
+
+# ---- Step 6b: 自动导入腾讯岗位主数据源 ----
+step_header "检查腾讯岗位数据"
+if [ "$mysql_ready" = true ] && [ "$tables_ok" = true ]; then
+    TENCENT_JOBS_JSON="${PROJECT_ROOT}/resources/jobs/tencent-campus-jobs.json"
+
+    if [ ! -f "$TENCENT_JOBS_JSON" ]; then
+        log_warn "未找到腾讯岗位数据文件: ${TENCENT_JOBS_JSON}"
+    else
+        # 检查当前 jobs 表数据来源
+        curated_count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+            -s -N -e "SELECT COUNT(*) FROM jobs WHERE external_source IN ('manual_curated','demo_curated');" 2>/dev/null || echo "0")
+        local_mock_count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+            -s -N -e "SELECT COUNT(*) FROM jobs;" 2>/dev/null || echo "0")
+
+        if [ "$curated_count" -gt 0 ]; then
+            log_info "腾讯岗位数据已导入 (${curated_count} 条)，跳过"
+        elif [ "$local_mock_count" -gt 0 ] && [ "$local_mock_count" -le 10 ]; then
+            log_info "当前仅有 ${local_mock_count} 条 local_mock 兜底岗位，替换为腾讯岗位主数据..."
+            if go run "${PROJECT_ROOT}/server/cmd/import_jobs" --file "$TENCENT_JOBS_JSON" --replace; then
+                new_count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+                    -s -N -e "SELECT COUNT(*) FROM jobs WHERE external_source = 'manual_curated';" 2>/dev/null || echo "0")
+                log_info "腾讯岗位数据导入完成 (${new_count} 条)"
+            else
+                add_failure "腾讯岗位数据导入失败"
+            fi
+        else
+            log_info "数据库已有 ${local_mock_count} 条岗位数据（非兜底模式），跳过自动导入"
+            log_info "如需导入腾讯岗位数据，请手动执行: make jobs-import"
+        fi
+    fi
 fi
 
 # ---- Step 7: 启动后端 ----

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Sparkles, FileText, LogIn, Plus, ArrowRight } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
@@ -23,29 +23,29 @@ export function AIDecisionWorkspace() {
   }, [isLoggedIn]);
   
   return (
-    <aside className="w-[340px] shrink-0 flex flex-col gap-4">
+    <aside className="w-[300px] shrink-0 flex flex-col gap-3">
       {/* Header */}
-      <div className="mb-2">
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles className="h-5 w-5 text-[#0052D9]" />
-          <h2 className="text-xl font-bold text-gray-900">AI 求职决策</h2>
+      <div className="mb-1">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Sparkles className="h-4 w-4 text-[#0052D9]" />
+          <h3 className="text-base font-semibold text-gray-800">AI 求职决策</h3>
         </div>
-        <p className="text-sm text-gray-500">
-          基于你的简历，帮你筛选更适合的岗位，并分析匹配度。
+        <p className="text-[12px] text-gray-400 leading-relaxed">
+          基于你的简历，帮你筛选更适合的岗位并分析匹配度。
         </p>
       </div>
 
       {/* ── 状态 A：未登录 ── */}
       {!isLoggedIn && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 text-center">
-          <LogIn className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-600 mb-1">登录后使用 AI 求职决策</p>
-          <p className="text-xs text-gray-400 mb-4">Offer 捕手会基于你的简历，帮你筛选更适合的岗位，并分析匹配度。</p>
+        <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+          <LogIn className="w-6 h-6 text-gray-300 mx-auto mb-2.5" />
+          <p className="text-[13px] text-gray-600 mb-1">登录后使用 AI 求职决策</p>
+          <p className="text-[12px] text-gray-400 mb-3 leading-relaxed">Offer 捕手会基于你的简历，帮你筛选更适合的岗位。</p>
           <div className="flex flex-col gap-2">
-            <Button className="w-full" onClick={() => navigate("/login")}>
+            <Button className="w-full text-[13px]" onClick={() => navigate("/login")}>
               登录
             </Button>
-            <Button variant="outline" className="w-full" onClick={() => navigate("/register")}>
+            <Button variant="outline" className="w-full text-[13px]" onClick={() => navigate("/register")}>
               注册新账号
             </Button>
           </div>
@@ -54,19 +54,19 @@ export function AIDecisionWorkspace() {
 
       {/* ── 加载中（已登录） ── */}
       {isLoggedIn && loading && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400">
+        <div className="bg-white border border-gray-100 rounded-xl p-4 text-center text-[13px] text-gray-400">
           正在加载…
         </div>
       )}
 
       {/* ── 状态 B：已登录但无简历 ── */}
       {isLoggedIn && !loading && !resumeVm && (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 text-center">
-          <FileText className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-600 mb-1">完善简历后开始智能推荐</p>
-          <p className="text-xs text-gray-400 mb-4">系统会基于你的简历版本，推荐岗位并分析岗位匹配度。</p>
-          <Button className="w-full" onClick={() => navigate("/resumes/new")}>
-            <Plus className="w-4 h-4 mr-1.5" />
+        <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+          <FileText className="w-6 h-6 text-gray-300 mx-auto mb-2.5" />
+          <p className="text-[13px] text-gray-600 mb-1">完善简历后开始智能推荐</p>
+          <p className="text-[12px] text-gray-400 mb-3 leading-relaxed">系统会基于你的简历版本，推荐岗位并分析岗位匹配度。</p>
+          <Button className="w-full text-[13px]" onClick={() => navigate("/resumes/new")}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
             去创建简历
           </Button>
         </div>
@@ -76,26 +76,26 @@ export function AIDecisionWorkspace() {
       {isLoggedIn && !loading && resumeVm && (
         <>
           {/* Current Resume Card */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-2 text-gray-900 font-medium">
-                <FileText className="h-4 w-4 text-[#0052D9]" />
+          <div className="bg-white border border-gray-100 rounded-xl p-4">
+            <div className="flex justify-between items-start mb-2.5">
+              <div className="flex items-center gap-1.5 text-gray-800 font-medium text-[13px]">
+                <FileText className="h-3.5 w-3.5 text-[#0052D9]" />
                 当前简历
               </div>
-              <button className="text-xs text-[#0052D9] hover:underline" onClick={() => navigate("/resumes")}>
+              <button className="text-[12px] text-[#0052D9] hover:underline" onClick={() => navigate("/resumes")}>
                 管理简历
               </button>
             </div>
-            <div className="mb-3">
-              <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm.name}</h3>
-              <div className="flex flex-wrap gap-1.5">
+            <div className="mb-2.5">
+              <h4 className="font-semibold text-gray-900 text-[13px] mb-1.5">{resumeVm.name}</h4>
+              <div className="flex flex-wrap gap-1">
                 <Badge variant="secondary" className="text-[10px] px-1.5">{resumeVm.directionLabel}</Badge>
-                {resumeVm.skillTags.slice(0, 4).map((skill) => (
+                {(Array.isArray(resumeVm.skillTags) ? resumeVm.skillTags : []).slice(0, 3).map((skill) => (
                   <Badge key={skill} variant="secondary" className="text-[10px] px-1.5">{skill}</Badge>
                 ))}
               </div>
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-[11px] text-gray-400">
               {resumeVm.projectCount > 0
                 ? `包含 ${resumeVm.projectCount} 个项目经历`
                 : "暂未填写项目经历"}
@@ -103,17 +103,15 @@ export function AIDecisionWorkspace() {
           </div>
 
           {/* Next Steps */}
-          <div className="bg-white border border-blue-100 rounded-lg p-5">
-            <h3 className="font-bold text-gray-900 mb-3">下一步</h3>
-            <div className="flex flex-col gap-2">
-              <Button
-                className="w-full shadow-sm group"
-                onClick={() => navigate("/recommend")}
-              >
-                推荐适合的岗位
-                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </div>
+          <div className="bg-white border border-gray-100 rounded-xl p-4">
+            <h4 className="font-semibold text-gray-800 text-[13px] mb-2.5">下一步</h4>
+            <Button
+              className="w-full text-[13px]"
+              onClick={() => navigate("/recommend")}
+            >
+              推荐适合的岗位
+              <ArrowRight className="ml-2 h-3.5 w-3.5" />
+            </Button>
           </div>
         </>
       )}

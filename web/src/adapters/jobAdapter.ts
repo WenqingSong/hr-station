@@ -8,12 +8,16 @@ export interface JobCardViewModel {
   id: string;
   title: string;
   businessGroup: string;
+  businessGroups: string[];
   locationsText: string;
+  locationsList: string[];
   tags: string[];
   shortDescription: string;
   statusLabel: string;
   categoryLabel: string;
   typeLabel: string;
+  direction: string;
+  applicationType: string;
 }
 
 export interface JobDetailViewModel extends JobCardViewModel {
@@ -53,18 +57,41 @@ const STATUS_LABELS: Record<string, string> = {
 
 // ─── 后端原始类型 → ViewModel ──────────────────────────────────────────────────
 
+/** 安全解析 JSON 数组 */
+function parseStringArray(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((v): v is string => typeof v === "string");
+  return [];
+}
+
+/** 安全解析 organizations [{code, name}] → name 列表 */
+function parseOrgNames(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw
+      .filter((v): v is Record<string, unknown> => v !== null && typeof v === "object")
+      .map((v) => (v as Record<string, unknown>).name)
+      .filter((v): v is string => typeof v === "string");
+  }
+  return [];
+}
+
 /** 从后端 JobApiItem 生成 JobCardViewModel */
 export function toJobCardViewModelFromApi(job: JobApiItem): JobCardViewModel {
+  const locationsRaw = parseStringArray((job as Record<string, unknown>).locations);
+  const orgsRaw = parseOrgNames((job as Record<string, unknown>).organizations);
   return {
     id: String(job.id),
     title: job.title,
     businessGroup: job.department,
+    businessGroups: orgsRaw.length > 0 ? orgsRaw : (job.department ? [job.department] : []),
     locationsText: job.city,
-    tags: job.skill_keywords ?? [],
-    shortDescription: job.description ?? '',
+    locationsList: locationsRaw.length > 0 ? locationsRaw : (job.city ? [job.city] : []),
+    tags: Array.isArray(job.skill_keywords) ? job.skill_keywords : [],
+    shortDescription: typeof job.description === "string" ? job.description : '',
     statusLabel: STATUS_LABELS[job.status] || job.status,
     categoryLabel: job.category,
-    typeLabel: RECRUIT_TYPE_LABELS[job.recruit_type] || job.recruit_type,
+    typeLabel: RECRUIT_TYPE_LABELS[job.recruit_type] || job.recruit_type || '',
+    direction: job.direction || '',
+    applicationType: job.application_type || '',
   };
 }
 

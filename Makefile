@@ -533,19 +533,26 @@ jobs-clean: ## 清理本地腾讯岗位原始 JSON
 # ============================================================
 
 jobs-import-help: ## 查看腾讯岗位入库命令帮助
-	@$(DEV_SCRIPT)/tencent_jobs_import.sh help
+	@echo "┌─────────────────────────────────────────────────────────────────┐"
+	@echo "│  腾讯岗位入库命令                                               │"
+	@echo "├─────────────────────────────────────────────────────────────────┤"
+	@echo "│  make jobs-import         导入腾讯岗位主数据源（幂等替换）         │"
+	@echo "│  make jobs-import-status  查看当前岗位数据来源状态               │"
+	@echo "│  make jobs-db-status      同 jobs-import-status                 │"
+	@echo "└─────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "主数据源: resources/jobs/tencent-campus-jobs.json (46 条完整岗位)"
+	@echo "导入工具: server/cmd/import_jobs (Go CLI)"
+	@echo ""
 
-jobs-import-check: ## 检查 raw JSON、MySQL、输出目录
-	@$(DEV_SCRIPT)/tencent_jobs_import.sh check
+jobs-import-check: ## 检查腾讯岗位 JSON 文件是否存在
+	@bash $(DEV_SCRIPT)/tencent_jobs_import.sh status
 
-jobs-import-preview: ## 预览将导入的腾讯岗位
-	@$(DEV_SCRIPT)/tencent_jobs_import.sh preview
+jobs-import-preview: ## 预览将导入的腾讯岗位（dry-run）
+	@cd server && go run ./cmd/import_jobs --file ../resources/jobs/tencent-campus-jobs.json --dry-run
 
-jobs-import-sql: ## 生成腾讯岗位导入 SQL
-	@$(DEV_SCRIPT)/tencent_jobs_import.sh generate-sql
-
-jobs-import: ## 执行腾讯岗位导入 MySQL
-	@$(DEV_SCRIPT)/tencent_jobs_import.sh import
+jobs-import: ## 导入腾讯岗位主数据源（幂等替换）
+	@cd server && go run ./cmd/import_jobs --file ../resources/jobs/tencent-campus-jobs.json --replace
 
 jobs-import-status: ## 查看腾讯岗位导入状态
 	@$(DEV_SCRIPT)/tencent_jobs_import.sh status

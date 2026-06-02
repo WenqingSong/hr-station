@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { JobCard } from "./JobCard";
 import { getJobs, type JobListParams } from "../../api/jobs";
 import { toJobCardViewModelsFromApi, type JobCardViewModel } from "../../adapters";
+import { X } from "lucide-react";
 
 interface JobListProps {
   params: JobListParams;
   onPageChange: (page: number) => void;
   onParamsChange: (p: JobListParams) => void;
+  /** 用于 display 的已选筛选条件（支持中文 label） */
+  activeFilters: { key: string; label: string }[];
+  onClearFilters: () => void;
 }
 
 const PAGE_SIZE = 10;
 
-export function JobList({ params, onPageChange, onParamsChange }: JobListProps) {
+export function JobList({ params, onPageChange, onParamsChange, activeFilters, onClearFilters }: JobListProps) {
   const [jobCards, setJobCards] = useState<JobCardViewModel[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -31,11 +35,52 @@ export function JobList({ params, onPageChange, onParamsChange }: JobListProps) 
 
   return (
     <main className="flex-1 max-w-[820px] pb-24">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">找到更适合你的实习岗位</h1>
-        <p className="text-gray-500">浏览当前开放岗位，按方向、城市和岗位类别筛选适合你的机会。</p>
+      {/* ── 列表区顶部 ── */}
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">找到更适合你的实习岗位</h1>
+
+        {/* ── 筛选状态栏（参考腾讯招聘）── */}
+        <div className="flex items-center justify-between flex-wrap gap-2 mt-3">
+          <span className="text-[14px] text-gray-500">
+            共 <span className="text-gray-800 font-semibold">{total}</span> 个岗位
+          </span>
+          {activeFilters.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-wrap gap-1.5">
+                {activeFilters.map((f) => (
+                  <span
+                    key={f.key}
+                    className="inline-flex items-center gap-1 text-[13px] bg-blue-50 text-[#0052D9] px-2.5 py-1 rounded-md cursor-pointer hover:bg-blue-100 transition-colors"
+                    onClick={() => {
+                      const cleared: Record<string, undefined> = {};
+                      // Find which param key this filter maps to
+                      const keyMap: Record<string, string> = {
+                        direction: "direction", city: "city", recruit_type: "recruit_type",
+                        category: "category", business_group: "business_group", skill: "skill",
+                        application_project: "application_project", application_subtype: "application_subtype",
+                        keyword: "keyword",
+                      };
+                      const paramKey = f.key;
+                      onParamsChange({ [paramKey]: undefined } as unknown as JobListParams);
+                    }}
+                  >
+                    {f.label}
+                    <X className="h-3.5 w-3.5" />
+                  </span>
+                ))}
+              </div>
+              <button
+                className="text-[13px] text-gray-400 hover:text-[#0052D9] transition-colors shrink-0"
+                onClick={onClearFilters}
+              >
+                清除全部
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* ── 岗位卡片列表 ── */}
       <div className="space-y-4">
         {loading && (
           <p className="text-sm text-gray-400 py-12 text-center">正在加载岗位列表…</p>
@@ -50,7 +95,7 @@ export function JobList({ params, onPageChange, onParamsChange }: JobListProps) 
           <div className="text-center py-12">
             <p className="text-sm text-gray-500 mb-2">没有找到匹配岗位</p>
             <p className="text-xs text-gray-400 mb-3">可尝试放宽筛选条件或搜索其他关键词</p>
-            <button className="text-sm text-[#0052D9] hover:underline" onClick={() => onParamsChange({})}>清空筛选条件</button>
+            <button className="text-sm text-[#0052D9] hover:underline" onClick={onClearFilters}>清空筛选条件</button>
           </div>
         )}
         {jobCards.map((job) => (
@@ -58,17 +103,20 @@ export function JobList({ params, onPageChange, onParamsChange }: JobListProps) 
             key={job.id}
             id={job.id}
             title={job.title}
+            direction={job.direction}
             type={job.typeLabel}
             department={job.businessGroup}
+            businessGroups={job.businessGroups}
             skills={job.tags}
             location={job.locationsText}
+            locations={job.locationsList}
             description={job.shortDescription}
             statusLabel={job.statusLabel}
           />
         ))}
       </div>
 
-      {/* Pagination */}
+      {/* ── 分页 ── */}
       {!loading && !error && totalPages > 1 && (
         <div className="flex items-center justify-center gap-1 mt-8">
           <button
@@ -107,7 +155,7 @@ export function JobList({ params, onPageChange, onParamsChange }: JobListProps) 
             下一页
           </button>
           <span className="ml-3 text-xs text-gray-400">
-            共 {total} 个岗位 · 第 {page}/{totalPages} 页
+            第 {page}/{totalPages} 页
           </span>
         </div>
       )}
