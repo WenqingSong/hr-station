@@ -41,6 +41,7 @@ var mapping = map[SchemaName]string{
 	SchemaMatchAnalysis:      "match_analysis_schema.json",
 	SchemaRecommendation:     "recommendation_schema.json",
 	SchemaResumeOptimization: "resume_optimization_schema.json",
+	SchemaVersionCompare:     "version_compare_schema.json",
 }
 
 // Loader loads JSON Schema files from a configured directory.

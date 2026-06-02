@@ -285,6 +285,8 @@ func targetOutputTypeFromSchema(name schema.SchemaName) repair.TargetOutputType 
 		return repair.TargetRecommendation
 	case schema.SchemaResumeOptimization:
 		return repair.TargetResumeOptimization
+	case schema.SchemaVersionCompare:
+		return repair.TargetCompare
 	default:
 		return repair.TargetMatchAnalysis
 	}

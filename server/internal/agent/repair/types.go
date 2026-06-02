@@ -12,6 +12,7 @@ const (
 	TargetRecommendation TargetOutputType = "recommendation"
 	// TargetResumeOptimization indicates a resume optimization output.
 	TargetResumeOptimization TargetOutputType = "resume_optimization"
+	TargetCompare            TargetOutputType = "version_compare"
 )
 
 // ValidTargetOutputTypes contains all allowed TargetOutputType values.
@@ -19,6 +20,7 @@ var ValidTargetOutputTypes = map[TargetOutputType]bool{
 	TargetMatchAnalysis:      true,
 	TargetRecommendation:     true,
 	TargetResumeOptimization: true,
+	TargetCompare:            true,
 }
 
 // RepairRequest is the input to a JSONRepairAgent.Repair call.

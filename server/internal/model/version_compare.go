@@ -39,16 +39,32 @@ type SuggestionCompletion struct {
 
 // VersionCompareAnalysis represents the structured version comparison output.
 type VersionCompareAnalysis struct {
-	FromVersionNo        int                    `json:"from_version_no"`
-	ToVersionNo          int                    `json:"to_version_no"`
-	ScoreBefore          int                    `json:"score_before"`
-	ScoreAfter           int                    `json:"score_after"`
-	ScoreChange          int                    `json:"score_change"`
-	FieldChanges         []FieldChange          `json:"field_changes"`
-	RiskChanges          []RiskChange           `json:"risk_changes"`
+	FromVersionNo      int                    `json:"from_version_no"`
+	ToVersionNo        int                    `json:"to_version_no"`
+	ScoreBefore        int                    `json:"score_before"`
+	ScoreAfter         int                    `json:"score_after"`
+	ScoreChange        int                    `json:"score_change"`
+	FieldChanges       []FieldChange          `json:"field_changes"`
+	RiskChanges        []RiskChange           `json:"risk_changes"`
 	SuggestionCompletion []SuggestionCompletion `json:"suggestion_completion"`
-	KeyImprovements      []string               `json:"key_improvements"`
-	RemainingRisks       []string               `json:"remaining_risks"`
-	Summary              string                 `json:"summary"`
-	AuthenticityNotice   string                 `json:"authenticity_notice"`
+	KeyImprovements    []string               `json:"key_improvements"`
+	RemainingRisks     []string               `json:"remaining_risks"`
+	Summary            string                 `json:"summary"`
+	AuthenticityNotice string                 `json:"authenticity_notice"`
+	// LLM-enriched fields (from VersionCompareLLMAgent)
+	OverallChange  string              `json:"overall_change,omitempty"`
+	Recommendation string              `json:"recommendation,omitempty"`
+	NextActions    []string            `json:"next_actions,omitempty"`
+	ImprovedItems  []CompareChangeItem `json:"improved_items,omitempty"`
+	WeakenedItems  []CompareChangeItem `json:"weakened_items,omitempty"`
+	MissingItems   []string            `json:"missing_items,omitempty"`
+	// Agent metadata
+	GeneratedBy string `json:"generated_by,omitempty"`
+	AgentStatus string `json:"agent_status,omitempty"`
+}
+
+// CompareChangeItem represents a change in an improved or weakened item.
+type CompareChangeItem struct {
+	Field  string `json:"field"`
+	Change string `json:"change"`
 }

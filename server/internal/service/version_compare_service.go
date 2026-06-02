@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	apperror "offer-catcher/server/internal/errors"
 	"fmt"
+	"log"
 	"time"
 
 	"offer-catcher/server/internal/agent"
@@ -28,9 +29,11 @@ type VersionCompareResponse struct {
 
 // VersionCompareService handles version comparison business logic.
 type VersionCompareService struct {
-	resumeRepo  *repository.ResumeRepository
-	compareRepo *repository.VersionCompareRepository
-	mockAgent   *agent.VersionCompareMockAgent
+	resumeRepo     *repository.ResumeRepository
+	compareRepo    *repository.VersionCompareRepository
+	mockAgent      *agent.VersionCompareMockAgent
+	pipelineRunner agent.PipelineRunner
+	llmEnabled     bool
 }
 
 // NewVersionCompareService creates a new VersionCompareService.
@@ -38,11 +41,15 @@ func NewVersionCompareService(
 	resumeRepo *repository.ResumeRepository,
 	compareRepo *repository.VersionCompareRepository,
 	mockAgent *agent.VersionCompareMockAgent,
+	pipelineRunner agent.PipelineRunner,
+	llmEnabled bool,
 ) *VersionCompareService {
 	return &VersionCompareService{
-		resumeRepo:  resumeRepo,
-		compareRepo: compareRepo,
-		mockAgent:   mockAgent,
+		resumeRepo:     resumeRepo,
+		compareRepo:    compareRepo,
+		mockAgent:      mockAgent,
+		pipelineRunner: pipelineRunner,
+		llmEnabled:     llmEnabled,
 	}
 }
 
@@ -77,8 +84,28 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 		return nil, apperror.ErrResumeToVerNotFound
 	}
 
-	// Generate comparison via mock agent
-	result, err := s.mockAgent.Compare(fromVersion, toVersion)
+	// Try LLM Pipeline first if enabled
+	if s.llmEnabled && s.pipelineRunner != nil {
+		llmAgent := agent.NewVersionCompareLLMAgent(s.pipelineRunner)
+		result, fallbackErr := llmAgent.Compare(fromVersion, toVersion)
+		if fallbackErr == nil {
+			resp := &VersionCompareResponse{
+				CompareID:   0, // will be set after snapshot save
+				GeneratedBy: result.GeneratedBy,
+				Result:      result,
+				CreatedAt:   time.Now().Format("2006-01-02T15:04:05Z07:00"),
+			}
+			return resp, nil
+		}
+		log.Printf("[VersionCompareService] LLM pipeline fallback: %v", fallbackErr)
+	}
+
+	// Fall back to Mock Agent
+	return s.compareWithMock(ctx, userID, fromVersion, toVersion)
+}
+
+func (s *VersionCompareService) compareWithMock(ctx context.Context, userID uint64, fromVer *model.ResumeVersion, toVer *model.ResumeVersion) (*VersionCompareResponse, error) {
+	result, err := s.mockAgent.Compare(fromVer, toVer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate version comparison: %w", err)
 	}
@@ -98,8 +125,8 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 
 	compareResult := &model.VersionCompareResult{
 		UserID:        userID,
-		FromVersionID: fromVersion.ID,
-		ToVersionID:   toVersion.ID,
+		FromVersionID: fromVer.ID,
+		ToVersionID:   toVer.ID,
 		ResultJSON:    resultJSON,
 	}
 

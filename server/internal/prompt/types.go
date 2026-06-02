@@ -13,6 +13,8 @@ const (
 	PromptResumeOptimization PromptName = "resume_optimization"
 	// PromptJSONRepair is the JSON repair Agent prompt.
 	PromptJSONRepair PromptName = "json_repair"
+	// PromptVersionCompare is the version compare Agent prompt.
+	PromptVersionCompare PromptName = "version_compare"
 )
 
 // Template holds a loaded Prompt template.

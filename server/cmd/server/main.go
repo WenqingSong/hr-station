@@ -141,7 +141,7 @@ func main() {
 	// Initialize version compare module
 	versionCompareRepo := repository.NewVersionCompareRepository(mysqlDB.DB)
 	versionCompareMockAgent := agent.NewVersionCompareMockAgent()
-	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent)
+	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent, pipelineRunner, llmEnabled)
 	versionCompareHandler := httpserver.NewVersionCompareHandler(versionCompareService)
 
 	// Initialize resume optimization module

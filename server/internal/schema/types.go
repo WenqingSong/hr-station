@@ -11,6 +11,8 @@ const (
 	SchemaRecommendation SchemaName = "recommendation"
 	// SchemaResumeOptimization is the resume optimization output Schema.
 	SchemaResumeOptimization SchemaName = "resume_optimization"
+	// SchemaVersionCompare is the version compare output Schema.
+	SchemaVersionCompare SchemaName = "version_compare"
 )
 
 // Document holds a loaded JSON Schema file.
