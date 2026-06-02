@@ -18,11 +18,25 @@ export interface JobCardViewModel {
 
 export interface JobDetailViewModel extends JobCardViewModel {
   bannerSummary: string;
+  slogan: string;
+  summary: string;
+  applicationType: string;
+  applicationProject: string;
+  applicationSubtype: string;
+  direction: string;
+  category: string;
   responsibilities: string[];
-  requirements: string[];
+  mustHave: string[];
+  niceToHave: string[];
   bonusPoints: string[];
+  notes: string[];
+  organizations: { code: string; name: string }[];
+  locations: string[];
+  interviewLocations: string[];
+  skills: string[];
+  externalId: string;
+  sourceName: string;
   deliveryNotes?: string;
-  keywords: string[];
 }
 
 // ─── 标签映射（对齐后端 seed 数据值）─────────────────────────────────────────────
@@ -61,27 +75,38 @@ export function toJobCardViewModelsFromApi(jobs: JobApiItem[]): JobCardViewModel
 
 /** 从后端 JobApiItem 生成 JobDetailViewModel */
 export function toJobDetailViewModelFromApi(job?: JobApiItem | null): JobDetailViewModel {
-  if (!job) {
-    return {
-      id: '', title: '', businessGroup: '', locationsText: '', tags: [],
-      shortDescription: '', statusLabel: '', categoryLabel: '', typeLabel: '',
-      bannerSummary: '', responsibilities: [], requirements: [], bonusPoints: [],
-      keywords: [],
-    };
-  }
+  const empty = {
+    id: '', title: '', businessGroup: '', locationsText: '', tags: [],
+    shortDescription: '', statusLabel: '', categoryLabel: '', typeLabel: '',
+    bannerSummary: '', slogan: '', summary: '',
+    applicationType: '', applicationProject: '', applicationSubtype: '',
+    direction: '', category: '',
+    responsibilities: [], mustHave: [], niceToHave: [], bonusPoints: [], notes: [],
+    organizations: [], locations: [], interviewLocations: [], skills: [],
+    externalId: '', sourceName: '',
+  };
+  if (!job) return empty;
   const cardVm = toJobCardViewModelFromApi(job);
-  const reqLines = job.requirements
-    ? job.requirements.split('\n').map(l => l.replace(/^\d+[\.\)、\s]+/, '').trim()).filter(Boolean)
-    : [];
   return {
     ...cardVm,
     bannerSummary: job.description ?? '',
-    responsibilities: job.description
-      ? job.description.split(/[。；]/).map(s => s.trim()).filter(Boolean)
-      : [],
-    requirements: reqLines,
-    bonusPoints: [],
-    deliveryNotes: undefined,
-    keywords: job.skill_keywords ?? [],
+    slogan: job.slogan ?? '',
+    summary: job.summary ?? '',
+    applicationType: job.application_type ?? '',
+    applicationProject: job.application_project ?? '',
+    applicationSubtype: job.application_subtype ?? '',
+    direction: job.direction ?? '',
+    category: job.category ?? '',
+    responsibilities: job.responsibilities ?? [],
+    mustHave: job.must_have ?? [],
+    niceToHave: job.nice_to_have ?? [],
+    bonusPoints: job.bonus_points ?? [],
+    notes: job.notes ?? [],
+    organizations: job.organizations ?? [],
+    locations: job.locations ?? [],
+    interviewLocations: job.interview_locations ?? [],
+    skills: job.skills ?? [],
+    externalId: job.external_id ?? '',
+    sourceName: job.source_name ?? '',
   };
 }
