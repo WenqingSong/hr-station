@@ -45,6 +45,11 @@ export interface JobFacets {
   cities: JobFacetItem[];
   recruit_types: JobFacetItem[];
   categories: JobFacetItem[];
+  application_projects?: JobFacetItem[];
+  application_subtypes?: JobFacetItem[];
+  job_types?: JobFacetItem[];
+  business_groups?: JobFacetItem[];
+  skills?: JobFacetItem[];
 }
 
 /** 岗位列表查询参数 */
@@ -54,6 +59,11 @@ export interface JobListParams {
   city?: string;
   recruit_type?: string;
   category?: string;
+  business_group?: string;
+  skill?: string;
+  application_type?: string;
+  application_project?: string;
+  application_subtype?: string;
   page?: number;
   page_size?: number;
 }
@@ -101,6 +111,11 @@ function buildQuery(params?: JobListParams): string {
   if (params.city) parts.push(`city=${encodeURIComponent(params.city)}`);
   if (params.recruit_type) parts.push(`recruit_type=${encodeURIComponent(params.recruit_type)}`);
   if (params.category) parts.push(`category=${encodeURIComponent(params.category)}`);
+  if (params.business_group) parts.push(`business_group=${encodeURIComponent(params.business_group)}`);
+  if (params.skill) parts.push(`skill=${encodeURIComponent(params.skill)}`);
+  if (params.application_type) parts.push(`application_type=${encodeURIComponent(params.application_type)}`);
+  if (params.application_project) parts.push(`application_project=${encodeURIComponent(params.application_project)}`);
+  if (params.application_subtype) parts.push(`application_subtype=${encodeURIComponent(params.application_subtype)}`);
   if (params.page) parts.push(`page=${params.page}`);
   if (params.page_size) parts.push(`page_size=${params.page_size}`);
   return parts.length ? `?${parts.join('&')}` : '';

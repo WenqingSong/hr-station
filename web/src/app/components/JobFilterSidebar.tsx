@@ -7,6 +7,8 @@ export interface JobFilters {
   city?: string;
   recruit_type?: string;
   category?: string;
+  business_group?: string;
+  skill?: string;
 }
 
 interface JobFilterSidebarProps {
@@ -125,7 +127,23 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
                 onSelect={(v) => toggleFilter("category", v)}
               />
             )}
-            {!facets.directions.length && !facets.cities.length && !facets.recruit_types.length && !facets.categories.length && (
+            {facets.business_groups && facets.business_groups.length > 0 && (
+              <FilterGroup
+                title="事业群"
+                items={facets.business_groups}
+                selectedValue={filters.business_group}
+                onSelect={(v) => toggleFilter("business_group", v)}
+              />
+            )}
+            {facets.skills && facets.skills.length > 0 && (
+              <FilterGroup
+                title="技能关键词"
+                items={facets.skills.slice(0, 20)}
+                selectedValue={filters.skill}
+                onSelect={(v) => toggleFilter("skill", v)}
+              />
+            )}
+            {!facets.directions.length && !facets.cities.length && !facets.recruit_types.length && !facets.categories.length && !(facets.business_groups||[]).length && !(facets.skills||[]).length && (
               <p className="text-xs text-gray-400 text-center py-4">暂无筛选项</p>
             )}
           </div>

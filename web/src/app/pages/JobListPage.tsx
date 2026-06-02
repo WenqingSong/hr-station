@@ -16,6 +16,8 @@ export function JobListPage() {
     city: searchParams.get("city") || undefined,
     recruit_type: searchParams.get("recruit_type") || undefined,
     category: searchParams.get("category") || undefined,
+    business_group: searchParams.get("business_group") || undefined,
+    skill: searchParams.get("skill") || undefined,
   };
   const page = parseInt(searchParams.get("page") || "1", 10) || 1;
 
@@ -30,6 +32,8 @@ export function JobListPage() {
       if (f.city) p.set("city", f.city); else p.delete("city");
       if (f.recruit_type) p.set("recruit_type", f.recruit_type); else p.delete("recruit_type");
       if (f.category) p.set("category", f.category); else p.delete("category");
+      if (f.business_group) p.set("business_group", f.business_group); else p.delete("business_group");
+      if (f.skill) p.set("skill", f.skill); else p.delete("skill");
       p.set("page", "1");
       return p;
     });
@@ -45,6 +49,8 @@ export function JobListPage() {
     city: filters.city,
     recruit_type: filters.recruit_type,
     category: filters.category,
+    business_group: filters.business_group,
+    skill: filters.skill,
     page,
     page_size: PAGE_SIZE,
   };
