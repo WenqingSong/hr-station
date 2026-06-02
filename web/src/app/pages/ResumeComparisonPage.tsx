@@ -16,6 +16,7 @@ import { loadResumeComparisonViewModel } from "../../api";
 import { getResumeVersions } from "../../api/index";
 import type { ResumeVersionListItem } from "../../types";
 import type { ResumeComparisonViewModel } from "../../adapters";
+import { PageLoading, PageError, PageEmpty } from "../components/PageState";
 
 function getTrendIcon(trend: string) {
   switch (trend) {
@@ -88,43 +89,45 @@ export function ResumeComparisonPage() {
 
   // --- Version list loading ---
   if (versionsLoading) {
-    return (
-      <div className="max-w-[1360px] mx-auto px-6 py-12 text-center text-gray-400">
-        正在加载简历版本…
-      </div>
-    );
+    return <PageLoading message="正在加载简历版本…" maxWidth="max-w-[1360px]" />;
   }
 
   // --- Version list error ---
   if (versionsError) {
     return (
-      <div className="max-w-[1360px] mx-auto px-6 py-12 text-center">
-        <AlertCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-500 text-sm mb-2">简历版本数据加载失败，请稍后重试。</p>
+      <PageError
+        title="简历版本数据加载失败，请稍后重试。"
+        description=""
+        maxWidth="max-w-[1360px]"
+      >
         <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
-      </div>
+      </PageError>
     );
   }
 
   // --- No versions ---
   if (versions.length === 0) {
     return (
-      <div className="max-w-[1360px] mx-auto px-6 py-12 text-center">
-        <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-500 text-sm mb-2">暂无可比较的简历版本</p>
+      <PageEmpty
+        title="暂无可比较的简历版本"
+        description=""
+        maxWidth="max-w-[1360px]"
+      >
         <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
-      </div>
+      </PageEmpty>
     );
   }
 
   // --- Only one version ---
   if (versions.length === 1) {
     return (
-      <div className="max-w-[1360px] mx-auto px-6 py-12 text-center">
-        <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-500 text-sm mb-2">仅有一个简历版本，无法进行比较。请先创建更多版本。</p>
+      <PageEmpty
+        title="仅有一个简历版本，无法进行比较。"
+        description="请先创建更多版本。"
+        maxWidth="max-w-[1360px]"
+      >
         <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
-      </div>
+      </PageEmpty>
     );
   }
 
@@ -194,15 +197,15 @@ export function ResumeComparisonPage() {
 
         {/* Comparison Content */}
         {compareLoading ? (
-          <div className="max-w-[1360px] mx-auto py-12 text-center text-gray-400">
-            正在生成版本对比…
-          </div>
+          <PageLoading message="正在生成版本对比…" maxWidth="max-w-[1360px]" className="py-12" />
         ) : compareError ? (
-          <div className="max-w-[1360px] mx-auto py-12 text-center">
-            <AlertCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-2">版本对比接口暂时不可用，请稍后重试。</p>
+          <PageError
+            title="版本对比接口暂时不可用，请稍后重试。"
+            description=""
+            maxWidth="max-w-[1360px]"
+          >
             <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
-          </div>
+          </PageError>
         ) : !comparison ? (
           <div className="max-w-[1360px] mx-auto py-12 text-center">
             <p className="text-gray-400 text-sm mb-2">暂无可展示的对比数据</p>

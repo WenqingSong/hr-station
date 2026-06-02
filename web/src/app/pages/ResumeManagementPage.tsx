@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { SelectResumeModal } from "../components/SelectResumeModal";
+import { PageLoading, PageError } from "../components/PageState";
 import {
   FileText,
   Plus,
@@ -82,24 +83,15 @@ export function ResumeManagementPage() {
 
   // Loading state
   if (loading) {
-    return (
-      <div className="max-w-[960px] mx-auto px-4 py-8 pb-12">
-        <div className="bg-white border border-gray-200 rounded-sm p-12 text-center">
-          <p className="text-sm text-gray-400">加载中…</p>
-        </div>
-      </div>
-    );
+    return <PageLoading message="加载中…" maxWidth="max-w-[960px]" />;
   }
 
   // Error state
   if (error) {
     return (
-      <div className="max-w-[960px] mx-auto px-4 py-8 pb-12">
-        <div className="bg-white border border-gray-200 rounded-sm p-12 text-center">
-          <p className="text-gray-500 text-sm mb-2">简历数据加载失败，请稍后重试。</p>
-          <Link to="/resumes/edit" className="text-[#0052D9] text-sm hover:underline">去创建简历</Link>
-        </div>
-      </div>
+      <PageError title="简历数据加载失败，请稍后重试。" description="" maxWidth="max-w-[960px]">
+        <Link to="/resumes/edit" className="text-[#0052D9] text-sm hover:underline">去创建简历</Link>
+      </PageError>
     );
   }
 
