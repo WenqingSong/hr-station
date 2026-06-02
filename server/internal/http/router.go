@@ -23,17 +23,17 @@ const jobIDContextKey contextKey = "job_id"
 
 // RouterDeps holds all dependencies needed by the router.
 type RouterDeps struct {
-	HealthService              *health.Service
-	AuthHandler                *AuthHandler
-	AuthMiddleware             func(http.Handler) http.Handler
-	AuthService                *service.AuthService
-	ResumeHandler              *ResumeHandler
-	JobHandler                 *JobHandler
-	RecommendationHandler      *RecommendationHandler
-	MatchHandler               *MatchHandler
-	VersionCompareHandler      *VersionCompareHandler
-	ResumeOptimizationHandler  *ResumeOptimizationHandler
-	FrontendURL                string
+	HealthService             *health.Service
+	AuthHandler               *AuthHandler
+	AuthMiddleware            func(http.Handler) http.Handler
+	AuthService               *service.AuthService
+	ResumeHandler             *ResumeHandler
+	JobHandler                *JobHandler
+	RecommendationHandler     *RecommendationHandler
+	MatchHandler              *MatchHandler
+	VersionCompareHandler     *VersionCompareHandler
+	ResumeOptimizationHandler *ResumeOptimizationHandler
+	FrontendURL               string
 }
 
 // NewRouter creates and returns the main HTTP handler with all routes registered
@@ -66,12 +66,23 @@ func NewRouter(deps RouterDeps) http.Handler {
 
 	// Job routes — public list / facets / detail, protected recommend / match
 	// NOTE: more specific patterns must be registered before the wildcard /api/jobs/
-	mux.HandleFunc("/api/jobs", deps.JobHandler.List)                              // public
-	mux.HandleFunc("/api/jobs/facets", deps.JobHandler.Facets)                     // public
+	mux.HandleFunc("/api/jobs", deps.JobHandler.List)                                                              // public
+	mux.HandleFunc("/api/jobs/facets", deps.JobHandler.Facets)                                                     // public
 	mux.Handle("/api/jobs/recommend", deps.AuthMiddleware(http.HandlerFunc(deps.RecommendationHandler.Recommend))) // protected
 	mux.Handle("/api/jobs/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dispatchJobWildcard(w, r, deps)
 	}))
+
+	// Swagger / OpenAPI docs
+	mux.HandleFunc("/swagger/doc.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		http.ServeFile(w, r, "docs/swagger.json")
+	})
+	mux.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte(swaggerUIHTML))
+	})
 
 	// Frontend reverse proxy: forward all non-API requests to Vite dev server
 	if deps.FrontendURL != "" {
@@ -150,6 +161,25 @@ func dispatchJobWildcard(w http.ResponseWriter, r *http.Request, deps RouterDeps
 	// Default: treat as public job detail request: /api/jobs/{id}
 	deps.JobHandler.Detail(w, r)
 }
+
+// swaggerUIHTML is a self-contained Swagger UI page served at /swagger/index.html.
+const swaggerUIHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Offer Catcher API — Swagger</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"/>
+  <style>html{box-sizing:border-box}*,*:before,*:after{box-sizing:inherit}body{margin:0;background:#fafafa}</style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+  <script>
+    SwaggerUIBundle({ url: "/swagger/doc.json", dom_id: "#swagger-ui", deepLinking: true, presets: [SwaggerUIBundle.presets.apis], layout: "BaseLayout" });
+  </script>
+</body>
+</html>`
 
 // newFrontendProxy creates a reverse proxy to the Vite dev server.
 // It forwards all requests (including WebSocket for HMR) to the frontend.

@@ -1,0 +1,332 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Offer Catcher API",
+    "description": "Offer 捕手 — AI 求职匹配与投递前决策 Demo。支持 Fast/Quality 双模型渐近式生成。",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "http://localhost:8080", "description": "Local dev" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "APIResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "description": "0=ok, 40001=invalid param, 40100=unauthorized, 50000=internal" },
+          "message": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "GenerationTier": {
+        "type": "string",
+        "enum": ["fast", "quality"],
+        "default": "fast",
+        "description": "Model quality tier: fast=deepseek-v4-flash, quality=deepseek-v4-pro-202606"
+      },
+      "RecommendationRequest": {
+        "type": "object",
+        "properties": {
+          "resume_version_no": { "type": "integer", "description": "Resume version number, 0 for current" },
+          "limit": { "type": "integer", "maximum": 5, "default": 5 },
+          "generation_tier": { "$ref": "#/components/schemas/GenerationTier" }
+        }
+      },
+      "MatchRequest": {
+        "type": "object",
+        "properties": {
+          "resume_version_no": { "type": "integer" },
+          "generation_tier": { "$ref": "#/components/schemas/GenerationTier" }
+        }
+      },
+      "ResumeOptimizationRequest": {
+        "type": "object",
+        "required": ["resume_text", "target_job"],
+        "properties": {
+          "resume_text": { "type": "string" },
+          "target_job": {
+            "type": "object",
+            "properties": {
+              "job_id": { "type": "string" },
+              "title": { "type": "string" },
+              "jd_text": { "type": "string" }
+            }
+          },
+          "target_section": { "type": "string" },
+          "user_intention": { "type": "object" },
+          "mode": {
+            "type": "string",
+            "enum": ["core"],
+            "description": "Business mode: core=Optimization Core Agent, omitted=standard full agent"
+          },
+          "generation_tier": { "$ref": "#/components/schemas/GenerationTier" }
+        }
+      },
+      "AgentMeta": {
+        "type": "object",
+        "properties": {
+          "agent_name": { "type": "string" },
+          "generated_by": { "type": "string", "enum": ["llm_agent", "mock_agent"] },
+          "agent_status": { "type": "string", "enum": ["success", "repaired", "fallback", "mock_success"] },
+          "fallback_reason": { "type": "string" },
+          "error_code": { "type": "string" },
+          "repair_applied": { "type": "boolean" },
+          "schema_valid": { "type": "boolean" },
+          "request_id": { "type": "string" }
+        }
+      }
+    }
+  },
+  "tags": [
+    { "name": "Health", "description": "健康检查" },
+    { "name": "Auth", "description": "认证（注册/登录/个人信息）" },
+    { "name": "Jobs", "description": "岗位列表/详情/筛选" },
+    { "name": "Resumes", "description": "简历管理" },
+    { "name": "Recommendation", "description": "岗位智能推荐（Fast tier default）" },
+    { "name": "Match Analysis", "description": "岗位匹配分析（Quality tier recommended）" },
+    { "name": "Resume Optimization", "description": "简历优化建议（支持 standard/core 双模式）" },
+    { "name": "Version Compare", "description": "简历版本对比" }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "健康检查",
+        "responses": {
+          "200": { "description": "ok" }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "用户注册",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["phone", "password"],
+                "properties": {
+                  "phone": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "token + user" },
+          "40001": { "description": "invalid param" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "用户登录",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["phone", "password"],
+                "properties": {
+                  "phone": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "token + user" },
+          "40100": { "description": "unauthorized" }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "获取当前用户信息",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "user info" },
+          "40100": { "description": "unauthorized" }
+        }
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "岗位列表",
+        "description": "支持 keyword/direction/city/recruit_type/category 等筛选，page/page_size 分页",
+        "parameters": [
+          { "name": "keyword", "in": "query", "schema": { "type": "string" } },
+          { "name": "direction", "in": "query", "schema": { "type": "string" } },
+          { "name": "city", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "items + total + limit + offset" }
+        }
+      }
+    },
+    "/api/jobs/facets": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "岗位筛选聚合",
+        "responses": {
+          "200": { "description": "directions/cities/recruit_types/categories counts" }
+        }
+      }
+    },
+    "/api/jobs/{id}": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "岗位详情",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "job detail" },
+          "404": { "description": "not found" }
+        }
+      }
+    },
+    "/api/jobs/recommend": {
+      "post": {
+        "tags": ["Recommendation"],
+        "summary": "岗位智能推荐",
+        "description": "基于当前简历推荐合适岗位。generation_tier: fast=deepseek-v4-flash (default), quality=deepseek-v4-pro-202606",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RecommendationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "data.result.recommended_jobs + data.meta" },
+          "40001": { "description": "invalid generation_tier" },
+          "40100": { "description": "unauthorized" }
+        }
+      }
+    },
+    "/api/jobs/{id}/match": {
+      "post": {
+        "tags": ["Match Analysis"],
+        "summary": "岗位匹配分析",
+        "description": "分析简历与JD匹配度。generation_tier: fast=flash (default), quality=pro",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MatchRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "data.result.match_score + match_level + evidence_chain + data.meta" },
+          "40001": { "description": "invalid generation_tier" },
+          "40100": { "description": "unauthorized" }
+        }
+      }
+    },
+    "/api/resumes/optimize": {
+      "post": {
+        "tags": ["Resume Optimization"],
+        "summary": "简历优化建议",
+        "description": "支持标准模式和 Core 模式(mode=core)。generation_tier 控制模型层级。",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResumeOptimizationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "data.result.top_fix_items + apply_readiness + optimization_stop_signal + data.meta" },
+          "40001": { "description": "invalid param or generation_tier" },
+          "40100": { "description": "unauthorized" }
+        }
+      }
+    },
+    "/api/resumes/versions/compare": {
+      "get": {
+        "tags": ["Version Compare"],
+        "summary": "简历版本对比",
+        "description": "比较两个简历版本的差异。generation_tier 通过 query 参数控制。",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "from", "in": "query", "required": true, "schema": { "type": "integer" } },
+          { "name": "to", "in": "query", "required": true, "schema": { "type": "integer" } },
+          { "name": "generation_tier", "in": "query", "schema": { "$ref": "#/components/schemas/GenerationTier" } }
+        ],
+        "responses": {
+          "200": { "description": "data.result.score_before + score_after + field_changes + risk_changes" },
+          "40001": { "description": "invalid param or generation_tier" },
+          "40100": { "description": "unauthorized" }
+        }
+      }
+    },
+    "/api/resumes": {
+      "post": {
+        "tags": ["Resumes"],
+        "summary": "创建简历",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "created resume" },
+          "40100": { "description": "unauthorized" }
+        }
+      }
+    },
+    "/api/resumes/current": {
+      "get": {
+        "tags": ["Resumes"],
+        "summary": "获取当前简历",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "current resume" },
+          "40100": { "description": "unauthorized" }
+        }
+      }
+    },
+    "/api/resumes/versions": {
+      "get": {
+        "tags": ["Resumes"],
+        "summary": "获取简历版本列表",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "versions + total" }
+        }
+      }
+    },
+    "/api/resumes/versions/{versionNo}": {
+      "get": {
+        "tags": ["Resumes"],
+        "summary": "获取指定版本简历详情",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "versionNo", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "resume version detail" }
+        }
+      }
+    }
+  }
+}

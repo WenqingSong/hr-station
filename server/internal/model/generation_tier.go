@@ -33,4 +33,3 @@ func NormalizeGenerationTier(input string) (GenerationTier, error) {
 	}
 	return "", fmt.Errorf("invalid generation_tier: %q (allowed: fast, quality)", input)
 }
-
