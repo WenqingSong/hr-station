@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/model"
@@ -23,6 +24,11 @@ type JobListRequest struct {
 	ApplicationSubtype string
 	ApplicationType    string
 	ExternalSource     string
+	// K8-4-3: 多选筛选参数（逗号分隔）
+	Cities          []string
+	BusinessGroups  []string
+	Skills          []string
+	JobCategories   []string
 	Limit              int
 	Offset             int
 }
@@ -33,7 +39,7 @@ type OrgInfo struct {
 	Name string `json:"name"`
 }
 
-// JobResponse represents a job in API responses (J3 expanded).
+// JobResponse represents a job in API responses.
 type JobResponse struct {
 	ID                  uint64          `json:"id"`
 	ExternalID          *string         `json:"external_id,omitempty"`
@@ -89,8 +95,35 @@ type FacetItem struct {
 	Count int    `json:"count"`
 }
 
-// JobFacetsResponse represents aggregated facet counts (J3 expanded).
+// ─── K8-4-3: 产品化筛选响应结构 ────────────────────────────────────────────────
+
+// FacetOptionResponse 筛选项响应
+type FacetOptionResponse struct {
+	Code         string                `json:"code"`
+	Label        string                `json:"label"`
+	Value        string                `json:"value"`
+	Count        int                   `json:"count"`
+	DisplayOrder int                   `json:"display_order"`
+	Visible      bool                  `json:"visible"`
+	Children     []FacetOptionResponse `json:"children"`
+}
+
+// FacetGroupResponse 筛选分组响应
+type FacetGroupResponse struct {
+	Code              string                `json:"code"`
+	Name              string                `json:"name"`
+	DisplayOrder      int                   `json:"display_order"`
+	DefaultExpanded   bool                  `json:"default_expanded"`
+	Visible           bool                  `json:"visible"`
+	MaxVisibleOptions int                   `json:"max_visible_options"`
+	Options           []FacetOptionResponse `json:"options"`
+}
+
+// JobFacetsResponse represents aggregated facet counts.
 type JobFacetsResponse struct {
+	// K8-4-3 新字段
+	Groups []FacetGroupResponse `json:"groups"`
+	// 旧兼容字段（保留向前端兼容）
 	Directions          []FacetItem `json:"directions"`
 	Cities              []FacetItem `json:"cities"`
 	RecruitTypes        []FacetItem `json:"recruit_types"`
@@ -113,7 +146,6 @@ var recruitTypeLabels = map[string]string{
 	"提前批": "提前批",
 }
 
-// JobService handles job business logic.
 type JobService struct {
 	jobRepo *repository.JobRepository
 }
@@ -145,6 +177,10 @@ func (s *JobService) List(ctx context.Context, req JobListRequest) (*JobListResp
 		ApplicationSubtype: req.ApplicationSubtype,
 		ApplicationType:    req.ApplicationType,
 		ExternalSource:     req.ExternalSource,
+		Cities:             req.Cities,
+		BusinessGroups:     req.BusinessGroups,
+		Skills:             req.Skills,
+		JobCategories:      req.JobCategories,
 		Limit:              req.Limit,
 		Offset:             req.Offset,
 	}
@@ -173,14 +209,13 @@ func (s *JobService) GetDetail(ctx context.Context, id uint64) (*JobResponse, er
 	return toJobResponse(job), nil
 }
 
+// GetFacets 返回旧兼容的 facets（聚合 jobs 表字段）
 func (s *JobService) GetFacets(ctx context.Context) (*JobFacetsResponse, error) {
 	f, err := s.jobRepo.GetFacets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get facets: %w", err)
 	}
-
 	resp := &JobFacetsResponse{}
-
 	for _, d := range f.Directions {
 		resp.Directions = append(resp.Directions, FacetItem{Value: d.Value, Label: d.Value, Count: d.Count})
 	}
@@ -200,8 +235,8 @@ func (s *JobService) GetFacets(ctx context.Context) (*JobFacetsResponse, error) 
 	for _, p := range f.ApplicationProjects {
 		resp.ApplicationProjects = append(resp.ApplicationProjects, FacetItem{Value: p.Value, Label: p.Value, Count: p.Count})
 	}
-	for _, s := range f.ApplicationSubtypes {
-		resp.ApplicationSubtypes = append(resp.ApplicationSubtypes, FacetItem{Value: s.Value, Label: s.Value, Count: s.Count})
+	for _, sp := range f.ApplicationSubtypes {
+		resp.ApplicationSubtypes = append(resp.ApplicationSubtypes, FacetItem{Value: sp.Value, Label: sp.Value, Count: sp.Count})
 	}
 	for _, j := range f.JobTypes {
 		resp.JobTypes = append(resp.JobTypes, FacetItem{Value: j.Value, Label: j.Value, Count: j.Count})
@@ -209,10 +244,86 @@ func (s *JobService) GetFacets(ctx context.Context) (*JobFacetsResponse, error) 
 	for _, b := range f.BusinessGroups {
 		resp.BusinessGroups = append(resp.BusinessGroups, FacetItem{Value: b.Value, Label: b.Value, Count: b.Count})
 	}
-	for _, s := range f.Skills {
-		resp.Skills = append(resp.Skills, FacetItem{Value: s.Value, Label: s.Value, Count: s.Count})
+	for _, sk := range f.Skills {
+		resp.Skills = append(resp.Skills, FacetItem{Value: sk.Value, Label: sk.Value, Count: sk.Count})
+	}
+	return resp, nil
+}
+
+// GetFacetsV2 返回产品化筛选结构（从筛选维表读取，K8-4-3）
+func (s *JobService) GetFacetsV2(ctx context.Context) (*JobFacetsResponse, error) {
+	resp, err := s.GetFacets(ctx)
+	if err != nil {
+		return nil, err
 	}
 
+	groups, err := s.jobRepo.GetFilterGroups(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get filter groups: %w", err)
+	}
+
+	counts, err := s.jobRepo.GetOptionCounts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get option counts: %w", err)
+	}
+
+	for _, g := range groups {
+		opts, err := s.jobRepo.GetFilterOptions(ctx, g.ID)
+		if err != nil {
+			continue
+		}
+
+		grp := FacetGroupResponse{
+			Code:              g.Code,
+			Name:              g.Name,
+			DisplayOrder:      g.DisplayOrder,
+			DefaultExpanded:   g.DefaultExpanded,
+			Visible:           g.Visible,
+			MaxVisibleOptions: g.MaxVisibleOptions,
+			Options:           nil,
+		}
+
+		if g.Code == "job_category" {
+			parentMap := make(map[int][]FacetOptionResponse)
+			for _, o := range opts {
+				if o.ParentOptionID == nil || *o.ParentOptionID == 0 {
+					fo := FacetOptionResponse{Code: o.Code, Label: o.Label, Value: o.Value,
+						Count: counts[o.ID], DisplayOrder: o.DisplayOrder, Visible: o.Visible}
+					parentMap[o.ID] = []FacetOptionResponse{fo}
+				}
+			}
+			// 挂载子选项到父级
+			for _, o := range opts {
+				if o.ParentOptionID != nil && *o.ParentOptionID > 0 {
+					if list, ok := parentMap[*o.ParentOptionID]; ok {
+						if len(list) > 0 {
+							parentMap[*o.ParentOptionID][0].Children = append(
+								parentMap[*o.ParentOptionID][0].Children,
+								FacetOptionResponse{Code: o.Code, Label: o.Label, Value: o.Value,
+									Count: counts[o.ID], DisplayOrder: o.DisplayOrder, Visible: o.Visible})
+						}
+					}
+				}
+			}
+			// 按 display_order 输出到 grp.Options
+			for _, o := range opts {
+				if o.ParentOptionID == nil || *o.ParentOptionID == 0 {
+					if list, ok := parentMap[o.ID]; ok && len(list) > 0 {
+						grp.Options = append(grp.Options, list[0])
+					}
+				}
+			}
+		} else {
+			for _, o := range opts {
+				grp.Options = append(grp.Options, FacetOptionResponse{
+					Code: o.Code, Label: o.Label, Value: o.Value,
+					Count: counts[o.ID], DisplayOrder: o.DisplayOrder, Visible: o.Visible,
+				})
+			}
+		}
+
+		resp.Groups = append(resp.Groups, grp)
+	}
 	return resp, nil
 }
 
@@ -287,4 +398,20 @@ func jsonOrEmpty(b []byte) json.RawMessage {
 
 func emptyJSONArray() json.RawMessage {
 	return json.RawMessage("[]")
+}
+
+// ParseCommaSeparated 将逗号分隔的字符串解析为字符串切片（K8-4-3 工具函数）
+func ParseCommaSeparated(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	var result []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }

@@ -68,6 +68,12 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// K8-4-3: 解析多选参数（逗号分隔）
+	citiesArr := service.ParseCommaSeparated(city)
+	businessGroupsArr := service.ParseCommaSeparated(businessGroup)
+	skillsArr := service.ParseCommaSeparated(skill)
+	jobCategoriesArr := service.ParseCommaSeparated(q.Get("job_category"))
+
 	resp, err := h.jobService.List(r.Context(), service.JobListRequest{
 		Keyword:            keyword,
 		Direction:          direction,
@@ -80,6 +86,10 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 		ApplicationSubtype: applicationSubtype,
 		ApplicationType:    applicationType,
 		ExternalSource:     externalSource,
+		Cities:             citiesArr,
+		BusinessGroups:     businessGroupsArr,
+		Skills:             skillsArr,
+		JobCategories:      jobCategoriesArr,
 		Limit:              limit,
 		Offset:             offset,
 	})
@@ -121,13 +131,14 @@ func (h *JobHandler) Detail(w http.ResponseWriter, r *http.Request) {
 }
 
 // Facets handles GET /api/jobs/facets — returns aggregated facet counts (public).
+// K8-4-3: 升级为从筛选维表读取 groups[]，同时保留旧字段兼容。
 func (h *JobHandler) Facets(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
 		return
 	}
 
-	resp, err := h.jobService.GetFacets(r.Context())
+	resp, err := h.jobService.GetFacetsV2(r.Context())
 	if err != nil {
 		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
 		return
