@@ -1,0 +1,1531 @@
+[
+  {
+    "source": {
+      "source_type": "manual_curated",
+      "source_name": "tencent_campus_manual",
+      "source_url": "",
+      "data_quality": "manual_verified",
+      "collected_at": "2026-06-01"
+    },
+    "job": {
+      "id": "tencent-backend-intern-2026-001",
+      "title": "软件开发-后台开发方向",
+      "job_type": "技术",
+      "application_type": "应届实习",
+      "direction": "软件开发",
+      "category": "后台开发",
+      "status": "open",
+      "slogan": "你是腾讯产品「背后」的英雄，打造出更稳定安全、高效可靠的后台支撑体系，守护海量用户的笑容！"
+    },
+    "organizations": [
+      {
+        "code": "CDG",
+        "name": "企业发展事业群"
+      },
+      {
+        "code": "CSIG",
+        "name": "云与智慧产业事业群"
+      },
+      {
+        "code": "IEG",
+        "name": "互动娱乐事业群"
+      },
+      {
+        "code": "PCG",
+        "name": "平台与内容事业群"
+      },
+      {
+        "code": "TEG",
+        "name": "技术工程事业群"
+      },
+      {
+        "code": "WXG",
+        "name": "微信事业群"
+      },
+      {
+        "code": "S1",
+        "name": "职能系统－职能线"
+      },
+      {
+        "code": "S2",
+        "name": "职能系统－财经线"
+      }
+    ],
+    "locations": [
+      "深圳总部",
+      "北京",
+      "上海",
+      "广州",
+      "成都",
+      "武汉",
+      "杭州"
+    ],
+    "interview_locations": [
+      "上海",
+      "远程面试"
+    ],
+    "description": {
+      "summary": "负责实现和优化公司的产品功能，以及构建和维护关键服务与基础设施。",
+      "responsibilities": [
+        "深入理解业务需求和产品设计，高效地实现并优化产品功能",
+        "持续优化架构，提升关键服务和基础设施的稳定性与可用性",
+        "通过引入新的工具和流程，提升团队的开发效率和代码质量",
+        "通过与产品和前端工程师的紧密合作，共同推进产品的迭代与优化",
+        "对线上问题进行快速定位并解决，对服务性能进行监控与优化",
+        "参与新技术的研究和探索，为团队的技术进步和产品创新提供支持"
+      ]
+    },
+    "requirements": {
+      "must_have": [
+        "扎实的编程能力",
+        "熟练掌握 C/C++/Java/Go 等其中一门开发语言",
+        "熟悉 TCP/UDP 网络协议及相关编程、进程间通讯编程",
+        "具备算法、操作系统、软件工程、设计模式、数据结构、数据库系统、网络安全等专业软件知识"
+      ],
+      "nice_to_have": [
+        "了解 Python、Shell、Perl 等脚本语言",
+        "了解 MySQL 及 SQL 编程",
+        "了解 NoSQL、Key-Value 存储原理"
+      ],
+      "bonus_points": [
+        "了解分布式系统设计与开发、负载均衡、系统容灾、高可用系统等知识",
+        "对云原生相关技术有所了解"
+      ]
+    },
+    "skills": [
+      "C/C++",
+      "Java",
+      "Go",
+      "TCP/UDP",
+      "MySQL",
+      "NoSQL",
+      "分布式系统",
+      "云原生",
+      "高可用"
+    ],
+    "facets": {
+      "application_project": "实习生",
+      "application_subtype": "应届实习",
+      "job_category": "后台开发",
+      "job_type": "技术",
+      "direction": "软件开发",
+      "cities": [
+        "深圳总部",
+        "北京",
+        "上海",
+        "广州",
+        "成都",
+        "武汉",
+        "杭州"
+      ],
+      "business_groups": [
+        "CDG",
+        "CSIG",
+        "IEG",
+        "PCG",
+        "TEG",
+        "WXG",
+        "S1",
+        "S2"
+      ]
+    }
+  },
+  {
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-algorithm-multimodal-intern-2026-001",
+    "title": "算法-多模态方向",
+    "job_type": "技术",
+    "application_type": "应届实习",
+    "direction": "算法",
+    "category": "多模态",
+    "status": "open",
+    "slogan": "对一个研究者来说，丰富的应用场景、全谱领域的技术积累、追求极致的氛围都很重要，而你正是其中一员！"
+  },
+  "organizations": [
+    {
+      "code": "CDG",
+      "name": "企业发展事业群"
+    },
+    {
+      "code": "CSIG",
+      "name": "云与智慧产业事业群"
+    },
+    {
+      "code": "IEG",
+      "name": "互动娱乐事业群"
+    },
+    {
+      "code": "PCG",
+      "name": "平台与内容事业群"
+    },
+    {
+      "code": "TEG",
+      "name": "技术工程事业群"
+    },
+    {
+      "code": "WXG",
+      "name": "微信事业群"
+    }
+  ],
+  "locations": [
+    "深圳总部",
+    "北京",
+    "上海",
+    "广州",
+    "成都"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "负责多模态处理算法和模型的研究与开发，覆盖图像、视频、3D生成、声学信号理解与生成、多模态信息与文本信息对齐和整合等方向。",
+    "responsibilities": [
+      "研究和开发多模态处理算法和模型，包括图像、视频、3D生成、声学信号的理解与生成、多模态信息和文本信息的对齐与整合",
+      "设计和优化现有算法，提高性能和准确性，确保高质量的用户体验",
+      "深入调研和关注多模态、NLP、CV 等方向的前沿技术，及时将新技术应用到产品中"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "包含但不限于计算机、信息工程、模式识别、人工智能、自动化、软件工程、电子工程、统计学、应用数学、物理学/量子计算、信息安全、信号与信息处理等专业的博士和优秀硕士",
+      "熟练掌握计算机视觉和图像处理相关的基本算法及应用",
+      "熟悉 Caffe、TensorFlow、PyTorch 等至少一个深度学习框架",
+      "较强的工程实现能力",
+      "熟练掌握 C/C++ 编程",
+      "熟悉 Shell、Python、Matlab 至少一种编程语言"
+    ],
+    "nice_to_have": [
+      "熟悉多模态、NLP、CV 等方向的前沿技术",
+      "具备图像、视频、3D生成、声学信号、多模态对齐等相关项目经验"
+    ],
+    "bonus_points": [
+      "在 CVPR、ICCV、ECCV、ACL、NeurIPS、ICLR 等学术会议或期刊以第一作者发表过文章",
+      "有丰富项目经验"
+    ]
+  },
+  "skills": [
+    "多模态",
+    "计算机视觉",
+    "图像处理",
+    "视频理解",
+    "3D生成",
+    "声学信号处理",
+    "NLP",
+    "CV",
+    "C/C++",
+    "Python",
+    "Shell",
+    "Matlab",
+    "Caffe",
+    "TensorFlow",
+    "PyTorch",
+    "深度学习"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "多模态",
+    "job_type": "技术",
+    "direction": "算法",
+    "cities": [
+      "深圳总部",
+      "北京",
+      "上海",
+      "广州",
+      "成都"
+    ],
+    "business_groups": [
+      "CDG",
+      "CSIG",
+      "IEG",
+      "PCG",
+      "TEG",
+      "WXG"
+    ]
+  }
+},
+{
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-algorithm-nlp-intern-2026-001",
+    "title": "算法-自然语言处理方向",
+    "job_type": "技术",
+    "application_type": "应届实习",
+    "direction": "算法",
+    "category": "自然语言处理",
+    "status": "open",
+    "slogan": "对一个研究者来说，丰富的应用场景、全谱领域的技术积累、追求极致的氛围都很重要，而你正是其中一员！"
+  },
+  "organizations": [
+    {
+      "code": "CDG",
+      "name": "企业发展事业群"
+    },
+    {
+      "code": "CSIG",
+      "name": "云与智慧产业事业群"
+    },
+    {
+      "code": "IEG",
+      "name": "互动娱乐事业群"
+    },
+    {
+      "code": "PCG",
+      "name": "平台与内容事业群"
+    },
+    {
+      "code": "TEG",
+      "name": "技术工程事业群"
+    },
+    {
+      "code": "WXG",
+      "name": "微信事业群"
+    },
+    {
+      "code": "S1",
+      "name": "职能系统－职能线"
+    }
+  ],
+  "locations": [
+    "深圳总部",
+    "北京",
+    "上海",
+    "广州"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "负责自然语言处理相关算法研发，覆盖语义分析、意图识别、人机对话、机器翻译、知识图谱、命名实体识别、自然语言生成等方向。",
+    "responsibilities": [
+      "负责自然语言处理的算法研发，包括语义分析、意图识别、人机对话、语义挖掘、机器翻译、知识图谱、命名实体识别等",
+      "负责对话系统，尤其是任务导向型对话系统的技术研究，包括自然语言理解、对话状态跟踪、对话策略学习、自然语言生成、encoder-decoder 模型等",
+      "负责知识图谱相关关键技术研究，解决知识图谱和自然语言深层次表示、理解与计算问题",
+      "负责 NLP 前沿问题的研究，结合未来实际应用场景，提供技术解决方案"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "包含但不限于计算机、信息工程、模式识别、人工智能、自动化、软件工程、电子工程、统计学、应用数学、物理学/量子计算、信息安全、信号与信息处理等专业的博士和优秀硕士",
+      "熟练掌握 NLP 基础理论和算法",
+      "在一个或多个 NLP 领域能够独立开展研发工作，如对话系统、文本分类、语义理解、知识图谱构建、篇章理解、情感分析、自然语言生成等",
+      "熟悉至少一种编程语言，包括 Java、C/C++、C#、Python 等",
+      "熟练使用一种或几种深度学习框架，如 TensorFlow、Caffe、MXNet、PyTorch 等"
+    ],
+    "nice_to_have": [
+      "熟悉对话系统、文本分类、语义理解、知识图谱构建、篇章理解、情感分析、自然语言生成等一个或多个 NLP 方向",
+      "具备深度学习学术或工程项目经验"
+    ],
+    "bonus_points": [
+      "在 ACL、EMNLP、SIGIR、NAACL、COLING、IJCAI、AAAI 等学术会议或期刊以第一作者发表过文章",
+      "有深度学习学术或工程项目经验"
+    ]
+  },
+  "skills": [
+    "NLP",
+    "自然语言处理",
+    "语义分析",
+    "意图识别",
+    "人机对话",
+    "任务导向型对话系统",
+    "自然语言理解",
+    "对话状态跟踪",
+    "对话策略学习",
+    "自然语言生成",
+    "encoder-decoder",
+    "机器翻译",
+    "知识图谱",
+    "命名实体识别",
+    "文本分类",
+    "情感分析",
+    "Java",
+    "C/C++",
+    "C#",
+    "Python",
+    "TensorFlow",
+    "Caffe",
+    "MXNet",
+    "PyTorch",
+    "深度学习"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "自然语言处理",
+    "job_type": "技术",
+    "direction": "算法",
+    "cities": [
+      "深圳总部",
+      "北京",
+      "上海",
+      "广州"
+    ],
+    "business_groups": [
+      "CDG",
+      "CSIG",
+      "IEG",
+      "PCG",
+      "TEG",
+      "WXG",
+      "S1"
+    ]
+  }
+},
+{
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-tech-research-hpc-intern-2026-001",
+    "title": "技术研究-高性能计算方向",
+    "job_type": "技术",
+    "application_type": "应届实习",
+    "direction": "技术研究",
+    "category": "高性能计算",
+    "status": "open",
+    "slogan": "对一个研究者来说，丰富的应用场景、全谱领域的技术积累、追求极致的氛围都很重要，而你正是其中一员！"
+  },
+  "organizations": [
+    {
+      "code": "CDG",
+      "name": "企业发展事业群"
+    },
+    {
+      "code": "CSIG",
+      "name": "云与智慧产业事业群"
+    },
+    {
+      "code": "IEG",
+      "name": "互动娱乐事业群"
+    },
+    {
+      "code": "TEG",
+      "name": "技术工程事业群"
+    },
+    {
+      "code": "WXG",
+      "name": "微信事业群"
+    }
+  ],
+  "locations": [
+    "深圳总部",
+    "北京",
+    "上海",
+    "广州",
+    "合肥"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "负责 GPU、网络、大模型工程框架等高性能计算方向的技术研究与工程优化，解决算力瓶颈、通信延迟、分布式系统扩展性等问题。",
+    "responsibilities": [
+      "针对业务需求，解决算力瓶颈、通信延迟、分布式系统扩展性等问题",
+      "协同算法、硬件及运维团队，构建高效、稳定的计算基础设施",
+      "研究 GPU 集群调度策略，优化资源利用率，探索混合精度计算、模型量化等 GPU 加速技术",
+      "设计低延迟、高吞吐的分布式网络架构，如 InfiniBand、RoCE、DPU",
+      "优化 MPI、NCCL 等通信库性能，解决大规模集群中的网络拥塞问题",
+      "开发或优化大模型训练框架，如 PyTorch、TensorFlow、DeepSpeed、Megatron-LM",
+      "设计分布式训练策略，包括模型并行、流水线并行、混合并行，提升千亿级参数模型训练效率",
+      "研究训练加速技术，包括梯度压缩、显存优化、动态计算图调度"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "扎实的计算机体系结构基础",
+      "熟悉并行计算、数据密集型系统设计",
+      "良好的数学基础，包括线性代数、数值分析、算法复杂度优化"
+    ],
+    "nice_to_have": [
+      "熟悉 GPU 集群调度、混合精度计算、模型量化等 GPU 加速技术",
+      "熟悉低延迟、高吞吐分布式网络架构",
+      "熟悉大模型训练框架与分布式训练策略"
+    ],
+    "bonus_points": [
+      "有 TensorRT、Triton Inference Server 等推理框架经验者优先",
+      "深入理解 TCP/IP、RDMA 协议栈者优先",
+      "熟悉 DPDK、SPDK 开发者优先",
+      "有超算中心或云计算网络调优经验者优先",
+      "熟悉 Transformer 架构及主流大模型训练流程"
+    ]
+  },
+  "skills": [
+    "高性能计算",
+    "GPU",
+    "GPU集群调度",
+    "并行计算",
+    "数据密集型系统",
+    "分布式系统",
+    "计算机体系结构",
+    "混合精度计算",
+    "模型量化",
+    "InfiniBand",
+    "RoCE",
+    "DPU",
+    "MPI",
+    "NCCL",
+    "PyTorch",
+    "TensorFlow",
+    "DeepSpeed",
+    "Megatron-LM",
+    "模型并行",
+    "流水线并行",
+    "混合并行",
+    "梯度压缩",
+    "显存优化",
+    "动态计算图调度",
+    "TensorRT",
+    "Triton Inference Server",
+    "TCP/IP",
+    "RDMA",
+    "DPDK",
+    "SPDK",
+    "Transformer",
+    "大模型训练"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "高性能计算",
+    "job_type": "技术",
+    "direction": "技术研究",
+    "cities": [
+      "深圳总部",
+      "北京",
+      "上海",
+      "广州",
+      "合肥"
+    ],
+    "business_groups": [
+      "CDG",
+      "CSIG",
+      "IEG",
+      "TEG",
+      "WXG"
+    ]
+  }
+},
+{
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-solution-industry-consulting-intern-2026-001",
+    "title": "解决方案-行业咨询方向",
+    "job_type": "技术",
+    "application_type": "应届实习",
+    "direction": "解决方案",
+    "category": "行业咨询",
+    "status": "open",
+    "slogan": "你将在充满机遇与挑战的工作中，成为客户与技术产品间的桥梁，为产业发展提供多元价值。深耕产业，拥抱未来！"
+  },
+  "organizations": [
+    {
+      "code": "CSIG",
+      "name": "云与智慧产业事业群"
+    }
+  ],
+  "locations": [
+    "深圳总部",
+    "上海"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "负责学习和理解技术、产品及应用场景，挖掘客户需求，结合腾讯平台能力提供行业解决方案，并参与售前咨询、项目交付、售后服务等环节。",
+    "responsibilities": [
+      "学习和理解技术、产品及应用场景，挖掘和引导客户需求，结合腾讯平台能力为客户提供解决方案",
+      "深度参与产品架构设计、售前咨询、项目交付、售后服务其中一个或多个环节，保障解决方案落地，解决客户问题，助力客户成功",
+      "学习解决方案的最佳实践，并通过实战经验积累，沉淀面向企业数字化转型的通用方案能力与优势",
+      "保持市场洞察，感知行业动态，不断提升公司产品和解决方案的行业竞争力"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "理工科专业",
+      "具有出色的书面和口头沟通能力、人际沟通能力",
+      "富有创造性、灵活性及自信心",
+      "具备快速学习能力，能够快速获取、整理及分析信息",
+      "逻辑性强，具有良好的商业意识和客户服务意识",
+      "目标感强，自我驱动，以结果为导向",
+      "能接受出差"
+    ],
+    "nice_to_have": [
+      "熟悉云计算、大数据、人工智能等技术优先",
+      "具备产品架构设计、售前咨询、项目交付、售后服务相关理解或实践经验",
+      "具备企业数字化转型解决方案相关理解"
+    ],
+    "bonus_points": [
+      "同等条件下，有腾讯云从业资格认证者优先"
+    ]
+  },
+  "skills": [
+    "解决方案",
+    "行业咨询",
+    "云计算",
+    "大数据",
+    "人工智能",
+    "售前咨询",
+    "项目交付",
+    "售后服务",
+    "产品架构设计",
+    "客户需求分析",
+    "企业数字化转型",
+    "市场洞察",
+    "商业意识",
+    "客户服务",
+    "沟通表达",
+    "信息整理分析"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "行业咨询",
+    "job_type": "技术",
+    "direction": "解决方案",
+    "cities": [
+      "深圳总部",
+      "上海"
+    ],
+    "business_groups": [
+      "CSIG"
+    ]
+  }
+},
+{
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-csig-tech-product-business-trainee-intern-2026-001",
+    "title": "CSIG技术产品商务培训生",
+    "job_type": "市场",
+    "application_type": "应届实习",
+    "direction": "技术产品商务",
+    "category": "商务培训生",
+    "status": "open",
+    "slogan": "一起投身到产业互联网浪潮中，以领先数字平台产品点亮智慧未来，遇见坚定稳步成长的自己！"
+  },
+  "organizations": [
+    {
+      "code": "CSIG",
+      "name": "云与智慧产业事业群"
+    }
+  ],
+  "locations": [
+    "青岛",
+    "深圳总部",
+    "郑州",
+    "北京",
+    "上海",
+    "广州",
+    "成都",
+    "杭州",
+    "南京",
+    "中国香港",
+    "西安",
+    "重庆",
+    "厦门"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "加入 CSIG 技术产品商务培训生专项，面向国内外机构、企业组织和个人开发者，推广腾讯云核心产品和解决方案，挖掘潜在商机，参与完整客户业务合作过程。",
+    "responsibilities": [
+      "面向国内外各机构、企业组织和个人开发者，推广腾讯云的核心产品和解决方案",
+      "综合直销和渠道分销等形式，挖掘潜在商机，助力团队共同实现业务目标",
+      "代表公司深度参与完整的客户业务合作全过程",
+      "完成深度的行业洞察、挖掘商机客群、制定和参与全方位的云与技术解决方案",
+      "通过一线实践体验，实现个人快速提升和成长"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "具备良好的综合素质",
+      "具备优秀的沟通和团队协作能力",
+      "热爱挑战，能在复杂环境中探索解决路径",
+      "愿意将给客户提供优秀的技术产品并达成商务目标作为个人职业发展方向",
+      "积极拥抱云、大数据、人工智能等技术产品领域的变化",
+      "具备快速学习能力及敏锐的市场洞察意识"
+    ],
+    "nice_to_have": [
+      "计算机、信息技术、计算机交叉学科等相关专业背景优先",
+      "商科专业背景，同时愿意快速学习技术产品知识",
+      "具备云、大数据、人工智能等技术产品相关理解",
+      "具备客户合作、商务拓展、市场洞察或解决方案相关实践经验"
+    ],
+    "bonus_points": [
+      "同等条件下，有腾讯云从业资格认证者优先",
+      "曾担任过校园学生干部",
+      "有校内活动组织、校外社会实践经验",
+      "有大型互联网、IT 相关科技企业实习经历"
+    ],
+    "notes": [
+      "从 2024 年开始，实习留用将成为获得 CSIG 技术产品商务培训生正式校招 offer 的唯一途径，也是必经之路",
+      "期待投入至少 1.5 个月的实习时间",
+      "实习期间由经验丰富导师 1v1 带教，并提供完善课程等培养资源",
+      "实习期间有机会提前获得校招 Offer"
+    ]
+  },
+  "skills": [
+    "技术产品商务",
+    "商务拓展",
+    "客户合作",
+    "腾讯云",
+    "云计算",
+    "大数据",
+    "人工智能",
+    "产业互联网",
+    "解决方案",
+    "直销",
+    "渠道分销",
+    "商机挖掘",
+    "行业洞察",
+    "市场洞察",
+    "客户需求分析",
+    "沟通表达",
+    "团队协作",
+    "快速学习",
+    "商务目标管理"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "商务培训生",
+    "job_type": "市场",
+    "direction": "技术产品商务",
+    "cities": [
+      "青岛",
+      "深圳总部",
+      "郑州",
+      "北京",
+      "上海",
+      "广州",
+      "成都",
+      "杭州",
+      "南京",
+      "中国香港",
+      "西安",
+      "重庆",
+      "厦门"
+    ],
+    "business_groups": [
+      "CSIG"
+    ]
+  }
+},
+{
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-project-management-intern-2026-001",
+    "title": "项目管理",
+    "job_type": "产品",
+    "application_type": "应届实习",
+    "direction": "项目管理",
+    "category": "项目管理",
+    "status": "open",
+    "slogan": "项目的达成需要你的推动与把控，你是项目推进的“大总管”，也是推动项目实现的多面手！"
+  },
+  "organizations": [
+    {
+      "code": "CSIG",
+      "name": "云与智慧产业事业群"
+    },
+    {
+      "code": "IEG",
+      "name": "互动娱乐事业群"
+    },
+    {
+      "code": "PCG",
+      "name": "平台与内容事业群"
+    },
+    {
+      "code": "TEG",
+      "name": "技术工程事业群"
+    }
+  ],
+  "locations": [
+    "深圳总部",
+    "北京",
+    "上海",
+    "杭州"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "负责参与项目管理与统筹，协助团队推进需求落地、项目进度把控、风险预警、资源配置、流程优化和项目复盘，保障项目目标高效达成。",
+    "responsibilities": [
+      "参与项目的管理与统筹，帮助团队合理理解、判断需求及方向，并进行内外资源部署，推动项目和需求落地，确保高效达成项目目标",
+      "协助合理规划项目、相关团队及合作机制，把控项目进度，进行风险预警和资源配置，关注合作细节，推动解决问题",
+      "协助项目的复盘和总结",
+      "协助优化团队资源结构，进行需求、人力、成本分析",
+      "负责制定和优化工作流程，运用工具将人工推进事务逐步标准化、流程化、高效化"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "本科及以上学历",
+      "了解项目开发过程、敏捷项目管理理论",
+      "乐观开朗、善于沟通、擅长协作",
+      "乐于用自己的能量感染他人",
+      "拥有明确的职业规划，立足于项目管理岗位长期发展"
+    ],
+    "nice_to_have": [
+      "具备项目管理、需求管理、资源协调、流程优化相关理解或实践经验",
+      "熟悉敏捷项目管理、项目复盘、风险预警、成本分析等方法"
+    ],
+    "bonus_points": [
+      "有软件工程实习经历背景",
+      "积极参与学生社团相关工作，担任过主要职务"
+    ]
+  },
+  "skills": [
+    "项目管理",
+    "敏捷项目管理",
+    "项目统筹",
+    "需求管理",
+    "资源协调",
+    "进度把控",
+    "风险预警",
+    "资源配置",
+    "流程优化",
+    "项目复盘",
+    "需求分析",
+    "人力分析",
+    "成本分析",
+    "团队协作",
+    "沟通表达",
+    "问题推动",
+    "标准化流程"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "项目管理",
+    "job_type": "产品",
+    "direction": "项目管理",
+    "cities": [
+      "深圳总部",
+      "北京",
+      "上海",
+      "杭州"
+    ],
+    "business_groups": [
+      "CSIG",
+      "IEG",
+      "PCG",
+      "TEG"
+    ]
+  }
+},
+{
+"source": {
+"source_type": "manual_curated",
+"source_name": "tencent_campus_manual",
+"source_url": "",
+"data_quality": "manual_verified",
+"collected_at": "2026-06-01"
+},
+"job": {
+"id": "tencent-industry-operations-intern-2026-001",
+"title": "行业运营",
+"job_type": "产品",
+"application_type": "应届实习",
+"direction": "行业运营",
+"category": "行业运营",
+"status": "open",
+"slogan": "你将作为连接市场与产品的桥梁，互联网的市场先锋、业务发展的“啄木鸟”。下一个伟大，由你开始！"
+},
+"organizations": [
+{
+"code": "CDG",
+"name": "企业发展事业群"
+},
+{
+"code": "CSIG",
+"name": "云与智慧产业事业群"
+},
+{
+"code": "IEG",
+"name": "互动娱乐事业群"
+},
+{
+"code": "TEG",
+"name": "技术工程事业群"
+},
+{
+"code": "WXG",
+"name": "微信事业群"
+}
+],
+"locations": [
+"深圳总部",
+"北京",
+"上海",
+"广州"
+],
+"interview_locations": [
+"远程面试"
+],
+"description": {
+"summary": "负责行业市场扫描、行业机会识别、目标客户分析、商机跟踪、解决方案推动、客户价值提升、经营指标分析和业务风险预警，促进业务目标达成。",
+"responsibilities": [
+"扫描行业市场，关注行业前沿动态，分析行业产业结构，识别行业新机会点",
+"洞察商业模式变化趋势，探索新的商业模式，通过市场深入分析了解产品在行业中的定位与价值，促进业务发展",
+"通过行业目标客户圈定和特点分析，发现和跟踪商机，深入分析客户需求和应用场景",
+"提供解决方案和产品能力并推动实施，使产品具备较好的商业交付能力",
+"协调公司内外部资源达成目标，内部衔接销售、产品，外部衔接客户、服务商等",
+"建立行业作战地图，跟踪客户转化和渗透提升，不断提升客户价值，积累大客户标杆，驱动整体目标达成",
+"协同业务团队战略规划，明确经营指标体系建设",
+"周期性进行经营指标分析及报告数据输出，分析 KPI 达成情况、机会和风险，建立业务风险预警机制"
+]
+},
+"requirements": {
+"must_have": [
+"本科及以上学历",
+"热爱互联网行业",
+"具备优秀的分析问题、解决问题、信息整合、数据挖掘、逻辑组织和观点提炼能力",
+"具备一定方案撰写能力",
+"具备一定 Excel 建模能力",
+"具备良好的沟通能力和团队合作精神"
+],
+"nice_to_have": [
+"具备行业分析、市场洞察、商业模式分析相关理解或实践经验",
+"具备客户需求分析、解决方案推动、商机跟踪相关理解或实践经验",
+"具备经营分析、KPI 分析、数据报告输出或业务风险预警相关理解"
+],
+"bonus_points": []
+},
+"skills": [
+"行业运营",
+"市场分析",
+"行业分析",
+"行业洞察",
+"商业模式分析",
+"客户需求分析",
+"目标客户圈定",
+"商机挖掘",
+"商机跟踪",
+"解决方案",
+"产品能力推动",
+"商业交付",
+"资源协调",
+"客户转化",
+"客户渗透",
+"大客户标杆",
+"战略规划",
+"经营指标分析",
+"KPI分析",
+"数据报告",
+"业务风险预警",
+"信息整合",
+"数据挖掘",
+"方案撰写",
+"Excel建模",
+"沟通表达",
+"团队合作"
+],
+"facets": {
+"application_project": "实习生",
+"application_subtype": "应届实习",
+"job_category": "行业运营",
+"job_type": "产品",
+"direction": "行业运营",
+"cities": [
+"深圳总部",
+"北京",
+"上海",
+"广州"
+],
+"business_groups": [
+"CDG",
+"CSIG",
+"IEG",
+"TEG",
+"WXG"
+]
+}
+}
+,
+{
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-investment-analysis-intern-2026-001",
+    "title": "投资分析",
+    "job_type": "市场",
+    "application_type": "应届实习",
+    "direction": "投资分析",
+    "category": "投资分析",
+    "status": "open",
+    "slogan": "You are a key player in connecting investment decisions with market dynamics. Here, you will apply your insight and judgment to provide objective and accurate investment advice."
+  },
+  "organizations": [
+    {
+      "code": "CDG",
+      "name": "企业发展事业群"
+    }
+  ],
+  "locations": [
+    "北京"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "负责互联网领域的行业与经济研究，参与投资项目挖掘、评估、尽职调查、交易执行、投后公司研究及团队知识库建设。",
+    "responsibilities": [
+      "主导互联网领域相关行业和经济研究",
+      "参与并支持投资项目的来源挖掘、评估、尽职调查和交易执行流程",
+      "参与并支持投后公司研究活动",
+      "增强并维护团队知识库"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "对互联网、投资和腾讯有强烈兴趣、热情和商业敏感度",
+      "具备高度诚信、投入度和自我驱动力",
+      "顶尖院校本科或硕士学历，专业不限",
+      "具备优秀的问题解决能力",
+      "具备扎实的批判性思维能力",
+      "中英文流利"
+    ],
+    "nice_to_have": [
+      "具备互联网行业研究、经济研究、投资分析、商业分析相关理解或实践经验",
+      "具备交易评估、尽职调查、投后研究或知识库建设相关理解"
+    ],
+    "bonus_points": [
+      "有顶尖咨询公司或投资银行实习经历者优先"
+    ],
+    "notes": [
+      "该岗位要求上传 PDF 版本简历"
+    ]
+  },
+  "skills": [
+    "投资分析",
+    "行业研究",
+    "经济研究",
+    "互联网行业",
+    "商业分析",
+    "投资判断",
+    "Deal Sourcing",
+    "项目评估",
+    "尽职调查",
+    "交易执行",
+    "投后研究",
+    "知识库建设",
+    "问题解决",
+    "批判性思维",
+    "商业敏感度",
+    "英文沟通",
+    "中文沟通",
+    "Consulting",
+    "Investment Banking"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "投资分析",
+    "job_type": "市场",
+    "direction": "投资分析",
+    "cities": [
+      "北京"
+    ],
+    "business_groups": [
+      "CDG"
+    ]
+  }
+},
+{
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-investment-analysis-tech-intern-2026-001",
+    "title": "投资分析(技术方向)",
+    "job_type": "市场",
+    "application_type": "应届实习",
+    "direction": "投资分析",
+    "category": "技术投资分析",
+    "status": "open",
+    "slogan": "这是一个连接投资决策与市场动态的关键角色。在这里，你将运用自己的洞察力和判断力，提供客观且精准的投资建议。"
+  },
+  "organizations": [
+    {
+      "code": "CDG",
+      "name": "企业发展事业群"
+    }
+  ],
+  "locations": [
+    "北京"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "负责科技领域为主的行业及经济研究，参与项目搜寻、评估、尽职调查、交易执行、投后标的公司研究及团队知识库体系建设。",
+    "responsibilities": [
+      "主导以科技领域为主的行业及经济研究工作",
+      "参与并助力项目搜寻、评估、尽职调查及交易执行全流程",
+      "参与并助力交易完成后的标的公司研究工作",
+      "完善并维护团队的知识库体系"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "对科技投资领域及腾讯业务具有浓厚兴趣、热情及商业洞察力",
+      "理工科专业背景，包括但不限于计算机科学与技术、电子信息工程、数学与统计学、数据科学与大数据技术、微电子学与集成电路、电子科学与技术、材料科学与工程、物理学等技术类专业",
+      "具备高度诚信、敬业精神与自我驱动力",
+      "具备出色的解决问题能力",
+      "具备扎实的批判性思维",
+      "中英文流利"
+    ],
+    "nice_to_have": [
+      "具备科技行业研究、经济研究、投资分析、商业分析相关理解或实践经验",
+      "具备项目搜寻、项目评估、尽职调查、交易执行或投后研究相关理解",
+      "具备技术背景与商业分析结合能力"
+    ],
+    "bonus_points": [],
+    "notes": [
+      "本岗位需上传 PDF 格式简历"
+    ]
+  },
+  "skills": [
+    "投资分析",
+    "技术投资",
+    "科技行业研究",
+    "经济研究",
+    "商业分析",
+    "项目搜寻",
+    "项目评估",
+    "尽职调查",
+    "交易执行",
+    "投后研究",
+    "知识库建设",
+    "计算机科学与技术",
+    "电子信息工程",
+    "数学与统计学",
+    "数据科学与大数据技术",
+    "微电子学与集成电路",
+    "电子科学与技术",
+    "材料科学与工程",
+    "物理学",
+    "商业洞察力",
+    "问题解决",
+    "批判性思维",
+    "中文沟通",
+    "英文沟通"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "技术投资分析",
+    "job_type": "市场",
+    "direction": "投资分析",
+    "cities": [
+      "北京"
+    ],
+    "business_groups": [
+      "CDG"
+    ]
+  }
+},
+{
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-secretary-intern-2026-001",
+    "title": "秘书",
+    "job_type": "职能",
+    "application_type": "应届实习",
+    "direction": "秘书",
+    "category": "秘书",
+    "status": "open",
+    "slogan": "你是部门里的重要担当，你眼观六路，大事小事，都放心上。你耳听八方，一切细节，尽在把握。你聚合团队，温暖人心。有你，更有爱！"
+  },
+  "organizations": [
+    {
+      "code": "CDG",
+      "name": "企业发展事业群"
+    },
+    {
+      "code": "CSIG",
+      "name": "云与智慧产业事业群"
+    },
+    {
+      "code": "IEG",
+      "name": "互动娱乐事业群"
+    },
+    {
+      "code": "PCG",
+      "name": "平台与内容事业群"
+    },
+    {
+      "code": "TEG",
+      "name": "技术工程事业群"
+    },
+    {
+      "code": "WXG",
+      "name": "微信事业群"
+    },
+    {
+      "code": "S1",
+      "name": "职能系统－职能线"
+    }
+  ],
+  "locations": [
+    "深圳总部",
+    "北京",
+    "广州",
+    "成都"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "负责部门管理者日程、会议、差旅等支持工作，承担部门职能事务统筹、流程制度协助、文化建设、信息传达及体系级活动组织支持。",
+    "responsibilities": [
+      "负责部门管理者的日程管理、会议支持、差旅支持等工作，并协助管理者做好部门管理及团队融合",
+      "担任部门内各项职能类工作接口人，包括行政、人事、采购、资产、费用、合同、文档、资料管理等，统筹管理相关事务",
+      "根据部门管理要求，协助制定并实施部门级管理规章制度及各项流程，并定期优化",
+      "负责部门文化建设，结合组织需求，通过活动组织、氛围建设、荣誉激励等方式建立良好的组织氛围，提升组织活力",
+      "及时传达公司下发的各类管理规定及要求，保障管理要求在部门落地",
+      "参与体系级活动组织，协助体系组织建设及文化落地"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "本科及以上学历",
+      "热情开朗，为人正直",
+      "具备高效执行力，抗压性强",
+      "具备良好的时间管理、情绪管理及沟通能力",
+      "具备优秀的服务意识、高度责任感及团队合作精神",
+      "能够与同事保持良好的工作关系",
+      "工作例行化程度高，做事清晰有条理",
+      "具有全局观及项目预见性、前瞻意识",
+      "熟练运用各种日常办公软件及办公设备",
+      "能独立组织大型团队活动并有创新意识"
+    ],
+    "nice_to_have": [
+      "具备行政、人事、采购、资产、费用、合同、文档、资料管理等职能事务理解或实践经验",
+      "具备部门文化建设、活动组织、流程优化、团队融合相关经验",
+      "具备大型团队活动独立组织能力"
+    ],
+    "bonus_points": [
+      "有大型公司文秘实习经验",
+      "英语能力突出"
+    ]
+  },
+  "skills": [
+    "秘书",
+    "行政支持",
+    "日程管理",
+    "会议支持",
+    "差旅支持",
+    "部门管理支持",
+    "团队融合",
+    "行政事务",
+    "人事事务",
+    "采购事务",
+    "资产管理",
+    "费用管理",
+    "合同管理",
+    "文档管理",
+    "资料管理",
+    "流程制度建设",
+    "流程优化",
+    "部门文化建设",
+    "活动组织",
+    "氛围建设",
+    "荣誉激励",
+    "组织建设",
+    "服务意识",
+    "责任感",
+    "时间管理",
+    "情绪管理",
+    "沟通表达",
+    "团队合作",
+    "办公软件",
+    "办公设备",
+    "英语能力"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "秘书",
+    "job_type": "职能",
+    "direction": "秘书",
+    "cities": [
+      "深圳总部",
+      "北京",
+      "广州",
+      "成都"
+    ],
+    "business_groups": [
+      "CDG",
+      "CSIG",
+      "IEG",
+      "PCG",
+      "TEG",
+      "WXG",
+      "S1"
+    ]
+  }
+},
+{
+  "source": {
+    "source_type": "manual_curated",
+    "source_name": "tencent_campus_manual",
+    "source_url": "",
+    "data_quality": "manual_verified",
+    "collected_at": "2026-06-01"
+  },
+  "job": {
+    "id": "tencent-facility-equipment-management-intern-2026-001",
+    "title": "设施设备管理",
+    "job_type": "职能",
+    "application_type": "应届实习",
+    "direction": "设施设备管理",
+    "category": "设施设备管理",
+    "status": "open",
+    "slogan": "加入腾讯，让世界看到你的影响力！"
+  },
+  "organizations": [
+    {
+      "code": "S1",
+      "name": "职能系统－职能线"
+    }
+  ],
+  "locations": [
+    "深圳总部"
+  ],
+  "interview_locations": [
+    "远程面试"
+  ],
+  "description": {
+    "summary": "负责协助集团机电相关工程系统质量检查、验收，管理在用项目机电设施设备，并参与供应商、暖通合同、工程预算、验收及问题判断等工作。",
+    "responsibilities": [
+      "协助完成集团机电相关工程系统质量检查、验收",
+      "管理集团在用项目机电相关设施设备",
+      "负责供应商管理、暖通专业合同管理，工程预算、验收及问题判断"
+    ]
+  },
+  "requirements": {
+    "must_have": [
+      "本科及以上学历",
+      "掌握 CAD 等制图软件",
+      "对国家施工规范有一定了解"
+    ],
+    "nice_to_have": [
+      "建筑环境与能源应用工程等相关专业优先",
+      "具备机电工程、暖通工程、设施设备管理、工程验收相关理解或实践经验",
+      "具备供应商管理、合同管理、工程预算相关理解"
+    ],
+    "bonus_points": []
+  },
+  "skills": [
+    "设施设备管理",
+    "机电工程",
+    "工程系统质量检查",
+    "工程验收",
+    "设施管理",
+    "机电设施设备",
+    "供应商管理",
+    "暖通工程",
+    "合同管理",
+    "工程预算",
+    "问题判断",
+    "CAD",
+    "施工规范",
+    "建筑环境与能源应用工程"
+  ],
+  "facets": {
+    "application_project": "实习生",
+    "application_subtype": "应届实习",
+    "job_category": "设施设备管理",
+    "job_type": "职能",
+    "direction": "设施设备管理",
+    "cities": [
+      "深圳总部"
+    ],
+    "business_groups": [
+      "S1"
+    ]
+  }
+},
+{
+"source": {
+"source_type": "manual_curated",
+"source_name": "tencent_campus_manual",
+"source_url": "",
+"data_quality": "manual_verified",
+"collected_at": "2026-06-01"
+},
+"job": {
+"id": "tencent-visual-design-intern-2026-001",
+"title": "视觉设计",
+"job_type": "设计",
+"application_type": "应届实习",
+"direction": "视觉设计",
+"category": "视觉设计",
+"status": "open",
+"slogan": "在这里，你的设计意味着触动亿万人的情感和引领互联网时尚潮流。设计，不止于此！"
+},
+"organizations": [
+{
+"code": "CDG",
+"name": "企业发展事业群"
+},
+{
+"code": "CSIG",
+"name": "云与智慧产业事业群"
+},
+{
+"code": "IEG",
+"name": "互动娱乐事业群"
+},
+{
+"code": "PCG",
+"name": "平台与内容事业群"
+},
+{
+"code": "WXG",
+"name": "微信事业群"
+}
+],
+"locations": [
+"深圳总部",
+"北京",
+"广州"
+],
+"interview_locations": [
+"远程面试"
+],
+"description": {
+"summary": "负责参与公司产品的视觉内容设计，包括 UI、多媒体、品牌等方向，参与概念创意、视觉风格制定、设计规范建设、产品实现推动及阶段性品牌推广。",
+"responsibilities": [
+"负责参与公司产品的视觉内容，包括 UI、多媒体、品牌等设计，具备一定的跨平台及多终端设计能力",
+"负责产品前期的概念创意，整体视觉风格的制定，推动产品实现及进行阶段性的品牌推广",
+"负责制定设计标准及规范，保障产品体验及设计的一致性",
+"具备较好的用户体验思维，熟练掌握如 AIGC 等多形态的创意工具，具备较强的能力扩展性"
+]
+},
+"requirements": {
+"must_have": [
+"美术、设计相关专业本科或研究生",
+"能够熟练使用 Photoshop、Figma、After Effects、Illustrator、Sketch 等软件",
+"综合素质扎实，热爱设计行业",
+"富于创新、思维灵活",
+"对先进的设计理念和技术有较强的理解能力",
+"有一定的设计理论知识和对流行趋势敏锐的洞察力",
+"具有良好的沟通能力和团队协作精神"
+],
+"nice_to_have": [
+"具备 UI、多媒体、品牌等视觉内容设计能力",
+"具备跨平台及多终端设计能力",
+"具备产品概念创意、整体视觉风格制定、品牌推广相关理解或实践经验",
+"具备设计标准与设计规范制定能力",
+"具备用户体验思维",
+"熟练掌握 AIGC 等多形态创意工具"
+],
+"bonus_points": [
+"有设计相关行业经验或实习经验"
+],
+"notes": [
+"需上传个人过往作品集，大小控制在 30M 以下"
+]
+},
+"skills": [
+"视觉设计",
+"UI设计",
+"多媒体设计",
+"品牌设计",
+"跨平台设计",
+"多终端设计",
+"概念创意",
+"视觉风格制定",
+"品牌推广",
+"设计标准",
+"设计规范",
+"用户体验",
+"AIGC",
+"Photoshop",
+"Figma",
+"After Effects",
+"Illustrator",
+"Sketch",
+"设计理论",
+"流行趋势洞察",
+"沟通表达",
+"团队协作"
+],
+"facets": {
+"application_project": "实习生",
+"application_subtype": "应届实习",
+"job_category": "视觉设计",
+"job_type": "设计",
+"direction": "视觉设计",
+"cities": [
+"深圳总部",
+"北京",
+"广州"
+],
+"business_groups": [
+"CDG",
+"CSIG",
+"IEG",
+"PCG",
+"WXG"
+]
+}
+}
+,
+]
