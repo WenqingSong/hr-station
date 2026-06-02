@@ -110,6 +110,7 @@ export function JobRecommendationPage() {
     return (
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
         <p className="text-gray-500 text-sm mb-2">{recommendationError || "推荐接口暂时不可用，请稍后重试。"}</p>
+        <Link to="/resumes" className="text-[#0052D9] text-sm underline mt-3 inline-block">返回我的简历</Link>
       </div>
     );
   }

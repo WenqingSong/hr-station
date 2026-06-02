@@ -63,7 +63,10 @@ export function JobList({ params, onParamsChange, selectedJobId, onSelectedJobId
           <p className="text-sm text-gray-400 py-12 text-center">正在加载岗位列表…</p>
         )}
         {error && (
-          <p className="text-sm text-red-500 py-12 text-center">岗位数据加载失败，请稍后重试。</p>
+          <div className="text-center py-12">
+            <p className="text-sm text-gray-500 mb-3">岗位数据加载失败，请稍后重试。</p>
+            <button className="text-sm text-[#0052D9] hover:underline" onClick={clearAll}>清空筛选条件并重试</button>
+          </div>
         )}
         {!loading && !error && jobCards.length === 0 && (
           <p className="text-sm text-gray-400 py-12 text-center">暂无符合筛选条件的岗位</p>

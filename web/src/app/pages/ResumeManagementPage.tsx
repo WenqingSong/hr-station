@@ -70,11 +70,13 @@ function EmptyState() {
 export function ResumeManagementPage() {
   const [vm, setVm] = useState<ResumeManagementViewModel | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [showSelectModal, setShowSelectModal] = useState(false);
 
   useEffect(() => {
     loadResumeManagementPageViewModel()
       .then(setVm)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -89,7 +91,19 @@ export function ResumeManagementPage() {
     );
   }
 
-  // No resume / error state
+  // Error state
+  if (error) {
+    return (
+      <div className="max-w-[960px] mx-auto px-4 py-8 pb-12">
+        <div className="bg-white border border-gray-200 rounded-sm p-12 text-center">
+          <p className="text-gray-500 text-sm mb-2">简历数据加载失败，请稍后重试。</p>
+          <Link to="/resumes/edit" className="text-[#0052D9] text-sm hover:underline">去创建简历</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // No resume / empty state
   if (!vm || !vm.hasResume) {
     return <EmptyState />;
   }

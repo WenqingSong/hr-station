@@ -172,7 +172,8 @@ export function JobMatchAnalysisPage() {
   if (!result) {
     return (
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-2">{matchError || "匹配分析接口暂时不可用，请稍后重试。"}</p>
+        <p className="text-gray-500 text-sm mb-3">{matchError || "匹配分析接口暂时不可用，请稍后重试。"}</p>
+        <Link to={`/jobs/${jobId}`} className="text-[#0052D9] text-sm underline">返回岗位详情</Link>
       </div>
     );
   }
