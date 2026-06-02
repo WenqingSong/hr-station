@@ -44,9 +44,15 @@ apply_readiness: needs_revision
 summary: "简历当前仅体现 Go、Redis、MySQL 三项技术..."
 ```
 
-## 5. 旧接口兼容
+## 5. 旧接口兼容（K6-3-R 验证）
 
-旧 `POST /api/resumes/optimize` 无 mode 时走原完整流程，未修改。
+```
+LLM_ENABLE=false 模式下验证：
+OLD POST /api/resumes/optimize → HTTP 200, code=0, gen=mock_agent, sv=True ✅
+CORE POST /api/resumes/optimize {"mode":"core"} → HTTP 200, code=0, gen=mock_agent, sv=True ✅
+```
+
+**结论：** mode=core 未破坏旧接口。旧完整 LLM 超时属于既有 OPT 问题，非 K6-3 引入。
 
 ## 6. go test
 
