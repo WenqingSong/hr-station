@@ -1,44 +1,26 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, FileText, Target, ArrowRight, LogIn, Plus } from "lucide-react";
+import { Sparkles, FileText, LogIn, Plus, ArrowRight } from "lucide-react";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { useNavigate } from "react-router";
-import { loadCurrentResumeSummaryViewModel, loadSelectedJobDetailViewModel } from "../../api";
+import { loadCurrentResumeSummaryViewModel } from "../../api";
 import type { ResumeSummaryViewModel } from "../../adapters";
-import { SelectResumeModal } from "./SelectResumeModal";
 import { getAuthToken } from "../../api/authStorage";
 
-interface AIDecisionWorkspaceProps {
-  selectedJobId?: string;
-}
-
-export function AIDecisionWorkspace({ selectedJobId }: AIDecisionWorkspaceProps) {
+export function AIDecisionWorkspace() {
   const navigate = useNavigate();
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
-  const [jobTitle, setJobTitle] = useState("");
   const [loading, setLoading] = useState(true);
 
   const isLoggedIn = !!getAuthToken();
 
   useEffect(() => {
     if (!isLoggedIn) { setLoading(false); return; }
-    const promises: Promise<unknown>[] = [
-      loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {}),
-    ];
-    if (selectedJobId) {
-      promises.push(
-        loadSelectedJobDetailViewModel(selectedJobId).then((j) => setJobTitle(j.title)).catch(() => setJobTitle(""))
-      );
-    } else {
-      promises.push(Promise.resolve(setJobTitle("")));
-    }
-    Promise.all(promises).finally(() => setLoading(false));
-  }, [selectedJobId, isLoggedIn]);
-
-  const handleConfirmRecommend = (resumeId: string) => {
-    navigate(`/recommend?resumeId=${encodeURIComponent(resumeId)}`);
-  };
+    loadCurrentResumeSummaryViewModel()
+      .then(setResumeVm)
+      .catch(() => setResumeVm(null))
+      .finally(() => setLoading(false));
+  }, [isLoggedIn]);
   
   return (
     <aside className="w-[340px] shrink-0 sticky top-24 self-start flex flex-col gap-4">
@@ -49,7 +31,7 @@ export function AIDecisionWorkspace({ selectedJobId }: AIDecisionWorkspaceProps)
           <h2 className="text-xl font-bold text-gray-900">AI 求职决策</h2>
         </div>
         <p className="text-sm text-gray-500">
-          基于你的简历，帮你筛选并优先关注值得投递的岗位。
+          基于你的简历，帮你筛选更适合的岗位，并分析匹配度。
         </p>
       </div>
 
@@ -58,7 +40,7 @@ export function AIDecisionWorkspace({ selectedJobId }: AIDecisionWorkspaceProps)
         <div className="bg-white border border-gray-200 rounded-lg p-5 text-center">
           <LogIn className="w-8 h-8 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-600 mb-1">登录后使用 AI 求职决策</p>
-          <p className="text-xs text-gray-400 mb-4">Offer 捕手会基于你的简历推荐更适合的岗位，并分析匹配度。</p>
+          <p className="text-xs text-gray-400 mb-4">Offer 捕手会基于你的简历，帮你筛选更适合的岗位，并分析匹配度。</p>
           <div className="flex flex-col gap-2">
             <Button className="w-full" onClick={() => navigate("/login")}>
               登录
@@ -81,11 +63,11 @@ export function AIDecisionWorkspace({ selectedJobId }: AIDecisionWorkspaceProps)
       {isLoggedIn && !loading && !resumeVm && (
         <div className="bg-white border border-gray-200 rounded-lg p-5 text-center">
           <FileText className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-600 mb-1">你还没有可用于分析的简历</p>
-          <p className="text-xs text-gray-400 mb-4">先创建一份简历，才能进行岗位推荐、匹配分析和优化建议。</p>
+          <p className="text-sm text-gray-600 mb-1">完善简历后开始智能推荐</p>
+          <p className="text-xs text-gray-400 mb-4">系统会基于你的简历版本，推荐岗位并分析岗位匹配度。</p>
           <Button className="w-full" onClick={() => navigate("/resumes/new")}>
             <Plus className="w-4 h-4 mr-1.5" />
-            创建简历
+            去创建简历
           </Button>
         </div>
       )}
@@ -114,54 +96,27 @@ export function AIDecisionWorkspace({ selectedJobId }: AIDecisionWorkspaceProps)
               </div>
             </div>
             <p className="text-xs text-gray-400">
-              包含 {resumeVm.projectCount} 个项目经历
+              {resumeVm.projectCount > 0
+                ? `包含 ${resumeVm.projectCount} 个项目经历`
+                : "暂未填写项目经历"}
             </p>
           </div>
 
-          {/* Main Action Card */}
-          <div className="bg-white border border-blue-100 rounded-lg p-5 text-center">
-            <h3 className="font-bold text-gray-900 mb-1">基于简历找岗位</h3>
-            <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-              从当前岗位池中推荐最值得优先关注的 5 个岗位
-            </p>
-            <Button 
-              className="w-full shadow-sm group"
-              onClick={() => setIsResumeModalOpen(true)}
-            >
-              推荐最适合的 5 个岗位
-              <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </div>
-
-          {/* Currently Selected Job */}
-          {jobTitle && (
-            <div className="bg-white border border-[#0052D9] rounded-lg p-4 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-[#0052D9]"></div>
-              <div className="flex items-center gap-2 text-gray-900 font-medium mb-2">
-                <Target className="h-4 w-4 text-[#0052D9]" />
-                当前选择岗位
-              </div>
-              <h3 className="font-bold text-[#0052D9] text-sm mb-1">{jobTitle}</h3>
-              <p className="text-xs text-gray-500 mb-3">已选中岗位，可进入详情页查看 JD。</p>
-              <div className="flex gap-2">
-                <Button size="sm" className="flex-1" onClick={() => navigate(`/jobs/${selectedJobId}`)}>
-                  查看详情
-                </Button>
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => navigate(`/match?jobId=${encodeURIComponent(selectedJobId || "")}&resumeId=${encodeURIComponent(resumeVm.id)}`)}>
-                  分析匹配度
-                </Button>
-              </div>
+          {/* Next Steps */}
+          <div className="bg-white border border-blue-100 rounded-lg p-5">
+            <h3 className="font-bold text-gray-900 mb-3">下一步</h3>
+            <div className="flex flex-col gap-2">
+              <Button
+                className="w-full shadow-sm group"
+                onClick={() => navigate("/recommend")}
+              >
+                推荐适合的岗位
+                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </Button>
             </div>
-          )}
+          </div>
         </>
       )}
-
-      <SelectResumeModal
-        isOpen={isResumeModalOpen}
-        onClose={() => setIsResumeModalOpen(false)}
-        onConfirm={handleConfirmRecommend}
-        scene="recommendation"
-      />
     </aside>
   );
 }

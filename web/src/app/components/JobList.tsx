@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { JobCard } from "./JobCard";
 import { getJobs, type JobListParams } from "../../api/jobs";
@@ -8,18 +7,9 @@ import { toJobCardViewModelsFromApi, type JobCardViewModel } from "../../adapter
 interface JobListProps {
   params: JobListParams;
   onParamsChange: (p: JobListParams) => void;
-  selectedJobId: string;
-  onSelectedJobIdChange: (id: string) => void;
 }
 
-const FILTER_LABELS: Record<string, string> = {
-  direction: "求职方向",
-  city: "工作地点",
-  recruit_type: "招聘类型",
-  category: "岗位类别",
-};
-
-export function JobList({ params, onParamsChange, selectedJobId, onSelectedJobIdChange }: JobListProps) {
+export function JobList({ params, onParamsChange }: JobListProps) {
   const [jobCards, setJobCards] = useState<JobCardViewModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +33,7 @@ export function JobList({ params, onParamsChange, selectedJobId, onSelectedJobId
     <main className="flex-1 max-w-[820px] pb-24">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">找到更适合你的实习岗位</h1>
-        <p className="text-gray-500">基于你的简历、技能和岗位需求，筛选值得优先关注的机会。</p>
+        <p className="text-gray-500">浏览当前开放岗位，按方向、城市和岗位类别筛选适合你的机会。</p>
       </div>
 
       {activeFilters.length > 0 && (
@@ -82,8 +72,6 @@ export function JobList({ params, onParamsChange, selectedJobId, onSelectedJobId
             location={job.locationsText}
             description={job.shortDescription}
             statusLabel={job.statusLabel}
-            selected={selectedJobId === job.id}
-            onSelect={onSelectedJobIdChange}
           />
         ))}
       </div>

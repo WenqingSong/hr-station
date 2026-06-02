@@ -7,7 +7,6 @@ import type { JobListParams } from "../../api/jobs";
 export function JobListPage() {
   const [keyword, setKeyword] = useState("");
   const [filters, setFilters] = useState<JobFilters>({});
-  const [selectedJobId, setSelectedJobId] = useState("");
 
   const params: JobListParams = {
     keyword: keyword || undefined,
@@ -32,10 +31,8 @@ export function JobListPage() {
             setKeyword(p.keyword || "");
             setFilters({ direction: p.direction, city: p.city, recruit_type: p.recruit_type, category: p.category });
           }}
-          selectedJobId={selectedJobId}
-          onSelectedJobIdChange={setSelectedJobId}
         />
-        <AIDecisionWorkspace selectedJobId={selectedJobId || undefined} />
+        <AIDecisionWorkspace />
       </div>
     </div>
   );
