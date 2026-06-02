@@ -1,11 +1,16 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { login } from "../../api/auth";
-import { setAuthToken } from "../../api/authStorage";
+import { setAuthToken, getAuthToken } from "../../api/authStorage";
 import type { LoginRequest } from "../../types/auth";
 
 export function LoginPage() {
   const navigate = useNavigate();
+
+  // 已登录用户直接跳转首页
+  useEffect(() => {
+    if (getAuthToken()) navigate("/");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

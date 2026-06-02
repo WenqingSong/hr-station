@@ -1,10 +1,16 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { register } from "../../api/auth";
+import { setAuthToken, getAuthToken } from "../../api/authStorage";
 import type { RegisterRequest } from "../../types/auth";
 
 export function RegisterPage() {
   const navigate = useNavigate();
+
+  // 已登录用户直接跳转首页
+  useEffect(() => {
+    if (getAuthToken()) navigate("/");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,16 +50,18 @@ export function RegisterPage() {
         email: email.trim(),
         password,
       };
-      // 调用 register，但不持久化 token（留到 8-3）
-      await register(input);
-      // 注册成功后跳登录页（本阶段不保存 token）
-      navigate("/login");
+      // 调用 register，注册成功保存 token 并跳转首页
+      const response = await register(input);
+      setAuthToken(response.token);
+      navigate("/");
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "注册失败，请稍后重试";
       // 产品化错误文案
       if (msg.includes("email already registered")) {
         setError("该邮箱已被注册，请直接登录");
+      } else if (msg.includes("password must be")) {
+        setError("密码长度不能少于 6 位");
       } else {
         setError("注册失败，请稍后重试");
       }
