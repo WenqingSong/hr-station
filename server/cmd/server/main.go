@@ -158,6 +158,7 @@ func main() {
 		HealthService:              healthService,
 		AuthHandler:                authHandler,
 		AuthMiddleware:             authMiddleware,
+		AuthService:                authService,
 		ResumeHandler:              resumeHandler,
 		JobHandler:                 jobHandler,
 		RecommendationHandler:      recommendationHandler,

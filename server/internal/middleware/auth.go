@@ -56,7 +56,8 @@ func Auth(authService *service.AuthService) func(http.Handler) http.Handler {
 	}
 }
 
-// UserIDFromContext extracts the user ID from the request context.
+// UserIDContextKey is the exported context key for user ID — used by router dispatch.
+var UserIDContextKey = userIDKey
 func UserIDFromContext(ctx context.Context) (uint64, bool) {
 	id, ok := ctx.Value(userIDKey).(uint64)
 	return id, ok

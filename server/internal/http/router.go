@@ -13,6 +13,7 @@ import (
 	"offer-catcher/server/internal/health"
 	"offer-catcher/server/internal/middleware"
 	"offer-catcher/server/internal/response"
+	"offer-catcher/server/internal/service"
 )
 
 // contextKey is a custom type for context keys to avoid collisions.
@@ -25,6 +26,7 @@ type RouterDeps struct {
 	HealthService              *health.Service
 	AuthHandler                *AuthHandler
 	AuthMiddleware             func(http.Handler) http.Handler
+	AuthService                *service.AuthService
 	ResumeHandler              *ResumeHandler
 	JobHandler                 *JobHandler
 	RecommendationHandler      *RecommendationHandler
@@ -62,14 +64,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("/api/resumes/versions/", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.VersionDetail)))
 	mux.Handle("/api/resumes/optimize", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeOptimizationHandler.Optimize)))
 
-	// Job routes (all require auth)
-	// NOTE: /api/jobs/facets MUST be registered before /api/jobs/ (wildcard prefix)
-	mux.Handle("/api/jobs", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.List)))
-	mux.Handle("/api/jobs/facets", deps.AuthMiddleware(http.HandlerFunc(deps.JobHandler.Facets)))
-	mux.Handle("/api/jobs/recommend", deps.AuthMiddleware(http.HandlerFunc(deps.RecommendationHandler.Recommend)))
-	mux.Handle("/api/jobs/", deps.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		dispatchJobRoutes(w, r, deps)
-	})))
+	// Job routes — public list / facets / detail, protected recommend / match
+	// NOTE: more specific patterns must be registered before the wildcard /api/jobs/
+	mux.HandleFunc("/api/jobs", deps.JobHandler.List)                              // public
+	mux.HandleFunc("/api/jobs/facets", deps.JobHandler.Facets)                     // public
+	mux.Handle("/api/jobs/recommend", deps.AuthMiddleware(http.HandlerFunc(deps.RecommendationHandler.Recommend))) // protected
+	mux.Handle("/api/jobs/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dispatchJobWildcard(w, r, deps)
+	}))
 
 	// Frontend reverse proxy: forward all non-API requests to Vite dev server
 	if deps.FrontendURL != "" {
@@ -100,39 +102,52 @@ func healthzHandler(w http.ResponseWriter, r *http.Request, healthService *healt
 	}
 }
 
-// dispatchJobRoutes dispatches /api/jobs/ sub-routes based on path pattern.
-// - /api/jobs/facets     → JobHandler.Facets (GET)
-// - /api/jobs/{id}       → JobHandler.Detail (GET)
-// - /api/jobs/{id}/match → MatchHandler.Analyze (POST)
-func dispatchJobRoutes(w http.ResponseWriter, r *http.Request, deps RouterDeps) {
+// dispatchJobWildcard dispatches /api/jobs/ sub-routes.
+// Detail (/api/jobs/{id}) is public.
+// Match (/api/jobs/{id}/match) requires auth — enforced internally here.
+func dispatchJobWildcard(w http.ResponseWriter, r *http.Request, deps RouterDeps) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/jobs/")
 	if path == "" {
 		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "job id is required")
 		return
 	}
 
-	// Route /api/jobs/facets
-	if path == "facets" {
-		deps.JobHandler.Facets(w, r)
-		return
-	}
-
-	// Check if path matches /api/jobs/{id}/match
+	// Check if path matches /api/jobs/{id}/match (protected)
 	parts := strings.SplitN(path, "/", 2)
 	if len(parts) == 2 && parts[1] == "match" {
-		// This is a match analysis request: /api/jobs/{id}/match
 		jobID, err := strconv.ParseUint(parts[0], 10, 64)
 		if err != nil || jobID == 0 {
 			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid job id")
 			return
 		}
-		// Inject jobID into context
-		ctx := context.WithValue(r.Context(), jobIDContextKey, jobID)
+
+		// Inline auth: parse token, validate session, inject user_id
+		authHeader := r.Header.Get("Authorization")
+		parts2 := strings.SplitN(authHeader, " ", 2)
+		if len(parts2) != 2 || !strings.EqualFold(parts2[0], "Bearer") {
+			response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+			return
+		}
+		userID, sessionID, err := deps.AuthService.ParseToken(parts2[1])
+		if err != nil {
+			response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+			return
+		}
+		if err := deps.AuthService.ValidateSession(r.Context(), userID, sessionID); err != nil {
+			log.Printf("[auth] session invalid in match dispatch: %v", err)
+			response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+			return
+		}
+
+		// Inject userID + jobID into context for MatchHandler
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, middleware.UserIDContextKey, userID)
+		ctx = context.WithValue(ctx, jobIDContextKey, jobID)
 		deps.MatchHandler.Analyze(w, r.WithContext(ctx))
 		return
 	}
 
-	// Default: treat as job detail request: /api/jobs/{id}
+	// Default: treat as public job detail request: /api/jobs/{id}
 	deps.JobHandler.Detail(w, r)
 }
 
@@ -157,7 +172,6 @@ func newFrontendProxy(frontendURL string) http.Handler {
 	// Upgrade handler for Vite HMR WebSocket
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.ToLower(r.Header.Get("Upgrade")) == "websocket" {
-			// WebSocket proxy
 			wsProxy := httputil.NewSingleHostReverseProxy(target)
 			wsProxy.Director = func(req *http.Request) {
 				req.URL.Scheme = "ws"
