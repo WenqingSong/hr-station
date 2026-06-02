@@ -3,6 +3,7 @@
 -- 阶段 3-2：表结构与种子数据
 -- 阶段 4-1.3.1：jobs 表扩展（新增 external_source / external_id / raw_json / data_quality 等字段）
 -- 阶段 10-P-4-1：新增 resume_optimization_results 表（修复 P0 表缺失）
+-- 阶段 J1：jobs 表结构重构以支持 46 条岗位样本库（新增 application_type / slogan / summary / JSON 子字段 / 关联表）
 -- MySQL 8.0 / InnoDB / utf8mb4
 --
 -- 约定：
@@ -24,6 +25,9 @@ DROP TABLE IF EXISTS `version_compare_results`;
 DROP TABLE IF EXISTS `resume_optimization_results`;
 DROP TABLE IF EXISTS `match_analyses`;
 DROP TABLE IF EXISTS `recommendation_results`;
+DROP TABLE IF EXISTS `job_skills`;
+DROP TABLE IF EXISTS `job_locations`;
+DROP TABLE IF EXISTS `job_business_groups`;
 DROP TABLE IF EXISTS `resume_versions`;
 DROP TABLE IF EXISTS `jobs`;
 DROP TABLE IF EXISTS `users`;
@@ -86,16 +90,33 @@ CREATE TABLE `jobs` (
   `direction`           VARCHAR(100)     NOT NULL DEFAULT '',
   `category`            VARCHAR(100)     NOT NULL DEFAULT '',
   `job_type`            VARCHAR(100)     NOT NULL DEFAULT '',
+  `application_type`    VARCHAR(64)      NOT NULL DEFAULT '' COMMENT '申请类型：应届实习/校园招聘等',
+  `application_project` VARCHAR(64)      NOT NULL DEFAULT '' COMMENT '申请项目：实习生/应届生等',
+  `application_subtype` VARCHAR(64)      NOT NULL DEFAULT '' COMMENT '申请子类型',
+  `slogan`              VARCHAR(200)     NOT NULL DEFAULT '' COMMENT '岗位宣传语',
+  `summary`             TEXT             NULL COMMENT '岗位概要',
   `description`         TEXT             NULL,
   `requirements`        TEXT             NULL,
-  `skill_keywords_json` JSON             NULL,
+  `responsibilities_json` JSON           NULL COMMENT '职责列表 JSON',
+  `must_have_json`      JSON             NULL COMMENT '必备要求 JSON',
+  `nice_to_have_json`   JSON             NULL COMMENT '了解项 JSON',
+  `bonus_points_json`   JSON             NULL COMMENT '加分项 JSON',
+  `notes_json`          JSON             NULL COMMENT '备注 JSON',
+  `skill_keywords_json` JSON             NULL COMMENT '技能关键词 JSON（旧兼容）',
+  `skills_json`         JSON             NULL COMMENT '技能列表 JSON',
+  `organizations_json`  JSON             NULL COMMENT '事业群/部门 JSON [{code,name}]',
+  `locations_json`      JSON             NULL COMMENT '工作城市 JSON',
+  `interview_locations_json` JSON        NULL COMMENT '面试城市 JSON',
+  `facets_json`         JSON             NULL COMMENT '筛选聚合原始 JSON',
   `status`              VARCHAR(50)      NOT NULL DEFAULT 'active',
-  `external_source`     VARCHAR(50)      NOT NULL DEFAULT 'local_mock' COMMENT '外部数据来源：local_mock / tencent_join',
-  `external_id`         VARCHAR(100)     NULL COMMENT '外部岗位ID，腾讯岗位使用postId',
-  `external_inner_id`   VARCHAR(100)     NULL COMMENT '外部系统内部ID，腾讯岗位可使用列表id',
-  `source_url`          VARCHAR(500)     NULL COMMENT '公开岗位来源页面URL',
-  `raw_json`            JSON             NULL COMMENT '原始列表与详情响应JSON',
-  `data_quality`        VARCHAR(50)      NOT NULL DEFAULT 'manual_enriched' COMMENT '数据质量：full_jd / summary_only / manual_enriched',
+  `external_source`     VARCHAR(50)      NOT NULL DEFAULT 'local_mock' COMMENT '数据来源：local_mock / manual_curated / tencent_join',
+  `external_id`         VARCHAR(100)     NULL COMMENT '外部岗位ID',
+  `external_inner_id`   VARCHAR(100)     NULL COMMENT '外部系统内部ID',
+  `source_url`          VARCHAR(500)     NULL COMMENT '来源页面URL',
+  `source_name`         VARCHAR(200)     NOT NULL DEFAULT '' COMMENT '数据来源名称',
+  `raw_json`            JSON             NULL COMMENT '完整原始岗位JSON',
+  `data_quality`        VARCHAR(50)      NOT NULL DEFAULT 'manual_enriched' COMMENT '数据质量',
+  `collected_at`        DATETIME         NULL COMMENT '数据采集时间',
   `is_featured`         TINYINT(1)       NOT NULL DEFAULT 0 COMMENT '是否Demo精选岗位',
   `synced_at`           TIMESTAMP        NULL COMMENT '外部岗位同步时间',
   `created_at`          DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -109,8 +130,53 @@ CREATE TABLE `jobs` (
   KEY `idx_jobs_external_source` (`external_source`),
   KEY `idx_jobs_data_quality` (`data_quality`),
   KEY `idx_jobs_is_featured` (`is_featured`),
-  KEY `idx_jobs_job_type` (`job_type`)
+  KEY `idx_jobs_job_type` (`job_type`),
+  KEY `idx_jobs_application_type` (`application_type`),
+  KEY `idx_jobs_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位表';
+
+-- -----------------------------------------------------------
+-- 2.3a job_locations - 岗位工作城市关联表（支持筛选聚合）
+-- -----------------------------------------------------------
+CREATE TABLE `job_locations` (
+  `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `job_id`     BIGINT UNSIGNED NOT NULL,
+  `city`       VARCHAR(64)      NOT NULL,
+  `created_at` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_job_location` (`job_id`, `city`),
+  KEY `idx_jl_city` (`city`),
+  CONSTRAINT `fk_jl_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位工作城市表';
+
+-- -----------------------------------------------------------
+-- 2.3b job_business_groups - 岗位事业群关联表（支持筛选聚合）
+-- -----------------------------------------------------------
+CREATE TABLE `job_business_groups` (
+  `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `job_id`     BIGINT UNSIGNED NOT NULL,
+  `code`       VARCHAR(32)      NOT NULL,
+  `name`       VARCHAR(128)     NOT NULL,
+  `created_at` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_job_bg` (`job_id`, `code`),
+  KEY `idx_jbg_code` (`code`),
+  CONSTRAINT `fk_jbg_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位事业群表';
+
+-- -----------------------------------------------------------
+-- 2.3c job_skills - 岗位技能关联表（支持筛选聚合）
+-- -----------------------------------------------------------
+CREATE TABLE `job_skills` (
+  `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `job_id`     BIGINT UNSIGNED NOT NULL,
+  `skill`      VARCHAR(128)     NOT NULL,
+  `created_at` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_job_skill` (`job_id`, `skill`),
+  KEY `idx_js_skill` (`skill`),
+  CONSTRAINT `fk_js_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位技能表';
 
 -- -----------------------------------------------------------
 -- 2.4 recommendation_results - 岗位推荐 Mock 结果快照
