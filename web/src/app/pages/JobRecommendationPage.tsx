@@ -6,6 +6,7 @@ import { RecommendationDetail } from "../components/RecommendationDetail";
 import { RecommendationContext } from "../components/RecommendationContext";
 import { loadRecommendationViewModel, loadResumeOptionViewModelsFromApi } from "../../api";
 import type { RecommendationPageViewModel, ResumeOptionViewModel } from "../../adapters";
+import { PageLoading, PageEmpty } from "../components/PageState";
 
 /** 从 URL 查询参数中解析 resume_version_no（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -78,31 +79,24 @@ export function JobRecommendationPage() {
 
   // ── 空态：正在加载选项 ──
   if (loadingOptions) {
-    return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center text-gray-400 text-sm">
-        正在加载简历信息…
-      </div>
-    );
+    return <PageLoading message="正在加载简历信息…" />;
   }
 
   // ── 空态：无简历版本 ──
   if (resumeOptions.length === 0 || !selectedOption) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">你还没有可用于推荐的简历</p>
-        <p className="text-gray-400 text-xs mb-4">请先创建一份简历，系统会基于你的简历版本生成岗位推荐。</p>
+      <PageEmpty
+        title="你还没有可用于推荐的简历"
+        description="请先创建一份简历，系统会基于你的简历版本生成岗位推荐。"
+      >
         <Link to="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</Link>
-      </div>
+      </PageEmpty>
     );
   }
 
   // ── 空态：推荐加载中 ──
   if (loadingRecommendation) {
-    return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center text-gray-400 text-sm">
-        正在生成岗位推荐…
-      </div>
-    );
+    return <PageLoading message="正在生成岗位推荐…" />;
   }
 
   // ── 失败态 ──
