@@ -240,9 +240,10 @@ export function ResumeOptimizationDetail({ currentJobId = "", currentResumeId = 
           <div className="flex items-center gap-4 pt-5 border-t border-gray-100">
             <Button 
               className="flex-[2] bg-[#0052D9] hover:bg-[#0040A8] text-white h-11 shadow-sm"
+              onClick={() => navigate("/resumes/edit")}
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              生成优化后简历草稿
+              去编辑简历
             </Button>
             <Button 
               variant="outline" 
