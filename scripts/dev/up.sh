@@ -120,34 +120,40 @@ else
     add_failure "MySQL 不可用，跳过数据库检查"
 fi
 
-# ---- Step 6b: 自动导入腾讯岗位主数据源 ----
-step_header "检查腾讯岗位数据"
+# ---- Step 6b: 自动导入腾讯岗位 SQL seed ----
+step_header "应用腾讯岗位数据"
 if [ "$mysql_ready" = true ] && [ "$tables_ok" = true ]; then
-    TENCENT_JOBS_JSON="${PROJECT_ROOT}/resources/jobs/tencent-campus-jobs.json"
+    SEED_SQL="${PROJECT_ROOT}/server/sql/seed/tencent_jobs.sql"
 
-    if [ ! -f "$TENCENT_JOBS_JSON" ]; then
-        log_warn "未找到腾讯岗位数据文件: ${TENCENT_JOBS_JSON}"
+    if [ ! -f "$SEED_SQL" ]; then
+        log_warn "未找到腾讯岗位 SQL seed: ${SEED_SQL}"
+        log_warn "请执行: make jobs-seed-generate && make jobs-seed-apply"
     else
-        # 检查当前 jobs 表数据来源
-        curated_count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
-            -s -N -e "SELECT COUNT(*) FROM jobs WHERE external_source IN ('manual_curated','demo_curated');" 2>/dev/null || echo "0")
-        local_mock_count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
-            -s -N -e "SELECT COUNT(*) FROM jobs;" 2>/dev/null || echo "0")
-
-        if [ "$curated_count" -gt 0 ]; then
-            log_info "腾讯岗位数据已导入 (${curated_count} 条)，跳过"
-        elif [ "$local_mock_count" -gt 0 ] && [ "$local_mock_count" -le 10 ]; then
-            log_info "当前仅有 ${local_mock_count} 条 local_mock 兜底岗位，替换为腾讯岗位主数据..."
-            if go run "${PROJECT_ROOT}/server/cmd/import_jobs" --file "$TENCENT_JOBS_JSON" --replace; then
-                new_count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
-                    -s -N -e "SELECT COUNT(*) FROM jobs WHERE external_source = 'manual_curated';" 2>/dev/null || echo "0")
-                log_info "腾讯岗位数据导入完成 (${new_count} 条)"
-            else
-                add_failure "腾讯岗位数据导入失败"
-            fi
+        # 检查 seed 版本
+        db_seed_version=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+            -s -N -e "SELECT seed_version FROM seed_versions WHERE seed_key = 'tencent_jobs';" 2>/dev/null || echo "")
+        if [ -n "$db_seed_version" ]; then
+            log_info "腾讯岗位 seed 已应用 (version: ${db_seed_version}), 跳过"
         else
-            log_info "数据库已有 ${local_mock_count} 条岗位数据（非兜底模式），跳过自动导入"
-            log_info "如需导入腾讯岗位数据，请手动执行: make jobs-import"
+            # 检查是否只有少量 local_mock 需要替换
+            local_count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+                -s -N -e "SELECT COUNT(*) FROM jobs WHERE external_source = 'local_mock';" 2>/dev/null || echo "0")
+            curated_count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+                -s -N -e "SELECT COUNT(*) FROM jobs WHERE external_source = 'manual_curated';" 2>/dev/null || echo "0")
+            if [ "$curated_count" -gt 0 ]; then
+                log_info "腾讯岗位已存在 (${curated_count} 条)，写入 seed 版本记录"
+                docker exec -i offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+                    -e "INSERT INTO seed_versions (seed_key, seed_version, checksum) VALUES ('tencent_jobs', 'k8-3-legacy', '') ON DUPLICATE KEY UPDATE seed_version = VALUES(seed_version);" 2>/dev/null || true
+            else
+                log_info "导入腾讯岗位 SQL seed ..."
+                if docker exec -i offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" < "$SEED_SQL"; then
+                    new_count=$(docker exec offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" \
+                        -s -N -e "SELECT COUNT(*) FROM jobs WHERE external_source = 'manual_curated';" 2>/dev/null || echo "0")
+                    log_info "腾讯岗位导入完成 (${new_count} 条)"
+                else
+                    add_failure "腾讯岗位 SQL seed 导入失败"
+                fi
+            fi
         fi
     fi
 fi

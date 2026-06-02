@@ -32,7 +32,8 @@ DEV_SCRIPT := scripts/dev
         jobs-fetch-list jobs-fetch-detail jobs-fetch-details \
         jobs-fetch-dictionary jobs-fetch jobs-sample jobs-status jobs-clean \
         jobs-import-help jobs-import-check jobs-import-preview jobs-import-sql \
-        jobs-import jobs-import-status jobs-db-status jobs-import-clean
+        jobs-import jobs-import-status jobs-db-status jobs-import-clean \
+        jobs-seed-generate jobs-seed-apply jobs-seed-verify
 
 # ============================================================
 # 帮助
@@ -562,3 +563,34 @@ jobs-db-status: ## 同 jobs-import-status
 
 jobs-import-clean: ## 清理 generated 目录中的预览和 SQL
 	@$(DEV_SCRIPT)/tencent_jobs_import.sh clean-generated
+
+# ============================================================
+# 腾讯岗位 SQL seed （K8-4-2）
+# ============================================================
+
+jobs-seed-generate: ## 从 JSON 生成 server/sql/seed/tencent_jobs.sql
+	@cd server && go run ./cmd/generate_jobs_seed \
+		--input ../resources/jobs/tencent-campus-jobs.json \
+		--output ./sql/seed/tencent_jobs.sql
+
+jobs-seed-apply: ## 导入 SQL seed 到 MySQL
+	@echo "[Offer Catcher] Applying tencent_jobs seed..."
+	@docker exec -i offer-catcher-mysql mysql -u$$(grep -E '^DB_USER=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo root) \
+		-p$$(grep -E '^DB_PASSWORD=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo password) \
+		$$(grep -E '^DB_NAME=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo offer_catcher) \
+		< server/sql/seed/tencent_jobs.sql
+
+jobs-seed-verify: ## 验证 SQL seed 是否正确导入
+	@$(DEV_SCRIPT)/tencent_jobs_import.sh status
+	@echo ""
+	@echo "--- seed version ---"
+	@docker exec -i offer-catcher-mysql mysql -u$$(grep -E '^DB_USER=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo root) \
+		-p$$(grep -E '^DB_PASSWORD=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo password) \
+		$$(grep -E '^DB_NAME=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo offer_catcher) \
+		-e "SELECT * FROM seed_versions;" 2>/dev/null
+	@echo ""
+	@echo "--- filter groups ---"
+	@docker exec -i offer-catcher-mysql mysql -u$$(grep -E '^DB_USER=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo root) \
+		-p$$(grep -E '^DB_PASSWORD=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo password) \
+		$$(grep -E '^DB_NAME=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo offer_catcher) \
+		-e "SELECT code, name FROM job_filter_groups ORDER BY display_order;" 2>/dev/null

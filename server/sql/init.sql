@@ -179,6 +179,65 @@ CREATE TABLE `job_skills` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位技能表';
 
 -- -----------------------------------------------------------
+-- 2.4 job_filter_groups - 筛选分组元数据 （K8-4-1 设计冻结）
+-- -----------------------------------------------------------
+CREATE TABLE `job_filter_groups` (
+  `id`                  INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `code`                VARCHAR(64)   NOT NULL COMMENT '分组代码',
+  `name`                VARCHAR(64)   NOT NULL COMMENT '显示名称',
+  `display_order`       INT           NOT NULL DEFAULT 0,
+  `default_expanded`    TINYINT(1)    NOT NULL DEFAULT 1,
+  `max_visible_options` INT           NOT NULL DEFAULT 6,
+  `visible`             TINYINT(1)    NOT NULL DEFAULT 1,
+  `created_at`          DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_filter_group_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='筛选分组表';
+
+-- -----------------------------------------------------------
+-- 2.5 job_filter_options - 筛选选项元数据 （K8-4-1 设计冻结）
+-- -----------------------------------------------------------
+CREATE TABLE `job_filter_options` (
+  `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `group_id`         INT UNSIGNED NOT NULL,
+  `code`             VARCHAR(128) NOT NULL,
+  `label`            VARCHAR(128) NOT NULL,
+  `value`            VARCHAR(128) NOT NULL,
+  `display_order`    INT          NOT NULL DEFAULT 0,
+  `visible`          TINYINT(1)   NOT NULL DEFAULT 1,
+  `parent_option_id` INT UNSIGNED NULL,
+  `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_option_group_code` (`group_id`, `code`),
+  KEY `idx_option_parent` (`parent_option_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='筛选选项表';
+
+-- -----------------------------------------------------------
+-- 2.6 job_filter_option_relations - 岗位-筛选项关联 （K8-4-1 设计冻结）
+-- -----------------------------------------------------------
+CREATE TABLE `job_filter_option_relations` (
+  `job_id`    BIGINT UNSIGNED NOT NULL,
+  `option_id` INT UNSIGNED   NOT NULL,
+  `created_at` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`job_id`, `option_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位-筛选项关联表';
+
+-- -----------------------------------------------------------
+-- 2.7 seed_versions - seed 版本追踪
+-- -----------------------------------------------------------
+CREATE TABLE `seed_versions` (
+  `seed_key`     VARCHAR(64)  NOT NULL,
+  `seed_version` VARCHAR(64)  NOT NULL,
+  `applied_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `checksum`     VARCHAR(32)  NOT NULL DEFAULT '',
+  PRIMARY KEY (`seed_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Seed 版本追踪表';
+
+-- -----------------------------------------------------------
+-- 3. 推荐与匹配分析结果表
+-- -----------------------------------------------------------
+
+-- -----------------------------------------------------------
 -- 2.4 recommendation_results - 岗位推荐 Mock 结果快照
 -- -----------------------------------------------------------
 CREATE TABLE `recommendation_results` (
