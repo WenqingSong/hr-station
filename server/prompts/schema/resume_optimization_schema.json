@@ -4,25 +4,16 @@
 "title": "Resume Optimization Agent Output Schema",
 "description": "Schema for ResumeOptimizationAgent LLM output. The output must be a strict JSON object used to optimize a student's resume for a target job JD. It supports HR screening perspective, technical interviewer perspective, resume expression optimization, P0/P1/P2 prioritized suggestions, keyword alignment, project optimization, skill section optimization, summary optimization, missing evidence plan, rewrite examples, authenticity notice, and anti-hallucination constraints.",
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "optimization_summary",
-"offer_go_summary",
-"target_job",
 "apply_readiness",
 "optimization_stop_signal",
 "top_fix_items",
-"screening_focus",
-"priority_suggestions",
 "keyword_alignment",
-"project_optimization",
-"skill_section_optimization",
-"summary_optimization",
-"missing_evidence_plan",
 "rewrite_examples",
 "next_actions",
 "authenticity_notice",
-"analysis_basis",
 "generated_by"
 ],
 "properties": {
@@ -64,7 +55,7 @@
 "top_fix_items": {
 "type": "array",
 "minItems": 0,
-"maxItems": 3,
+"maxItems": 5,
 "description": "Top 1-3 quick fix items before applying. These are short-term expression fixes, information supplements, keyword alignment, or evidence additions completable within 10-60 minutes. NOT long-term learning, career planning, or project building.",
 "items": {
 "$ref": "#/$defs/top_fix_item"
@@ -81,7 +72,7 @@
 },
 "priority_suggestions": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "p0",
 "p1",
@@ -120,7 +111,7 @@
 },
 "keyword_alignment": {
 "type": "array",
-"minItems": 3,
+"minItems": 1,
 "maxItems": 8,
 "description": "Target job keyword alignment analysis. It should distinguish present, partial, and missing evidence.",
 "items": {
@@ -165,7 +156,7 @@
 },
 "rewrite_examples": {
 "type": "array",
-"minItems": 2,
+"minItems": 1,
 "maxItems": 6,
 "description": "Concrete rewrite examples or rewrite directions. It is acceptable for all items to require user verification if the input does not provide enough facts. Do not invent metrics, scale, responsibilities, or outcomes.",
 "items": {
@@ -174,8 +165,8 @@
 },
 "next_actions": {
 "type": "array",
-"minItems": 3,
-"maxItems": 6,
+"minItems": 1,
+"maxItems": 8,
 "description": "Concrete next actions for the user before applying or updating the resume.",
 "items": {
 "$ref": "#/$defs/next_action"
@@ -189,7 +180,7 @@
 },
 "analysis_basis": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "resume_used",
 "job_description_used",
@@ -237,7 +228,7 @@
 "$defs": {
 "target_job": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "job_id",
 "title",
@@ -283,7 +274,7 @@
 },
 "screening_focus_item": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "focus",
 "why_it_matters",
@@ -312,7 +303,7 @@
 },
 "priority_suggestion_item": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "issue",
 "related_jd_requirement",
@@ -376,7 +367,7 @@
 },
 "keyword_alignment_item": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "keyword",
 "status",
@@ -415,7 +406,7 @@
 },
 "project_optimization_item": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "project_name",
 "current_problem",
@@ -465,7 +456,7 @@
 },
 "skill_section_optimization_item": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "skill",
 "current_status",
@@ -505,7 +496,7 @@
 },
 "summary_optimization_item": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "current_problem",
 "rewrite_direction",
@@ -534,7 +525,7 @@
 },
 "missing_evidence_plan_item": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "missing_evidence",
 "why_needed",
@@ -569,7 +560,7 @@
 },
 "rewrite_example_item": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "section",
 "before_problem",
@@ -615,7 +606,7 @@
 },
 "next_action": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "action",
 "priority",
@@ -647,7 +638,7 @@
 },
 "top_fix_item": {
 "type": "object",
-"additionalProperties": false,
+"additionalProperties": true,
 "required": [
 "issue",
 "why_it_matters",

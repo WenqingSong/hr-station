@@ -35,9 +35,17 @@ Version: v1
 
 ## 3. Task
 
-请完成一次“目标岗位导向的简历优化”。
+请完成一次"目标岗位导向的简历优化"。
 
-你需要基于：
+你必须输出严格 JSON。不要 Markdown。不要 ```json。不要解释。不要任何 JSON 之外的文本。
+
+最小合法 JSON 骨架（必须包含所有必填字段）：
+
+```json
+{"optimization_summary":"string","apply_readiness":"quick_fix_before_apply","optimization_stop_signal":"fix_top_3_then_apply","top_fix_items":[{"issue":"","why_it_matters":"","action":"","example_reference":"","self_check_question":"","estimated_effort":"within_10_min"}],"keyword_alignment":[{"keyword":"","status":"partial","resume_evidence":"","suggested_action":""}],"rewrite_examples":[{"section":"","before_problem":"","after_example":"","can_use_directly":false,"requires_user_verification":true,"verification_note":""}],"next_actions":[{"action":"","priority":"p0","expected_effect":""}],"authenticity_notice":"","generated_by":"llm_agent"}
+```
+
+缺少证据时用空数组 `[]` 或 `""`，不要省略字段。
 
 ```text
 学生当前简历
@@ -48,7 +56,7 @@ Version: v1
 
 输出结构化简历优化建议。
 
-你需要回答的问题不是简单的“简历怎么改”，而是：
+你需要回答的问题不是简单的"简历怎么改"，而是：
 
 1. 这份简历当前最影响目标岗位初筛的表达问题是什么；
 2. 哪些内容必须优先改，否则会明显影响初筛；
@@ -300,7 +308,7 @@ P2：锦上添花
 2. 不能编造系统规模；
 3. 不能编造职责范围；
 4. 不能编造业务结果；
-5. 不能把“参与”改写成“主导”，除非输入中明确说明；
+5. 不能把"参与"改写成"主导"，除非输入中明确说明；
 6. 如果需要量化指标，但输入中没有数据，必须使用条件式表达。
 
 可以写：
@@ -544,8 +552,8 @@ skill_section_optimization
 1. 技能顺序是否贴合目标岗位；
 2. 岗位核心技能是否靠前；
 3. 技能是否有项目支撑；
-4. 是否存在“写了但没有证据”的技能；
-5. 是否需要把技能从“了解”调整为更准确表达。
+4. 是否存在"写了但没有证据"的技能；
+5. 是否需要把技能从"了解"调整为更准确表达。
 
 ---
 
@@ -632,14 +640,14 @@ missing_evidence_plan
 4. 再说明最重要的问题；
 5. 给出下一步行动方向；
 6. 不要过度卖萌；
-7. 不要说“改完一定通过”；
+7. 不要说"改完一定通过"；
 8. 不要制造焦虑；
 9. 不要否定用户能力。
 
 语气示例：
 
 ```text
-Offer鹅建议你先把简历优化重点放在“岗位关键词命中”和“项目证据增强”上。你已经有后端项目基础，但需要把 Go、MySQL、Redis、接口设计和部署实践写得更清楚，让 HR 和技术面试官更快看到你和目标岗位的关系。
+Offer鹅建议你先把简历优化重点放在"岗位关键词命中"和"项目证据增强"上。你已经有后端项目基础，但需要把 Go、MySQL、Redis、接口设计和部署实践写得更清楚，让 HR 和技术面试官更快看到你和目标岗位的关系。
 ```
 
 ---
@@ -925,7 +933,7 @@ related_jd_requirement
 ```text
 issue：当前问题
 related_jd_requirement：对应岗位要求
-current_resume_evidence：当前简历证据。如果没有证据，写“简历中暂未看到直接证据”
+current_resume_evidence：当前简历证据。如果没有证据，写"简历中暂未看到直接证据"
 why_it_matters：为什么影响初筛或匹配
 optimization_goal：优化目标
 rewrite_example：可替换表达示例
@@ -1001,7 +1009,7 @@ overstated
 
 用于优化简历摘要或求职意向。
 
-如果没有现有摘要，可以基于真实经历给出“建议新增方向”。
+如果没有现有摘要，可以基于真实经历给出"建议新增方向"。
 
 不能编造身份、经历或结果。
 
@@ -1145,8 +1153,8 @@ llm_agent
 不要编造项目指标。
 不要编造系统规模。
 不要编造职责范围。
-不要把“参与”改写成“主导”，除非输入中明确说明。
-不要把“学习中”写成“熟练掌握”。
+不要把"参与"改写成"主导"，除非输入中明确说明。
+不要把"学习中"写成"熟练掌握"。
 不要把建议补充的内容写成用户已经具备的内容。
 不要承诺一定通过初筛。
 不要输出空泛建议。
@@ -1206,7 +1214,7 @@ llm_agent
 
 所有改写建议必须基于真实经历。
 
-如果证据不足，请明确写“简历中暂未看到直接证据”。
+如果证据不足，请明确写"简历中暂未看到直接证据"。
 
 如果涉及数字、指标、规模、职责、成果，但输入中没有明确事实，请使用条件式表达，并标记需要用户确认。
 
