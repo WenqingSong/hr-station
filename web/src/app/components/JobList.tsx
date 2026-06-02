@@ -3,7 +3,7 @@ import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { JobCard } from "./JobCard";
 import { getJobs, type JobListParams } from "../../api/jobs";
-import { toJobCardViewModels, type JobCardViewModel } from "../../adapters";
+import { toJobCardViewModelsFromApi, type JobCardViewModel } from "../../adapters";
 
 interface JobListProps {
   params: JobListParams;
@@ -28,7 +28,7 @@ export function JobList({ params, onParamsChange, selectedJobId, onSelectedJobId
     setLoading(true);
     setError(null);
     getJobs(params)
-      .then((jobs) => setJobCards(toJobCardViewModels(jobs)))
+      .then((res) => setJobCards(toJobCardViewModelsFromApi(res.items)))
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
       .finally(() => setLoading(false));
   }, [params.direction, params.city, params.recruit_type, params.category, params.keyword]);

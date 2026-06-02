@@ -66,11 +66,7 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 		Offset:         offset,
 	})
 	if err != nil {
-		if err.Error() == "invalid external_source" {
-			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid external_source")
-			return
-		}
-		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
+		handleJobError(w, err)
 		return
 	}
 

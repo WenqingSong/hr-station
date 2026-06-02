@@ -115,5 +115,6 @@ var (
 
 // Job errors
 var (
-	ErrJobNotFound = New(CodeJobNotFound, "job not found", http.StatusNotFound)
+	ErrJobNotFound           = New(CodeJobNotFound, "job not found", http.StatusNotFound)
+	ErrInvalidExternalSource = New(CodeInvalidParam, "invalid external_source", http.StatusBadRequest)
 )

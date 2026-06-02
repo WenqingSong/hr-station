@@ -24,7 +24,7 @@ import type {
 } from './agents';
 
 import {
-  toJobCardViewModels,
+  toJobCardViewModelsFromApi,
   toJobDetailViewModel,
   toResumeSummaryViewModel,
   toResumeOptionViewModels,
@@ -49,8 +49,8 @@ import {
 
 /** 加载岗位列表 ViewModel */
 export async function loadJobListViewModels(): Promise<JobCardViewModel[]> {
-  const jobs = await getJobs();
-  return toJobCardViewModels(jobs);
+  const res = await getJobs();
+  return toJobCardViewModelsFromApi(res.items);
 }
 
 /** 加载岗位详情 ViewModel */

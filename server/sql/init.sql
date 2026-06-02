@@ -107,7 +107,8 @@ CREATE TABLE `jobs` (
   KEY `idx_jobs_title` (`title`),
   KEY `idx_jobs_external_source` (`external_source`),
   KEY `idx_jobs_data_quality` (`data_quality`),
-  KEY `idx_jobs_is_featured` (`is_featured`)
+  KEY `idx_jobs_is_featured` (`is_featured`),
+  KEY `idx_jobs_job_type` (`job_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位表';
 
 -- -----------------------------------------------------------

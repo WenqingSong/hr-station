@@ -104,7 +104,7 @@ func NewJobService(jobRepo *repository.JobRepository) *JobService {
 // List returns a paginated list of jobs matching the request filters.
 func (s *JobService) List(ctx context.Context, req JobListRequest) (*JobListResponse, error) {
 	if req.ExternalSource != "" && !ValidExternalSources[req.ExternalSource] {
-		return nil, fmt.Errorf("invalid external_source")
+		return nil, apperror.ErrInvalidExternalSource
 	}
 
 	if req.Limit <= 0 {

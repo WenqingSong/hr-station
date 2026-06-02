@@ -3,6 +3,36 @@
 import { get } from './client';
 import type { Job, JobDetail } from '../types';
 
+// ─── 后端原始类型（对齐 GET /api/jobs 和 GET /api/jobs/{id} 返回结构）─────────
+
+/** 后端 JobResponse 对应的类型 */
+export interface JobApiItem {
+  id: number;
+  title: string;
+  department: string;
+  city: string;
+  direction: string;
+  category: string;
+  job_type: string;
+  recruit_type: string;
+  description: string;
+  requirements: string;
+  skill_keywords: string[];
+  status: string;
+  external_source?: string;
+  is_featured?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** GET /api/jobs 的 data 字段类型 */
+export interface JobListResponse {
+  items: JobApiItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 /** 筛选聚合项 */
 export interface JobFacetItem {
   value: string;
@@ -31,11 +61,12 @@ export interface JobListParams {
 
 /**
  * 获取岗位列表。
- * 调用 GET /api/jobs。失败时错误直接向上传播。
+ * 调用 GET /api/jobs。返回 {items, total, limit, offset}。
+ * 失败时错误直接向上传播。
  */
-export async function getJobs(params?: JobListParams): Promise<Job[]> {
+export async function getJobs(params?: JobListParams): Promise<JobListResponse> {
   const qs = buildQuery(params);
-  return get<Job[]>(`/jobs${qs}`);
+  return get<JobListResponse>(`/jobs${qs}`);
 }
 
 /**

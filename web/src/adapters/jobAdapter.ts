@@ -1,6 +1,7 @@
 // ─── 岗位数据 Adapter ───────────────────────────────────────────────────────────
 
 import type { Job, JobDetail } from '../types';
+import type { JobApiItem } from '../api/jobs';
 import { formatListText } from './common';
 
 // ─── ViewModel 类型 ────────────────────────────────────────────────────────────
@@ -26,9 +27,47 @@ export interface JobDetailViewModel extends JobCardViewModel {
   keywords: string[];
 }
 
-// ─── 类别/类型轻量映射 ─────────────────────────────────────────────────────────
+// ─── 标签映射（对齐后端 seed 数据值）─────────────────────────────────────────────
 
-const CATEGORY_LABELS: Record<string, string> = {
+const RECRUIT_TYPE_LABELS: Record<string, string> = {
+  '校招': '校园招聘',
+  '实习': '实习生',
+  '提前批': '提前批',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  'active': '招聘中',
+};
+
+// ─── 后端原始类型 → ViewModel ──────────────────────────────────────────────────
+
+/**
+ * 从后端 JobApiItem 生成 JobCardViewModel。
+ * 字段映射：department → businessGroup, city → locationsText,
+ * skill_keywords → tags, recruit_type → typeLabel, description → shortDescription。
+ */
+export function toJobCardViewModelFromApi(job: JobApiItem): JobCardViewModel {
+  return {
+    id: String(job.id),
+    title: job.title,
+    businessGroup: job.department,
+    locationsText: job.city,
+    tags: job.skill_keywords ?? [],
+    shortDescription: job.description ?? '',
+    statusLabel: STATUS_LABELS[job.status] || job.status,
+    categoryLabel: job.category,
+    typeLabel: RECRUIT_TYPE_LABELS[job.recruit_type] || job.recruit_type,
+  };
+}
+
+/** 批量转换 */
+export function toJobCardViewModelsFromApi(jobs: JobApiItem[]): JobCardViewModel[] {
+  return jobs.map(toJobCardViewModelFromApi);
+}
+
+// ─── 旧版转换函数（保留向后兼容，供 Detail flow 等未迁移代码使用）──────────────
+
+const LEGACY_CATEGORY_LABELS: Record<string, string> = {
   backend: '后台开发',
   cloud: '云计算',
   algorithm: '算法',
@@ -38,13 +77,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   game: '游戏',
 };
 
-const TYPE_LABELS: Record<string, string> = {
+const LEGACY_TYPE_LABELS: Record<string, string> = {
   campus: '校园招聘',
   internship: '实习生',
   early_batch: '提前批',
 };
-
-// ─── 转换函数 ──────────────────────────────────────────────────────────────────
 
 export function toJobCardViewModel(job: Job): JobCardViewModel {
   return {
@@ -55,8 +92,8 @@ export function toJobCardViewModel(job: Job): JobCardViewModel {
     tags: job.tags,
     shortDescription: job.short_description,
     statusLabel: job.status,
-    categoryLabel: CATEGORY_LABELS[job.category] || job.category,
-    typeLabel: TYPE_LABELS[job.type_label] || job.type_label,
+    categoryLabel: LEGACY_CATEGORY_LABELS[job.category] || job.category,
+    typeLabel: LEGACY_TYPE_LABELS[job.type_label] || job.type_label,
   };
 }
 
