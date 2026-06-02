@@ -91,15 +91,14 @@ func main() {
 	matchMockAgent := agent.NewMatchMockAgent()
 
 	// Initialize LLM infrastructure for MatchAnalysisAgent pipeline
-	var pipelineRunner *pipeline.Runner
+	var fastRunner, qualityRunner *pipeline.Runner
 	llmEnabled := cfg.LLM.Enable
 	if llmEnabled {
-		llmCfg := llm.Config{
+		baseCfg := llm.Config{
 			Enable:            cfg.LLM.Enable,
 			Provider:          llm.Provider(cfg.LLM.Provider),
 			BaseURL:           cfg.LLM.BaseURL,
 			APIKey:            cfg.LLM.APIKey,
-			Model:             cfg.LLM.Model,
 			Temperature:       cfg.LLM.Temperature,
 			MaxOutputTokens:   cfg.LLM.MaxOutputTokens,
 			TimeoutSeconds:    cfg.LLM.TimeoutSeconds,
@@ -111,43 +110,61 @@ func main() {
 			SchemaDir:         cfg.LLM.SchemaDir,
 		}
 
-		if err := llmCfg.Validate(); err != nil {
-			log.Fatalf("[offer-catcher-server] Invalid LLM config: %v", err)
+		// Fast client (deepseek-v4-flash)
+		fastCfg := baseCfg
+		fastCfg.Model = cfg.LLM.FastModel
+		if err := fastCfg.Validate(); err != nil {
+			log.Fatalf("[offer-catcher-server] Invalid Fast LLM config: %v", err)
 		}
-
-		llmClient, err := llm.NewHunyuanClient(llmCfg, nil)
+		fastClient, err := llm.NewHunyuanClient(fastCfg, nil)
 		if err != nil {
-			log.Fatalf("[offer-catcher-server] Failed to create LLM client: %v", err)
+			log.Fatalf("[offer-catcher-server] Failed to create Fast LLM client: %v", err)
 		}
 
-		promptLoader := prompt.NewLoader(llmCfg.PromptDir)
-		schemaLoader := schema.NewLoader(llmCfg.SchemaDir)
-		validator := schema.NewValidator()
-		repairAgent := repair.NewAgent(llmClient, promptLoader, schemaLoader, validator)
+		// Quality client (deepseek-v4-pro-202606)
+		qualityCfg := baseCfg
+		qualityCfg.Model = cfg.LLM.QualityModel
+		if err := qualityCfg.Validate(); err != nil {
+			log.Fatalf("[offer-catcher-server] Invalid Quality LLM config: %v", err)
+		}
+		qualityClient, err := llm.NewHunyuanClient(qualityCfg, nil)
+		if err != nil {
+			log.Fatalf("[offer-catcher-server] Failed to create Quality LLM client: %v", err)
+		}
 
-		pipelineRunner = pipeline.NewRunner(llmClient, promptLoader, schemaLoader, validator, repairAgent)
-		log.Printf("[offer-catcher-server] LLM pipeline initialized (provider=%s model=%s)", llmCfg.Provider, llmCfg.Model)
+		promptLoader := prompt.NewLoader(baseCfg.PromptDir)
+		schemaLoader := schema.NewLoader(baseCfg.SchemaDir)
+		validator := schema.NewValidator()
+
+		// Repair agent for Quality tier (repair is quality-sensitive; fast tier uses Mock fallback on failure)
+		repairAgent := repair.NewAgent(qualityClient, promptLoader, schemaLoader, validator)
+
+		fastRunner = pipeline.NewRunner(fastClient, promptLoader, schemaLoader, validator, repairAgent)
+		qualityRunner = pipeline.NewRunner(qualityClient, promptLoader, schemaLoader, validator, repairAgent)
+
+		log.Printf("[offer-catcher-server] LLM pipeline initialized (fast=%s quality=%s)",
+			cfg.LLM.FastModel, cfg.LLM.QualityModel)
 	} else {
 		log.Println("[offer-catcher-server] LLM disabled, using Mock Agent only")
 	}
 
-	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, pipelineRunner, llmEnabled)
+	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, qualityRunner, llmEnabled)
 	matchHandler := httpserver.NewMatchHandler(matchService)
 
-	// Initialize recommendation service with Pipeline support (after LLM init)
-	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, pipelineRunner, llmEnabled)
+	// Initialize recommendation service with Fast tier (deepseek-v4-flash)
+	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, llmEnabled)
 	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
 
-	// Initialize version compare module
+	// Initialize version compare module with Quality tier (deepseek-v4-pro-202606)
 	versionCompareRepo := repository.NewVersionCompareRepository(mysqlDB.DB)
 	versionCompareMockAgent := agent.NewVersionCompareMockAgent()
-	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent, pipelineRunner, llmEnabled)
+	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent, qualityRunner, llmEnabled)
 	versionCompareHandler := httpserver.NewVersionCompareHandler(versionCompareService)
 
-	// Initialize resume optimization module
+	// Initialize resume optimization module with Quality tier (deepseek-v4-pro-202606)
 	resumeOptimizationRepo := repository.NewResumeOptimizationRepository(mysqlDB.DB)
 	resumeOptimizationMockAgent := agent.NewResumeOptimizationMockAgent()
-	resumeOptimizationService := service.NewResumeOptimizationService(resumeOptimizationRepo, resumeOptimizationMockAgent, pipelineRunner, llmEnabled)
+	resumeOptimizationService := service.NewResumeOptimizationService(resumeOptimizationRepo, resumeOptimizationMockAgent, qualityRunner, llmEnabled)
 	resumeOptimizationHandler := httpserver.NewResumeOptimizationHandler(resumeOptimizationService)
 
 	// Initialize CORS middleware with config

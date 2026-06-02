@@ -83,20 +83,23 @@ type SessionConfig struct {
 // LLMConfig holds LLM API configuration.
 // These fields map 1:1 to the LLM_* environment variables in .env.
 type LLMConfig struct {
-	Enable           bool
-	Provider         string
-	BaseURL          string
-	APIKey           string
-	Model            string
-	Temperature      float64
-	MaxOutputTokens  int
-	TimeoutSeconds   int
-	RepairEnable     bool
+	Enable            bool
+	Provider          string
+	BaseURL           string
+	APIKey            string
+	Model             string // deprecated: kept for backward compatibility; prefer FastModel / QualityModel
+	FastModel         string // LLM_FAST_MODEL — deepseek-v4-flash
+	QualityModel      string // LLM_QUALITY_MODEL — deepseek-v4-pro-202606
+	DefaultTier       string // LLM_DEFAULT_TIER — "fast" or "quality"
+	Temperature       float64
+	MaxOutputTokens   int
+	TimeoutSeconds    int
+	RepairEnable      bool
 	RepairMaxAttempts int
-	FallbackEnable   bool
-	LogRawOutput     bool
-	PromptDir        string
-	SchemaDir        string
+	FallbackEnable    bool
+	LogRawOutput      bool
+	PromptDir         string
+	SchemaDir         string
 }
 
 // FeatureConfig holds feature flag configuration.
@@ -155,6 +158,9 @@ func Load() *Config {
 			BaseURL:           getEnv("LLM_BASE_URL", ""),
 			APIKey:            getEnv("LLM_API_KEY", ""),
 			Model:             getEnv("LLM_MODEL", ""),
+			FastModel:         coalesceModel(getEnv("LLM_FAST_MODEL", ""), getEnv("LLM_MODEL", "")),
+			QualityModel:      coalesceModel(getEnv("LLM_QUALITY_MODEL", ""), getEnv("LLM_MODEL", "")),
+			DefaultTier:       getEnv("LLM_DEFAULT_TIER", "fast"),
 			Temperature:       getEnvAsFloat64("LLM_TEMPERATURE", 0.2),
 			MaxOutputTokens:   getEnvAsInt("LLM_MAX_OUTPUT_TOKENS", 8192),
 			TimeoutSeconds:    getEnvAsInt("LLM_TIMEOUT_SECONDS", 30),
@@ -264,4 +270,12 @@ func getEnvAsCSV(key string, defaultValues []string) []string {
 		return defaultValues
 	}
 	return result
+}
+
+// coalesceModel returns the tier-specific model if set, otherwise falls back to the legacy model.
+func coalesceModel(tier, legacy string) string {
+	if tier != "" {
+		return tier
+	}
+	return legacy
 }
