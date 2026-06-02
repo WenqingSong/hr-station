@@ -113,17 +113,22 @@ func (r *JobRepository) FindByID(ctx context.Context, id uint64) (*model.Job, er
 }
 
 func scanJobRow(row interface{ Scan(...interface{}) error }, j *model.Job) error {
-	return row.Scan(
+	var summary sql.NullString
+	if err := row.Scan(
 		&j.ID, &j.Title, &j.Department, &j.City, &j.Direction, &j.Category, &j.JobType,
 		&j.ApplicationType, &j.ApplicationProject, &j.ApplicationSubtype,
-		&j.Slogan, &j.Summary, &j.Description, &j.Requirements,
+		&j.Slogan, &summary, &j.Description, &j.Requirements,
 		&j.ResponsibilitiesJSON, &j.MustHaveJSON, &j.NiceToHaveJSON, &j.BonusPointsJSON, &j.NotesJSON,
 		&j.SkillKeywordsJSON, &j.SkillsJSON,
 		&j.OrganizationsJSON, &j.LocationsJSON, &j.InterviewLocationsJSON, &j.FacetsJSON,
 		&j.Status, &j.ExternalSource, &j.ExternalID, &j.ExternalInnerID, &j.SourceURL, &j.SourceName,
 		&j.DataQuality, &j.CollectedAt, &j.IsFeatured, &j.SyncedAt,
 		&j.CreatedAt, &j.UpdatedAt,
-	)
+	); err != nil {
+		return err
+	}
+	j.Summary = summary.String
+	return nil
 }
 
 // GetFacets returns aggregated facet counts across all jobs.
