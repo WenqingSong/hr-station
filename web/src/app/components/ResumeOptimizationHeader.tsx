@@ -1,11 +1,12 @@
 import React from "react";
 import { ChevronLeft, Briefcase, FileText, Activity } from "lucide-react";
 import { useNavigate } from "react-router";
-import { toJobDetailViewModel, toResumeSummaryViewModel } from "../../adapters";
-import type { JobDetail, Resume } from "../../types";
+import { toJobDetailViewModelFromApi, toResumeSummaryViewModel } from "../../adapters";
+import type { JobApiItem } from "../../api/jobs";
+import type { Resume } from "../../types";
 
 interface ResumeOptimizationHeaderProps {
-  job?: JobDetail;
+  job?: JobApiItem;
   resume?: Resume;
   jobSource?: string;
   resumeSource?: string;
@@ -13,7 +14,7 @@ interface ResumeOptimizationHeaderProps {
 
 export function ResumeOptimizationHeader({ job, resume, jobSource = "目标岗位", resumeSource = "当前简历" }: ResumeOptimizationHeaderProps) {
   const navigate = useNavigate();
-  const jobVm = toJobDetailViewModel(job);
+  const jobVm = toJobDetailViewModelFromApi(job);
   const resumeVm = toResumeSummaryViewModel(resume);
 
   return (

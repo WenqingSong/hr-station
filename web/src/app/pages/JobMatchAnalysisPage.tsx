@@ -6,8 +6,9 @@ import { MatchAnalysisDetail } from "../components/MatchAnalysisDetail";
 import { MatchAnalysisSidebarRight } from "../components/MatchAnalysisSidebarRight";
 import { loadMatchAnalysisViewModel, loadResumeOptionViewModelsFromApi, loadResumeVersionDetail } from "../../api";
 import { getJobDetail } from "../../api/jobs";
+import type { JobApiItem } from "../../api/jobs";
 import type { MatchAnalysisPageViewModel, ResumeOptionViewModel } from "../../adapters";
-import type { JobDetail, Resume } from "../../types";
+import type { Resume } from "../../types";
 
 /** 从 URL 查询参数中解析 resume_version_no（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -27,7 +28,7 @@ export function JobMatchAnalysisPage() {
   const resumeVersionNo = searchParams.get("resumeVersionNo");
 
   // 目标岗位
-  const [job, setJob] = useState<JobDetail | null>(null);
+  const [job, setJob] = useState<JobApiItem | null>(null);
   const [loadingJob, setLoadingJob] = useState(!!jobId);
 
   // 简历选项 & 选中状态

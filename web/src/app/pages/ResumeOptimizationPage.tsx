@@ -6,8 +6,9 @@ import { ResumeOptimizationDetail } from "../components/ResumeOptimizationDetail
 import { ResumeOptimizationSidebarRight } from "../components/ResumeOptimizationSidebarRight";
 import { loadResumeOptimizationViewModel, loadResumeOptionViewModelsFromApi, loadResumeVersionDetail } from "../../api";
 import { getJobDetail } from "../../api/jobs";
+import type { JobApiItem } from "../../api/jobs";
 import type { ResumeOptimizationPageViewModel, ResumeOptionViewModel } from "../../adapters";
-import type { JobDetail, Resume } from "../../types";
+import type { Resume } from "../../types";
 
 /** 从 URL 查询参数中解析 resume versionNo（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -55,14 +56,12 @@ function buildResumeText(resume: Resume): string {
   return parts.join("\n\n");
 }
 
-/** 从 JobDetail 组装 target_job 供优化 Agent 使用 */
-function buildTargetJob(job: JobDetail) {
+/** 从 JobApiItem 组装 target_job 供优化 Agent 使用 */
+function buildTargetJob(job: JobApiItem) {
   const jdText = [
-    job.banner_summary || job.short_description,
-    job.responsibilities?.length ? `岗位职责：\n${job.responsibilities.map((r) => `- ${r}`).join("\n")}` : "",
-    job.requirements?.length ? `岗位要求：\n${job.requirements.map((r) => `- ${r}`).join("\n")}` : "",
-    job.bonus_points?.length ? `加分项：${job.bonus_points.join("、")}` : "",
-  ].filter(Boolean).join("\n\n");
+    job.description,
+    job.requirements ? `岗位要求：\n${job.requirements.split('\n').filter(r => r.trim()).join('\n')}` : '',
+  ].filter(Boolean).join('\n\n');
 
   return { title: job.title, jd_text: jdText };
 }
@@ -74,7 +73,7 @@ export function ResumeOptimizationPage() {
   const resumeVersionNo = searchParams.get("resumeVersionNo");
 
   // 目标岗位
-  const [job, setJob] = useState<JobDetail | null>(null);
+  const [job, setJob] = useState<JobApiItem | null>(null);
   const [loadingJob, setLoadingJob] = useState(!!jobId);
 
   // 简历选项 & 选中状态
@@ -245,7 +244,7 @@ export function ResumeOptimizationPage() {
   // selectedResumeDetail 可能缺少子组件期望的某字段（如 id），用兜底保证传递
   const resumeForDisplay: Resume = selectedResumeDetail
     ? selectedResumeDetail
-    : { id: String(selectedOption.id), name: selectedOption.name, direction_label: selectedOption.directionLabel } as Resume;
+    : undefined as unknown as Resume;
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6 pb-12">

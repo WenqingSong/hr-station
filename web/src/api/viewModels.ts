@@ -25,7 +25,7 @@ import type {
 
 import {
   toJobCardViewModelsFromApi,
-  toJobDetailViewModel,
+  toJobDetailViewModelFromApi,
   toResumeSummaryViewModel,
   toResumeOptionViewModels,
   toResumeOptionViewModelsFromVersions,
@@ -58,13 +58,13 @@ export async function loadJobDetailViewModel(
   jobId: string,
 ): Promise<JobDetailViewModel> {
   const job = await getJobDetail(jobId);
-  return toJobDetailViewModel(job);
+  return toJobDetailViewModelFromApi(job);
 }
 
 /** 加载指定岗位详情 ViewModel */
 export async function loadSelectedJobDetailViewModel(jobId: string): Promise<JobDetailViewModel> {
   const job = await getSelectedJob(jobId);
-  return toJobDetailViewModel(job);
+  return toJobDetailViewModelFromApi(job);
 }
 
 // ─── Resumes ViewModel Loader ─────────────────────────────────────────────────
