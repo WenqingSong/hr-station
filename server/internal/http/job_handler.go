@@ -33,6 +33,11 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 	city := q.Get("city")
 	recruitType := q.Get("recruit_type")
 	category := q.Get("category")
+	businessGroup := q.Get("business_group")
+	skill := q.Get("skill")
+	applicationProject := q.Get("application_project")
+	applicationSubtype := q.Get("application_subtype")
+	applicationType := q.Get("application_type")
 	externalSource := q.Get("external_source")
 
 	// Support both page/page_size (frontend) and limit/offset (backend)
@@ -64,14 +69,19 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := h.jobService.List(r.Context(), service.JobListRequest{
-		Keyword:        keyword,
-		Direction:      direction,
-		City:           city,
-		RecruitType:    recruitType,
-		Category:       category,
-		ExternalSource: externalSource,
-		Limit:          limit,
-		Offset:         offset,
+		Keyword:            keyword,
+		Direction:          direction,
+		City:               city,
+		RecruitType:        recruitType,
+		Category:           category,
+		BusinessGroup:      businessGroup,
+		Skill:              skill,
+		ApplicationProject: applicationProject,
+		ApplicationSubtype: applicationSubtype,
+		ApplicationType:    applicationType,
+		ExternalSource:     externalSource,
+		Limit:              limit,
+		Offset:             offset,
 	})
 	if err != nil {
 		handleJobError(w, err)
