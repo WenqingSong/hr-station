@@ -60,7 +60,7 @@ func NewVersionCompareService(
 
 // selectRunner returns the appropriate pipeline runner for the given tier.
 func (s *VersionCompareService) selectRunner(tier model.GenerationTier) agent.PipelineRunner {
-	tier = model.NormalizeGenerationTier(string(tier))
+	// tier validated by handler
 	if tier == model.GenerationTierQuality && s.qualityRunner != nil {
 		return s.qualityRunner
 	}
@@ -70,7 +70,7 @@ func (s *VersionCompareService) selectRunner(tier model.GenerationTier) agent.Pi
 // Compare generates a version comparison for the given user's two resume versions.
 func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req VersionCompareRequest) (*VersionCompareResponse, error) {
 	runner := s.selectRunner(req.GenerationTier)
-	log.Printf("[VersionCompareService] generation_tier=%s", model.NormalizeGenerationTier(string(req.GenerationTier)))
+	log.Printf("[VersionCompareService] generation_tier=%s", string(req.GenerationTier))
 
 	// Validate from/to
 	if req.FromVersionNo <= 0 {

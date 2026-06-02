@@ -64,12 +64,17 @@ func (h *VersionCompareHandler) Compare(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	tier := r.URL.Query().Get("generation_tier")
+	// Validate and normalize generation_tier
+	tier, err := model.NormalizeGenerationTier(r.URL.Query().Get("generation_tier"))
+	if err != nil {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, err.Error())
+		return
+	}
 
 	req := service.VersionCompareRequest{
 		FromVersionNo:  fromVersionNo,
 		ToVersionNo:    toVersionNo,
-		GenerationTier: model.NormalizeGenerationTier(tier),
+		GenerationTier: tier,
 	}
 
 	resp, err := h.versionCompareService.Compare(r.Context(), userID, req)

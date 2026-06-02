@@ -6,6 +6,7 @@ import (
 
 	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/middleware"
+	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/response"
 	"offer-catcher/server/internal/service"
 )
@@ -69,6 +70,14 @@ func (h *ResumeOptimizationHandler) generate(w http.ResponseWriter, r *http.Requ
 		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid request body")
 		return
 	}
+
+	// Validate and normalize generation_tier
+	tier, err := model.NormalizeGenerationTier(string(req.GenerationTier))
+	if err != nil {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, err.Error())
+		return
+	}
+	req.GenerationTier = tier
 
 	resp, err := h.resumeOptimizationService.Optimize(r.Context(), userID, req)
 	if err != nil {

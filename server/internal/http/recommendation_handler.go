@@ -6,6 +6,7 @@ import (
 
 	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/middleware"
+	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/response"
 	"offer-catcher/server/internal/service"
 )
@@ -47,6 +48,14 @@ func (h *RecommendationHandler) Recommend(w http.ResponseWriter, r *http.Request
 		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume_version_no")
 		return
 	}
+
+	// Validate and normalize generation_tier
+	tier, err := model.NormalizeGenerationTier(string(req.GenerationTier))
+	if err != nil {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, err.Error())
+		return
+	}
+	req.GenerationTier = tier
 
 	// Validate limit
 	if req.Limit < 0 || req.Limit > 5 {

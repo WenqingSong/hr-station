@@ -66,7 +66,7 @@ func NewMatchService(
 
 // selectRunner returns the appropriate pipeline runner for the given tier.
 func (s *MatchService) selectRunner(tier model.GenerationTier) agent.PipelineRunner {
-	tier = model.NormalizeGenerationTier(string(tier))
+	// tier validated by handler
 	if tier == model.GenerationTierQuality && s.qualityRunner != nil {
 		return s.qualityRunner
 	}
@@ -79,7 +79,7 @@ func (s *MatchService) selectRunner(tier model.GenerationTier) agent.PipelineRun
 // back to the Mock Agent. When LLM is disabled, it uses the Mock Agent directly.
 func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64, req MatchRequest) (*MatchResponse, error) {
 	runner := s.selectRunner(req.GenerationTier)
-	log.Printf("[MatchService] generation_tier=%s", model.NormalizeGenerationTier(string(req.GenerationTier)))
+	log.Printf("[MatchService] generation_tier=%s", string(req.GenerationTier))
 
 	// Get resume version
 	resume, err := s.getResume(ctx, userID, req)

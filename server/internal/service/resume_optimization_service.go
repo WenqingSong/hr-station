@@ -65,7 +65,7 @@ func NewResumeOptimizationService(
 
 // selectRunner returns the appropriate pipeline runner for the given tier.
 func (s *ResumeOptimizationService) selectRunner(tier model.GenerationTier) agent.PipelineRunner {
-	tier = model.NormalizeGenerationTier(string(tier))
+	// tier validated by handler
 	if tier == model.GenerationTierQuality && s.qualityRunner != nil {
 		return s.qualityRunner
 	}
@@ -82,7 +82,7 @@ func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64,
 	}
 
 	runner := s.selectRunner(req.GenerationTier)
-	log.Printf("[ResumeOptimizationService] generation_tier=%s mode=%s", model.NormalizeGenerationTier(string(req.GenerationTier)), req.Mode)
+	log.Printf("[ResumeOptimizationService] generation_tier=%s mode=%s", string(req.GenerationTier), req.Mode)
 
 	// Dispatch to Core Agent if mode=core
 	if req.Mode == "core" {

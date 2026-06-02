@@ -74,7 +74,7 @@ func NewRecommendationService(
 
 // SelectRunner returns the appropriate pipeline runner for the given tier.
 func (s *RecommendationService) selectRunner(tier model.GenerationTier) agent.PipelineRunner {
-	tier = model.NormalizeGenerationTier(string(tier))
+	// tier validated by handler
 	if tier == model.GenerationTierQuality && s.qualityRunner != nil {
 		return s.qualityRunner
 	}
@@ -96,7 +96,7 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 
 	// Select runner based on generation_tier
 	runner := s.selectRunner(req.GenerationTier)
-	log.Printf("[RecommendationService] generation_tier=%s", model.NormalizeGenerationTier(string(req.GenerationTier)))
+	log.Printf("[RecommendationService] generation_tier=%s", string(req.GenerationTier))
 
 	// Get resume version
 	resume, err := s.getResume(ctx, userID, req)

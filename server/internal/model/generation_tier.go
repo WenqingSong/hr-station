@@ -1,5 +1,7 @@
 package model
 
+import "fmt"
+
 // GenerationTier controls which LLM model tier is used for generation.
 // Each core feature supports both fast and quality results.
 type GenerationTier string
@@ -18,11 +20,17 @@ var ValidGenerationTiers = map[GenerationTier]bool{
 	GenerationTierQuality: true,
 }
 
-// NormalizeGenerationTier returns the canonical GenerationTier, defaulting to "fast".
-func NormalizeGenerationTier(input string) GenerationTier {
+// NormalizeGenerationTier returns the canonical GenerationTier.
+// Empty input defaults to "fast".
+// Returns error if the input is non-empty and not a valid tier.
+func NormalizeGenerationTier(input string) (GenerationTier, error) {
+	if input == "" {
+		return GenerationTierFast, nil
+	}
 	tier := GenerationTier(input)
 	if ValidGenerationTiers[tier] {
-		return tier
+		return tier, nil
 	}
-	return GenerationTierFast
+	return "", fmt.Errorf("invalid generation_tier: %q (allowed: fast, quality)", input)
 }
+
