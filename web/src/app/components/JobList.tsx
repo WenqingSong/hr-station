@@ -129,12 +129,10 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
             <JobCard
               id={job.id}
               title={job.title}
+              jobTypeLabel={job.jobTypeLabel}
+              typeLabel={job.typeLabel}
               direction={job.direction}
-              type={job.typeLabel}
-              department={job.businessGroup}
-              businessGroups={job.businessGroups}
-              skills={job.tags}
-              location={job.locationsText}
+              organizationCodes={job.organizationCodes || []}
               locations={job.locationsList}
               description={job.shortDescription}
               statusLabel={job.statusLabel}

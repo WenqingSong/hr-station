@@ -9,6 +9,8 @@ export interface JobCardViewModel {
   title: string;
   businessGroup: string;
   businessGroups: string[];
+  /** K8-4-4-R5: 事业群缩写 codes（如 CDG CSIG） */
+  organizationCodes: string[];
   locationsText: string;
   locationsList: string[];
   tags: string[];
@@ -18,6 +20,8 @@ export interface JobCardViewModel {
   typeLabel: string;
   direction: string;
   applicationType: string;
+  /** K8-4-4-R5: 岗位类型标签（如 技术/产品/设计） */
+  jobTypeLabel: string;
 }
 
 export interface JobDetailViewModel extends JobCardViewModel {
@@ -74,15 +78,29 @@ function parseOrgNames(raw: unknown): string[] {
   return [];
 }
 
+/** K8-4-4-R5: 安全解析 organizations [{code, name}] → code 列表 */
+function parseOrgCodes(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw
+      .filter((v): v is Record<string, unknown> => v !== null && typeof v === "object")
+      .map((v) => (v as Record<string, unknown>).code)
+      .filter((v): v is string => typeof v === "string");
+  }
+  return [];
+}
+
 /** 从后端 JobApiItem 生成 JobCardViewModel */
 export function toJobCardViewModelFromApi(job: JobApiItem): JobCardViewModel {
   const locationsRaw = parseStringArray((job as Record<string, unknown>).locations);
   const orgsRaw = parseOrgNames((job as Record<string, unknown>).organizations);
+  // K8-4-4-R5: 提取事业群缩写 codes
+  const orgCodes = parseOrgCodes((job as Record<string, unknown>).organizations);
   return {
     id: String(job.id),
     title: job.title,
     businessGroup: job.department,
     businessGroups: orgsRaw.length > 0 ? orgsRaw : (job.department ? [job.department] : []),
+    organizationCodes: orgCodes,
     locationsText: job.city,
     locationsList: locationsRaw.length > 0 ? locationsRaw : (job.city ? [job.city] : []),
     tags: Array.isArray(job.skill_keywords) ? job.skill_keywords : [],
@@ -92,6 +110,7 @@ export function toJobCardViewModelFromApi(job: JobApiItem): JobCardViewModel {
     typeLabel: RECRUIT_TYPE_LABELS[job.recruit_type] || job.recruit_type || '',
     direction: job.direction || '',
     applicationType: job.application_type || '',
+    jobTypeLabel: job.job_type || '',
   };
 }
 
