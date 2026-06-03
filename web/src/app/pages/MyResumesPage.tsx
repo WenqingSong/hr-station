@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router";
 import {
   ChevronLeft,
@@ -15,6 +15,8 @@ import { loadResumeManagementPageViewModel } from "../../api";
 import { createResume, updateResume, getCurrentResume, getResumes } from "../../api/resumes";
 import type { ResumeManagementViewModel } from "../../adapters";
 import type { ResumeEducation, ResumeExperience, ResumeProject } from "../../types";
+import { ResumeSkeleton } from "../components/ui/ResumeSkeleton";
+import { PageError, PageLoading } from "../components/PageState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -130,17 +132,21 @@ export function MyResumesPage() {
   const [saveErrorMsg, setSaveErrorMsg] = useState("");
   const [formVm, setFormVm] = useState<ResumeManagementViewModel | null>(null);
   const [loading, setLoading] = useState(mode === "edit");
-  const [resumeError, setResumeError] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // 编辑模式：加载完整 current resume
   useEffect(() => {
     if (mode === "edit") {
       setLoading(true);
+      setResumeError(null);
       loadResumeManagementPageViewModel()
         .then((vm) => { setFormVm(vm); setLoading(false); })
-        .catch(() => { setResumeError(true); setLoading(false); });
+        .catch(() => { setResumeError("简历加载失败，请稍后重试。"); setLoading(false); });
     }
-  }, [mode]);
+  }, [mode, retryCount]);
+
+  const handleRetryLoad = useCallback(() => setRetryCount((c) => c + 1), []);
 
   // ── Resume basic ────────────────────────────────────────────────────────────
   const [resumeName, setResumeName] = useState(mode === "add" ? "" : "");
@@ -154,8 +160,6 @@ export function MyResumesPage() {
       setJobDirection(formVm.directionLabel || "");
     }
   }, [formVm, mode]);
-
-  const [setAsCurrent, setSetAsCurrent] = useState(true);
 
   // ── Personal info ───────────────────────────────────────────────────────────
   const [personalName, setPersonalName] = useState("");
@@ -391,568 +395,556 @@ export function MyResumesPage() {
     setInternships((is) => is.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
   }
 
+  // ── K8-5-14-H：编辑模式加载中 → 全页 ResumeSkeleton
+  if (mode === "edit" && loading) {
+    return <ResumeSkeleton />;
+  }
+
+  // ── K8-5-14-H：编辑模式加载失败 → PageError + retry
+  if (mode === "edit" && resumeError) {
+    return (
+      <PageError
+        title="简历加载失败"
+        description={resumeError}
+        onRetry={handleRetryLoad}
+      />
+    );
+  }
+
   return (
-    <>
-      {/* ── Page layout ───────────────────────────────────────────────────── */}
-      <div className="max-w-[1160px] mx-auto px-4 py-8 pb-12 flex gap-6 items-start">
+    <div className="min-h-screen bg-[#F5F7FB]">
+      {/* ── PageHeader ────────────────────────────────────────────────── */}
+      <div className="mx-auto max-w-[1280px] px-4 pt-8 pb-4 sm:px-6 lg:px-8">
+        <Link
+          to="/resumes"
+          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-3"
+        >
+          <ChevronLeft className="w-3 h-3" />
+          返回我的简历
+        </Link>
+        <h1 className="text-2xl font-bold text-slate-950">
+          {mode === "add" ? "创建简历" : "编辑简历"}
+        </h1>
+        <p className="mt-2 text-sm text-slate-500">
+          完善你的经历和技能，让 Offerr鹅 更准确地完成岗位推荐、匹配分析和简历优化。
+        </p>
+      </div>
 
-        {/* ── Left anchor nav ───────────────────────────────────────────── */}
-        <aside className="w-[168px] flex-shrink-0 sticky top-[72px]">
-          <div className="bg-white border border-gray-200 py-2">
-            {NAV_SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => scrollTo(s.id)}
-                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                  activeSection === s.id
-                    ? "text-[#0052D9] bg-blue-50 border-l-2 border-[#0052D9]"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l-2 border-transparent"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </aside>
+      {/* ── MainLayout ────────────────────────────────────────────────── */}
+      <div className="mx-auto max-w-[1280px] px-4 pb-24 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
 
-        {/* ── Main form column ──────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 space-y-0.5">
+          {/* ── ResumeFormMain ────────────────────────────────────────── */}
+          <div className="min-w-0 space-y-5">
 
-          {/* Page title area */}
-          <div className="mb-5">
-            <Link
-              to="/resumes"
-              className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-3"
-            >
-              <ChevronLeft className="w-3 h-3" />
-              返回我的简历
-            </Link>
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-semibold text-gray-900">{mode === "add" ? "添加简历" : "修改简历"}</h1>
-                  <span className="px-2 py-0.5 bg-blue-50 border border-blue-100 rounded text-xs text-[#0052D9]">
-                    {mode === "add" ? "新建模式" : "修改模式"}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-gray-500">
-                  维护用于岗位推荐、岗位匹配分析和简历优化的简历信息。
-                </p>
-              </div>
+            {/* AI hint strip */}
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
+              <Sparkles className="w-3.5 h-3.5 text-[#0052D9] flex-shrink-0" />
+              <span className="text-xs text-[#0052D9]">
+                当前简历可用于：<strong>岗位推荐</strong> / <strong>岗位匹配分析</strong> / <strong>简历优化</strong>
+              </span>
+              <span className="w-px h-3.5 bg-blue-200 mx-1" />
+              <span className="text-xs text-gray-400">AI 建议仅作投递前参考，不替代真实经历核实。</span>
             </div>
-          </div>
-
-          {/* Loading state for edit mode */}
-          {mode === "edit" && loading && (
-            <div className="bg-white border border-gray-200 px-5 py-3 mb-4 text-sm text-gray-400 text-center">
-              正在加载简历数据…
-            </div>
-          )}
-
-          {/* Fallback notice for edit mode */}
-          {mode === "edit" && resumeError && (
-            <div className="bg-amber-50 border border-amber-200 px-5 py-3 mb-4 text-sm text-amber-700">
-              简历接口暂时不可用，已展示空表单。稍后重试或联系支持。
-            </div>
-          )}
-
-          {/* Status bar */}
-          <div className="bg-white border border-gray-200 px-5 py-3 mb-4 flex items-center gap-5 flex-wrap">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400">当前简历：</span>
-              <span className="font-medium text-gray-900">{resumeName || (mode === "edit" ? "正在加载…" : "新建简历")}</span>
-            </div>
-            <span className="w-px h-4 bg-gray-200" />
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400">模式：</span>
-              <span className="text-gray-700">修改简历</span>
-            </div>
-            <span className="w-px h-4 bg-gray-200" />
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400">完整度：</span>
-              <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-[#0052D9] rounded-full" style={{ width: "78%" }} />
-              </div>
-              <span className="font-semibold text-[#0052D9]">78%</span>
-            </div>
-            <span className="w-px h-4 bg-gray-200" />
-            <div className="flex items-center gap-1.5 text-sm text-green-600">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              可用于 AI 分析
-            </div>
-          </div>
-
-          {/* AI hint strip */}
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 border border-blue-100 mb-4">
-            <Sparkles className="w-3.5 h-3.5 text-[#0052D9] flex-shrink-0" />
-            <span className="text-xs text-[#0052D9]">
-              当前简历可用于：<strong>岗位推荐</strong> / <strong>岗位匹配分析</strong> / <strong>简历优化</strong>
-            </span>
-            <span className="w-px h-3.5 bg-blue-200 mx-1" />
-            <span className="text-xs text-gray-400">AI 建议仅作投递前参考，不替代真实经历核实。</span>
-          </div>
 
           {/* ── Module 1: 简历基础 ───────────────────────────────────────── */}
-          <FormSection id="resume-basic" title="简历基础">
+          <div id="resume-basic" className="rounded-2xl bg-white ring-1 ring-gray-100 p-6">
+            <h2 className="text-[16px] font-semibold text-slate-900 mb-1">简历基础</h2>
+            <p className="text-[13px] text-slate-500 mb-5">
+              先确定这份简历的求职定位，后续推荐、匹配和优化都会基于这里的信息。
+            </p>
             <div className="space-y-5">
-              <FieldRow label="简历名称" required>
+              {/* 简历名称 */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  简历名称 <span className="text-red-500">*</span>
+                </label>
                 <input
-                  className={inputCls}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   value={resumeName}
                   onChange={(e) => setResumeName(e.target.value)}
                   placeholder="为这份简历起一个名字"
                 />
-              </FieldRow>
-              <FieldRow label="求职方向" required>
+              </div>
+              {/* 求职方向 */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  求职方向 <span className="text-red-500">*</span>
+                </label>
                 <input
-                  className={inputCls}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   value={jobDirection}
                   onChange={(e) => setJobDirection(e.target.value)}
                   placeholder="如：后端开发"
                 />
-              </FieldRow>
-              <FieldRow label="简历说明">
+              </div>
+              {/* 简历说明 */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">简历说明</label>
                 <textarea
-                  className={textareaCls}
+                  className="min-h-[80px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 resize-none leading-relaxed focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   rows={2}
                   value={resumeDesc}
                   onChange={(e) => setResumeDesc(e.target.value)}
                   placeholder="简要描述这份简历适用的方向或用途"
                 />
-              </FieldRow>
-              <FieldRow label="设为当前简历">
-                <div className="flex items-center gap-3 pt-1">
-                  <button
-                    onClick={() => setSetAsCurrent(!setAsCurrent)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${
-                      setAsCurrent ? "bg-[#0052D9]" : "bg-gray-200"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                        setAsCurrent ? "translate-x-5" : "translate-x-0.5"
-                      }`}
-                    />
-                  </button>
-                  <span className="text-xs text-gray-500">
-                    当前简历会优先用于岗位推荐、岗位匹配分析和简历优化。
-                  </span>
+              </div>
+              {/* 保存说明 */}
+              <div>
+                <div className="flex items-start gap-2 rounded-xl bg-blue-50/60 border border-blue-100/40 px-4 py-3">
+                  <Sparkles className="w-4 h-4 text-[#0052D9] mt-0.5" />
+                  <p className="text-[13px] text-slate-600 leading-relaxed">
+                    保存后，最新版本将自动用于岗位推荐、岗位匹配分析和简历优化建议。
+                  </p>
                 </div>
-              </FieldRow>
+              </div>
             </div>
-          </FormSection>
+          </div>
 
           {/* ── Module 2: 基础信息 ───────────────────────────────────────── */}
-          <FormSection id="personal-info" title="基础信息">
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                <FieldRow label="姓名" required>
-                  <input className={inputCls} value={personalName} onChange={(e) => setPersonalName(e.target.value)} placeholder="姓名" />
-                </FieldRow>
-                <FieldRow label="年龄">
-                  <input className={inputCls} value={age} onChange={(e) => setAge(e.target.value)} placeholder="年龄" />
-                </FieldRow>
-                <FieldRow label="学历" required>
-                  <select className={inputCls} value={degree} onChange={(e) => setDegree(e.target.value)}>
-                    <option>本科</option>
-                    <option>硕士</option>
-                    <option>博士</option>
-                    <option>专科</option>
-                  </select>
-                </FieldRow>
-                <FieldRow label="毕业时间">
-                  <input className={inputCls} value={gradYear} onChange={(e) => setGradYear(e.target.value)} placeholder="如：2026" />
-                </FieldRow>
-                <FieldRow label="学校" required>
-                  <input className={inputCls} value={school} onChange={(e) => setSchool(e.target.value)} placeholder="学校名称" />
-                </FieldRow>
-                <FieldRow label="专业" required>
-                  <input className={inputCls} value={major} onChange={(e) => setMajor(e.target.value)} placeholder="专业名称" />
-                </FieldRow>
+          <div id="personal-info" className="rounded-2xl bg-white ring-1 ring-gray-100 p-6">
+            <h2 className="text-[16px] font-semibold text-slate-900 mb-1">基础信息</h2>
+            <p className="text-[13px] text-slate-500 mb-5">
+              用于生成简历摘要和岗位匹配时的基础背景判断。
+            </p>
+            <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  姓名 <span className="text-red-500">*</span>
+                </label>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={personalName} onChange={(e) => setPersonalName(e.target.value)} placeholder="姓名" />
               </div>
-              <div className="border-t border-gray-100 pt-5 grid grid-cols-2 gap-x-8 gap-y-5">
-                <FieldRow label="手机号">
-                  <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="手机号（脱敏展示）" />
-                </FieldRow>
-                <FieldRow label="邮箱">
-                  <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱地址" />
-                </FieldRow>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">年龄</label>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={age} onChange={(e) => setAge(e.target.value)} placeholder="年龄" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  学历 <span className="text-red-500">*</span>
+                </label>
+                <select className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={degree} onChange={(e) => setDegree(e.target.value)}>
+                  <option>本科</option>
+                  <option>硕士</option>
+                  <option>博士</option>
+                  <option>专科</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">毕业时间</label>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={gradYear} onChange={(e) => setGradYear(e.target.value)} placeholder="如：2026" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  学校 <span className="text-red-500">*</span>
+                </label>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={school} onChange={(e) => setSchool(e.target.value)} placeholder="学校名称" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  专业 <span className="text-red-500">*</span>
+                </label>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={major} onChange={(e) => setMajor(e.target.value)} placeholder="专业名称" />
               </div>
             </div>
-          </FormSection>
+            <div className="mt-5 pt-5 border-t border-gray-100 grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">手机号</label>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="手机号（脱敏展示）" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">邮箱</label>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱地址" />
+              </div>
+            </div>
+          </div>
 
           {/* ── Module 3: 求职方向 ───────────────────────────────────────── */}
-          <FormSection id="job-intention" title="求职方向">
-            <div className="space-y-5">
-              <FieldRow label="求职方向" required>
+          <div id="job-intention" className="rounded-2xl bg-white ring-1 ring-blue-100 p-6">
+            <h2 className="text-[16px] font-semibold text-slate-900 mb-1">求职方向</h2>
+            <p className="text-[13px] text-slate-500 mb-5">
+              Offerr鹅会优先根据求职方向、城市和岗位类型筛选更适合你的岗位。
+            </p>
+            <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  求职方向 <span className="text-red-500">*</span>
+                </label>
                 <input
-                  className={inputCls}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   value={direction}
                   onChange={(e) => setDirection(e.target.value)}
                   placeholder="如：后端开发"
                 />
-              </FieldRow>
-              <FieldRow label="期望城市">
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">期望城市</label>
                 <input
-                  className={inputCls}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   value={cities}
                   onChange={(e) => setCities(e.target.value)}
                   placeholder="如：深圳 / 北京 / 上海"
                 />
-              </FieldRow>
-              <FieldRow label="岗位类型">
-                <select
-                  className={inputCls}
-                  value={jobType}
-                  onChange={(e) => setJobType(e.target.value)}
-                >
-                  <option>校园招聘 / 实习</option>
-                  <option>校园招聘</option>
-                  <option>实习</option>
-                </select>
-              </FieldRow>
+              </div>
             </div>
-          </FormSection>
+            <div className="mt-5">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">岗位类型</label>
+              <select
+                className="h-11 w-full sm:max-w-xs rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                value={jobType}
+                onChange={(e) => setJobType(e.target.value)}
+              >
+                <option>校园招聘 / 实习</option>
+                <option>校园招聘</option>
+                <option>实习</option>
+              </select>
+            </div>
+            <p className="mt-4 text-[12px] text-slate-400">
+              这些信息会影响岗位推荐、岗位匹配分析和简历优化建议的准确度。
+            </p>
+          </div>
 
           {/* ── Module 4: 教育经历 ───────────────────────────────────────── */}
-          <FormSection
-            id="education"
-            title="教育经历"
-            onAdd={addEducation}
-            addLabel="添加教育经历"
-          >
-            <div className="space-y-6">
-              {educations.map((edu, idx) => (
-                <div key={edu.id}>
-                  {idx > 0 && <div className="h-px bg-gray-100 mb-6" />}
-                  <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                      <FieldRow label="学校" required>
-                        <input
-                          className={inputCls}
-                          value={edu.school}
-                          onChange={(e) => updateEdu(edu.id, "school", e.target.value)}
-                          placeholder="学校名称"
-                        />
-                      </FieldRow>
-                      <FieldRow label="专业" required>
-                        <input
-                          className={inputCls}
-                          value={edu.major}
-                          onChange={(e) => updateEdu(edu.id, "major", e.target.value)}
-                          placeholder="专业名称"
-                        />
-                      </FieldRow>
-                      <FieldRow label="学历">
-                        <select
-                          className={inputCls}
-                          value={edu.degree}
-                          onChange={(e) => updateEdu(edu.id, "degree", e.target.value)}
-                        >
-                          <option>本科</option>
-                          <option>硕士</option>
-                          <option>博士</option>
-                          <option>专科</option>
-                        </select>
-                      </FieldRow>
-                      <FieldRow label="时间">
-                        <div className="flex items-center gap-2">
-                          <input
-                            className={inputCls}
-                            value={edu.startDate}
-                            onChange={(e) => updateEdu(edu.id, "startDate", e.target.value)}
-                            placeholder="2022.09"
-                          />
-                          <span className="text-gray-400 flex-shrink-0">—</span>
-                          <input
-                            className={inputCls}
-                            value={edu.endDate}
-                            onChange={(e) => updateEdu(edu.id, "endDate", e.target.value)}
-                            placeholder="2026.06"
-                          />
-                        </div>
-                      </FieldRow>
-                    </div>
-                    <FieldRow label="相关课程">
-                      <input
-                        className={inputCls}
-                        value={edu.courses}
-                        onChange={(e) => updateEdu(edu.id, "courses", e.target.value)}
-                        placeholder="如：数据结构、操作系统、计算机网络"
-                      />
-                    </FieldRow>
-                    {educations.length > 1 && (
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => setEducations((es) => es.filter((e) => e.id !== edu.id))}
-                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          删除
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+          <div id="education" className="rounded-2xl bg-white ring-1 ring-gray-100 p-6">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-[16px] font-semibold text-slate-900">教育经历</h2>
+              <button onClick={addEducation} className="flex items-center gap-1 text-[13px] font-medium text-[#0052D9] hover:text-[#0047BD] transition-colors">
+                <Plus className="w-3.5 h-3.5" />添加教育经历
+              </button>
             </div>
-          </FormSection>
+            <p className="text-[13px] text-slate-500 mb-5">
+              补充教育背景，帮助 Offerr鹅 判断你的学历、专业和岗位匹配基础。
+            </p>
+
+            {educations.length === 0 ? (
+              <div className="rounded-xl bg-gray-50/70 py-8 text-center">
+                <p className="text-sm text-slate-500 mb-1">暂无教育经历</p>
+                <p className="text-xs text-slate-400 mb-3">可以先添加你的学校、专业和学历信息。</p>
+                <button onClick={addEducation} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加教育经历</button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {educations.map((edu, idx) => (
+                  <div key={edu.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-500">教育经历 {idx + 1}</span>
+                      <button onClick={() => setEducations((es) => es.filter((e) => e.id !== edu.id))} className="text-slate-400 hover:text-red-500 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">学校 <span className="text-red-500">*</span></label>
+                        <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.school} onChange={(e) => updateEdu(edu.id, "school", e.target.value)} placeholder="学校名称" />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">专业 <span className="text-red-500">*</span></label>
+                        <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.major} onChange={(e) => updateEdu(edu.id, "major", e.target.value)} placeholder="专业名称" />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">学历</label>
+                        <select className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.degree} onChange={(e) => updateEdu(edu.id, "degree", e.target.value)}>
+                          <option>本科</option><option>硕士</option><option>博士</option><option>专科</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">时间</label>
+                        <div className="flex items-center gap-2">
+                          <input className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.startDate} onChange={(e) => updateEdu(edu.id, "startDate", e.target.value)} placeholder="2022.09" />
+                          <span className="text-slate-400">—</span>
+                          <input className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.endDate} onChange={(e) => updateEdu(edu.id, "endDate", e.target.value)} placeholder="2026.06" />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">相关课程</label>
+                      <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.courses} onChange={(e) => updateEdu(edu.id, "courses", e.target.value)} placeholder="如：数据结构、操作系统、计算机网络" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* ── Module 5: 实习经历 ───────────────────────────────────────── */}
-          <FormSection
-            id="internship"
-            title="实习经历"
-            onAdd={addInternship}
-            addLabel="添加实习经历"
-          >
-            <div className="space-y-6">
-              {internships.map((intern, idx) => (
-                <div key={intern.id}>
-                  {idx > 0 && <div className="h-px bg-gray-100 mb-6" />}
-                  <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                      <FieldRow label="公司名称" required>
-                        <input
-                          className={inputCls}
-                          value={intern.company}
-                          onChange={(e) => updateIntern(intern.id, "company", e.target.value)}
-                          placeholder="公司名称"
-                        />
-                      </FieldRow>
-                      <FieldRow label="岗位名称" required>
-                        <input
-                          className={inputCls}
-                          value={intern.position}
-                          onChange={(e) => updateIntern(intern.id, "position", e.target.value)}
-                          placeholder="岗位名称"
-                        />
-                      </FieldRow>
-                      <FieldRow label="时间">
-                        <div className="flex items-center gap-2">
-                          <input
-                            className={inputCls}
-                            value={intern.startDate}
-                            onChange={(e) => updateIntern(intern.id, "startDate", e.target.value)}
-                            placeholder="2025.06"
-                          />
-                          <span className="text-gray-400 flex-shrink-0">—</span>
-                          <input
-                            className={inputCls}
-                            value={intern.endDate}
-                            onChange={(e) => updateIntern(intern.id, "endDate", e.target.value)}
-                            placeholder="2025.09"
-                          />
-                        </div>
-                      </FieldRow>
-                    </div>
-                    <FieldRow label="工作内容">
-                      <textarea
-                        className={textareaCls}
-                        rows={3}
-                        value={intern.content}
-                        onChange={(e) => updateIntern(intern.id, "content", e.target.value)}
-                        placeholder="简要描述工作内容和成果"
-                      />
-                    </FieldRow>
-                    {internships.length > 1 && (
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => setInternships((is) => is.filter((i) => i.id !== intern.id))}
-                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          删除
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+          <div id="internship" className="rounded-2xl bg-white ring-1 ring-gray-100 p-6">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-[16px] font-semibold text-slate-900">实习经历</h2>
+              <button onClick={addInternship} className="flex items-center gap-1 text-[13px] font-medium text-[#0052D9] hover:text-[#0047BD] transition-colors">
+                <Plus className="w-3.5 h-3.5" />添加实习经历
+              </button>
             </div>
-          </FormSection>
+            <p className="text-[13px] text-slate-500 mb-5">
+              实习经历会显著影响岗位匹配和简历优化建议，建议写清楚职责、技术和结果。
+            </p>
+
+            {internships.length === 0 ? (
+              <div className="rounded-xl bg-gray-50/70 py-8 text-center">
+                <p className="text-sm text-slate-500 mb-1">暂无实习经历</p>
+                <p className="text-xs text-slate-400 mb-3">可以补充实习公司、岗位职责和成果。</p>
+                <button onClick={addInternship} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加实习经历</button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {internships.map((intern, idx) => (
+                  <div key={intern.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-500">实习经历 {idx + 1}</span>
+                      <button onClick={() => setInternships((is) => is.filter((i) => i.id !== intern.id))} className="text-slate-400 hover:text-red-500 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">公司名称 <span className="text-red-500">*</span></label>
+                        <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={intern.company} onChange={(e) => updateIntern(intern.id, "company", e.target.value)} placeholder="公司名称" />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">岗位名称 <span className="text-red-500">*</span></label>
+                        <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={intern.position} onChange={(e) => updateIntern(intern.id, "position", e.target.value)} placeholder="岗位名称" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">时间</label>
+                      <div className="flex items-center gap-2">
+                        <input className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={intern.startDate} onChange={(e) => updateIntern(intern.id, "startDate", e.target.value)} placeholder="2025.06" />
+                        <span className="text-slate-400">—</span>
+                        <input className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={intern.endDate} onChange={(e) => updateIntern(intern.id, "endDate", e.target.value)} placeholder="2025.09" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">工作内容</label>
+                      <textarea className="min-h-[96px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm resize-none leading-relaxed focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" rows={3} value={intern.content} onChange={(e) => updateIntern(intern.id, "content", e.target.value)} placeholder="简要描述工作内容和成果" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* ── Module 6: 项目经历 ───────────────────────────────────────── */}
-          <FormSection
-            id="projects"
-            title="项目经历"
-            onAdd={addProject}
-            addLabel="添加项目经历"
-          >
-            <div className="space-y-0">
-              {projects.map((proj, idx) => (
-                <div key={proj.id}>
-                  {idx > 0 && <div className="h-px bg-gray-100 my-6" />}
-                  <div className="space-y-4">
-                    {/* Project header: name + controls */}
+          <div id="projects" className="rounded-2xl bg-white ring-1 ring-gray-100 p-6">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-[16px] font-semibold text-slate-900">项目经历</h2>
+              <button onClick={addProject} className="flex items-center gap-1 text-[13px] font-medium text-[#0052D9] hover:text-[#0047BD] transition-colors">
+                <Plus className="w-3.5 h-3.5" />添加项目经历
+              </button>
+            </div>
+            <p className="text-[13px] text-slate-500 mb-5">
+              项目经历是技术岗位匹配的重要依据，建议写清楚技术栈、职责和量化结果。
+            </p>
+
+            {projects.length === 0 ? (
+              <div className="rounded-xl bg-gray-50/70 py-8 text-center">
+                <p className="text-sm text-slate-500 mb-1">暂无项目经历</p>
+                <p className="text-xs text-slate-400 mb-3">可以补充课程项目、比赛项目或个人项目。</p>
+                <button onClick={addProject} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加项目经历</button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {projects.map((proj, idx) => (
+                  <div key={proj.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">项目 {idx + 1}</span>
+                      <span className="text-xs font-medium text-slate-500">项目经历 {idx + 1}</span>
                       <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => moveProject(idx, -1)}
-                          disabled={idx === 0}
-                          className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors"
-                          title="上移"
-                        >
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => moveProject(idx, 1)}
-                          disabled={idx === projects.length - 1}
-                          className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors"
-                          title="下移"
-                        >
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => removeProject(proj.id)}
-                          className="p-1 text-gray-300 hover:text-red-400 transition-colors"
-                          title="删除"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <button onClick={() => moveProject(idx, -1)} disabled={idx === 0} className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors" title="上移"><ChevronUp className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => moveProject(idx, 1)} disabled={idx === projects.length - 1} className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors" title="下移"><ChevronDown className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => removeProject(proj.id)} className="p-1 text-slate-400 hover:text-red-500 transition-colors" title="删除"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
-                    <FieldRow label="项目名称" required>
-                      <input
-                        className={inputCls}
-                        value={proj.name}
-                        onChange={(e) => updateProject(proj.id, "name", e.target.value)}
-                        placeholder="项目名称"
-                      />
-                    </FieldRow>
-                    <FieldRow label="技术栈">
-                      <input
-                        className={inputCls}
-                        value={proj.stack}
-                        onChange={(e) => updateProject(proj.id, "stack", e.target.value)}
-                        placeholder="如：Go / MySQL / Redis"
-                      />
-                    </FieldRow>
-                    <FieldRow label="项目描述">
-                      <textarea
-                        className={textareaCls}
-                        rows={3}
-                        value={proj.desc}
-                        onChange={(e) => updateProject(proj.id, "desc", e.target.value)}
-                        placeholder="描述项目背景、你负责的部分和主要成果"
-                      />
-                    </FieldRow>
-                    <FieldRow label="个人职责">
-                      <input
-                        className={inputCls}
-                        value={proj.role}
-                        onChange={(e) => updateProject(proj.id, "role", e.target.value)}
-                        placeholder="如：接口设计、数据库设计、缓存优化"
-                      />
-                    </FieldRow>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">项目名称 <span className="text-red-500">*</span></label>
+                      <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={proj.name} onChange={(e) => updateProject(proj.id, "name", e.target.value)} placeholder="项目名称" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">技术栈</label>
+                      <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={proj.stack} onChange={(e) => updateProject(proj.id, "stack", e.target.value)} placeholder="如：Go / MySQL / Redis" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">项目描述</label>
+                      <textarea className="min-h-[88px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm resize-none leading-relaxed focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" rows={3} value={proj.desc} onChange={(e) => updateProject(proj.id, "desc", e.target.value)} placeholder="描述项目背景、你负责的部分和主要成果" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">个人职责</label>
+                      <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={proj.role} onChange={(e) => updateProject(proj.id, "role", e.target.value)} placeholder="如：接口设计、数据库设计、缓存优化" />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </FormSection>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* ── Module 7: 技能关键词 ─────────────────────────────────────── */}
-          <FormSection id="skills" title="技能关键词">
-            <div className="space-y-4">
-              {/* Tags */}
-              <div className="flex flex-wrap gap-2">
+          <div id="skills" className="rounded-2xl bg-white ring-1 ring-gray-100 p-6">
+            <h2 className="text-[16px] font-semibold text-slate-900 mb-1">技能关键词</h2>
+            <p className="text-[13px] text-slate-500 mb-5">
+              补充你掌握的技术、工具和能力标签，Offerr鹅 会基于这些关键词进行岗位推荐、匹配分析和简历优化建议。
+            </p>
+
+            {skills.length === 0 ? (
+              <div className="rounded-xl bg-gray-50/70 py-6 text-center mb-4">
+                <p className="text-sm text-slate-500 mb-1">还没有技能关键词</p>
+                <p className="text-xs text-slate-400">例如：Go、MySQL、Redis、Docker、云计算、后端开发</p>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2 mb-4">
                 {skills.map((s) => (
                   <span
                     key={s}
-                    className="flex items-center gap-1.5 pl-3 pr-2 py-1 bg-blue-50 border border-blue-100 rounded text-sm text-[#0052D9]"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[13px] text-[#0052D9] ring-1 ring-blue-100"
                   >
                     {s}
-                    <button
-                      onClick={() => removeSkill(s)}
-                      className="text-blue-300 hover:text-blue-600 transition-colors"
-                    >
+                    <button onClick={() => removeSkill(s)} className="text-blue-300 hover:text-blue-600">
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 ))}
               </div>
-              {/* Input */}
-              <div className="flex gap-2">
-                <input
-                  className={inputCls}
-                  value={skillInput}
-                  onChange={(e) => setSkillInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addSkill()}
-                  placeholder="输入技能关键词后按回车添加"
-                />
-                <button
-                  onClick={addSkill}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors flex-shrink-0"
-                >
-                  添加
-                </button>
-              </div>
-              <p className="text-xs text-gray-400">
-                技能关键词会影响岗位推荐和 JD 匹配分析，请填写真实掌握的技能。
-              </p>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                value={skillInput}
+                onChange={(e) => setSkillInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addSkill()}
+                placeholder="输入技能关键词后按回车添加"
+              />
+              <button onClick={addSkill} className="rounded-xl bg-[#0052D9] px-5 text-[13px] font-medium text-white hover:bg-[#0047BD] transition-colors flex-shrink-0">
+                添加
+              </button>
             </div>
-          </FormSection>
+            <p className="mt-3 text-[12px] text-slate-400">
+              技能关键词会影响岗位推荐和 JD 匹配分析，请填写真实掌握的技能。
+            </p>
+          </div>
 
           {/* ── Module 8: 自我评价 ───────────────────────────────────────── */}
-          <FormSection id="self-summary" title="自我评价">
+          <div id="self-summary" className="rounded-2xl bg-white ring-1 ring-gray-100 p-6">
+            <h2 className="text-[16px] font-semibold text-slate-900 mb-1">自我评价</h2>
+            <p className="text-[13px] text-slate-500 mb-5">
+              用一小段话概括你的优势、学习能力和求职方向。建议控制在 100-300 字。
+            </p>
             <textarea
-              className={textareaCls}
-              rows={4}
+              className="min-h-[140px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 resize-y focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder="简要介绍自己的技术背景、求职意向和个人优势"
             />
-          </FormSection>
-
-          {/* ── Bottom action area — static, in page flow ─────────────── */}
-          <div className="mt-8 pt-5 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-500 flex items-center gap-3">
-              <span>当前模式：<span className="text-gray-700 font-medium">{mode === "add" ? "添加简历" : "修改简历"}</span></span>
-              <span className="w-px h-4 bg-gray-200" />
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                最近保存：2 小时前
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link
-                to="/resumes"
-                className="px-4 py-2 text-gray-500 text-sm hover:text-gray-800 transition-colors"
-              >
-                取消
-              </Link>
-              <button
-                className="px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? "保存中…" : "保存草稿"}
-              </button>
-              <button
-                className="px-5 py-2 bg-[#0052D9] text-white text-sm font-medium rounded hover:bg-[#003DA5] transition-colors disabled:opacity-50"
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? "保存中…" : mode === "add" ? "保存新简历" : "保存并设为当前简历"}
-              </button>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-[12px] text-slate-400">建议包含：技术方向、项目经验、学习能力、目标岗位。</span>
+              <span className="text-[12px] text-slate-400">当前约 {summary.length} 字</span>
             </div>
           </div>
 
           {saveSuccessMsg && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-600" />
+            <div className="rounded-xl bg-green-50 ring-1 ring-green-200 p-3 text-sm text-green-700 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-3.5" />
               {saveSuccessMsg}
             </div>
           )}
 
           {saveErrorMsg && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600 flex items-center gap-2">
+            <div className="rounded-xl bg-red-50 ring-1 ring-red-200 p-3 text-sm text-red-600 flex items-center gap-2">
               {saveErrorMsg}
             </div>
           )}
 
+        </div>{/* /ResumeFormMain */}
+
+        {/* ── ResumeStatusSidebar ───────────────────────────────────── */}
+        <aside className="hidden xl:block xl:sticky xl:top-24">
+          <div className="rounded-2xl bg-white ring-1 ring-gray-100 p-5 space-y-5">
+            <h3 className="text-sm font-semibold text-slate-900">简历状态</h3>
+
+            {/* 完成度 */}
+            <div>
+              <p className="text-xs text-slate-500 mb-1.5">简历完成度</p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#0052D9] rounded-full" style={{ width: "72%" }} />
+                </div>
+                <span className="text-sm font-bold text-[#0052D9]">72%</span>
+              </div>
+              <p className="mt-1.5 text-[11px] text-slate-400">信息越完整，推荐和匹配越准确。</p>
+            </div>
+
+            {/* 简历状态 */}
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-slate-700">最新保存版本用于分析</span>
+            </div>
+
+            {/* AI 可用性 */}
+            <div>
+              <p className="text-xs text-slate-500 mb-2">可用于</p>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2 text-green-700">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" /> 岗位智能推荐
+                </div>
+                <div className="flex items-center gap-2 text-green-700">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" /> 岗位匹配分析
+                </div>
+                <div className="flex items-center gap-2 text-green-700">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" /> 简历优化建议
+                </div>
+              </div>
+            </div>
+
+            {/* 缺失项提示 */}
+            <div className="rounded-xl bg-amber-50/70 border border-amber-100/50 p-3">
+              <p className="text-[11px] font-medium text-amber-800 mb-1.5">建议补充</p>
+              <ul className="text-[11px] text-amber-700 space-y-1 list-disc pl-4 marker:text-amber-300">
+                <li>技能关键词</li>
+                <li>项目经历</li>
+                <li>实习经历</li>
+              </ul>
+            </div>
+
+            {/* 最近保存 */}
+            <div className="pt-2 border-t border-gray-100">
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                <Clock className="w-3 h-3" />
+                {saveSuccessMsg ? "刚刚已保存" : "尚未保存"}
+              </div>
+            </div>
+
+            {/* 操作区 */}
+            <div className="pt-2 border-t border-gray-100">
+              <Link
+                to="/resumes/compare"
+                className="block text-center text-xs text-[#0052D9] hover:underline py-1"
+              >
+                查看简历版本对比
+              </Link>
+            </div>
+          </div>
+        </aside>
+
+      </div>{/* /grid */}</div>{/* /max-w container */}
+
+    {/* ── StickySaveBar ────────────────────────────────────────────── */}
+    <div className="sticky bottom-0 z-40 border-t border-gray-100 bg-white/90 backdrop-blur">
+      <div className="mx-auto max-w-[1280px] px-4 py-4 sm:px-6 lg:px-8 flex items-center justify-between">
+        <p className="text-[13px] text-slate-500">
+          保存后，Offerr鹅 会基于当前简历进行岗位推荐、匹配分析和优化建议。
+        </p>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/resumes"
+            className="px-4 py-2.5 text-slate-500 text-sm hover:text-slate-800 transition-colors"
+          >
+            取消
+          </Link>
+          <button
+            className="rounded-xl bg-[#0052D9] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#0047BD] transition-colors disabled:opacity-50 shadow-sm"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? "保存中…" : mode === "add" ? "创建简历" : "保存简历"}
+          </button>
         </div>
       </div>
-    </>
+    </div>
+    </div>
   );
 }
