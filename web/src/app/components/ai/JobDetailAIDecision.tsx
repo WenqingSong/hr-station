@@ -34,36 +34,36 @@ export function JobDetailAIDecision() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {/* Header */}
-      <div className="mb-2">
+      <div className="mb-1">
         <div className="flex items-center gap-2 mb-1">
-          <Sparkles className="h-5 w-5 text-[#0052D9]" />
-          <h2 className="text-xl font-bold text-gray-900">Offerr鹅投递决策</h2>
+          <Sparkles className="h-4 w-4 text-[#0052D9]" />
+          <h2 className="text-[16px] font-semibold text-slate-900">Offerr鹅投递决策</h2>
         </div>
-        <p className="text-sm text-gray-500">
-          分析当前岗位与简历的匹配度和投递风险。
+        <p className="text-[12px] leading-5 text-gray-500">
+          基于当前岗位与简历，进行 AI 匹配分析和投递风险提示。
         </p>
       </div>
 
       {loading && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400">
+        <div className="bg-white ring-1 ring-gray-100 rounded-xl p-4 text-center text-xs text-gray-400">
           正在加载岗位详情…
         </div>
       )}
       {!loading && !resumeVm && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+        <div className="bg-amber-50/40 border border-amber-100/60 rounded-xl p-3 text-xs text-amber-700">
           简历数据暂未加载，请先创建或选择一份简历。
         </div>
       )}
 
       {/* Currently Selected Job */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 text-gray-500 text-xs mb-3">
+      <div className="bg-white ring-1 ring-gray-100 rounded-xl p-4">
+        <div className="flex items-center gap-2 text-gray-500 text-[11px] mb-3">
           <Target className="h-3.5 w-3.5" />
           当前岗位
         </div>
-        <h3 className="font-bold text-gray-900 text-sm mb-2">{jobVm?.title || ""}</h3>
+        <h3 className="font-semibold text-gray-900 text-[13px] mb-2">{jobVm?.title || ""}</h3>
         <div className="flex flex-wrap gap-1.5 mb-2.5">
           {jobVm?.typeLabel && <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm.typeLabel}</Badge>}
           {jobVm?.categoryLabel && <Badge variant="secondary" className="text-[10px] px-1.5 font-normal">{jobVm.categoryLabel}</Badge>}
@@ -74,9 +74,9 @@ export function JobDetailAIDecision() {
       </div>
 
       {/* Current Resume Card */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="bg-white ring-1 ring-gray-100 rounded-xl p-4">
         <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center gap-2 text-gray-500 text-xs">
+          <div className="flex items-center gap-2 text-gray-500 text-[11px]">
             <FileText className="h-3.5 w-3.5" />
             当前简历
           </div>
@@ -85,7 +85,7 @@ export function JobDetailAIDecision() {
           </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-bold text-gray-900 text-sm mb-2">{resumeVm?.name || ""}</h3>
+          <h3 className="font-semibold text-gray-900 text-[13px] mb-2">{resumeVm?.name || ""}</h3>
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{resumeVm?.directionLabel || ""}</Badge>
             {resumeVm?.skillTags.slice(0, 4).map((skill) => (
@@ -99,38 +99,37 @@ export function JobDetailAIDecision() {
       </div>
 
       {/* Main Action Card */}
-      <div className="bg-gradient-to-b from-[#F4F8FF] to-white border border-[#0052D9] rounded-lg p-5 text-center mt-2 relative overflow-hidden shadow-sm">
-        <div className="absolute top-0 left-0 w-full h-1 bg-[#0052D9]"></div>
-        <h3 className="font-bold text-gray-900 mb-2 mt-1 text-[15px]">想知道这个岗位适不适合你？</h3>
-        <p className="text-xs text-gray-600 mb-5 leading-relaxed">
+      <div className="bg-[#F4F8FF]/80 border border-blue-200/60 rounded-xl p-5 text-center mt-1">
+        <h3 className="font-semibold text-gray-900 mb-2 text-[14px]">想知道这个岗位适不适合你？</h3>
+        <p className="text-[11px] text-gray-500 mb-4 leading-relaxed">
           系统将基于当前岗位 JD 和所选简历，进行分析和优化。
         </p>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <Button 
-            className="w-full shadow-sm group bg-[#0052D9] hover:bg-[#0040A8] text-white"
+            className="w-full bg-[#0052D9] hover:bg-[#0040A8] text-white text-[13px]"
             onClick={() => setModalAction("match")}
           >
             分析岗位匹配度
-            <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="ml-2 h-3.5 w-3.5" />
           </Button>
           <Button 
             variant="outline"
-            className="w-full shadow-sm group border-[#0052D9] text-[#0052D9] hover:bg-blue-50"
+            className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 text-[13px]"
             onClick={() => setModalAction("optimize")}
           >
             生成简历优化建议
-            <FileEdit className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            <FileEdit className="ml-2 h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
       {/* Pre-delivery Tip Card */}
-      <div className="bg-orange-50/50 border border-orange-100 rounded-lg p-4 mt-2">
-        <div className="flex items-center gap-2 text-orange-800 font-medium mb-3 text-xs">
+      <div className="bg-orange-50/30 border border-orange-100/50 rounded-xl p-4 mt-1">
+        <div className="flex items-center gap-2 text-orange-800 font-medium mb-2.5 text-[11px]">
           <ShieldAlert className="h-3.5 w-3.5" />
           分析前建议确认
         </div>
-        <ul className="text-[11px] text-orange-700/80 space-y-2 list-disc pl-4 marker:text-orange-300">
+        <ul className="text-[11px] text-orange-700/70 space-y-1.5 list-disc pl-4 marker:text-orange-300">
           <li>当前简历是否为目标方向版本</li>
           <li>项目经历是否完整</li>
           <li>技能关键词是否覆盖后端方向</li>
