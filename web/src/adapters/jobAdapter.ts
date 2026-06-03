@@ -157,6 +157,7 @@ export function toJobDetailViewModelFromApi(job?: JobApiItem | null): JobDetailV
     locations: job.locations ?? [],
     interviewLocations: job.interview_locations ?? [],
     skills: job.skills ?? [],
+    deliveryNotes: job.delivery_notes ?? undefined,
     externalId: job.external_id ?? '',
     sourceName: job.source_name ?? '',
   };

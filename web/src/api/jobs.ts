@@ -12,6 +12,7 @@ export interface JobApiItem {
   skill_keywords: string[]; skills?: string[];
   responsibilities?: string[]; must_have?: string[]; nice_to_have?: string[];
   bonus_points?: string[]; notes?: string[];
+  delivery_notes?: string;
   organizations?: { code: string; name: string }[];
   locations?: string[]; interview_locations?: string[];
   status: string; external_source?: string; external_id?: string;
