@@ -24,7 +24,7 @@ export function JobHeroBanner() {
       <div className="absolute bottom-10 right-1/4 h-[200px] w-[200px] rounded-full bg-white/5 blur-2xl pointer-events-none" />
 
       {/* 内容区 */}
-      <div className="relative z-10 mx-auto flex max-w-[1440px] flex-col gap-8 px-5 py-10 sm:px-8 lg:min-h-[340px] lg:flex-row lg:items-center lg:px-12">
+      <div className="relative z-10 mx-auto flex max-w-[1440px] flex-col gap-8 px-5 pt-24 pb-14 sm:px-8 lg:min-h-[380px] lg:flex-row lg:items-center lg:px-12">
         
         {/* ── 左侧文案 ── */}
         <div className="flex-1 max-w-2xl">
@@ -44,7 +44,7 @@ export function JobHeroBanner() {
                 '"Alimama ShuHeiTi", "HarmonyOS Sans SC", "MiSans", "Source Han Sans SC", "Noto Sans SC", "Inter", system-ui, sans-serif',
             }}
           >
-            Offerr鹅 2026 实习生招聘
+            Offerr鹅 「Offer 捕手」学生求职匹配智能体
           </h1>
 
           {/* 副标题 */}
