@@ -32,6 +32,11 @@ export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
   if (loading) return <div className="bg-[#0052D9] text-white text-center py-12 text-sm">正在加载岗位详情…</div>;
   if (!jobVm) return <div className="bg-blue-50 text-gray-500 text-center py-12 text-sm">岗位不存在或已下线</div>;
 
+  // 核心标签：岗位大类（jobTypeLabel="技术"） + 招聘项目（applicationType="应届实习"），去重
+  const heroTags = Array.from(
+    new Set([jobVm.jobTypeLabel, jobVm.applicationType].filter(Boolean))
+  );
+
   return (
     <div className="w-full bg-[#0052D9] relative overflow-hidden text-white">
       {/* 背景渐变 */}
@@ -54,24 +59,22 @@ export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
         {/* 岗位标题 */}
         <h1 className="text-[28px] md:text-[32px] font-bold mb-3 tracking-tight">{jobVm.title}</h1>
 
-        {/* 核心标签：岗位类别 + 招聘项目 + 方向 */}
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          {jobVm.category && (
-            <Badge className="bg-white/15 text-white border-white/10 px-2.5 py-0.5 rounded-sm font-medium">
-              {jobVm.category}
-            </Badge>
-          )}
-          {jobVm.applicationType && (
-            <Badge className="bg-white/10 text-white border-transparent px-2.5 py-0.5 rounded-sm">
-              {jobVm.applicationType}
-            </Badge>
-          )}
-          {jobVm.direction && (
-            <Badge className="bg-white/10 text-white border-transparent px-2.5 py-0.5 rounded-sm">
-              {jobVm.direction}
-            </Badge>
-          )}
-        </div>
+        {/* 核心标签：岗位大类 + 招聘项目 */}
+        {heroTags.length > 0 && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            {heroTags.map((tag, idx) => (
+              <Badge
+                key={tag}
+                className={idx === 0
+                  ? "bg-white/15 text-white border-white/10 px-2.5 py-0.5 rounded-sm font-medium"
+                  : "bg-white/10 text-white border-transparent px-2.5 py-0.5 rounded-sm"
+                }
+              >
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         {/* Slogan */}
         {jobVm.slogan && (
