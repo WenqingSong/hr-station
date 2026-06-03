@@ -7,9 +7,9 @@ import type { ReactNode } from "react";
  * - 左侧主内容 + 右侧 aside 的响应式两栏布局
  * - 不关心业务类型，只接收 children 和 aside
  *
- * 响应式规则：
- * - lg+：两列 grid，主内容 minmax(0,1fr)，右侧栏 320px~340px
- * - <lg：单列，aside 放在 children 下方
+ * 响应式规则（K8-5-3 调整）：
+ * - xl+（≥1280px）：两列 grid，主内容 minmax(0,1fr)，右侧栏 340px
+ * - <xl：单列，aside 放在 children 下方
  *
  * 注意：
  * - min-w-0 防止 grid 溢出
@@ -36,8 +36,8 @@ export function TwoColumnPageShell({
   asideClassName = "",
 }: TwoColumnPageShellProps) {
   return (
-    <div className={`mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 ${className}`}>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 items-start">
+    <div className={`mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 overflow-x-hidden ${className}`}>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-8 items-start">
         {/* 左侧主内容 */}
         <div className={`min-w-0 ${contentClassName}`}>{children}</div>
 
