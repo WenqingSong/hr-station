@@ -29,6 +29,7 @@ type JobListRequest struct {
 	BusinessGroups  []string
 	Skills          []string
 	JobCategories   []string
+	JobTypes        []string // R2: 父级类别映射到 job_type
 	Limit              int
 	Offset             int
 }
@@ -181,6 +182,7 @@ func (s *JobService) List(ctx context.Context, req JobListRequest) (*JobListResp
 		BusinessGroups:     req.BusinessGroups,
 		Skills:             req.Skills,
 		JobCategories:      req.JobCategories,
+		JobTypes:           req.JobTypes,
 		Limit:              req.Limit,
 		Offset:             req.Offset,
 	}

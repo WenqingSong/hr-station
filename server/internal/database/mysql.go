@@ -17,7 +17,6 @@ type MySQL struct {
 }
 
 // NewMySQL creates a new MySQL connection using the provided DatabaseConfig.
-// It validates the DSN, opens the connection, and configures the connection pool.
 func NewMySQL(cfg config.DatabaseConfig) (*MySQL, error) {
 	if cfg.DSN == "" {
 		return nil, fmt.Errorf("database DSN is empty")

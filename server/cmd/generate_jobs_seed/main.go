@@ -355,6 +355,9 @@ func main() {
 -- 重新生成: cd server && go run ./cmd/generate_jobs_seed --input ../resources/jobs/tencent-campus-jobs.json --output ./sql/seed/tencent_jobs.sql
 -- ============================================================
 
+-- K8-4-3-R2: 确保导入时使用 utf8mb4 编码
+SET NAMES utf8mb4;
+
 START TRANSACTION;
 
 -- ── 1. 清理旧 curated / mock 数据 ──

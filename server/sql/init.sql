@@ -1,9 +1,11 @@
 -- ============================================================
 -- Offer 捕手 - 数据库初始化脚本
+-- K8-4-3-R2: 确保导入时使用 utf8mb4 编码
+SET NAMES utf8mb4;
+-- ============================================================
 -- 阶段 3-2：表结构与种子数据
--- 阶段 4-1.3.1：jobs 表扩展（新增 external_source / external_id / raw_json / data_quality 等字段）
--- 阶段 10-P-4-1：新增 resume_optimization_results 表（修复 P0 表缺失）
--- 阶段 J1：jobs 表结构重构以支持 46 条岗位样本库（新增 application_type / slogan / summary / JSON 子字段 / 关联表）
+-- 阶段 4-1.3.1：jobs 表扩展
+-- 阶段 J1：jobs 表结构重构
 -- MySQL 8.0 / InnoDB / utf8mb4
 --
 -- 约定：

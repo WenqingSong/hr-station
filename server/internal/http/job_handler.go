@@ -68,11 +68,20 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// K8-4-3: 解析多选参数（逗号分隔）
+	// K8-4-3-R2: 解析多选参数，将 job_category 映射到正确的列
+	parentTypes := map[string]bool{"技术": true, "产品": true, "设计": true, "市场": true, "职能": true}
 	citiesArr := service.ParseCommaSeparated(city)
 	businessGroupsArr := service.ParseCommaSeparated(businessGroup)
 	skillsArr := service.ParseCommaSeparated(skill)
-	jobCategoriesArr := service.ParseCommaSeparated(q.Get("job_category"))
+	jobCatRaw := service.ParseCommaSeparated(q.Get("job_category"))
+	var jobCategoriesArr, jobTypesArr []string
+	for _, v := range jobCatRaw {
+		if parentTypes[v] {
+			jobTypesArr = append(jobTypesArr, v)
+		} else {
+			jobCategoriesArr = append(jobCategoriesArr, v)
+		}
+	}
 
 	resp, err := h.jobService.List(r.Context(), service.JobListRequest{
 		Keyword:            keyword,
@@ -90,6 +99,7 @@ func (h *JobHandler) List(w http.ResponseWriter, r *http.Request) {
 		BusinessGroups:     businessGroupsArr,
 		Skills:             skillsArr,
 		JobCategories:      jobCategoriesArr,
+		JobTypes:           jobTypesArr,
 		Limit:              limit,
 		Offset:             offset,
 	})

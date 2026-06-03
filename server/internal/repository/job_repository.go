@@ -27,6 +27,7 @@ type JobQuery struct {
 	BusinessGroups  []string
 	Skills          []string
 	JobCategories   []string
+	JobTypes        []string // R2
 	Limit              int
 	Offset             int
 }
@@ -270,17 +271,11 @@ func scanFacets(rows *sql.Rows) ([]FacetItem, error) {
 
 func (r *JobRepository) buildJoinClause(query JobQuery) string {
 	var joins []string
-	if query.City != "" || len(query.Cities) > 0 {
-		joins = append(joins, " INNER JOIN job_filter_option_relations jf_city ON jobs.id = jf_city.job_id INNER JOIN job_filter_options jfo_city ON jf_city.option_id = jfo_city.id")
-	}
 	if query.BusinessGroup != "" || len(query.BusinessGroups) > 0 {
-		joins = append(joins, " INNER JOIN job_filter_option_relations jf_bg ON jobs.id = jf_bg.job_id INNER JOIN job_filter_options jfo_bg ON jf_bg.option_id = jfo_bg.id")
+		joins = append(joins, " INNER JOIN job_business_groups jbg ON jobs.id = jbg.job_id")
 	}
 	if query.Skill != "" || len(query.Skills) > 0 {
-		joins = append(joins, " INNER JOIN job_filter_option_relations jf_sk ON jobs.id = jf_sk.job_id INNER JOIN job_filter_options jfo_sk ON jf_sk.option_id = jfo_sk.id")
-	}
-	if len(query.JobCategories) > 0 {
-		joins = append(joins, " INNER JOIN job_filter_option_relations jf_cat ON jobs.id = jf_cat.job_id INNER JOIN job_filter_options jfo_cat ON jf_cat.option_id = jfo_cat.id")
+		joins = append(joins, " INNER JOIN job_skills js ON jobs.id = js.job_id")
 	}
 	return strings.Join(joins, " ")
 }
@@ -295,7 +290,6 @@ func (r *JobRepository) buildWhereClause(ctx context.Context, query JobQuery) (s
 		like := "%" + query.Keyword + "%"
 		args = append(args, like, like, like, like)
 	}
-
 	if query.Direction != "" {
 		conditions = append(conditions, "jobs.direction = ?")
 		args = append(args, query.Direction)
@@ -325,112 +319,39 @@ func (r *JobRepository) buildWhereClause(ctx context.Context, query JobQuery) (s
 		args = append(args, query.ExternalSource)
 	}
 
-	// 旧单值参数兼容：直接使用单值匹配
-	if query.City != "" && len(query.Cities) == 0 {
-		conditions = append(conditions, "jfo_city.group_id = (SELECT id FROM job_filter_groups WHERE code = 'city') AND jfo_city.value = ?")
-		args = append(args, query.City)
-		hasJoin = true
-	}
-	if query.BusinessGroup != "" && len(query.BusinessGroups) == 0 {
-		conditions = append(conditions, "jfo_bg.group_id = (SELECT id FROM job_filter_groups WHERE code = 'business_group') AND jfo_bg.value = ?")
-		args = append(args, query.BusinessGroup)
-		hasJoin = true
-	}
-	if query.Skill != "" && len(query.Skills) == 0 {
-		conditions = append(conditions, "jfo_sk.group_id = (SELECT id FROM job_filter_groups WHERE code = 'skill') AND jfo_sk.value = ?")
-		args = append(args, query.Skill)
-		hasJoin = true
-	}
-
-	// K8-4-3: 新多选参数 — 同组 OR
+	// 多选筛选参数（使用 ? 占位符）
 	if len(query.Cities) > 0 {
-		if len(query.Cities) == 1 {
-			conditions = append(conditions, "jfo_city.group_id = (SELECT id FROM job_filter_groups WHERE code = 'city') AND jfo_city.value = ?")
-			args = append(args, query.Cities[0])
-		} else {
-			placeholders := make([]string, len(query.Cities))
-			for i, c := range query.Cities {
-				placeholders[i] = "?"
-				args = append(args, c)
-			}
-			conditions = append(conditions, "jfo_city.group_id = (SELECT id FROM job_filter_groups WHERE code = 'city') AND jfo_city.value IN ("+strings.Join(placeholders, ",")+")")
-		}
-		hasJoin = true
+		phs := make([]string, len(query.Cities))
+		for i, c := range query.Cities { phs[i] = "?"; args = append(args, c) }
+		conditions = append(conditions, "jobs.city IN ("+strings.Join(phs, ",")+")")
 	}
 	if len(query.BusinessGroups) > 0 {
-		if len(query.BusinessGroups) == 1 {
-			conditions = append(conditions, "jfo_bg.group_id = (SELECT id FROM job_filter_groups WHERE code = 'business_group') AND jfo_bg.value = ?")
-			args = append(args, query.BusinessGroups[0])
-		} else {
-			placeholders := make([]string, len(query.BusinessGroups))
-			for i, bg := range query.BusinessGroups {
-				placeholders[i] = "?"
-				args = append(args, bg)
-			}
-			conditions = append(conditions, "jfo_bg.group_id = (SELECT id FROM job_filter_groups WHERE code = 'business_group') AND jfo_bg.value IN ("+strings.Join(placeholders, ",")+")")
-		}
+		phs := make([]string, len(query.BusinessGroups))
+		for i, bg := range query.BusinessGroups { phs[i] = "?"; args = append(args, bg) }
+		conditions = append(conditions, "jbg.code IN ("+strings.Join(phs, ",")+")")
 		hasJoin = true
 	}
 	if len(query.Skills) > 0 {
-		if len(query.Skills) == 1 {
-			conditions = append(conditions, "jfo_sk.group_id = (SELECT id FROM job_filter_groups WHERE code = 'skill') AND jfo_sk.value = ?")
-			args = append(args, query.Skills[0])
-		} else {
-			placeholders := make([]string, len(query.Skills))
-			for i, sk := range query.Skills {
-				placeholders[i] = "?"
-				args = append(args, sk)
-			}
-			conditions = append(conditions, "jfo_sk.group_id = (SELECT id FROM job_filter_groups WHERE code = 'skill') AND jfo_sk.value IN ("+strings.Join(placeholders, ",")+")")
-		}
+		phs := make([]string, len(query.Skills))
+		for i, sk := range query.Skills { phs[i] = "?"; args = append(args, sk) }
+		conditions = append(conditions, "js.skill IN ("+strings.Join(phs, ",")+")")
 		hasJoin = true
 	}
-
-	// 岗位类别筛选（支持父级包含子级）
 	if len(query.JobCategories) > 0 {
-		// 递归查找：选中项自己 + 所有子项的 option_id
-		childIDs := r.resolveCategoryWithChildren(ctx, query.JobCategories)
-		if len(childIDs) > 0 {
-			placeholders := make([]string, len(childIDs))
-			for i, id := range childIDs {
-				placeholders[i] = "?"
-				args = append(args, id)
-			}
-			conditions = append(conditions, "jfo_cat.option_id IN ("+strings.Join(placeholders, ",")+")")
-			hasJoin = true
-		}
+		phs := make([]string, len(query.JobCategories))
+		for i, cat := range query.JobCategories { phs[i] = "?"; args = append(args, cat) }
+		conditions = append(conditions, "jobs.category IN ("+strings.Join(phs, ",")+")")
+	}
+	if len(query.JobTypes) > 0 {
+		phs := make([]string, len(query.JobTypes))
+		for i, jt := range query.JobTypes { phs[i] = "?"; args = append(args, jt) }
+		conditions = append(conditions, "jobs.job_type IN ("+strings.Join(phs, ",")+")")
 	}
 
 	if len(conditions) > 0 {
 		return " WHERE " + strings.Join(conditions, " AND "), args, hasJoin
 	}
 	return "", args, hasJoin
-}
-
-// resolveCategoryWithChildren 查找类别及其所有子选项的 option_id
-func (r *JobRepository) resolveCategoryWithChildren(ctx context.Context, values []string) []int {
-	var ids []int
-	for _, v := range values {
-		var optID int
-		err := r.db.QueryRowContext(ctx, "SELECT id FROM job_filter_options WHERE group_id = (SELECT id FROM job_filter_groups WHERE code = 'job_category') AND value = ? AND visible = 1", v).Scan(&optID)
-		if err != nil {
-			continue
-		}
-		ids = append(ids, optID)
-		// 找到所有子选项
-		childRows, err := r.db.QueryContext(ctx, "SELECT id FROM job_filter_options WHERE parent_option_id = ? AND visible = 1", optID)
-		if err != nil {
-			continue
-		}
-		for childRows.Next() {
-			var cid int
-			if childRows.Scan(&cid) == nil {
-				ids = append(ids, cid)
-			}
-		}
-		childRows.Close()
-	}
-	return ids
 }
 
 func (r *JobRepository) ListRecommendCandidates(ctx context.Context, limit int) ([]*model.Job, error) {
