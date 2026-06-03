@@ -9,7 +9,7 @@ export function Navbar() {
   const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [isTop, setIsTop] = useState(true);
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
 
@@ -26,7 +26,7 @@ export function Navbar() {
     return () => window.removeEventListener("storage", checkAuth);
   }, []);
 
-  // 滚动隐藏 / 显示 + 顶部透明状态
+  // 滚动隐藏 / 显示 + 顶部判定
   useEffect(() => {
     const handleScroll = () => {
       if (!ticking.current) {
@@ -40,7 +40,7 @@ export function Navbar() {
           if (currentScrollY <= 20) {
             setHidden(false);
           }
-          setScrolled(currentScrollY > 10);
+          setIsTop(currentScrollY <= 80);
           lastScrollY.current = currentScrollY;
           ticking.current = false;
         });
@@ -62,22 +62,45 @@ export function Navbar() {
     fontFamily:
       '"Alimama ShuHeiTi", "HarmonyOS Sans SC", "MiSans", "Source Han Sans SC", "Noto Sans SC", "Inter", system-ui, sans-serif',
     letterSpacing: "-0.02em",
+    ...(isTop ? { textShadow: "0 1px 12px rgba(0,0,0,0.18)" } : {}),
   };
+
+  // 顶部：深色透明玻璃悬浮在 Banner 上，白字
+  const navSurfaceClass = isTop
+    ? "border-white/10 bg-slate-950/18 text-white shadow-none backdrop-blur-md backdrop-saturate-150"
+    : "border-slate-200/40 bg-white/58 text-slate-950 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl backdrop-saturate-150";
+
+  const brandTextClass = isTop
+    ? "text-white"
+    : "text-slate-950";
+
+  const linkClass = isTop
+    ? "text-white/88 hover:text-white"
+    : "text-slate-700 hover:text-slate-950";
+
+  const logoutLinkClass = isTop
+    ? "text-white/72 hover:text-white"
+    : "text-slate-500 hover:text-slate-950";
+
+  const loginButtonClass = isTop
+    ? "rounded-full border border-white/25 bg-white/8 px-4 py-2 text-sm font-medium text-white/92 backdrop-blur transition hover:bg-white/14 hover:text-white"
+    : "rounded-full border border-slate-200/70 bg-white/50 px-4 py-2 text-sm font-medium text-slate-700 backdrop-blur transition hover:bg-white/80 hover:text-slate-950";
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 h-16 transition-all duration-300 ease-out border-b ${
-        hidden ? "-translate-y-full" : "translate-y-0"
-      } ${
-        scrolled
-          ? "bg-white/75 backdrop-blur-xl border-white/20 shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
-          : "bg-white/40 backdrop-blur-md border-white/10"
-      }`}
+      className={[
+        "fixed inset-x-0 top-0 z-50",
+        "h-16 md:h-[68px]",
+        "border-b",
+        "transition-[transform,background-color,border-color,box-shadow,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        hidden ? "-translate-y-[110%]" : "translate-y-0",
+        navSurfaceClass,
+      ].join(" ")}
     >
       <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-6 md:px-8">
         <Link
           to="/jobs"
-          className="text-[20px] md:text-[22px] font-extrabold text-slate-900"
+          className={`text-[22px] font-extrabold tracking-[-0.03em] ${brandTextClass}`}
           style={brandFontStyle}
           aria-label="Offer 捕手首页"
         >
@@ -89,14 +112,14 @@ export function Navbar() {
             <>
               <Link
                 to="/resumes"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-[#0052D9]"
+                className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${linkClass}`}
               >
                 <FileText className="h-4 w-4" />
                 我的简历
               </Link>
               <button
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-[#0052D9]"
+                className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${logoutLinkClass}`}
               >
                 <LogOut className="h-4 w-4" />
                 退出
@@ -105,7 +128,7 @@ export function Navbar() {
           ) : (
             <Link
               to="/login"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-[#0052D9]"
+              className={`inline-flex items-center gap-1.5 ${loginButtonClass}`}
             >
               <LogIn className="h-4 w-4" />
               登录
