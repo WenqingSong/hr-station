@@ -6,6 +6,7 @@ SET NAMES utf8mb4;
 -- 阶段 3-2：表结构与种子数据
 -- 阶段 4-1.3.1：jobs 表扩展
 -- 阶段 J1：jobs 表结构重构
+-- 阶段 K8-5-22-A：resume_versions 表 V2 字段扩展
 -- MySQL 8.0 / InnoDB / utf8mb4
 --
 -- 约定：
@@ -70,6 +71,23 @@ CREATE TABLE `resume_versions` (
   `experience_json` JSON             NULL,
   `project_json`    JSON             NULL,
   `skills_json`     JSON             NULL,
+  -- V2 新增字段 (K8-5-22-A)：schema_version + 摘要结构化列 + 模块 JSON 字段
+  -- 旧 V1 字段全部保留，V2 字段与 V1 字段并存
+  `schema_version`   INTEGER          NOT NULL DEFAULT 1     COMMENT 'schema版本：1=V1旧版 2=V2新版',
+  `target_direction` VARCHAR(100)     NOT NULL DEFAULT ''    COMMENT '目标方向（摘要列）',
+  `job_type`         VARCHAR(50)      NOT NULL DEFAULT ''    COMMENT '岗位类型（摘要列）',
+  `expected_cities`  VARCHAR(255)     NOT NULL DEFAULT ''    COMMENT '期望城市逗号分隔（摘要列）',
+  `school`           VARCHAR(100)     NOT NULL DEFAULT ''    COMMENT '学校（摘要列）',
+  `degree`           VARCHAR(20)      NOT NULL DEFAULT ''    COMMENT '学历（摘要列）',
+  `major`            VARCHAR(100)     NOT NULL DEFAULT ''    COMMENT '专业（摘要列）',
+  `graduation_year`  VARCHAR(10)      NOT NULL DEFAULT ''    COMMENT '毕业时间（摘要列）',
+  `profile_json`       JSON           NULL                   COMMENT '基础信息 JSON',
+  `job_intention_json` JSON           NULL                   COMMENT '求职意向 JSON',
+  `internship_json`    JSON           NULL                   COMMENT '实习经历 JSON（V2新增，与experience_json并存）',
+  `certificates_json`  JSON           NULL                   COMMENT '证书与语言 JSON',
+  `awards_json`        JSON           NULL                   COMMENT '获奖与竞赛 JSON',
+  `portfolio_json`     JSON           NULL                   COMMENT '作品链接 JSON',
+  `extra_json`         JSON           NULL                   COMMENT '补充信息 JSON（self_evaluation以列+JSON双存）',
   `self_evaluation` TEXT             NULL,
   `raw_text`        TEXT             NULL,
   `created_at`      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
