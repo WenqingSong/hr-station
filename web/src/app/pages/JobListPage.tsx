@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { JobFilterSidebar, type JobFilters } from "../components/JobFilterSidebar";
 import { JobList } from "../components/JobList";
+import { JobHeroBanner } from "../components/JobHeroBanner";
 import { AIDecisionWorkspace } from "../components/AIDecisionWorkspace";
 import type { JobListParams } from "../../api/jobs";
 
@@ -112,7 +113,10 @@ export function JobListPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6">
-        <div className="flex gap-6 items-start">
+        {/* K8-4-4-R12：顶部 Hero Banner */}
+        <JobHeroBanner />
+
+        <div className="flex gap-6 items-start mt-6">
           <JobFilterSidebar
             keyword={keyword}
             onKeywordChange={setKeyword}
