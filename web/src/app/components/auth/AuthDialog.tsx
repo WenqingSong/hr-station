@@ -135,11 +135,11 @@ export function AuthDialog({
 
         {/* K8-5-17-A：镜头聚焦 Content — 动画外壳（overflow-hidden 防滚动条闪烁） */}
         <div
-          className="fixed top-[50%] left-[50%] z-50 w-[min(92vw,420px)] max-h-[min(88vh,720px)] translate-x-[-50%] translate-y-[-50%] rounded-3xl border-0 bg-white/88 backdrop-blur-xl ring-1 ring-white/60 shadow-[0_24px_80px_rgba(15,23,42,0.22)] overflow-hidden data-[state=open]:animate-auth-dialog-in data-[state=closed]:animate-auth-dialog-out"
+          className="fixed top-[50%] left-[50%] z-50 w-[min(92vw,420px)] max-h-[min(92vh,720px)] translate-x-[-50%] translate-y-[-50%] rounded-3xl border-0 bg-white/88 backdrop-blur-xl ring-1 ring-white/60 shadow-[0_24px_80px_rgba(15,23,42,0.22)] overflow-hidden data-[state=open]:animate-auth-dialog-in data-[state=closed]:animate-auth-dialog-out"
           style={{ backgroundColor: "rgba(255,255,255,0.88)" }}
         >
-          {/* 滚动容器：与动画外壳分离，避免 scale/blur 动画引起滚动条闪烁 */}
-          <div className="max-h-[min(88vh,720px)] overflow-y-auto overscroll-contain">
+          {/* 滚动容器：auth-dialog-scroll 隐藏滚动条视觉 + 保留滚动能力 */}
+          <div className="auth-dialog-scroll max-h-[min(92vh,720px)] overflow-y-auto overflow-x-hidden overscroll-contain">
           {/* ── Close button (top-right) ── */}
           <button
             type="button"

@@ -336,3 +336,17 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   display: none !important;
   pointer-events: none;
 }
+
+/* ── K8-5-19-B：AuthDialog 内部滚动条隐藏（保留滚动能力） ────────────────── */
+/* 防止弹窗打开/切换模式时 max-h 边界触发滚动条闪烁 */
+
+.auth-dialog-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.auth-dialog-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
