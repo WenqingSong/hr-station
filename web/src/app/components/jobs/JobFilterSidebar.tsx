@@ -49,7 +49,7 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
   const useLegacy = groups.length === 0 && facets !== null;
 
   return (
-    <aside className="w-[260px] shrink-0">
+    <aside className="w-full xl:w-[260px]">
       <div className="bg-white rounded-2xl overflow-hidden">
         {/* Search */}
         <div className="p-4 pb-2">

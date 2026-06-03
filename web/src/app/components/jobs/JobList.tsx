@@ -42,7 +42,7 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
   }, [params.keyword, params.direction, params.city, params.recruit_type, params.category, params.business_group, params.skill, params.job_category, params.application_project, params.application_subtype, params.page]);
 
   return (
-    <main className="flex-1 max-w-[820px] pb-24">
+    <main className="min-w-0 w-full pb-24">
       {/* ── 第 2 层：岗位列表大容器 ── */}
       <div className="bg-[#F0F2F5] rounded-[24px] p-5 sm:p-6">
 
