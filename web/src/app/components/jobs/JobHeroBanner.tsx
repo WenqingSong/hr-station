@@ -43,7 +43,7 @@ export function JobHeroBanner() {
                 '"Alimama ShuHeiTi", "HarmonyOS Sans SC", "MiSans", "Source Han Sans SC", "Noto Sans SC", "Inter", system-ui, sans-serif',
             }}
           >
-            Offerr鹅 「Offer 捕手」学生求职匹配智能体
+            Offerr鹅 学生求职匹配智能体
           </h1>
 
           {/* 副标题 */}

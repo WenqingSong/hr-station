@@ -3,6 +3,7 @@ import { FileText, LogIn, LogOut } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { getAuthToken, clearAuthToken } from "../../api/authStorage";
 import { logout } from "../../api/auth";
+import { AuthDialog } from "./auth/AuthDialog";
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [isTop, setIsTop] = useState(true);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
 
@@ -51,6 +53,10 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const handleAuthSuccess = () => {
+    setIsLoggedIn(Boolean(getAuthToken()));
+  };
+
   async function handleLogout() {
     try { await logout(); } catch (_) { /* ignore if API fails */ }
     clearAuthToken();
@@ -84,6 +90,7 @@ export function Navbar() {
     : "rounded-full border border-slate-200/70 bg-white/50 px-4 py-2 text-sm font-medium text-slate-700 backdrop-blur transition hover:bg-white/80 hover:text-slate-950";
 
   return (
+    <>
     <nav
       className={[
         "fixed inset-x-0 top-0 z-50",
@@ -123,16 +130,26 @@ export function Navbar() {
               </button>
             </>
           ) : (
-            <Link
-              to="/login"
+            <button
+              type="button"
+              onClick={() => setAuthDialogOpen(true)}
               className={`inline-flex items-center gap-1.5 ${loginButtonClass}`}
             >
               <LogIn className="h-4 w-4" />
               登录
-            </Link>
+            </button>
           )}
         </div>
       </div>
     </nav>
+
+    {/* K8-5-13-D：登录弹窗 */}
+    <AuthDialog
+      open={authDialogOpen}
+      onOpenChange={setAuthDialogOpen}
+      defaultMode="login"
+      onLoginSuccess={handleAuthSuccess}
+    />
+    </>
   );
 }
