@@ -130,12 +130,9 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
               id={job.id}
               title={job.title}
               jobTypeLabel={job.jobTypeLabel}
-              typeLabel={job.typeLabel}
-              direction={job.direction}
+              applicationType={job.applicationType}
               organizationCodes={job.organizationCodes || []}
               locations={job.locationsList}
-              description={job.shortDescription}
-              statusLabel={job.statusLabel}
             />
           </div>
         ))}

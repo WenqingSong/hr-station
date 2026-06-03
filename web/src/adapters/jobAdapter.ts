@@ -49,14 +49,18 @@ export interface JobDetailViewModel extends JobCardViewModel {
 
 // ─── 标签映射（对齐后端 seed 数据值）─────────────────────────────────────────────
 
-const RECRUIT_TYPE_LABELS: Record<string, string> = {
-  '校招': '校园招聘',
-  '实习': '实习生',
-  '提前批': '提前批',
+// K8-4-4-R6: application_type 中文映射（用于卡片元信息行）
+const APPLICATION_TYPE_DISPLAY: Record<string, string> = {
+  '应届实习': '应届实习',
+  '日常实习': '日常实习',
+  '校园招聘': '校园招聘',
+  '社会招聘': '社会招聘',
+  '社招': '社会招聘',
 };
 
 const STATUS_LABELS: Record<string, string> = {
   'active': '招聘中',
+  'open': '招聘中',
 };
 
 // ─── 后端原始类型 → ViewModel ──────────────────────────────────────────────────
@@ -107,7 +111,8 @@ export function toJobCardViewModelFromApi(job: JobApiItem): JobCardViewModel {
     shortDescription: typeof job.description === "string" ? job.description : '',
     statusLabel: STATUS_LABELS[job.status] || job.status,
     categoryLabel: job.category,
-    typeLabel: RECRUIT_TYPE_LABELS[job.recruit_type] || job.recruit_type || '',
+    // K8-4-4-R6: typeLabel 改用 application_type（不再依赖有 bug 的 recruit_type）
+    typeLabel: APPLICATION_TYPE_DISPLAY[job.application_type || ''] || job.application_type || '',
     direction: job.direction || '',
     applicationType: job.application_type || '',
     jobTypeLabel: job.job_type || '',
