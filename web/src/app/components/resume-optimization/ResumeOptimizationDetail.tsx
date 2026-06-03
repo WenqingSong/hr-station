@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Activity, Wrench, Sparkles, AlertCircle, RefreshCw, FileEdit, CheckCircle2, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "./ui/Button";
-import { Badge } from "./ui/Badge";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
 import { useNavigate } from "react-router";
-import type { ResumeOptimizationPageViewModel } from "../../adapters";
+import type { ResumeOptimizationPageViewModel } from "../../../adapters";
 
 interface ResumeOptimizationDetailProps {
   currentJobId?: string;

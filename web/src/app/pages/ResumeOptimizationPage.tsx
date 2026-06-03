@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
-import { ResumeOptimizationHeader } from "../components/ResumeOptimizationHeader";
-import { ResumeOptimizationSidebarLeft } from "../components/ResumeOptimizationSidebarLeft";
-import { ResumeOptimizationDetail } from "../components/ResumeOptimizationDetail";
-import { ResumeOptimizationSidebarRight } from "../components/ResumeOptimizationSidebarRight";
+import { ResumeOptimizationHeader } from "../components/resume-optimization/ResumeOptimizationHeader";
+import { ResumeOptimizationSidebarLeft } from "../components/resume-optimization/ResumeOptimizationSidebarLeft";
+import { ResumeOptimizationDetail } from "../components/resume-optimization/ResumeOptimizationDetail";
+import { ResumeOptimizationSidebarRight } from "../components/resume-optimization/ResumeOptimizationSidebarRight";
 import { loadResumeOptimizationViewModel, loadResumeOptionViewModelsFromApi, loadResumeVersionDetail } from "../../api";
 import { getJobDetail } from "../../api/jobs";
 import type { JobApiItem } from "../../api/jobs";
