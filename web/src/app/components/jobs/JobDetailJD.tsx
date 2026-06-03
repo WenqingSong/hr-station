@@ -71,9 +71,6 @@ export function JobDetailJD() {
   const hasBonusPoints = jobVm.bonusPoints.length > 0;
   const hasInterviewLocations = jobVm.interviewLocations.length > 0;
   const hasOrganizations = jobVm.organizations.length > 0;
-  const hasSkills = jobVm.skills && jobVm.skills.length > 0;
-  const skillsToShow = hasSkills ? jobVm.skills.slice(0, 12) : [];
-  const skillsRemaining = hasSkills && jobVm.skills.length > 12 ? jobVm.skills.length - 12 : 0;
 
   // 标题样式：纯文字无装饰
   const sectionTitle = "text-[18px] font-semibold text-gray-900 mb-4";
@@ -153,28 +150,6 @@ export function JobDetailJD() {
             </section>
           )}
 
-          {/* ── 技能关键词（Offerr鹅增强，弱化展示） ── */}
-          {hasSkills && (
-            <section>
-              <h2 className={sectionTitle}>技能关键词</h2>
-              <div className="flex flex-wrap gap-1.5">
-                {skillsToShow.map((skill) => (
-                  <span
-                    key={skill}
-                    className="inline-flex items-center px-2 py-0.5 bg-gray-50 text-gray-500 text-[12px] rounded border border-gray-100"
-                  >
-                    {skill}
-                  </span>
-                ))}
-                {skillsRemaining > 0 && (
-                  <span className="inline-flex items-center px-2 py-0.5 text-gray-400 text-[12px]">
-                    +{skillsRemaining}
-                  </span>
-                )}
-              </div>
-            </section>
-          )}
-
           {/* ── 投递说明（Offerr鹅增强，弱化展示） ── */}
           <section className="bg-blue-50/40 border border-blue-100/40 rounded-lg p-4">
             <h2 className="text-[13px] font-semibold text-gray-700 mb-1.5">投递说明</h2>
@@ -216,17 +191,6 @@ export function JobDetailJD() {
         </div>
       )}
 
-      {/* ================================================================ */}
-      {/* 投递简历 CTA（UI only） */}
-      {/* ================================================================ */}
-      <div className="mt-4">
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-full bg-[#0052D9] px-8 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#0040A8]"
-        >
-          投递简历
-        </button>
-      </div>
     </div>
   );
 }

@@ -23,6 +23,7 @@ export function JobDetailPage() {
       <TwoColumnPageShell
         maxWidthClassName="max-w-[1280px]"
         gridColumnsClassName="xl:grid-cols-[minmax(0,1fr)_320px]"
+        className="pt-8 md:pt-10"
         contentClassName="space-y-6"
         aside={
           <AISidebarShell>
