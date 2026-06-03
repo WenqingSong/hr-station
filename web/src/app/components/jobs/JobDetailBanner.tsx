@@ -54,11 +54,11 @@ export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
         {/* 岗位标题 */}
         <h1 className="text-[28px] md:text-[32px] font-bold mb-3 tracking-tight">{jobVm.title}</h1>
 
-        {/* 核心标签 */}
+        {/* 核心标签：岗位类别 + 招聘项目 + 方向 */}
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          {jobVm.typeLabel && (
+          {jobVm.category && (
             <Badge className="bg-white/15 text-white border-white/10 px-2.5 py-0.5 rounded-sm font-medium">
-              {jobVm.typeLabel}
+              {jobVm.category}
             </Badge>
           )}
           {jobVm.applicationType && (
