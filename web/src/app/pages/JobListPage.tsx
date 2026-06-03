@@ -113,12 +113,12 @@ export function JobListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden">
-      <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6">
-        {/* K8-4-4-R12：顶部 Hero Banner */}
-        <JobHeroBanner />
+      {/* K8-5-4：全宽 Hero Banner，独立于主体容器 */}
+      <JobHeroBanner />
 
+      <main className="mx-auto max-w-[1440px] px-6 md:px-8 py-6">
         {/* K8-5-3：响应式三栏布局，≥1280px 三栏，<1280px 单列（AI 隐藏） */}
-        <div className="grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)_300px] gap-6 items-start mt-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)_300px] gap-6 items-start">
           <JobFilterSidebar
             keyword={keyword}
             onKeywordChange={setKeyword}
@@ -159,7 +159,7 @@ export function JobListPage() {
             </AISidebarShell>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
