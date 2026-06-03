@@ -55,8 +55,8 @@ export function JobDetailJD() {
       {/* ================================================================ */}
       {/* 第一张主白卡：岗位 JD */}
       {/* ================================================================ */}
-      <div className="bg-white border border-gray-200 rounded-xl p-8 md:p-10 shadow-sm">
-        <div className="space-y-10 text-gray-700 text-[15px] leading-relaxed">
+      <div className="bg-white rounded-2xl ring-1 ring-gray-100 p-8 md:p-10">
+        <div className="space-y-10 text-gray-600 text-[14px] leading-7">
 
           {/* ── 岗位描述 ── */}
           {hasJobDescription && (
@@ -160,7 +160,7 @@ export function JobDetailJD() {
       {/* 第二张独立白卡：招聘部门和工作地 */}
       {/* ================================================================ */}
       {hasOrganizations && (
-        <div className="bg-white border border-gray-200 rounded-xl p-8 md:p-10 shadow-sm">
+        <div className="bg-white rounded-2xl ring-1 ring-gray-100 p-8 md:p-10">
           <h2 className={sectionTitle}>招聘部门和工作地</h2>
 
           {/* 招聘部门 */}
@@ -196,7 +196,7 @@ export function JobDetailJD() {
       {/* ================================================================ */}
       {/* 投递简历 CTA（UI only） */}
       {/* ================================================================ */}
-      <div className="flex justify-center mt-4">
+      <div className="mt-4">
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-full bg-[#0052D9] px-8 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#0040A8]"

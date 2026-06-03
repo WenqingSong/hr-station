@@ -47,11 +47,11 @@ export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
       <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full bg-[#00B0F0]/10 blur-3xl pointer-events-none"></div>
 
       {/* 内容区 */}
-      <div className="mx-auto max-w-[1200px] px-6 py-8 relative z-10">
+      <div className="mx-auto max-w-[1280px] px-6 py-6 relative z-10">
         {/* 返回按钮 */}
         <button 
           onClick={() => navigate("/jobs")} 
-          className="flex items-center gap-1.5 text-blue-100 hover:text-white transition-colors mb-6 text-sm font-medium"
+          className="flex items-center gap-1.5 text-blue-100 hover:text-white transition-colors mb-5 text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" /> 返回岗位列表
         </button>
@@ -60,7 +60,7 @@ export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
         <h1 className="text-[28px] md:text-[32px] font-bold mb-3 tracking-tight">{jobVm.title}</h1>
 
         {/* 标签 */}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
           {jobVm.applicationType && (
             <Badge className="bg-white/15 text-white border-white/10 px-2.5 py-0.5 rounded-sm font-medium">
               {jobVm.applicationType}
@@ -85,13 +85,13 @@ export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
 
         {/* Slogan / 岗位简述 */}
         {jobVm.slogan && (
-          <p className="text-blue-100/90 text-[15px] mb-5 max-w-2xl leading-relaxed">
+          <p className="text-blue-100/90 text-[14px] mb-4 max-w-2xl leading-relaxed">
             {jobVm.slogan}
           </p>
         )}
 
         {/* 地点和部门简要信息 */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-sm text-blue-100/80">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 text-[13px] text-blue-100/70">
           {locationsText && (
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 opacity-70 shrink-0" />
