@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
-import { MatchAnalysisHeader } from "../components/MatchAnalysisHeader";
-import { MatchAnalysisSidebarLeft } from "../components/MatchAnalysisSidebarLeft";
-import { MatchAnalysisDetail } from "../components/MatchAnalysisDetail";
-import { MatchAnalysisSidebarRight } from "../components/MatchAnalysisSidebarRight";
+import { MatchAnalysisHeader } from "../components/match/MatchAnalysisHeader";
+import { MatchAnalysisSidebarLeft } from "../components/match/MatchAnalysisSidebarLeft";
+import { MatchAnalysisDetail } from "../components/match/MatchAnalysisDetail";
+import { MatchAnalysisSidebarRight } from "../components/match/MatchAnalysisSidebarRight";
 import { loadMatchAnalysisViewModel, loadResumeOptionViewModelsFromApi, loadResumeVersionDetail } from "../../api";
 import { getJobDetail } from "../../api/jobs";
 import type { JobApiItem } from "../../api/jobs";

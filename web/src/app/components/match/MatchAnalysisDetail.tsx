@@ -1,9 +1,9 @@
 import React from "react";
 import { CheckCircle2, ShieldAlert, Zap, ArrowRight, Sparkles, Activity, PlusCircle } from "lucide-react";
-import { Button } from "./ui/Button";
-import { Badge } from "./ui/Badge";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
 import { useNavigate } from "react-router";
-import type { MatchAnalysisPageViewModel } from "../../adapters";
+import type { MatchAnalysisPageViewModel } from "../../../adapters";
 
 interface MatchAnalysisDetailProps {
   currentJobId?: string;

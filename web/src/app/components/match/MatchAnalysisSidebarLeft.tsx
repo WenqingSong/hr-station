@@ -1,8 +1,8 @@
 import React from "react";
 import { MapPin, Target, LayoutList, Tags } from "lucide-react";
-import { Badge } from "./ui/Badge";
-import { toJobDetailViewModelFromApi } from "../../adapters";
-import type { JobApiItem } from "../../api/jobs";
+import { Badge } from "../ui/Badge";
+import { toJobDetailViewModelFromApi } from "../../../adapters";
+import type { JobApiItem } from "../../../api/jobs";
 
 interface MatchAnalysisSidebarLeftProps {
   job?: JobApiItem;

@@ -1,8 +1,8 @@
 import React from "react";
 import { FileText, CheckCircle2, AlertCircle } from "lucide-react";
-import { Badge } from "./ui/Badge";
-import { toResumeSummaryViewModel } from "../../adapters";
-import type { Resume } from "../../types";
+import { Badge } from "../ui/Badge";
+import { toResumeSummaryViewModel } from "../../../adapters";
+import type { Resume } from "../../../types";
 
 interface MatchAnalysisSidebarRightProps {
   resume?: Resume;
