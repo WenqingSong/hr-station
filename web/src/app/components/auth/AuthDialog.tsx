@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { login, register } from "../../../api/auth";
 import { setAuthToken } from "../../../api/authStorage";
 import type { LoginRequest, RegisterRequest } from "../../../types/auth";
@@ -34,6 +34,7 @@ export function AuthDialog({
   // ── Login fields ──
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginShowPassword, setLoginShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
@@ -41,6 +42,8 @@ export function AuthDialog({
   const [regPhone, setRegPhone] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirm, setRegConfirm] = useState("");
+  const [regShowPassword, setRegShowPassword] = useState(false);
+  const [regShowConfirm, setRegShowConfirm] = useState(false);
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState("");
 
@@ -50,6 +53,9 @@ export function AuthDialog({
       setMode(defaultMode);
       setLoginError("");
       setRegError("");
+      setLoginShowPassword(false);
+      setRegShowPassword(false);
+      setRegShowConfirm(false);
     }
   }, [open, defaultMode]);
 
@@ -126,19 +132,23 @@ export function AuthDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
-        {/* K8-5-13-E：自定义玻璃模糊 Overlay */}
-        <DialogOverlay className="bg-slate-950/35 backdrop-blur-md supports-[backdrop-filter]:bg-slate-950/25" />
+        {/* K8-5-17-A：柔和渐暗 + 玻璃模糊 Overlay */}
+        <DialogOverlay
+          className="fixed inset-0 z-50 bg-slate-950/35 backdrop-blur-md data-[state=open]:animate-auth-overlay-in data-[state=closed]:animate-auth-overlay-out"
+        />
 
-        {/* K8-5-13-E：自定义玻璃卡片 content（不依赖 DialogContent 全局样式） */}
+        {/* K8-5-17-A：镜头聚焦 Content — 动画外壳（overflow-hidden 防滚动条闪烁） */}
         <div
-          className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-[min(92vw,420px)] max-h-[min(88vh,720px)] translate-x-[-50%] translate-y-[-50%] rounded-3xl border-0 bg-white/88 backdrop-blur-xl ring-1 ring-white/60 shadow-[0_24px_80px_rgba(15,23,42,0.22)] p-0 overflow-hidden overflow-y-auto"
+          className="fixed top-[50%] left-[50%] z-50 w-[min(92vw,420px)] max-h-[min(88vh,720px)] translate-x-[-50%] translate-y-[-50%] rounded-3xl border-0 bg-white/88 backdrop-blur-xl ring-1 ring-white/60 shadow-[0_24px_80px_rgba(15,23,42,0.22)] overflow-hidden data-[state=open]:animate-auth-dialog-in data-[state=closed]:animate-auth-dialog-out"
           style={{ backgroundColor: "rgba(255,255,255,0.88)" }}
         >
+          {/* 滚动容器：与动画外壳分离，避免 scale/blur 动画引起滚动条闪烁 */}
+          <div className="max-h-[min(88vh,720px)] overflow-y-auto overscroll-contain">
           {/* ── Close button (top-right) ── */}
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="absolute top-4 right-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="absolute top-4 right-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-all duration-200 hover:scale-105 hover:bg-slate-100 hover:text-slate-600 active:scale-95"
             aria-label="关闭"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -167,7 +177,7 @@ export function AuthDialog({
           </div>
 
           {/* ── Body ── */}
-          <div className="px-5 pb-6 sm:px-7 sm:pb-7">
+          <div key={mode} className="animate-auth-panel-in px-5 pb-6 sm:px-7 sm:pb-7">
             {mode === "login" ? (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
@@ -184,23 +194,26 @@ export function AuthDialog({
                     className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   />
                 </div>
-                <div>
+                <div className="relative">
                   <label htmlFor="auth-login-password" className="mb-1.5 block text-sm font-medium text-slate-700">
                     密码
                   </label>
                   <input
                     id="auth-login-password"
-                    type="password"
+                    type={loginShowPassword ? "text" : "password"}
                     autoComplete="current-password"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="请输入密码"
-                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   />
+                  <button type="button" onClick={() => setLoginShowPassword(!loginShowPassword)} className="absolute right-3 top-[calc(50%+0.3rem)] -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" tabIndex={-1} aria-label={loginShowPassword ? "隐藏密码" : "显示密码"}>
+                    {loginShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
 
                 {loginError && (
-                  <p className="rounded-xl bg-red-50/90 px-4 py-3 text-sm text-red-600 ring-1 ring-red-100" role="alert">
+                  <p className="animate-auth-error-in rounded-xl bg-red-50/90 px-4 py-3 text-sm text-red-600 ring-1 ring-red-100" role="alert">
                     {loginError}
                   </p>
                 )}
@@ -237,37 +250,43 @@ export function AuthDialog({
                     className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   />
                 </div>
-                <div>
+                <div className="relative">
                   <label htmlFor="auth-reg-password" className="mb-1.5 block text-sm font-medium text-slate-700">
                     密码
                   </label>
                   <input
                     id="auth-reg-password"
-                    type="password"
+                    type={regShowPassword ? "text" : "password"}
                     autoComplete="new-password"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="至少 6 位"
-                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   />
+                  <button type="button" onClick={() => setRegShowPassword(!regShowPassword)} className="absolute right-3 top-[calc(50%+0.3rem)] -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" tabIndex={-1} aria-label={regShowPassword ? "隐藏密码" : "显示密码"}>
+                    {regShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
-                <div>
+                <div className="relative">
                   <label htmlFor="auth-reg-confirm" className="mb-1.5 block text-sm font-medium text-slate-700">
                     确认密码
                   </label>
                   <input
                     id="auth-reg-confirm"
-                    type="password"
+                    type={regShowConfirm ? "text" : "password"}
                     autoComplete="new-password"
                     value={regConfirm}
                     onChange={(e) => setRegConfirm(e.target.value)}
                     placeholder="请再次输入密码"
-                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
                   />
+                  <button type="button" onClick={() => setRegShowConfirm(!regShowConfirm)} className="absolute right-3 top-[calc(50%+0.3rem)] -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" tabIndex={-1} aria-label={regShowConfirm ? "隐藏确认密码" : "显示确认密码"}>
+                    {regShowConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
 
                 {regError && (
-                  <p className="rounded-xl bg-red-50/90 px-4 py-3 text-sm text-red-600 ring-1 ring-red-100" role="alert">
+                  <p className="animate-auth-error-in rounded-xl bg-red-50/90 px-4 py-3 text-sm text-red-600 ring-1 ring-red-100" role="alert">
                     {regError}
                   </p>
                 )}
@@ -290,7 +309,8 @@ export function AuthDialog({
               </form>
             )}
           </div>
-        </div>
+          </div>{/* /滚动容器 */}
+        </div>{/* /动画外壳 */}
       </DialogPortal>
     </Dialog>
   );

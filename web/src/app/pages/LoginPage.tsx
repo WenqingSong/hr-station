@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
+import { Eye, EyeOff } from "lucide-react";
 import { login } from "../../api/auth";
 import { setAuthToken, getAuthToken } from "../../api/authStorage";
 import type { LoginRequest } from "../../types/auth";
@@ -26,6 +27,7 @@ export function LoginPage() {
 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,7 +68,12 @@ export function LoginPage() {
           </div>
           <div>
             <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-slate-700">密码</label>
-            <input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="请输入密码" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-1 focus:ring-[#0052D9]" />
+            <div className="relative">
+              <input id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="请输入密码" className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-1 focus:ring-[#0052D9]" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" tabIndex={-1} aria-label={showPassword ? "隐藏密码" : "显示密码"}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">{error}</p>}
           <button type="submit" disabled={loading} className="w-full rounded-md bg-[#0052D9] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#0043B3] disabled:cursor-not-allowed disabled:opacity-50">{loading ? "登录中…" : "登录"}</button>
