@@ -15,7 +15,7 @@ export function JobHeroBanner() {
     <section className="relative w-full overflow-hidden bg-[#0052D9]">
       <img
         src="/images/offer-catcher-banner.png"
-        alt="offerr鹅 2026 实习生招聘 Banner"
+        alt="Offerr鹅 2026 实习生招聘 Banner"
         className="block w-full h-[180px] sm:h-[240px] lg:h-[320px] xl:h-[360px] object-cover object-center"
         draggable={false}
       />

@@ -21,7 +21,7 @@ export function RecommendationHeader({ resumeName = "", sourceLabel = "当前简
       </button>
 
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">AI 岗位推荐</h1>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Offerr鹅岗位推荐</h1>
         <p className="text-[15px] text-gray-600">基于当前简历，从岗位池中推荐最值得优先关注的 5 个岗位。</p>
       </div>
 
