@@ -8,8 +8,8 @@ interface JobListProps {
   params: JobListParams;
   onPageChange: (page: number) => void;
   onParamsChange: (p: JobListParams) => void;
-  /** 用于 display 的已选筛选条件（支持中文 label） */
-  activeFilters: { key: string; label: string }[];
+  /** 用于 display 的已选筛选条件（含分组中文前缀） */
+  activeFilters: { key: string; label: string; group: string }[];
   onClearFilters: () => void;
 }
 
@@ -31,7 +31,7 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
       .then((res) => { setJobCards(toJobCardViewModelsFromApi(res.items)); setTotal(res.total); })
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
       .finally(() => setLoading(false));
-  }, [params.keyword, params.direction, params.city, params.recruit_type, params.category, params.business_group, params.skill, params.application_project, params.application_subtype, params.page]);
+  }, [params.keyword, params.direction, params.city, params.recruit_type, params.category, params.business_group, params.skill, params.job_category, params.application_project, params.application_subtype, params.page]);
 
   return (
     <main className="flex-1 max-w-[820px] pb-24">
@@ -49,28 +49,20 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
               <div className="flex flex-wrap gap-1.5">
                 {activeFilters.map((f) => (
                   <span
-                    key={f.key}
-                    className="inline-flex items-center gap-1 text-[13px] bg-blue-50 text-[#0052D9] px-2.5 py-1 rounded-md cursor-pointer hover:bg-blue-100 transition-colors"
+                    key={f.key + f.label}
+                    className="inline-flex items-center gap-1 text-[13px] bg-white border border-gray-200 text-gray-700 px-2.5 py-1 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-colors"
                     onClick={() => {
-                      const cleared: Record<string, undefined> = {};
-                      // Find which param key this filter maps to
-                      const keyMap: Record<string, string> = {
-                        direction: "direction", city: "city", recruit_type: "recruit_type",
-                        category: "category", business_group: "business_group", skill: "skill",
-                        application_project: "application_project", application_subtype: "application_subtype",
-                        keyword: "keyword",
-                      };
-                      const paramKey = f.key;
-                      onParamsChange({ [paramKey]: undefined } as unknown as JobListParams);
+                      onParamsChange({ [f.key]: undefined } as unknown as JobListParams);
                     }}
                   >
-                    {f.label}
-                    <X className="h-3.5 w-3.5" />
+                    <span className="text-gray-500">{f.group}：</span>
+                    <span>{f.label}</span>
+                    <X className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
                   </span>
                 ))}
               </div>
               <button
-                className="text-[13px] text-gray-400 hover:text-[#0052D9] transition-colors shrink-0"
+                className="text-[13px] text-gray-400 hover:text-gray-600 transition-colors shrink-0"
                 onClick={onClearFilters}
               >
                 清除全部

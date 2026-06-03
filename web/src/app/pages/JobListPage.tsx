@@ -7,17 +7,44 @@ import type { JobListParams } from "../../api/jobs";
 
 const PAGE_SIZE = 10;
 
-/** 将 filters 转为显示用的标签列表 */
-function filtersToDisplay(filters: JobFilters): { key: string; label: string }[] {
-  const entries: { key: string; label: string }[] = [];
-  if (typeof filters.direction === "string" && filters.direction) entries.push({ key: "direction", label: filters.direction });
-  if (typeof filters.city === "string" && filters.city) entries.push({ key: "city", label: filters.city });
-  if (typeof filters.recruit_type === "string" && filters.recruit_type) entries.push({ key: "recruit_type", label: filters.recruit_type });
-  if (typeof filters.category === "string" && filters.category) entries.push({ key: "category", label: filters.category });
-  if (typeof filters.business_group === "string" && filters.business_group) entries.push({ key: "business_group", label: filters.business_group });
-  if (typeof filters.skill === "string" && filters.skill) entries.push({ key: "skill", label: filters.skill });
-  if (typeof filters.application_project === "string" && filters.application_project) entries.push({ key: "application_project", label: filters.application_project });
-  if (typeof filters.application_subtype === "string" && filters.application_subtype) entries.push({ key: "application_subtype", label: filters.application_subtype });
+// K8-4-4-R: 筛选键到中文组名的映射
+const GROUP_NAMES: Record<string, string> = {
+  keyword: '搜索',
+  direction: '求职方向',
+  city: '工作城市',
+  recruit_type: '岗位类型',
+  category: '岗位类别',
+  business_group: '事业群',
+  skill: '技能关键词',
+  application_project: '应聘项目',
+  application_subtype: '应聘类型',
+  job_category: '岗位类别',
+};
+
+/** 将 filters + keyword 转为显示用的标签列表（支持逗号多选，含分组中文前缀） */
+function filtersToDisplay(keyword: string, filters: JobFilters): { key: string; label: string; group: string }[] {
+  const entries: { key: string; label: string; group: string }[] = [];
+
+  // 搜索关键词优先展示
+  if (keyword) {
+    entries.push({ key: 'keyword', label: keyword, group: GROUP_NAMES.keyword });
+  }
+
+  // 筛选条件按固定顺序处理
+  const keys: (keyof JobFilters)[] = [
+    'application_project', 'application_subtype', 'job_category',
+    'direction', 'recruit_type', 'category',
+    'city', 'business_group', 'skill',
+  ];
+  for (const key of keys) {
+    const val = filters[key];
+    if (typeof val === 'string' && val) {
+      const groupName = GROUP_NAMES[key] || key;
+      val.split(',').forEach(v => {
+        if (v.trim()) entries.push({ key, label: v.trim(), group: groupName });
+      });
+    }
+  }
   return entries;
 }
 
@@ -34,6 +61,7 @@ export function JobListPage() {
     skill: searchParams.get("skill") || undefined,
     application_project: searchParams.get("application_project") || undefined,
     application_subtype: searchParams.get("application_subtype") || undefined,
+    job_category: searchParams.get("job_category") || undefined,
   };
   const page = parseInt(searchParams.get("page") || "1", 10) || 1;
 
@@ -44,14 +72,11 @@ export function JobListPage() {
   const setFilters = useCallback((f: JobFilters) => {
     setSearchParams((prev) => {
       const p = new URLSearchParams(prev);
-      if (f.direction) p.set("direction", f.direction); else p.delete("direction");
-      if (f.city) p.set("city", f.city); else p.delete("city");
-      if (f.recruit_type) p.set("recruit_type", f.recruit_type); else p.delete("recruit_type");
-      if (f.category) p.set("category", f.category); else p.delete("category");
-      if (f.business_group) p.set("business_group", f.business_group); else p.delete("business_group");
-      if (f.skill) p.set("skill", f.skill); else p.delete("skill");
-      if (f.application_project) p.set("application_project", f.application_project); else p.delete("application_project");
-      if (f.application_subtype) p.set("application_subtype", f.application_subtype); else p.delete("application_subtype");
+      const keys: (keyof JobFilters)[] = ['direction','city','recruit_type','category','business_group','skill','application_project','application_subtype','job_category'];
+      for (const k of keys) {
+        if (f[k]) p.set(k, f[k]);
+        else p.delete(k);
+      }
       p.set("page", "1");
       return p;
     });
@@ -61,11 +86,13 @@ export function JobListPage() {
     setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("page", String(pg)); return p; });
   }, [setSearchParams]);
 
+  // K8-4-4-R: 清除全部同时清除关键词和所有筛选条件
   const clearFilters = useCallback(() => {
-    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("page", "1"); return p; });
+    setSearchParams(new URLSearchParams({ page: "1" }));
   }, [setSearchParams]);
 
-  const activeFilterLabels = useMemo(() => filtersToDisplay(filters), [filters]);
+  // K8-4-4-R: 将 keyword 一起纳入顶部标签栏展示
+  const activeFilterLabels = useMemo(() => filtersToDisplay(keyword, filters), [keyword, filters]);
 
   const params: JobListParams = {
     keyword: keyword || undefined,
@@ -77,6 +104,7 @@ export function JobListPage() {
     skill: filters.skill,
     application_project: filters.application_project,
     application_subtype: filters.application_subtype,
+    job_category: filters.job_category,
     page,
     page_size: PAGE_SIZE,
   };
@@ -97,10 +125,20 @@ export function JobListPage() {
             onParamsChange={(p) => {
               setSearchParams((prev) => {
                 const next = new URLSearchParams(prev);
-                if (p.keyword) next.set("keyword", p.keyword); else next.delete("keyword");
-                // Handle single filter clear
-                const cleared = Object.keys(p).filter((k) => p[k as keyof JobListParams] === undefined);
-                cleared.forEach((k) => next.delete(k));
+                // 清除关键词
+                if ('keyword' in p) {
+                  if (p.keyword) next.set("keyword", p.keyword);
+                  else next.delete("keyword");
+                }
+                // 清除其他筛选参数
+                const allKeys: (keyof JobFilters)[] = ['direction','city','recruit_type','category','business_group','skill','application_project','application_subtype','job_category'];
+                for (const k of allKeys) {
+                  if (k in p) {
+                    const v = p[k as keyof typeof p];
+                    if (v) next.set(k, v as string);
+                    else next.delete(k);
+                  }
+                }
                 next.set("page", "1");
                 return next;
               });
