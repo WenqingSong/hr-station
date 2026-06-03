@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { loadResumeOptionViewModelsFromApi } from "../../api";
 import type { ResumeOptionViewModel } from "../../adapters";
+import { getAuthRedirectIf401 } from "../utils/authRedirect";
+import { useNavigate, useLocation } from "react-router";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,8 @@ export function SelectResumeModal({
   const [selected, setSelected] = useState("1");
   const [resumeOptions, setResumeOptions] = useState<ResumeOptionViewModel[]>([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +65,10 @@ export function SelectResumeModal({
           // 默认选中最新版本（第一个 = 最新）
           if (opts.length > 0) setSelected(opts[0].id);
         })
-        .catch(() => {})
+        .catch((err) => {
+          const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
+          if (authRedirect) { navigate(authRedirect, { replace: true }); return; }
+        })
         .finally(() => setLoading(false));
     }
   }, [isOpen]);

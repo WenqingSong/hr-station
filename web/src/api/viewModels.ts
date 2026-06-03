@@ -16,7 +16,13 @@ import {
   runMatchAnalysis,
   runResumeOptimization,
 } from './index';
+import { isApiClientError } from './errors';
 import type { Resume } from '../types';
+
+/** 判断错误是否为 401 未授权（token 缺失或过期） */
+function isAuthError(err: unknown): boolean {
+  return isApiClientError(err) && err.status === 401;
+}
 import type {
   RecommendationRequest,
   MatchAnalysisRequest,
@@ -96,8 +102,10 @@ export async function loadResumeManagementPageViewModel(): Promise<ResumeManagem
   try {
     const resume = await getCurrentResume();
     return toResumeManagementViewModel(resume);
-  } catch {
-    return null; // 无简历或加载失败 → 返回 null，页面展示空态
+  } catch (err: unknown) {
+    // 401/token 过期不吞，向上传播给页面做 redirect
+    if (isAuthError(err)) throw err;
+    return null; // 无简历或普通加载失败 → 返回 null，页面展示空态
   }
 }
 
@@ -132,7 +140,8 @@ export async function loadResumeVersionDetail(
 ): Promise<Resume | null> {
   try {
     return await get<Resume>(`/resumes/versions/${versionNo}`);
-  } catch {
+  } catch (err: unknown) {
+    if (isAuthError(err)) throw err;
     return null;
   }
 }

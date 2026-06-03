@@ -1,14 +1,27 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import { login } from "../../api/auth";
 import { setAuthToken, getAuthToken } from "../../api/authStorage";
 import type { LoginRequest } from "../../types/auth";
 
+/** 安全读取 redirect 参数，只允许站内路径 */
+function getSafeRedirect(search: string): string {
+  const params = new URLSearchParams(search);
+  const redirect = params.get("redirect");
+  if (!redirect) return "/jobs";
+  if (!redirect.startsWith("/")) return "/jobs";
+  if (redirect.startsWith("//")) return "/jobs";
+  if (redirect.includes("://")) return "/jobs";
+  return redirect;
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const safeRedirect = getSafeRedirect(location.search);
 
   useEffect(() => {
-    if (getAuthToken()) navigate("/");
+    if (getAuthToken()) navigate(safeRedirect);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [phone, setPhone] = useState("");
@@ -29,7 +42,7 @@ export function LoginPage() {
       const input: LoginRequest = { phone: phone.trim(), password };
       const response = await login(input);
       setAuthToken(response.token);
-      navigate("/");
+      navigate(safeRedirect);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "登录失败，请稍后重试";
       if (msg.includes("手机号或密码错误") || msg.includes("401")) {

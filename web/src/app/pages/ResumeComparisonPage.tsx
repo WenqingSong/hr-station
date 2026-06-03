@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,6 +18,7 @@ import { getResumeVersions } from "../../api/index";
 import type { ResumeVersionListItem } from "../../types";
 import type { ResumeComparisonViewModel } from "../../adapters";
 import { PageLoading, PageError, PageEmpty } from "../components/PageState";
+import { getAuthRedirectIf401 } from "../utils/authRedirect";
 
 function getTrendIcon(trend: string) {
   switch (trend) {
@@ -52,6 +53,8 @@ export function ResumeComparisonPage() {
   const [versionsError, setVersionsError] = useState(false);
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Load version list
   useEffect(() => {
@@ -67,7 +70,11 @@ export function ResumeComparisonPage() {
           setTargetVersion(list[0]);
         }
       })
-      .catch(() => setVersionsError(true))
+      .catch((err) => {
+        const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
+        if (authRedirect) { navigate(authRedirect, { replace: true }); return; }
+        setVersionsError(true);
+      })
       .finally(() => setVersionsLoading(false));
   }, []);
 

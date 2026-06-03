@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useSearchParams, useNavigate, useLocation } from "react-router";
 import { ResumeOptimizationHeader } from "../components/resume-optimization/ResumeOptimizationHeader";
 import { ResumeOptimizationSidebarLeft } from "../components/resume-optimization/ResumeOptimizationSidebarLeft";
 import { ResumeOptimizationDetail } from "../components/resume-optimization/ResumeOptimizationDetail";
@@ -10,6 +10,7 @@ import type { JobApiItem } from "../../api/jobs";
 import type { ResumeOptimizationPageViewModel, ResumeOptionViewModel } from "../../adapters";
 import type { Resume } from "../../types";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
+import { getAuthRedirectIf401 } from "../utils/authRedirect";
 
 /** 从 URL 查询参数中解析 resume versionNo（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -69,6 +70,8 @@ function buildTargetJob(job: JobApiItem) {
 
 export function ResumeOptimizationPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const jobId = searchParams.get("jobId");
   const resumeId = searchParams.get("resumeId");
   const resumeVersionNo = searchParams.get("resumeVersionNo");
@@ -117,7 +120,10 @@ export function ResumeOptimizationPage() {
           : undefined;
         setSelectedOption(matched ?? opts[0]);
       })
-      .catch(() => {})
+      .catch((err) => {
+        const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
+        if (authRedirect) { navigate(authRedirect, { replace: true }); return; }
+      })
       .finally(() => setLoadingOptions(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -138,9 +144,11 @@ export function ResumeOptimizationPage() {
           setSelectedResumeDetail(detail);
         }
       })
-      .catch(() =>
-        setResumeDetailError("简历版本详情加载失败，请重新选择简历版本后再进行优化。")
-      )
+      .catch((err) => {
+        const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
+        if (authRedirect) { navigate(authRedirect, { replace: true }); return; }
+        setResumeDetailError("简历版本详情加载失败，请重新选择简历版本后再进行优化。");
+      })
       .finally(() => setLoadingResumeDetail(false));
   }, [selectedOption]);
 

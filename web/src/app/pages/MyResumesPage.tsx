@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   ChevronLeft,
   ChevronUp,
@@ -20,6 +20,7 @@ import type { ResumeEducation, ResumeExperience, ResumeProject } from "../../typ
 import { ResumeSkeleton } from "../components/ui/ResumeSkeleton";
 import { PageError, PageLoading } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
+import { getAuthRedirectIf401 } from "../utils/authRedirect";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ function FieldRow({ label, required, children, hint }: {
 
 export function MyResumesPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const mode: "edit" | "add" = location.pathname.includes("/new") ? "add" : "edit";
   const [saving, setSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
@@ -145,7 +147,11 @@ export function MyResumesPage() {
       setResumeError(null);
       loadResumeManagementPageViewModel()
         .then((vm) => { setFormVm(vm); setLoading(false); })
-        .catch(() => { setResumeError("简历加载失败，请稍后重试。"); setLoading(false); });
+        .catch((err) => {
+          const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
+          if (authRedirect) { navigate(authRedirect, { replace: true }); return; }
+          setResumeError("简历加载失败，请稍后重试。"); setLoading(false);
+        });
     }
   }, [mode, retryCount]);
 

@@ -1,5 +1,6 @@
 import { Navigate, Outlet, createBrowserRouter } from "react-router";
 import { Navbar } from "./components/Navbar";
+import { RequireAuth } from "./components/auth/RequireAuth";
 import { JobListPage } from "./pages/JobListPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { JobRecommendationPage } from "./pages/JobRecommendationPage";
@@ -31,14 +32,15 @@ export const router = createBrowserRouter([
       { path: "jobs", Component: JobListPage },
       // ── P0 核心路由（5-3.2 已规范统一） ──
       { path: "jobs/:id", Component: JobDetailPage },
-      { path: "recommend", Component: JobRecommendationPage },
-      { path: "match", Component: JobMatchAnalysisPage },
-      { path: "resume-optimization", Component: ResumeOptimizationPage },
-      // ── P1 简历模块（5-3.2-R 已规范统一） ──
-      { path: "resumes", Component: ResumeManagementPage },
-      { path: "resumes/edit", Component: MyResumesPage },
-      { path: "resumes/new", Component: MyResumesPage },
-      { path: "resumes/compare", Component: ResumeComparisonPage },
+      // ── P0 AI 模块（K8-5-16-D：RequireAuth 保护） ──
+      { path: "recommend", element: <RequireAuth><JobRecommendationPage /></RequireAuth> },
+      { path: "match", element: <RequireAuth><JobMatchAnalysisPage /></RequireAuth> },
+      { path: "resume-optimization", element: <RequireAuth><ResumeOptimizationPage /></RequireAuth> },
+      // ── P1 简历模块（K8-5-16-C：RequireAuth 保护） ──
+      { path: "resumes", element: <RequireAuth><ResumeManagementPage /></RequireAuth> },
+      { path: "resumes/edit", element: <RequireAuth><MyResumesPage /></RequireAuth> },
+      { path: "resumes/new", element: <RequireAuth><MyResumesPage /></RequireAuth> },
+      { path: "resumes/compare", element: <RequireAuth><ResumeComparisonPage /></RequireAuth> },
       // ── Auth 页面（8-2 新增） ──
       { path: "login", Component: LoginPage },
       { path: "register", Component: RegisterPage },

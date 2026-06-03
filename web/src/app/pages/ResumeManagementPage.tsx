@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import { SelectResumeModal } from "../components/SelectResumeModal";
 import { PageLoading, PageError } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { loadResumeManagementPageViewModel } from "../../api";
 import type { ResumeManagementViewModel } from "../../adapters";
+import { getAuthRedirectIf401 } from "../utils/authRedirect";
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
@@ -72,11 +73,17 @@ export function ResumeManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showSelectModal, setShowSelectModal] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     loadResumeManagementPageViewModel()
       .then(setVm)
-      .catch(() => setError(true))
+      .catch((err) => {
+        const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
+        if (authRedirect) { navigate(authRedirect, { replace: true }); return; }
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useSearchParams, useNavigate, useLocation } from "react-router";
 import { RecommendationHeader } from "../components/recommendation/RecommendationHeader";
 import { RecommendationSidebar } from "../components/recommendation/RecommendationSidebar";
 import { RecommendationDetail } from "../components/recommendation/RecommendationDetail";
@@ -8,6 +8,7 @@ import { loadRecommendationViewModel, loadResumeOptionViewModelsFromApi } from "
 import type { RecommendationPageViewModel, ResumeOptionViewModel } from "../../adapters";
 import { PageLoading, PageEmpty } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
+import { getAuthRedirectIf401 } from "../utils/authRedirect";
 
 /** 从 URL 查询参数中解析 resume_version_no（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -24,6 +25,8 @@ function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: strin
 
 export function JobRecommendationPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const resumeId = searchParams.get("resumeId");
   const resumeVersionNo = searchParams.get("resumeVersionNo");
 
@@ -56,7 +59,11 @@ export function JobRecommendationPage() {
         setSelectedOption(matched ?? opts[0]);
         setLoadingOptions(false);
       })
-      .catch(() => setLoadingOptions(false));
+      .catch((err) => {
+        const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
+        if (authRedirect) { navigate(authRedirect, { replace: true }); return; }
+        setLoadingOptions(false);
+      });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 选中版本后在 URL 已由父级提供，此处仅触发推荐请求

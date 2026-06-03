@@ -1,14 +1,27 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import { register } from "../../api/auth";
 import { setAuthToken, getAuthToken } from "../../api/authStorage";
 import type { RegisterRequest } from "../../types/auth";
 
+/** 安全读取 redirect 参数，只允许站内路径 */
+function getSafeRedirect(search: string): string {
+  const params = new URLSearchParams(search);
+  const redirect = params.get("redirect");
+  if (!redirect) return "/jobs";
+  if (!redirect.startsWith("/")) return "/jobs";
+  if (redirect.startsWith("//")) return "/jobs";
+  if (redirect.includes("://")) return "/jobs";
+  return redirect;
+}
+
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const safeRedirect = getSafeRedirect(location.search);
 
   useEffect(() => {
-    if (getAuthToken()) navigate("/");
+    if (getAuthToken()) navigate(safeRedirect);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [phone, setPhone] = useState("");
@@ -32,7 +45,7 @@ export function RegisterPage() {
       const input: RegisterRequest = { phone: phone.trim(), password };
       const response = await register(input);
       setAuthToken(response.token);
-      navigate("/");
+      navigate(safeRedirect);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "注册失败，请稍后重试";
       if (msg.includes("已被注册")) {
