@@ -7,6 +7,7 @@ import { RecommendationContext } from "../components/recommendation/Recommendati
 import { loadRecommendationViewModel, loadResumeOptionViewModelsFromApi } from "../../api";
 import type { RecommendationPageViewModel, ResumeOptionViewModel } from "../../adapters";
 import { PageLoading, PageEmpty } from "../components/PageState";
+import { ContentPageShell } from "../components/layout/ContentPageShell";
 
 /** 从 URL 查询参数中解析 resume_version_no（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -115,13 +116,13 @@ export function JobRecommendationPage() {
     : selectedOption.statusLabel;
 
   return (
-    <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6 pb-12">
+    <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
       <RecommendationHeader resumeName={displayName} sourceLabel={statusLabel} />
       <div className="flex gap-6 mt-6 items-start">
         <RecommendationSidebar data={result} />
         <RecommendationDetail currentResumeId={selectedOption.id} data={result} />
         <RecommendationContext resumeName={selectedOption.name} sourceLabel={statusLabel} />
       </div>
-    </div>
+    </ContentPageShell>
   );
 }

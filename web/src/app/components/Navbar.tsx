@@ -64,28 +64,38 @@ export function Navbar() {
     navigate("/");
   }
 
-  const brandTextShadow: React.CSSProperties | undefined = isTop
+  // K8-5-15-C-R：路由语义判断 — Hero 页面顶部才允许白字/透明 Navbar
+  const isHeroNavbarRoute =
+    location.pathname === "/" ||
+    location.pathname === "/jobs" ||
+    /^\/jobs\/[^/]+$/.test(location.pathname) ||
+    /^\/job\/[^/]+$/.test(location.pathname);
+
+  const useHeroNavbar = isHeroNavbarRoute && isTop;
+
+  const brandTextShadow: React.CSSProperties | undefined = useHeroNavbar
     ? { textShadow: "0 1px 12px rgba(0,0,0,0.18)" }
     : undefined;
 
-  // 顶部：深色透明玻璃悬浮在 Banner 上，白字
-  const navSurfaceClass = isTop
+  // Hero 页顶部：深色透明玻璃悬浮在 Banner 上，白字
+  // 普通内容页：白底毛玻璃 + 深色字
+  const navSurfaceClass = useHeroNavbar
     ? "border-white/10 bg-slate-950/18 text-white shadow-none backdrop-blur-md backdrop-saturate-150"
     : "border-slate-200/40 bg-white/58 text-slate-950 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl backdrop-saturate-150";
 
-  const brandTextClass = isTop
+  const brandTextClass = useHeroNavbar
     ? "text-white"
     : "text-slate-950";
 
-  const linkClass = isTop
+  const linkClass = useHeroNavbar
     ? "text-white/88 hover:text-white"
     : "text-slate-700 hover:text-slate-950";
 
-  const logoutLinkClass = isTop
+  const logoutLinkClass = useHeroNavbar
     ? "text-white/72 hover:text-white"
     : "text-slate-500 hover:text-slate-950";
 
-  const loginButtonClass = isTop
+  const loginButtonClass = useHeroNavbar
     ? "rounded-full border border-white/25 bg-white/8 px-4 py-2 text-sm font-medium text-white/92 backdrop-blur transition hover:bg-white/14 hover:text-white"
     : "rounded-full border border-slate-200/70 bg-white/50 px-4 py-2 text-sm font-medium text-slate-700 backdrop-blur transition hover:bg-white/80 hover:text-slate-950";
 

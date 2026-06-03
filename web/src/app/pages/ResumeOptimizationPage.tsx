@@ -9,6 +9,7 @@ import { getJobDetail } from "../../api/jobs";
 import type { JobApiItem } from "../../api/jobs";
 import type { ResumeOptimizationPageViewModel, ResumeOptionViewModel } from "../../adapters";
 import type { Resume } from "../../types";
+import { ContentPageShell } from "../components/layout/ContentPageShell";
 
 /** 从 URL 查询参数中解析 resume versionNo（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -259,7 +260,7 @@ export function ResumeOptimizationPage() {
     : undefined as unknown as Resume;
 
   return (
-    <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6 pb-12">
+    <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
       <ResumeOptimizationHeader job={job} resume={resumeForDisplay} jobSource={jobSource} resumeSource={resumeSource} />
 
       {/* 优化模式切换 */}
@@ -301,6 +302,6 @@ export function ResumeOptimizationPage() {
         <ResumeOptimizationDetail currentJobId={jobId} currentResumeId={String(selectedOption.id)} data={result} />
         <ResumeOptimizationSidebarRight resume={resumeForDisplay} resumeSource={resumeSource} />
       </div>
-    </div>
+    </ContentPageShell>
   );
 }

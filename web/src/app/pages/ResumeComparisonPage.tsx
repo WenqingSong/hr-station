@@ -13,6 +13,7 @@ import {
   Clock,
 } from "lucide-react";
 import { loadResumeComparisonViewModel } from "../../api";
+import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getResumeVersions } from "../../api/index";
 import type { ResumeVersionListItem } from "../../types";
 import type { ResumeComparisonViewModel } from "../../adapters";
@@ -135,8 +136,7 @@ export function ResumeComparisonPage() {
   const targetLabel = targetVersion?.name || `V${targetVersion?.version_no}`;
 
   return (
-    <>
-      <div className="max-w-[1360px] mx-auto px-6 md:px-8 py-6 pb-24">
+    <ContentPageShell>
 
         {/* Header */}
         <div className="mb-8">
@@ -468,8 +468,6 @@ export function ResumeComparisonPage() {
           </div>
         )}
 
-      </div>
-
       {/* Bottom bar */}
       {(baseVersion && targetVersion && comparison) && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
@@ -489,6 +487,6 @@ export function ResumeComparisonPage() {
           </div>
         </div>
       )}
-    </>
+    </ContentPageShell>
   );
 }

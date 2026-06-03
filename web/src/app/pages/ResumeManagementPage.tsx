@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { SelectResumeModal } from "../components/SelectResumeModal";
 import { PageLoading, PageError } from "../components/PageState";
+import { ContentPageShell } from "../components/layout/ContentPageShell";
 import {
   FileText,
   Plus,
@@ -47,8 +48,7 @@ function ResumeSection({
 
 function EmptyState() {
   return (
-    <div className="max-w-[960px] mx-auto px-4 py-8 pb-12">
-      <div className="bg-white border border-gray-200 rounded-sm p-12 text-center">
+    <div className="bg-white border border-gray-200 rounded-sm p-12 text-center">
         <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
         <h2 className="text-lg font-semibold text-gray-700 mb-2">你还没有创建简历</h2>
         <p className="text-sm text-gray-500 mb-6">
@@ -62,7 +62,6 @@ function EmptyState() {
           添加简历
         </Link>
       </div>
-    </div>
   );
 }
 
@@ -83,28 +82,29 @@ export function ResumeManagementPage() {
 
   // Loading state
   if (loading) {
-    return <PageLoading message="加载中…" maxWidth="max-w-[960px]" />;
+    return <ContentPageShell maxWidthClassName="max-w-[960px]"><PageLoading message="加载中…" /></ContentPageShell>;
   }
 
   // Error state
   if (error) {
     return (
-      <PageError title="简历数据加载失败，请稍后重试。" description="" maxWidth="max-w-[960px]">
-        <Link to="/resumes/edit" className="text-[#0052D9] text-sm hover:underline">去创建简历</Link>
-      </PageError>
+      <ContentPageShell maxWidthClassName="max-w-[960px]">
+        <PageError title="简历数据加载失败，请稍后重试。" description="">
+          <Link to="/resumes/edit" className="text-[#0052D9] text-sm hover:underline">去创建简历</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
   // No resume / empty state
   if (!vm || !vm.hasResume) {
-    return <EmptyState />;
+    return <ContentPageShell maxWidthClassName="max-w-[960px]"><EmptyState /></ContentPageShell>;
   }
 
   const versionLabel = `V${vm.summary.version} ${vm.summary.name}`;
 
   return (
-    <>
-      <div className="max-w-[960px] mx-auto px-4 py-8 pb-12">
+    <ContentPageShell maxWidthClassName="max-w-[960px]">
 
         {/* ── Page Title Area ──────────────────────────────────────────────── */}
         <div className="flex items-start justify-between mb-5">
@@ -393,13 +393,11 @@ export function ResumeManagementPage() {
           </div>
         </div>
 
-      </div>
-
       <SelectResumeModal
         isOpen={showSelectModal}
         onClose={() => setShowSelectModal(false)}
         scene="match-analysis"
       />
-    </>
+    </ContentPageShell>
   );
 }

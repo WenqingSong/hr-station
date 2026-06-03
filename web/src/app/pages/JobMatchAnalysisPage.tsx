@@ -9,6 +9,7 @@ import { getJobDetail } from "../../api/jobs";
 import type { JobApiItem } from "../../api/jobs";
 import type { MatchAnalysisPageViewModel, ResumeOptionViewModel } from "../../adapters";
 import type { Resume } from "../../types";
+import { ContentPageShell } from "../components/layout/ContentPageShell";
 
 /** 从 URL 查询参数中解析 resume_version_no（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -182,13 +183,13 @@ export function JobMatchAnalysisPage() {
   const resumeSource = `${selectedOption.statusLabel} · ${selectedOption.directionLabel || "求职方向未填写"}`;
 
   return (
-    <div className="mx-auto max-w-[1440px] px-6 md:px-8 py-6 pb-12">
+    <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
       <MatchAnalysisHeader job={job ?? undefined} resume={selectedResumeDetail ?? undefined} jobSource={jobSource} resumeSource={resumeSource} />
       <div className="flex gap-6 mt-6 items-start">
         <MatchAnalysisSidebarLeft job={job ?? undefined} jobSource={jobSource} />
         <MatchAnalysisDetail currentJobId={jobId} currentResumeId={String(selectedOption.id)} data={result} />
         <MatchAnalysisSidebarRight resume={selectedResumeDetail ?? undefined} resumeSource={resumeSource} />
       </div>
-    </div>
+    </ContentPageShell>
   );
 }

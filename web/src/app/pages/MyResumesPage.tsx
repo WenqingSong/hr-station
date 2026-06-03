@@ -17,6 +17,7 @@ import type { ResumeManagementViewModel } from "../../adapters";
 import type { ResumeEducation, ResumeExperience, ResumeProject } from "../../types";
 import { ResumeSkeleton } from "../components/ui/ResumeSkeleton";
 import { PageError, PageLoading } from "../components/PageState";
+import { ContentPageShell } from "../components/layout/ContentPageShell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -412,7 +413,7 @@ export function MyResumesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F7FB]">
+    <ContentPageShell>
       {/* ── PageHeader ────────────────────────────────────────────────── */}
       <div className="mx-auto max-w-[1280px] px-4 pt-8 pb-4 sm:px-6 lg:px-8">
         <Link
@@ -945,6 +946,6 @@ export function MyResumesPage() {
         </div>
       </div>
     </div>
-    </div>
+    </ContentPageShell>
   );
 }
