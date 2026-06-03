@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router";
 import { Badge } from "../ui/Badge";
 import { loadSelectedJobDetailViewModel } from "../../../api";
 import type { JobDetailViewModel } from "../../../adapters";
+import { PageError } from "../PageState";
+import { DetailSkeleton } from "../ui/DetailSkeleton";
 
 /**
- * K8-5-10-2：岗位详情正文字段结构最终对齐腾讯招聘官网
+ * K8-5-12-D1：正文 loading/error/retry 修复
  *
  * 设计说明：
  * - 第一张主白卡：岗位描述 / 岗位要求 / 加分项或注意事项 / 参加面试的城市 / 技能关键词(弱化) / 投递说明(弱化)
- * - 第二张独立白卡：招聘部门和工作地（文本字段风格，不按钮墙）/ 工作地点
+ * - 第二张独立白卡：招聘部门和工作地 / 工作地点
  * - 底部：投递简历 CTA 按钮（UI only）
- * - 纯文字层级，无蓝色竖条，整体招聘官网风格
+ * - loading: DetailSkeleton；error: PageError(onRetry)
  */
 
 /** 安全的数组渲染辅助函数 */
@@ -24,14 +26,41 @@ export function JobDetailJD() {
   const { id: jobId } = useParams<{ id: string }>();
   const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!jobId) { setLoading(false); return; }
-    loadSelectedJobDetailViewModel(jobId).then(setJobVm).catch(() => {}).finally(() => setLoading(false));
-  }, [jobId]);
+    setLoading(true);
+    setError(null);
+    loadSelectedJobDetailViewModel(jobId)
+      .then((vm) => { setJobVm(vm); setError(null); })
+      .catch(() => setError("岗位详情加载失败，请稍后重试。"))
+      .finally(() => setLoading(false));
+  }, [jobId, retryCount]);
 
-  if (loading) return <div className="flex-1 flex items-center justify-center text-gray-400 text-sm py-20">正在加载岗位详情…</div>;
-  if (!jobVm) return <div className="flex-1 flex items-center justify-center text-gray-500 text-sm py-20">暂无岗位详情</div>;
+  const handleRetry = useCallback(() => setRetryCount((c) => c + 1), []);
+
+  if (loading) return <DetailSkeleton sections={2} />;
+
+  if (error) {
+    return (
+      <PageError
+        title="岗位详情加载失败"
+        description={error}
+        onRetry={handleRetry}
+      />
+    );
+  }
+
+  if (!jobVm) {
+    return (
+      <PageError
+        title="岗位不存在或已下线"
+        description="该岗位可能已失效，请返回岗位列表查看其他机会。"
+      />
+    );
+  }
 
   // 准备数据
   const locationsText = safeJoin(jobVm.locations);

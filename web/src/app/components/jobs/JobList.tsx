@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { JobCard } from "./JobCard";
 import { JobListSkeleton } from "./JobCardSkeleton";
 import { JobPagination } from "./JobPagination";
 import { getJobs, type JobListParams } from "../../../api/jobs";
 import { toJobCardViewModelsFromApi, type JobCardViewModel } from "../../../adapters";
-import { X, RefreshCw, Search, AlertCircle } from "lucide-react";
+import { PageError, PageEmpty } from "../PageState";
+import { X, RefreshCw } from "lucide-react";
 
 interface JobListProps {
   params: JobListParams;
@@ -31,6 +32,9 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
   const isRefetching = loading && jobCards.length > 0;
   const isEmpty = !loading && !error && jobCards.length === 0;
   const isError = Boolean(error);
+
+  // K8-5-12-D2: retry by re-triggering request with current params
+  const handleRetry = useCallback(() => onParamsChange({}), [onParamsChange]);
 
   useEffect(() => {
     setLoading(true);
@@ -91,35 +95,23 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
           {/* Initial loading：骨架屏 */}
           {isInitialLoading && <JobListSkeleton />}
 
-          {/* Error state */}
+          {/* Error state — K8-5-12-D2: 统一 PageError */}
           {isError && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
-              <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-[15px] text-gray-700 font-medium mb-1">岗位列表加载失败</p>
-              <p className="text-[13px] text-gray-400 mb-4">请稍后重试，或检查本地服务是否正常。</p>
-              <button
-                className="inline-flex items-center gap-1.5 text-[13px] text-[#0052D9] hover:text-[#0045b8] font-medium"
-                onClick={() => onParamsChange({})}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                重新加载
-              </button>
-            </div>
+            <PageError
+              title="岗位列表加载失败"
+              description={error || "暂时无法获取岗位数据，请稍后重试。"}
+              onRetry={handleRetry}
+            />
           )}
 
-          {/* Empty state */}
+          {/* Empty state — K8-5-12-D2: 统一 PageEmpty */}
           {isEmpty && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
-              <Search className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-[15px] text-gray-700 font-medium mb-1">没有找到匹配的岗位</p>
-              <p className="text-[13px] text-gray-400 mb-4">可以尝试减少筛选条件，或换一个关键词搜索。</p>
-              <button
-                className="text-[13px] text-[#0052D9] hover:text-[#0045b8] font-medium"
-                onClick={onClearFilters}
-              >
-                清除全部筛选
-              </button>
-            </div>
+            <PageEmpty
+              title="未找到匹配岗位"
+              description="可以尝试调整关键词、城市、岗位类别或其他筛选条件。"
+              actionLabel="清除筛选"
+              onAction={onClearFilters}
+            />
           )}
 
           {/* Job cards (hidden during initial loading, dimmed during refetch) */}

@@ -1,36 +1,62 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Badge } from "../ui/Badge";
 import { loadSelectedJobDetailViewModel } from "../../../api";
 import type { JobDetailViewModel } from "../../../adapters";
+import { PageLoading, PageError } from "../PageState";
 
 interface JobDetailBannerProps {
   jobId?: string;
 }
 
 /**
- * K8-5-10-1：Hero 简化——只展示标题 + 核心标签 + slogan
+ * K8-5-12-D1：Hero loading/error/retry 修复
  *
  * 设计说明：
  * - 蓝色系渐变背景
  * - 标题、标签、slogan 为 Hero 核心信息
- * - 完整字段（地点、部门等）移至正文白卡
- * - 返回按钮在 Hero 顶部，不被 Navbar 遮挡
- * - 内容宽度与正文主体对齐（max-w-[1280px]）
+ * - loading: PageLoading；error: PageError(onRetry)；not found: PageError
  */
 export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
   const navigate = useNavigate();
   const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!jobId) { setLoading(false); return; }
-    loadSelectedJobDetailViewModel(jobId).then(setJobVm).catch(() => {}).finally(() => setLoading(false));
-  }, [jobId]);
+    setLoading(true);
+    setError(null);
+    loadSelectedJobDetailViewModel(jobId)
+      .then((vm) => { setJobVm(vm); setError(null); })
+      .catch(() => setError("岗位信息加载失败，请稍后重试。"))
+      .finally(() => setLoading(false));
+  }, [jobId, retryCount]);
 
-  if (loading) return <div className="bg-[#0052D9] text-white text-center py-12 text-sm">正在加载岗位详情…</div>;
-  if (!jobVm) return <div className="bg-blue-50 text-gray-500 text-center py-12 text-sm">岗位不存在或已下线</div>;
+  const handleRetry = useCallback(() => setRetryCount((c) => c + 1), []);
+
+  if (loading) {
+    return (
+      <div className="w-full bg-[#0052D9] py-20">
+        <PageLoading title="正在加载岗位信息…" description="Offerr鹅正在读取岗位详情。" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <PageError title="岗位信息加载失败" description={error} onRetry={handleRetry} />;
+  }
+
+  if (!jobVm) {
+    return (
+      <PageError
+        title="岗位不存在或已下线"
+        description="该岗位可能已失效，请返回岗位列表查看其他机会。"
+      />
+    );
+  }
 
   // 核心标签：岗位大类（jobTypeLabel="技术"） + 招聘项目（applicationType="应届实习"），去重
   const heroTags = Array.from(
