@@ -1,6 +1,5 @@
 import React from "react";
-import { Sparkles, ArrowRight, FileText } from "lucide-react";
-import { Link } from "react-router";
+import { Sparkles } from "lucide-react";
 
 /**
  * K8-5-11-1：首页代码绘制 Hero Banner（替换图片版）
@@ -57,23 +56,7 @@ export function JobHeroBanner() {
             基于岗位信息与简历智能匹配，帮助你更高效完成岗位筛选与投递决策
           </p>
 
-          {/* CTA 按钮组 */}
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              to="/jobs"
-              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-[#0052D9] shadow-sm transition-colors hover:bg-blue-50"
-            >
-              查看岗位
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              to="/resumes"
-              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/8 px-6 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/14"
-            >
-              <FileText className="h-4 w-4" />
-              我的简历
-            </Link>
-          </div>
+
         </div>
 
         {/* ── 右侧 CSS 绘制插画 ── */}

@@ -112,7 +112,7 @@ function LegacyFilters({ facets, filters, toggle }: { facets: JobFacets; filters
 function FacetGroupBlock({ group, filters, toggle, toggleMulti }: {
   group: JobFacetGroup; filters: JobFilters; toggle: (k: keyof JobFilters, v: string) => void; toggleMulti: (k: keyof JobFilters, v: string) => void
 }) {
-  const [expanded, setExpanded] = useState(group.default_expanded);
+  const [expanded, setExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [expandedParentCodes, setExpandedParentCodes] = useState<Set<string>>(new Set());
   const multiSelectGroups = new Set(['city', 'business_group', 'skill']);
@@ -278,7 +278,7 @@ function Checkbox({ isSelected }: { isSelected: boolean }) {
 function CollapsibleFilterGroup({ title, items, selectedValue, onSelect }: {
   title: string; items: { value: string; label: string; count: number }[]; selectedValue?: string; onSelect: (value: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const list = safeArr(items);
   const sel = list.filter((it) => it.value === selectedValue).length;
 
