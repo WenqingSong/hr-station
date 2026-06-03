@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { JobCard } from "./JobCard";
 import { JobListSkeleton } from "./JobCardSkeleton";
+import { JobPagination } from "./JobPagination";
 import { getJobs, type JobListParams } from "../../api/jobs";
 import { toJobCardViewModelsFromApi, type JobCardViewModel } from "../../adapters";
 import { X, RefreshCw, Search, AlertCircle } from "lucide-react";
@@ -42,9 +43,6 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
 
   return (
     <main className="flex-1 max-w-[820px] pb-24">
-      {/* ── 页面标题（位于容器外）── */}
-      <h1 className="text-2xl font-bold text-gray-900 mb-5">找到更适合你的实习岗位</h1>
-
       {/* ── 第 2 层：岗位列表大容器 ── */}
       <div className="bg-[#F0F2F5] rounded-[24px] p-5 sm:p-6">
 
@@ -141,46 +139,11 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
 
         {/* ── 分页 ── */}
         {!isInitialLoading && !isError && totalPages > 1 && (
-          <div className="flex items-center justify-center gap-1 mt-6 pt-4 border-t border-gray-200/50">
-            <button
-              disabled={page <= 1}
-              onClick={() => onPageChange(page - 1)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-md disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#0052D9] hover:text-[#0052D9] transition-colors"
-            >
-              上一页
-            </button>
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              let pg: number;
-              if (totalPages <= 7) { pg = i + 1; }
-              else if (page <= 4) { pg = i + 1; }
-              else if (page >= totalPages - 3) { pg = totalPages - 6 + i; }
-              else { pg = page - 3 + i; }
-              return (
-                <button
-                  key={pg}
-                  disabled={pg === page}
-                  onClick={() => onPageChange(pg)}
-                  className={`min-w-[36px] px-2 py-1.5 text-sm border rounded-md transition-colors ${
-                    pg === page
-                      ? "bg-[#0052D9] text-white border-[#0052D9]"
-                      : "border-gray-200 hover:border-[#0052D9] hover:text-[#0052D9]"
-                  }`}
-                >
-                  {pg}
-                </button>
-              );
-            })}
-            <button
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-md disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#0052D9] hover:text-[#0052D9] transition-colors"
-            >
-              下一页
-            </button>
-            <span className="ml-3 text-xs text-gray-400">
-              第 {page}/{totalPages} 页
-            </span>
-          </div>
+          <JobPagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+          />
         )}
       </div>
     </main>

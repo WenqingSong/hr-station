@@ -45,7 +45,7 @@ export function JobCard({
   if (visibleOrgCodes) metaParts.push(visibleOrgCodes);
 
   return (
-    <div className="group relative bg-white rounded-[18px] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200">
+    <div className="group relative bg-white rounded-[18px] border border-transparent hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(0,82,217,0.10)] hover:border-blue-100 transition-all duration-200 ease-out">
       <div
         className="py-4 px-5 sm:px-6 cursor-pointer"
         onClick={() => navigate(`/jobs/${id}`)}
@@ -54,7 +54,7 @@ export function JobCard({
         onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/jobs/${id}`); }}
       >
         {/* ── 标题行 ── */}
-        <h3 className="text-[18px] font-semibold text-gray-900 leading-snug group-hover:text-[#0052D9] transition-colors mb-2">
+        <h3 className="text-[18px] font-semibold text-gray-900 leading-snug transition-colors mb-2">
           {title}
         </h3>
 
