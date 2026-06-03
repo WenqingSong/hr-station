@@ -2,15 +2,24 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  error?: boolean;
+}
+
+function Input({ className, type, error = false, ...props }: InputProps) {
   return (
     <input
       type={type}
       data-slot="input"
+      aria-invalid={error ? true : props["aria-invalid"] || undefined}
       className={cn(
-        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base bg-input-background transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-none outline-none transition-all duration-200 ease-out",
+        "placeholder:text-slate-400",
+        "hover:border-slate-300",
+        "focus:border-[#0052D9] focus:ring-4 focus:ring-[#0052D9]/10",
+        "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 disabled:opacity-70",
+        error &&
+          "border-red-300 focus:border-red-500 focus:ring-red-500/10",
         className,
       )}
       {...props}

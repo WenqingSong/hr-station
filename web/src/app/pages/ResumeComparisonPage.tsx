@@ -19,6 +19,13 @@ import type { ResumeVersionListItem } from "../../types";
 import type { ResumeComparisonViewModel } from "../../adapters";
 import { PageLoading, PageError, PageEmpty } from "../components/PageState";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 function getTrendIcon(trend: string) {
   switch (trend) {
@@ -162,20 +169,24 @@ export function ResumeComparisonPage() {
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex flex-col">
               <span className="text-xs text-slate-500 mb-1">旧版本（基准）</span>
-              <select
-                value={baseVersion?.version_no ?? ""}
-                onChange={(e) => {
-                  const v = versions.find((vv) => vv.version_no === Number(e.target.value));
-                  if (v) setBaseVersion(v);
+              <Select
+                value={baseVersion ? String(baseVersion.version_no) : undefined}
+                onValueChange={(v) => {
+                  const ver = versions.find((vv) => vv.version_no === Number(v));
+                  if (ver) setBaseVersion(ver);
                 }}
-                className="text-sm font-medium text-slate-700 bg-slate-50 border border-gray-200 rounded px-3 py-1.5 max-w-[200px] truncate focus:outline-none focus:border-blue-300"
               >
-                {versions.map((v) => (
-                  <option key={v.version_no} value={v.version_no}>
-                    V{v.version_no} {v.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="max-w-[200px] bg-slate-50 text-sm font-medium text-slate-700">
+                  <SelectValue placeholder="选择版本" />
+                </SelectTrigger>
+                <SelectContent>
+                  {versions.map((v) => (
+                    <SelectItem key={v.version_no} value={String(v.version_no)}>
+                      V{v.version_no} {v.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="text-slate-300 pt-4">
@@ -184,20 +195,24 @@ export function ResumeComparisonPage() {
 
             <div className="flex flex-col">
               <span className="text-xs text-slate-500 mb-1">新版本（目标）</span>
-              <select
-                value={targetVersion?.version_no ?? ""}
-                onChange={(e) => {
-                  const v = versions.find((vv) => vv.version_no === Number(e.target.value));
-                  if (v) setTargetVersion(v);
+              <Select
+                value={targetVersion ? String(targetVersion.version_no) : undefined}
+                onValueChange={(v) => {
+                  const ver = versions.find((vv) => vv.version_no === Number(v));
+                  if (ver) setTargetVersion(ver);
                 }}
-                className="text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-1.5 max-w-[200px] truncate focus:outline-none focus:border-blue-300"
               >
-                {versions.map((v) => (
-                  <option key={v.version_no} value={v.version_no}>
-                    V{v.version_no} {v.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="max-w-[200px] bg-blue-50 text-sm font-medium text-blue-700">
+                  <SelectValue placeholder="选择版本" />
+                </SelectTrigger>
+                <SelectContent>
+                  {versions.map((v) => (
+                    <SelectItem key={v.version_no} value={String(v.version_no)}>
+                      V{v.version_no} {v.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

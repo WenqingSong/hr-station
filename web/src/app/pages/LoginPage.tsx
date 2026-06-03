@@ -1,9 +1,10 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
-import { Eye, EyeOff } from "lucide-react";
 import { login } from "../../api/auth";
 import { setAuthToken, getAuthToken } from "../../api/authStorage";
 import type { LoginRequest } from "../../types/auth";
+import { Input } from "../components/ui/input";
+import { PasswordInput } from "../components/ui/password-input";
 
 /** 安全读取 redirect 参数，只允许站内路径 */
 function getSafeRedirect(search: string): string {
@@ -27,7 +28,6 @@ export function LoginPage() {
 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -64,16 +64,11 @@ export function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="login-phone" className="mb-1 block text-sm font-medium text-slate-700">手机号</label>
-            <input id="login-phone" type="tel" autoComplete="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="请输入手机号" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-1 focus:ring-[#0052D9]" />
+            <Input id="login-phone" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="请输入手机号" />
           </div>
           <div>
             <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-slate-700">密码</label>
-            <div className="relative">
-              <input id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="请输入密码" className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-1 focus:ring-[#0052D9]" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" tabIndex={-1} aria-label={showPassword ? "隐藏密码" : "显示密码"}>
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+            <PasswordInput id="login-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="请输入密码" />
           </div>
           {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">{error}</p>}
           <button type="submit" disabled={loading} className="w-full rounded-md bg-[#0052D9] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#0043B3] disabled:cursor-not-allowed disabled:opacity-50">{loading ? "登录中…" : "登录"}</button>

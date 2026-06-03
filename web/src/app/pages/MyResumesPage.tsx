@@ -21,6 +21,15 @@ import { ResumeSkeleton } from "../components/ui/ResumeSkeleton";
 import { PageError, PageLoading } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,12 +72,6 @@ const NAV_SECTIONS = [
   { id: "skills", label: "技能关键词" },
   { id: "self-summary", label: "自我评价" },
 ];
-
-// ─── Shared input styles ──────────────────────────────────────────────────────
-
-const inputCls =
-  "w-full px-3 py-2 border border-gray-200 rounded text-sm text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-[#0052D9] focus:border-[#0052D9] transition-colors placeholder-gray-400";
-const textareaCls = inputCls + " resize-none leading-relaxed";
 
 // ─── FormSection wrapper ──────────────────────────────────────────────────────
 
@@ -465,8 +468,7 @@ export function MyResumesPage() {
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   简历名称 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                <Input
                   value={resumeName}
                   onChange={(e) => setResumeName(e.target.value)}
                   placeholder="为这份简历起一个名字"
@@ -477,8 +479,7 @@ export function MyResumesPage() {
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   求职方向 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                <Input
                   value={jobDirection}
                   onChange={(e) => setJobDirection(e.target.value)}
                   placeholder="如：后端开发"
@@ -487,8 +488,8 @@ export function MyResumesPage() {
               {/* 简历说明 */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">简历说明</label>
-                <textarea
-                  className="min-h-[80px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 resize-none leading-relaxed focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                <Textarea
+                  className="min-h-[80px] resize-none"
                   rows={2}
                   value={resumeDesc}
                   onChange={(e) => setResumeDesc(e.target.value)}
@@ -518,48 +519,53 @@ export function MyResumesPage() {
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   姓名 <span className="text-red-500">*</span>
                 </label>
-                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={personalName} onChange={(e) => setPersonalName(e.target.value)} placeholder="姓名" />
+                <Input value={personalName} onChange={(e) => setPersonalName(e.target.value)} placeholder="姓名" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">年龄</label>
-                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={age} onChange={(e) => setAge(e.target.value)} placeholder="年龄" />
+                <Input value={age} onChange={(e) => setAge(e.target.value)} placeholder="年龄" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   学历 <span className="text-red-500">*</span>
                 </label>
-                <select className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={degree} onChange={(e) => setDegree(e.target.value)}>
-                  <option>本科</option>
-                  <option>硕士</option>
-                  <option>博士</option>
-                  <option>专科</option>
-                </select>
+                <Select value={degree} onValueChange={setDegree}>
+                  <SelectTrigger className="sm:max-w-[200px]">
+                    <SelectValue placeholder="选择学历" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="本科">本科</SelectItem>
+                    <SelectItem value="硕士">硕士</SelectItem>
+                    <SelectItem value="博士">博士</SelectItem>
+                    <SelectItem value="专科">专科</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">毕业时间</label>
-                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={gradYear} onChange={(e) => setGradYear(e.target.value)} placeholder="如：2026" />
+                <Input value={gradYear} onChange={(e) => setGradYear(e.target.value)} placeholder="如：2026" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   学校 <span className="text-red-500">*</span>
                 </label>
-                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={school} onChange={(e) => setSchool(e.target.value)} placeholder="学校名称" />
+                <Input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="学校名称" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   专业 <span className="text-red-500">*</span>
                 </label>
-                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={major} onChange={(e) => setMajor(e.target.value)} placeholder="专业名称" />
+                <Input value={major} onChange={(e) => setMajor(e.target.value)} placeholder="专业名称" />
               </div>
             </div>
             <div className="mt-5 pt-5 border-t border-gray-100 grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">手机号</label>
-                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="手机号（脱敏展示）" />
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="手机号（脱敏展示）" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">邮箱</label>
-                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱地址" />
+                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱地址" />
               </div>
             </div>
           </div>
@@ -575,8 +581,7 @@ export function MyResumesPage() {
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   求职方向 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                <Input
                   value={direction}
                   onChange={(e) => setDirection(e.target.value)}
                   placeholder="如：后端开发"
@@ -584,8 +589,7 @@ export function MyResumesPage() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">期望城市</label>
-                <input
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                <Input
                   value={cities}
                   onChange={(e) => setCities(e.target.value)}
                   placeholder="如：深圳 / 北京 / 上海"
@@ -594,15 +598,16 @@ export function MyResumesPage() {
             </div>
             <div className="mt-5">
               <label className="mb-1.5 block text-sm font-medium text-slate-700">岗位类型</label>
-              <select
-                className="h-11 w-full sm:max-w-xs rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
-                value={jobType}
-                onChange={(e) => setJobType(e.target.value)}
-              >
-                <option>校园招聘 / 实习</option>
-                <option>校园招聘</option>
-                <option>实习</option>
-              </select>
+              <Select value={jobType} onValueChange={setJobType}>
+                <SelectTrigger className="sm:max-w-xs">
+                  <SelectValue placeholder="选择岗位类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="校园招聘 / 实习">校园招聘 / 实习</SelectItem>
+                  <SelectItem value="校园招聘">校园招聘</SelectItem>
+                  <SelectItem value="实习">实习</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <p className="mt-4 text-[12px] text-slate-400">
               这些信息会影响岗位推荐、岗位匹配分析和简历优化建议的准确度。
@@ -640,30 +645,36 @@ export function MyResumesPage() {
                     <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">学校 <span className="text-red-500">*</span></label>
-                        <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.school} onChange={(e) => updateEdu(edu.id, "school", e.target.value)} placeholder="学校名称" />
+                        <Input className="h-10" value={edu.school} onChange={(e) => updateEdu(edu.id, "school", e.target.value)} placeholder="学校名称" />
                       </div>
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">专业 <span className="text-red-500">*</span></label>
-                        <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.major} onChange={(e) => updateEdu(edu.id, "major", e.target.value)} placeholder="专业名称" />
+                        <Input className="h-10" value={edu.major} onChange={(e) => updateEdu(edu.id, "major", e.target.value)} placeholder="专业名称" />
                       </div>
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">学历</label>
-                        <select className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.degree} onChange={(e) => updateEdu(edu.id, "degree", e.target.value)}>
-                          <option>本科</option><option>硕士</option><option>博士</option><option>专科</option>
-                        </select>
+                        <Select value={edu.degree} onValueChange={(v) => updateEdu(edu.id, "degree", v)}>
+                          <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="本科">本科</SelectItem>
+                            <SelectItem value="硕士">硕士</SelectItem>
+                            <SelectItem value="博士">博士</SelectItem>
+                            <SelectItem value="专科">专科</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">时间</label>
                         <div className="flex items-center gap-2">
-                          <input className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.startDate} onChange={(e) => updateEdu(edu.id, "startDate", e.target.value)} placeholder="2022.09" />
+                          <Input className="h-10 flex-1" value={edu.startDate} onChange={(e) => updateEdu(edu.id, "startDate", e.target.value)} placeholder="2022.09" />
                           <span className="text-slate-400">—</span>
-                          <input className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.endDate} onChange={(e) => updateEdu(edu.id, "endDate", e.target.value)} placeholder="2026.06" />
+                          <Input className="h-10 flex-1" value={edu.endDate} onChange={(e) => updateEdu(edu.id, "endDate", e.target.value)} placeholder="2026.06" />
                         </div>
                       </div>
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">相关课程</label>
-                      <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={edu.courses} onChange={(e) => updateEdu(edu.id, "courses", e.target.value)} placeholder="如：数据结构、操作系统、计算机网络" />
+                      <Input className="h-10" value={edu.courses} onChange={(e) => updateEdu(edu.id, "courses", e.target.value)} placeholder="如：数据结构、操作系统、计算机网络" />
                     </div>
                   </div>
                 ))}
@@ -702,24 +713,24 @@ export function MyResumesPage() {
                     <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">公司名称 <span className="text-red-500">*</span></label>
-                        <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={intern.company} onChange={(e) => updateIntern(intern.id, "company", e.target.value)} placeholder="公司名称" />
+                        <Input className="h-10" value={intern.company} onChange={(e) => updateIntern(intern.id, "company", e.target.value)} placeholder="公司名称" />
                       </div>
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">岗位名称 <span className="text-red-500">*</span></label>
-                        <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={intern.position} onChange={(e) => updateIntern(intern.id, "position", e.target.value)} placeholder="岗位名称" />
+                        <Input className="h-10" value={intern.position} onChange={(e) => updateIntern(intern.id, "position", e.target.value)} placeholder="岗位名称" />
                       </div>
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">时间</label>
                       <div className="flex items-center gap-2">
-                        <input className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={intern.startDate} onChange={(e) => updateIntern(intern.id, "startDate", e.target.value)} placeholder="2025.06" />
+                        <Input className="h-10 flex-1" value={intern.startDate} onChange={(e) => updateIntern(intern.id, "startDate", e.target.value)} placeholder="2025.06" />
                         <span className="text-slate-400">—</span>
-                        <input className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={intern.endDate} onChange={(e) => updateIntern(intern.id, "endDate", e.target.value)} placeholder="2025.09" />
+                        <Input className="h-10 flex-1" value={intern.endDate} onChange={(e) => updateIntern(intern.id, "endDate", e.target.value)} placeholder="2025.09" />
                       </div>
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">工作内容</label>
-                      <textarea className="min-h-[96px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm resize-none leading-relaxed focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" rows={3} value={intern.content} onChange={(e) => updateIntern(intern.id, "content", e.target.value)} placeholder="简要描述工作内容和成果" />
+                      <Textarea className="min-h-[96px] resize-none" rows={3} value={intern.content} onChange={(e) => updateIntern(intern.id, "content", e.target.value)} placeholder="简要描述工作内容和成果" />
                     </div>
                   </div>
                 ))}
@@ -759,19 +770,19 @@ export function MyResumesPage() {
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">项目名称 <span className="text-red-500">*</span></label>
-                      <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={proj.name} onChange={(e) => updateProject(proj.id, "name", e.target.value)} placeholder="项目名称" />
+                      <Input className="h-10" value={proj.name} onChange={(e) => updateProject(proj.id, "name", e.target.value)} placeholder="项目名称" />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">技术栈</label>
-                      <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={proj.stack} onChange={(e) => updateProject(proj.id, "stack", e.target.value)} placeholder="如：Go / MySQL / Redis" />
+                      <Input className="h-10" value={proj.stack} onChange={(e) => updateProject(proj.id, "stack", e.target.value)} placeholder="如：Go / MySQL / Redis" />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">项目描述</label>
-                      <textarea className="min-h-[88px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm resize-none leading-relaxed focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" rows={3} value={proj.desc} onChange={(e) => updateProject(proj.id, "desc", e.target.value)} placeholder="描述项目背景、你负责的部分和主要成果" />
+                      <Textarea className="min-h-[88px] resize-none" rows={3} value={proj.desc} onChange={(e) => updateProject(proj.id, "desc", e.target.value)} placeholder="描述项目背景、你负责的部分和主要成果" />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">个人职责</label>
-                      <input className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25" value={proj.role} onChange={(e) => updateProject(proj.id, "role", e.target.value)} placeholder="如：接口设计、数据库设计、缓存优化" />
+                      <Input className="h-10" value={proj.role} onChange={(e) => updateProject(proj.id, "role", e.target.value)} placeholder="如：接口设计、数据库设计、缓存优化" />
                     </div>
                   </div>
                 ))}
@@ -808,8 +819,8 @@ export function MyResumesPage() {
             )}
 
             <div className="flex gap-2">
-              <input
-                className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+              <Input
+                className="h-10 flex-1"
                 value={skillInput}
                 onChange={(e) => setSkillInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addSkill()}
@@ -830,8 +841,8 @@ export function MyResumesPage() {
             <p className="text-[13px] text-slate-500 mb-5">
               用一小段话概括你的优势、学习能力和求职方向。建议控制在 100-300 字。
             </p>
-            <textarea
-              className="min-h-[140px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 resize-y focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+            <Textarea
+              className="min-h-[140px]"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder="简要介绍自己的技术背景、求职意向和个人优势"

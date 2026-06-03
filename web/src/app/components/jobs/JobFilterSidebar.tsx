@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Search, Check, ChevronRight } from "lucide-react";
 import { getJobFacets, type JobFacets, type JobFacetGroup, type JobFacetOption } from "../../../api/jobs";
 import { CollapsibleSection } from "../CollapsibleSection";
+import { Input } from "../ui/input";
 
 export interface JobFilters {
   direction?: string; city?: string; recruit_type?: string;
@@ -55,11 +56,11 @@ export function JobFilterSidebar({ keyword, onKeywordChange, filters, onFiltersC
         <div className="p-4 pb-2">
           <div className="relative flex items-center bg-gray-100 rounded-lg">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text" placeholder="搜索工作岗位"
+            <Input
+              placeholder="搜索工作岗位"
               value={localKeyword} onChange={(e) => setLocalKeyword(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="flex-1 h-9 pl-9 pr-[58px] text-[14px] bg-transparent border-0 placeholder:text-gray-400 text-gray-800 focus:outline-none focus:ring-0"
+              className="flex-1 h-9 pl-9 pr-[58px] border-0 bg-transparent text-[14px] placeholder:text-gray-400 text-gray-800 focus:ring-0 focus:border-transparent"
             />
             <button
               onClick={handleSearch}

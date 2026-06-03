@@ -322,3 +322,17 @@
     line-height: 1.5;
   }
 }
+
+/* ── K8-5-18-C：隐藏浏览器默认 password reveal ────────────────────────────── */
+/* 配合 PasswordInput 组件，避免浏览器内置密码显示按钮与自定义 Eye 图标重叠 */
+
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+}

@@ -1,9 +1,11 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { login, register } from "../../../api/auth";
 import { setAuthToken } from "../../../api/authStorage";
 import type { LoginRequest, RegisterRequest } from "../../../types/auth";
 import { Dialog, DialogPortal, DialogOverlay } from "../ui/dialog";
+import { Input } from "../ui/input";
+import { PasswordInput } from "../ui/password-input";
 
 type AuthDialogMode = "login" | "register";
 
@@ -34,7 +36,6 @@ export function AuthDialog({
   // ── Login fields ──
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [loginShowPassword, setLoginShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
@@ -42,8 +43,6 @@ export function AuthDialog({
   const [regPhone, setRegPhone] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirm, setRegConfirm] = useState("");
-  const [regShowPassword, setRegShowPassword] = useState(false);
-  const [regShowConfirm, setRegShowConfirm] = useState(false);
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState("");
 
@@ -53,9 +52,6 @@ export function AuthDialog({
       setMode(defaultMode);
       setLoginError("");
       setRegError("");
-      setLoginShowPassword(false);
-      setRegShowPassword(false);
-      setRegShowConfirm(false);
     }
   }, [open, defaultMode]);
 
@@ -184,32 +180,25 @@ export function AuthDialog({
                   <label htmlFor="auth-login-phone" className="mb-1.5 block text-sm font-medium text-slate-700">
                     手机号
                   </label>
-                  <input
+                  <Input
                     id="auth-login-phone"
-                    type="tel"
-                    autoComplete="tel"
                     value={loginPhone}
                     onChange={(e) => setLoginPhone(e.target.value)}
                     placeholder="请输入手机号"
-                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                    autoComplete="tel"
                   />
                 </div>
-                <div className="relative">
+                <div>
                   <label htmlFor="auth-login-password" className="mb-1.5 block text-sm font-medium text-slate-700">
                     密码
                   </label>
-                  <input
+                  <PasswordInput
                     id="auth-login-password"
-                    type={loginShowPassword ? "text" : "password"}
-                    autoComplete="current-password"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="请输入密码"
-                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                    autoComplete="current-password"
                   />
-                  <button type="button" onClick={() => setLoginShowPassword(!loginShowPassword)} className="absolute right-3 top-[calc(50%+0.3rem)] -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" tabIndex={-1} aria-label={loginShowPassword ? "隐藏密码" : "显示密码"}>
-                    {loginShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
                 </div>
 
                 {loginError && (
@@ -240,49 +229,37 @@ export function AuthDialog({
                   <label htmlFor="auth-reg-phone" className="mb-1.5 block text-sm font-medium text-slate-700">
                     手机号
                   </label>
-                  <input
+                  <Input
                     id="auth-reg-phone"
-                    type="tel"
-                    autoComplete="tel"
                     value={regPhone}
                     onChange={(e) => setRegPhone(e.target.value)}
                     placeholder="请输入手机号"
-                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                    autoComplete="tel"
                   />
                 </div>
-                <div className="relative">
+                <div>
                   <label htmlFor="auth-reg-password" className="mb-1.5 block text-sm font-medium text-slate-700">
                     密码
                   </label>
-                  <input
+                  <PasswordInput
                     id="auth-reg-password"
-                    type={regShowPassword ? "text" : "password"}
-                    autoComplete="new-password"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="至少 6 位"
-                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                    autoComplete="new-password"
                   />
-                  <button type="button" onClick={() => setRegShowPassword(!regShowPassword)} className="absolute right-3 top-[calc(50%+0.3rem)] -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" tabIndex={-1} aria-label={regShowPassword ? "隐藏密码" : "显示密码"}>
-                    {regShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
                 </div>
-                <div className="relative">
+                <div>
                   <label htmlFor="auth-reg-confirm" className="mb-1.5 block text-sm font-medium text-slate-700">
                     确认密码
                   </label>
-                  <input
+                  <PasswordInput
                     id="auth-reg-confirm"
-                    type={regShowConfirm ? "text" : "password"}
-                    autoComplete="new-password"
                     value={regConfirm}
                     onChange={(e) => setRegConfirm(e.target.value)}
                     placeholder="请再次输入密码"
-                    className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/80 px-4 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:border-[#0052D9] focus:outline-none focus:ring-2 focus:ring-[#0052D9]/25"
+                    autoComplete="new-password"
                   />
-                  <button type="button" onClick={() => setRegShowConfirm(!regShowConfirm)} className="absolute right-3 top-[calc(50%+0.3rem)] -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" tabIndex={-1} aria-label={regShowConfirm ? "隐藏确认密码" : "显示确认密码"}>
-                    {regShowConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
                 </div>
 
                 {regError && (
