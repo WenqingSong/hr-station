@@ -2,7 +2,7 @@ import React from "react";
 
 export function JobCardSkeleton() {
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl py-4 px-6 animate-pulse">
+    <div className="bg-white rounded-[18px] py-4 px-5 sm:px-6 animate-pulse">
       {/* Title */}
       <div className="h-[22px] bg-gray-200 rounded w-3/4 mb-2" />
 
@@ -23,7 +23,7 @@ export function JobCardSkeleton() {
 
 export function JobListSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {Array.from({ length: 5 }).map((_, i) => (
         <JobCardSkeleton key={i} />
       ))}

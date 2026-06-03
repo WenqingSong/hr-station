@@ -45,9 +45,9 @@ export function JobCard({
   if (visibleOrgCodes) metaParts.push(visibleOrgCodes);
 
   return (
-    <div className="group relative bg-white border border-gray-100 rounded-2xl hover:border-[#0052D9]/25 hover:shadow-sm transition-all duration-200">
+    <div className="group relative bg-white rounded-[18px] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200">
       <div
-        className="py-4 px-6 cursor-pointer"
+        className="py-4 px-5 sm:px-6 cursor-pointer"
         onClick={() => navigate(`/jobs/${id}`)}
         role="link"
         tabIndex={0}
