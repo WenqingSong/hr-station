@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { JobCard } from "./JobCard";
+import { JobListSkeleton } from "./JobCardSkeleton";
 import { getJobs, type JobListParams } from "../../api/jobs";
 import { toJobCardViewModelsFromApi, type JobCardViewModel } from "../../adapters";
-import { X } from "lucide-react";
+import { X, RefreshCw, Search, AlertCircle } from "lucide-react";
 
 interface JobListProps {
   params: JobListParams;
@@ -24,6 +25,12 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
   const page = params.page || 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // K8-4-4-R4: 状态拆分
+  const isInitialLoading = loading && jobCards.length === 0;
+  const isRefetching = loading && jobCards.length > 0;
+  const isEmpty = !loading && !error && jobCards.length === 0;
+  const isError = Boolean(error);
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -41,9 +48,17 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
 
         {/* ── 筛选状态栏（参考腾讯招聘）── */}
         <div className="flex items-center justify-between flex-wrap gap-2 mt-3">
-          <span className="text-[14px] text-gray-500">
-            共 <span className="text-gray-800 font-semibold">{total}</span> 个岗位
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] text-gray-500">
+              共 <span className="text-gray-800 font-semibold">{isInitialLoading ? "..." : total}</span> 个岗位
+            </span>
+            {isRefetching && (
+              <span className="inline-flex items-center gap-1 text-[13px] text-[#0052D9]">
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                <span className="hidden sm:inline">更新中</span>
+              </span>
+            )}
+          </div>
           {activeFilters.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex flex-wrap gap-1.5">
@@ -74,42 +89,62 @@ export function JobList({ params, onPageChange, onParamsChange, activeFilters, o
 
       {/* ── 岗位卡片列表 ── */}
       <div className="space-y-4">
-        {loading && (
-          <p className="text-sm text-gray-400 py-12 text-center">正在加载岗位列表…</p>
-        )}
-        {error && (
-          <div className="text-center py-12">
-            <p className="text-sm text-gray-500 mb-3">岗位列表加载失败，请稍后重试</p>
-            <button className="text-sm text-[#0052D9] hover:underline" onClick={() => onParamsChange({})}>清空筛选并重试</button>
+        {/* Initial loading：骨架屏 */}
+        {isInitialLoading && <JobListSkeleton />}
+
+        {/* Error state */}
+        {isError && (
+          <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
+            <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-[15px] text-gray-700 font-medium mb-1">岗位列表加载失败</p>
+            <p className="text-[13px] text-gray-400 mb-4">请稍后重试，或检查本地服务是否正常。</p>
+            <button
+              className="inline-flex items-center gap-1.5 text-[13px] text-[#0052D9] hover:text-[#0045b8] font-medium"
+              onClick={() => onParamsChange({})}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              重新加载
+            </button>
           </div>
         )}
-        {!loading && !error && jobCards.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-sm text-gray-500 mb-2">没有找到匹配岗位</p>
-            <p className="text-xs text-gray-400 mb-3">可尝试放宽筛选条件或搜索其他关键词</p>
-            <button className="text-sm text-[#0052D9] hover:underline" onClick={onClearFilters}>清空筛选条件</button>
+
+        {/* Empty state */}
+        {isEmpty && (
+          <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
+            <Search className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-[15px] text-gray-700 font-medium mb-1">没有找到匹配的岗位</p>
+            <p className="text-[13px] text-gray-400 mb-4">可以尝试减少筛选条件，或换一个关键词搜索。</p>
+            <button
+              className="text-[13px] text-[#0052D9] hover:text-[#0045b8] font-medium"
+              onClick={onClearFilters}
+            >
+              清除全部筛选
+            </button>
           </div>
         )}
-        {jobCards.map((job) => (
-          <JobCard
-            key={job.id}
-            id={job.id}
-            title={job.title}
-            direction={job.direction}
-            type={job.typeLabel}
-            department={job.businessGroup}
-            businessGroups={job.businessGroups}
-            skills={job.tags}
-            location={job.locationsText}
-            locations={job.locationsList}
-            description={job.shortDescription}
-            statusLabel={job.statusLabel}
-          />
+
+        {/* Job cards (hidden during initial loading, dimmed during refetch) */}
+        {!isInitialLoading && !isError && jobCards.map((job) => (
+          <div key={job.id} className={isRefetching ? "opacity-50 transition-opacity" : ""}>
+            <JobCard
+              id={job.id}
+              title={job.title}
+              direction={job.direction}
+              type={job.typeLabel}
+              department={job.businessGroup}
+              businessGroups={job.businessGroups}
+              skills={job.tags}
+              location={job.locationsText}
+              locations={job.locationsList}
+              description={job.shortDescription}
+              statusLabel={job.statusLabel}
+            />
+          </div>
         ))}
       </div>
 
       {/* ── 分页 ── */}
-      {!loading && !error && totalPages > 1 && (
+      {!isInitialLoading && !isError && totalPages > 1 && (
         <div className="flex items-center justify-center gap-1 mt-8">
           <button
             disabled={page <= 1}
