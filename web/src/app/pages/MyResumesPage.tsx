@@ -7,9 +7,11 @@ import {
   Trash2,
   Plus,
   CheckCircle2,
+  AlertCircle,
   Clock,
   Sparkles,
   X,
+  Loader2,
 } from "lucide-react";
 import { loadResumeManagementPageViewModel } from "../../api";
 import { createResume, updateResume, getCurrentResume, getResumes } from "../../api/resumes";
@@ -413,9 +415,9 @@ export function MyResumesPage() {
   }
 
   return (
-    <ContentPageShell>
+    <ContentPageShell maxWidthClassName="max-w-[1040px]">
       {/* ── PageHeader ────────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-[1280px] px-4 pt-8 pb-4 sm:px-6 lg:px-8">
+      <div className="pt-8 pb-4">
         <Link
           to="/resumes"
           className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-3"
@@ -432,11 +434,8 @@ export function MyResumesPage() {
       </div>
 
       {/* ── MainLayout ────────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-[1280px] px-4 pb-24 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
-
-          {/* ── ResumeFormMain ────────────────────────────────────────── */}
-          <div className="min-w-0 space-y-5">
+      <div>
+        <div className="space-y-5">
 
             {/* AI hint strip */}
             <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
@@ -837,115 +836,53 @@ export function MyResumesPage() {
             </div>
           </div>
 
-          {saveSuccessMsg && (
-            <div className="rounded-xl bg-green-50 ring-1 ring-green-200 p-3 text-sm text-green-700 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-3.5" />
-              {saveSuccessMsg}
-            </div>
-          )}
-
-          {saveErrorMsg && (
-            <div className="rounded-xl bg-red-50 ring-1 ring-red-200 p-3 text-sm text-red-600 flex items-center gap-2">
-              {saveErrorMsg}
-            </div>
-          )}
-
-        </div>{/* /ResumeFormMain */}
-
-        {/* ── ResumeStatusSidebar ───────────────────────────────────── */}
-        <aside className="hidden xl:block xl:sticky xl:top-24">
-          <div className="rounded-2xl bg-white ring-1 ring-gray-100 p-5 space-y-5">
-            <h3 className="text-sm font-semibold text-slate-900">简历状态</h3>
-
-            {/* 完成度 */}
-            <div>
-              <p className="text-xs text-slate-500 mb-1.5">简历完成度</p>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#0052D9] rounded-full" style={{ width: "72%" }} />
-                </div>
-                <span className="text-sm font-bold text-[#0052D9]">72%</span>
+          {/* ── Save module: 页面最后一个卡片模块 ──────────────────────── */}
+          <section className="rounded-2xl bg-white ring-1 ring-gray-100 p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="flex-1">
+                <h2 className="text-[16px] font-semibold text-slate-900 mb-1">
+                  {mode === "add" ? "创建简历" : "保存简历"}
+                </h2>
+                <p className="text-[13px] text-slate-500 leading-relaxed">
+                  保存后，Offerr鹅 会基于最新保存版本进行岗位推荐、匹配分析和优化建议。
+                </p>
               </div>
-              <p className="mt-1.5 text-[11px] text-slate-400">信息越完整，推荐和匹配越准确。</p>
-            </div>
-
-            {/* 简历状态 */}
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-600" />
-              <span className="text-sm text-slate-700">最新保存版本用于分析</span>
-            </div>
-
-            {/* AI 可用性 */}
-            <div>
-              <p className="text-xs text-slate-500 mb-2">可用于</p>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-2 text-green-700">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" /> 岗位智能推荐
-                </div>
-                <div className="flex items-center gap-2 text-green-700">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" /> 岗位匹配分析
-                </div>
-                <div className="flex items-center gap-2 text-green-700">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" /> 简历优化建议
-                </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <Link
+                  to="/resumes"
+                  className="px-4 py-2.5 text-slate-500 text-sm hover:text-slate-800 transition-colors"
+                >
+                  取消
+                </Link>
+                <button
+                  className="rounded-xl bg-[#0052D9] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#0047BD] transition-colors disabled:opacity-50 shadow-sm flex items-center gap-1.5"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {saving ? "保存中…" : mode === "add" ? "创建简历" : "保存简历"}
+                </button>
               </div>
             </div>
 
-            {/* 缺失项提示 */}
-            <div className="rounded-xl bg-amber-50/70 border border-amber-100/50 p-3">
-              <p className="text-[11px] font-medium text-amber-800 mb-1.5">建议补充</p>
-              <ul className="text-[11px] text-amber-700 space-y-1 list-disc pl-4 marker:text-amber-300">
-                <li>技能关键词</li>
-                <li>项目经历</li>
-                <li>实习经历</li>
-              </ul>
-            </div>
-
-            {/* 最近保存 */}
-            <div className="pt-2 border-t border-gray-100">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                <Clock className="w-3 h-3" />
-                {saveSuccessMsg ? "刚刚已保存" : "尚未保存"}
+            {saveSuccessMsg && (
+              <div className="mt-4 rounded-xl bg-green-50 ring-1 ring-green-200 p-3 text-sm text-green-700 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-3.5 flex-shrink-0" />
+                {saveSuccessMsg}
               </div>
-            </div>
+            )}
 
-            {/* 操作区 */}
-            <div className="pt-2 border-t border-gray-100">
-              <Link
-                to="/resumes/compare"
-                className="block text-center text-xs text-[#0052D9] hover:underline py-1"
-              >
-                查看简历版本对比
-              </Link>
-            </div>
-          </div>
-        </aside>
+            {saveErrorMsg && (
+              <div className="mt-4 rounded-xl bg-red-50 ring-1 ring-red-200 p-3 text-sm text-red-600 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {saveErrorMsg}
+              </div>
+            )}
+          </section>
 
-      </div>{/* /grid */}</div>{/* /max-w container */}
+        </div>{/* / main form space-y-5 */}
+      </div>{/* / main content container */}
 
-    {/* ── StickySaveBar ────────────────────────────────────────────── */}
-    <div className="sticky bottom-0 z-40 border-t border-gray-100 bg-white/90 backdrop-blur">
-      <div className="mx-auto max-w-[1280px] px-4 py-4 sm:px-6 lg:px-8 flex items-center justify-between">
-        <p className="text-[13px] text-slate-500">
-          保存后，Offerr鹅 会基于当前简历进行岗位推荐、匹配分析和优化建议。
-        </p>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/resumes"
-            className="px-4 py-2.5 text-slate-500 text-sm hover:text-slate-800 transition-colors"
-          >
-            取消
-          </Link>
-          <button
-            className="rounded-xl bg-[#0052D9] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#0047BD] transition-colors disabled:opacity-50 shadow-sm"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? "保存中…" : mode === "add" ? "创建简历" : "保存简历"}
-          </button>
-        </div>
-      </div>
-    </div>
     </ContentPageShell>
   );
 }
