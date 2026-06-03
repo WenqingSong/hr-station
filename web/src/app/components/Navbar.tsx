@@ -58,12 +58,9 @@ export function Navbar() {
     navigate("/");
   }
 
-  const brandFontStyle: React.CSSProperties = {
-    fontFamily:
-      '"Alimama ShuHeiTi", "HarmonyOS Sans SC", "MiSans", "Source Han Sans SC", "Noto Sans SC", "Inter", system-ui, sans-serif',
-    letterSpacing: "-0.02em",
-    ...(isTop ? { textShadow: "0 1px 12px rgba(0,0,0,0.18)" } : {}),
-  };
+  const brandTextShadow: React.CSSProperties | undefined = isTop
+    ? { textShadow: "0 1px 12px rgba(0,0,0,0.18)" }
+    : undefined;
 
   // 顶部：深色透明玻璃悬浮在 Banner 上，白字
   const navSurfaceClass = isTop
@@ -100,8 +97,8 @@ export function Navbar() {
       <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-6 md:px-8">
         <Link
           to="/jobs"
-          className={`text-[22px] font-extrabold tracking-[-0.03em] ${brandTextClass}`}
-          style={brandFontStyle}
+          className={`font-brand text-[22px] font-extrabold tracking-[-0.03em] ${brandTextClass}`}
+          style={brandTextShadow}
           aria-label="Offer 捕手首页"
         >
           Offer 捕手
