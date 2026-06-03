@@ -48,7 +48,7 @@ export function RegisterPage() {
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
       <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-6 text-center text-xl font-semibold text-slate-900">注册 Offer 捕手</h1>
+        <h1 className="mb-6 text-center text-xl font-semibold text-slate-900">注册 offerr鹅</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="register-phone" className="mb-1 block text-sm font-medium text-slate-700">手机号</label>
