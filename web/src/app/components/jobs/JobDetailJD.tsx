@@ -5,13 +5,13 @@ import { loadSelectedJobDetailViewModel } from "../../../api";
 import type { JobDetailViewModel } from "../../../adapters";
 
 /**
- * K8-5-9-C：重构岗位详情页主内容模块，对齐腾讯招聘详情页结构
+ * K8-5-10-2：岗位详情正文字段结构最终对齐腾讯招聘官网
  *
  * 设计说明：
- * - 第一张主白卡：岗位描述 / 岗位要求 / 加分项或注意事项 / 参加面试的城市 / 技能关键词 / 投递说明
- * - 第二张独立白卡：招聘部门和工作地 / 工作地点
+ * - 第一张主白卡：岗位描述 / 岗位要求 / 加分项或注意事项 / 参加面试的城市 / 技能关键词(弱化) / 投递说明(弱化)
+ * - 第二张独立白卡：招聘部门和工作地（文本字段风格，不按钮墙）/ 工作地点
  * - 底部：投递简历 CTA 按钮（UI only）
- * - 去掉 K8-5-1 的蓝色竖条标题，改为纯文字层级
+ * - 纯文字层级，无蓝色竖条，整体招聘官网风格
  */
 
 /** 安全的数组渲染辅助函数 */
@@ -124,21 +124,21 @@ export function JobDetailJD() {
             </section>
           )}
 
-          {/* ── 技能关键词 ── */}
+          {/* ── 技能关键词（Offerr鹅增强，弱化展示） ── */}
           {hasSkills && (
             <section>
               <h2 className={sectionTitle}>技能关键词</h2>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {skillsToShow.map((skill) => (
                   <span
                     key={skill}
-                    className="inline-flex items-center px-2.5 py-1 bg-gray-50 text-gray-600 text-[13px] rounded border border-gray-100"
+                    className="inline-flex items-center px-2 py-0.5 bg-gray-50 text-gray-500 text-[12px] rounded border border-gray-100"
                   >
                     {skill}
                   </span>
                 ))}
                 {skillsRemaining > 0 && (
-                  <span className="inline-flex items-center px-2.5 py-1 text-gray-400 text-[13px]">
+                  <span className="inline-flex items-center px-2 py-0.5 text-gray-400 text-[12px]">
                     +{skillsRemaining}
                   </span>
                 )}
@@ -146,10 +146,10 @@ export function JobDetailJD() {
             </section>
           )}
 
-          {/* ── 投递说明 ── */}
-          <section className="bg-blue-50/50 border border-blue-100/60 rounded-lg p-5">
-            <h2 className="text-[14px] font-semibold text-gray-800 mb-2">投递说明</h2>
-            <p className="text-[13px] text-gray-600 leading-relaxed">
+          {/* ── 投递说明（Offerr鹅增强，弱化展示） ── */}
+          <section className="bg-blue-50/40 border border-blue-100/40 rounded-lg p-4">
+            <h2 className="text-[13px] font-semibold text-gray-700 mb-1.5">投递说明</h2>
+            <p className="text-[12px] text-gray-500 leading-relaxed">
               {jobVm.deliveryNotes || "该岗位支持使用当前简历进行 AI 匹配分析，分析结果仅作为投递前决策参考，不替代用户最终选择。"}
             </p>
           </section>
@@ -165,13 +165,13 @@ export function JobDetailJD() {
 
           {/* 招聘部门 */}
           <div className="mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
               {jobVm.organizations.map((o, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <span className="font-mono text-[#0052D9] text-[13px] font-semibold bg-blue-50 px-2 py-0.5 rounded">
+                <div key={i} className="flex items-center gap-2.5">
+                  <span className="font-mono text-[13px] font-semibold text-gray-700 shrink-0 w-10">
                     {o.code}
                   </span>
-                  <span className="text-gray-700 text-sm">{o.name}</span>
+                  <span className="text-[13px] text-gray-500">{o.name}</span>
                 </div>
               ))}
             </div>
@@ -181,13 +181,7 @@ export function JobDetailJD() {
           {locationsText && (
             <div>
               <h3 className={subTitle}>工作地点</h3>
-              <div className="flex flex-wrap gap-2">
-                {jobVm.locations.map((location, i) => (
-                  <span key={i} className="inline-flex items-center px-3 py-1.5 bg-gray-50 text-gray-700 text-sm rounded-lg border border-gray-100">
-                    {location}
-                  </span>
-                ))}
-              </div>
+              <p className="text-[13px] text-gray-500 leading-relaxed">{locationsText}</p>
             </div>
           )}
         </div>
