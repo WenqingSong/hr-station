@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { JobCard } from "./JobCard";
 import { JobListSkeleton } from "./JobCardSkeleton";
 import { JobPagination } from "./JobPagination";
-import { getJobs, type JobListParams } from "../../api/jobs";
-import { toJobCardViewModelsFromApi, type JobCardViewModel } from "../../adapters";
+import { getJobs, type JobListParams } from "../../../api/jobs";
+import { toJobCardViewModelsFromApi, type JobCardViewModel } from "../../../adapters";
 import { X, RefreshCw, Search, AlertCircle } from "lucide-react";
 
 interface JobListProps {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Search, Check, ChevronRight } from "lucide-react";
-import { getJobFacets, type JobFacets, type JobFacetGroup, type JobFacetOption } from "../../api/jobs";
-import { CollapsibleSection } from "./CollapsibleSection";
+import { getJobFacets, type JobFacets, type JobFacetGroup, type JobFacetOption } from "../../../api/jobs";
+import { CollapsibleSection } from "../CollapsibleSection";
 
 export interface JobFilters {
   direction?: string; city?: string; recruit_type?: string;

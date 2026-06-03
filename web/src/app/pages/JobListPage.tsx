@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
-import { JobFilterSidebar, type JobFilters } from "../components/JobFilterSidebar";
-import { JobList } from "../components/JobList";
-import { JobHeroBanner } from "../components/JobHeroBanner";
+import { JobFilterSidebar, type JobFilters } from "../components/jobs/JobFilterSidebar";
+import { JobList } from "../components/jobs/JobList";
+import { JobHeroBanner } from "../components/jobs/JobHeroBanner";
 import { AIDecisionWorkspace } from "../components/AIDecisionWorkspace";
 import { AISidebarShell } from "../layouts/AISidebarShell";
 import type { JobListParams } from "../../api/jobs";

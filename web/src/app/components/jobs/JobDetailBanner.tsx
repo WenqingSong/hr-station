@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, MapPin, Building2 } from "lucide-react";
 import { useNavigate } from "react-router";
-import { Badge } from "./ui/Badge";
-import { loadSelectedJobDetailViewModel } from "../../api";
-import type { JobDetailViewModel } from "../../adapters";
+import { Badge } from "../ui/Badge";
+import { loadSelectedJobDetailViewModel } from "../../../api";
+import type { JobDetailViewModel } from "../../../adapters";
 
 interface JobDetailBannerProps {
   jobId?: string;

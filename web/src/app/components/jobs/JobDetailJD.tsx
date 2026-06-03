@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router";
-import { Badge } from "./ui/Badge";
-import { loadSelectedJobDetailViewModel } from "../../api";
-import type { JobDetailViewModel } from "../../adapters";
+import { Badge } from "../ui/Badge";
+import { loadSelectedJobDetailViewModel } from "../../../api";
+import type { JobDetailViewModel } from "../../../adapters";
 
 /**
  * K8-5-1：重构岗位详情页主 JD 卡片，对齐腾讯招聘详情页
