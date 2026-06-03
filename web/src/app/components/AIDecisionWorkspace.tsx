@@ -23,7 +23,7 @@ export function AIDecisionWorkspace() {
   }, [isLoggedIn]);
   
   return (
-    <aside className="w-[300px] shrink-0 flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       {/* Header */}
       <div className="mb-1">
         <div className="flex items-center gap-1.5 mb-1">
@@ -115,6 +115,6 @@ export function AIDecisionWorkspace() {
           </div>
         </>
       )}
-    </aside>
+    </div>
   );
 }

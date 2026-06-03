@@ -4,6 +4,7 @@ import { JobFilterSidebar, type JobFilters } from "../components/JobFilterSideba
 import { JobList } from "../components/JobList";
 import { JobHeroBanner } from "../components/JobHeroBanner";
 import { AIDecisionWorkspace } from "../components/AIDecisionWorkspace";
+import { AISidebarShell } from "../layouts/AISidebarShell";
 import type { JobListParams } from "../../api/jobs";
 
 const PAGE_SIZE = 10;
@@ -150,7 +151,9 @@ export function JobListPage() {
             activeFilters={activeFilterLabels}
             onClearFilters={clearFilters}
           />
-          <AIDecisionWorkspace />
+          <AISidebarShell className="lg:w-[300px] lg:shrink-0">
+            <AIDecisionWorkspace />
+          </AISidebarShell>
         </div>
       </div>
     </div>
