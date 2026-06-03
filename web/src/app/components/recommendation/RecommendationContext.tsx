@@ -1,7 +1,7 @@
 import React from "react";
 import { FileText, Sparkles, AlertCircle } from "lucide-react";
-import { Badge } from "./ui/Badge";
-import type { ResumeSummaryViewModel } from "../../adapters";
+import { Badge } from "../ui/Badge";
+import type { ResumeSummaryViewModel } from "../../../adapters";
 
 interface RecommendationContextProps {
   resumeName?: string;

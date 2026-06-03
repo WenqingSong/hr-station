@@ -1,8 +1,8 @@
 import React from "react";
 import { MapPin, AlertCircle, ChevronRight } from "lucide-react";
-import { Badge } from "./ui/Badge";
-import { cn } from "../utils";
-import type { RecommendationPageViewModel } from "../../adapters";
+import { Badge } from "../ui/Badge";
+import { cn } from "../../utils";
+import type { RecommendationPageViewModel } from "../../../adapters";
 
 interface RecommendationSidebarProps {
   data?: RecommendationPageViewModel | null;

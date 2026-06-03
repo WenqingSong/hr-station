@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router";
-import { RecommendationHeader } from "../components/RecommendationHeader";
-import { RecommendationSidebar } from "../components/RecommendationSidebar";
-import { RecommendationDetail } from "../components/RecommendationDetail";
-import { RecommendationContext } from "../components/RecommendationContext";
+import { RecommendationHeader } from "../components/recommendation/RecommendationHeader";
+import { RecommendationSidebar } from "../components/recommendation/RecommendationSidebar";
+import { RecommendationDetail } from "../components/recommendation/RecommendationDetail";
+import { RecommendationContext } from "../components/recommendation/RecommendationContext";
 import { loadRecommendationViewModel, loadResumeOptionViewModelsFromApi } from "../../api";
 import type { RecommendationPageViewModel, ResumeOptionViewModel } from "../../adapters";
 import { PageLoading, PageEmpty } from "../components/PageState";

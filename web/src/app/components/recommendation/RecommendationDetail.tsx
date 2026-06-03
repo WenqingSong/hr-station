@@ -1,9 +1,9 @@
 import React from "react";
 import { CheckCircle2, ShieldAlert, Zap, ArrowRight } from "lucide-react";
-import { Button } from "./ui/Button";
-import { Badge } from "./ui/Badge";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
 import { useNavigate } from "react-router";
-import type { RecommendationPageViewModel } from "../../adapters";
+import type { RecommendationPageViewModel } from "../../../adapters";
 
 interface RecommendationDetailProps {
   currentResumeId?: string;
