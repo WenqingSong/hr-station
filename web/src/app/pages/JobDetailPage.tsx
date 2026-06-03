@@ -2,7 +2,7 @@ import React from "react";
 import { useParams } from "react-router";
 import { JobDetailBanner } from "../components/jobs/JobDetailBanner";
 import { JobDetailJD } from "../components/jobs/JobDetailJD";
-import { JobDetailAIDecision } from "../components/JobDetailAIDecision";
+import { JobDetailAIDecision } from "../components/ai/JobDetailAIDecision";
 import { TwoColumnPageShell } from "../layouts/TwoColumnPageShell";
 import { AISidebarShell } from "../layouts/AISidebarShell";
 

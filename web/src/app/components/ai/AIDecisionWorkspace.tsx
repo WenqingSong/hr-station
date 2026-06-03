@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Sparkles, FileText, LogIn, Plus, ArrowRight } from "lucide-react";
-import { Button } from "./ui/Button";
-import { Badge } from "./ui/Badge";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
 import { useNavigate } from "react-router";
-import { loadCurrentResumeSummaryViewModel } from "../../api";
-import type { ResumeSummaryViewModel } from "../../adapters";
-import { getAuthToken } from "../../api/authStorage";
+import { loadCurrentResumeSummaryViewModel } from "../../../api";
+import type { ResumeSummaryViewModel } from "../../../adapters";
+import { getAuthToken } from "../../../api/authStorage";
 
 export function AIDecisionWorkspace() {
   const navigate = useNavigate();

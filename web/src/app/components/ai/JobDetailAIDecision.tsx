@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Sparkles, FileText, Target, ArrowRight, ShieldAlert, FileEdit } from "lucide-react";
-import { Button } from "./ui/Button";
-import { Badge } from "./ui/Badge";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
 import { useNavigate, useParams } from "react-router";
-import { loadCurrentResumeSummaryViewModel, loadJobDetailViewModel } from "../../api";
-import type { ResumeSummaryViewModel, JobDetailViewModel } from "../../adapters";
-import { SelectResumeModal } from "./SelectResumeModal";
+import { loadCurrentResumeSummaryViewModel, loadJobDetailViewModel } from "../../../api";
+import type { ResumeSummaryViewModel, JobDetailViewModel } from "../../../adapters";
+import { SelectResumeModal } from "../SelectResumeModal";
 
 type ModalAction = "match" | "optimize";
 

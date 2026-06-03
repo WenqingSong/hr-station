@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router";
 import { JobFilterSidebar, type JobFilters } from "../components/jobs/JobFilterSidebar";
 import { JobList } from "../components/jobs/JobList";
 import { JobHeroBanner } from "../components/jobs/JobHeroBanner";
-import { AIDecisionWorkspace } from "../components/AIDecisionWorkspace";
+import { AIDecisionWorkspace } from "../components/ai/AIDecisionWorkspace";
 import { AISidebarShell } from "../layouts/AISidebarShell";
 import type { JobListParams } from "../../api/jobs";
 
