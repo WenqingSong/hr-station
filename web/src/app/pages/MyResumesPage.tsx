@@ -12,7 +12,12 @@ import {
 import { loadResumeManagementPageViewModel } from "../../api";
 import { createResume, updateResume, getCurrentResume, getResumes } from "../../api/resumes";
 import type { ResumeManagementViewModel } from "../../adapters";
-import type { ResumeEducation, ResumeExperience, ResumeProject } from "../../types";
+import type {
+  ResumeEducation, ResumeExperience, ResumeProject,
+  ResumeProfileV2, ResumeJobIntentionV2, ResumeEducationV2,
+  ResumeInternshipV2, ResumeProjectV2, ResumeSkillsV2,
+  ResumeCertificateV2, ResumeAwardV2, ResumePortfolioV2, ResumeExtraInfoV2,
+} from "../../types";
 import { ResumeSkeleton } from "../components/ui/ResumeSkeleton";
 import { PageError, PageLoading } from "../components/PageState";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
@@ -317,10 +322,23 @@ export function MyResumesPage() {
   // ── Self summary ─────────────────────────────────────────────────────────────
   const [summary, setSummary] = useState("");
 
-  // 编辑模式：formVm → 表单 state 完整回填
+  // K8-5-23-B: Reverse-conversion helpers from arrays to draft strings.
+  function joinList(value?: string[] | string | null): string {
+    if (!value) return "";
+    if (Array.isArray(value)) return value.filter((s) => s.length > 0).join("、");
+    return value;
+  }
+  function joinLines(value?: string[] | string | null): string {
+    if (!value) return "";
+    if (Array.isArray(value)) return value.filter((s) => s.length > 0).join("\n");
+    return value;
+  }
+
+  // 编辑模式：formVm → 表单 state 完整回填（V1 + V2）
   useEffect(() => {
     if (!formVm || mode !== "edit") return;
 
+    // ── V1 baseline backfill ─────────────────────────────────────────
     // Personal info
     setPersonalName(formVm.displayName !== "暂未填写" ? formVm.displayName : "");
     setPhone(formVm.displayPhone || "");
@@ -370,6 +388,162 @@ export function MyResumesPage() {
 
     // Self evaluation
     setSummary(formVm.selfEvaluation || "");
+
+    // ── K8-5-23-B: V2 backfill — only for V2 resumes ─────────────────
+    const v2 = formVm.v2;
+    if (!v2) return;
+
+    // Resume basics
+    const name = formVm.summary.name || "";
+    if (name) setResumeName(name);
+    if (v2.jobIntention?.target_roles?.length) {
+      setJobDirection(joinList(v2.jobIntention.target_roles));
+    }
+
+    // Profile V2
+    if (v2.profile) {
+      const pr = v2.profile;
+      if (pr.current_city) setCurrentCity(pr.current_city);
+      if (pr.graduation_year) setGradYear(pr.graduation_year);
+      if (pr.degree) setDegree(pr.degree);
+      if (pr.school) setSchool(pr.school);
+      if (pr.major) setMajor(pr.major);
+      if (pr.name) setPersonalName(pr.name);
+    }
+
+    // Job intention V2
+    if (v2.jobIntention) {
+      const ji = v2.jobIntention;
+      if (ji.target_roles) setDirection(joinList(ji.target_roles));
+      if (ji.expected_cities) setCities(joinList(ji.expected_cities));
+      if (ji.job_type) setJobType(ji.job_type);
+      if (ji.accept_other_cities !== undefined) setAcceptOtherCities(ji.accept_other_cities);
+      if (ji.earliest_start_date) setEarliestStartDate(ji.earliest_start_date);
+      if (ji.internship_duration) setInternshipDuration(ji.internship_duration);
+      if (ji.weekly_available_days !== undefined) setWeeklyAvailableDays(String(ji.weekly_available_days));
+      if (ji.target_industries) setTargetIndustries(joinList(ji.target_industries));
+      if (ji.target_companies) setTargetCompanies(joinList(ji.target_companies));
+    }
+
+    // Education V2
+    if (v2.educations && v2.educations.length > 0) {
+      const v2EduList: Education[] = v2.educations.map((e: ResumeEducationV2, i: number) => ({
+        id: i + 1,
+        school: e.school || "",
+        major: e.major || "",
+        degree: e.degree || "本科",
+        startDate: e.start_date || "",
+        endDate: e.end_date || "",
+        courses: (e.core_courses || []).join("、"),
+        department: e.department || "",
+        gpa: e.gpa || "",
+        gpaScale: e.gpa_scale || "",
+        rank: e.rank || "",
+        coreCourses: joinList(e.core_courses),
+        researchDirection: e.research_direction || "",
+        lab: e.lab || "",
+        paperSummary: e.paper_summary || "",
+      }));
+      setEducations(v2EduList);
+    }
+
+    // Internship V2
+    if (v2.internships && v2.internships.length > 0) {
+      const v2IntList: Internship[] = v2.internships.map((it: ResumeInternshipV2, i: number) => ({
+        id: i + 1,
+        company: it.company || "",
+        position: it.role || "",
+        startDate: it.start_date || "",
+        endDate: it.end_date || "",
+        content: it.work_content || "",
+        techStack: joinList(it.tech_stack),
+        achievements: joinLines(it.achievements),
+        metrics: it.metrics || "",
+      }));
+      setInternships(v2IntList);
+    }
+
+    // Project V2
+    if (v2.projects && v2.projects.length > 0) {
+      const v2ProjList: Project[] = v2.projects.map((pj: ResumeProjectV2, i: number) => ({
+        id: i + 1,
+        name: pj.name || "",
+        stack: joinList(pj.tech_stack) || "",
+        desc: pj.description || "",
+        role: pj.role || "",
+        projectType: pj.type || "",
+        startDate: pj.start_date || "",
+        endDate: pj.end_date || "",
+        responsibilities: pj.responsibilities || "",
+        achievements: joinLines(pj.achievements),
+        link: pj.link || "",
+      }));
+      setProjects(v2ProjList);
+    }
+
+    // Skills V2
+    if (v2.skills) {
+      const sk = v2.skills;
+      setSkillsDraft({
+        programmingLanguages: joinList(sk.programming_languages),
+        backendFrameworks: joinList(sk.backend_frameworks),
+        frontendTechnologies: joinList(sk.frontend_technologies),
+        databases: joinList(sk.databases),
+        middleware: joinList(sk.middleware),
+        cloudPlatforms: joinList(sk.cloud_platforms),
+        devTools: joinList(sk.dev_tools),
+        aiTools: joinList(sk.ai_tools),
+        aiApplicationScenarios: joinList(sk.ai_application_scenarios),
+        otherKeywords: joinList(sk.other_keywords),
+      });
+    }
+
+    // Certificates V2
+    if (v2.certificates && v2.certificates.length > 0) {
+      const certList: CertificateDraft[] = v2.certificates.map((c: ResumeCertificateV2, i: number) => ({
+        id: i + 1,
+        name: c.name || "",
+        type: c.type || "",
+        level: c.level || "",
+        score: c.score || "",
+        issuedAt: c.issued_at || "",
+      }));
+      setCertificateDrafts(certList);
+    }
+
+    // Awards V2
+    if (v2.awards && v2.awards.length > 0) {
+      const awdList: AwardDraft[] = v2.awards.map((a: ResumeAwardV2, i: number) => ({
+        id: i + 1,
+        name: a.name || "",
+        type: a.type || "",
+        level: a.level || "",
+        awardedAt: a.awarded_at || "",
+        description: a.description || "",
+      }));
+      setAwardDrafts(awdList);
+    }
+
+    // Portfolio V2
+    if (v2.portfolio) {
+      const port = v2.portfolio;
+      setPortfolioDraft({
+        github: port.github || "",
+        gitee: port.gitee || "",
+        cnb: port.cnb || "",
+        blog: port.blog || "",
+        demoLinks: joinLines(port.demo_links),
+        portfolioLinks: joinLines(port.portfolio_links),
+        homepage: port.homepage || "",
+      });
+    }
+
+    // Extra Info V2
+    if (v2.extraInfo) {
+      const ei = v2.extraInfo;
+      if (ei.self_evaluation) setSummary(ei.self_evaluation);
+      setExtraInfoDraft({ additionalInfo: ei.additional_info || "" });
+    }
   }, [formVm, mode]);
 
   // ── Save handler ─────────────────────────────────────────────────────────────

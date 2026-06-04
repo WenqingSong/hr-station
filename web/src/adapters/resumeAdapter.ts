@@ -8,6 +8,16 @@ import type {
   ResumeOption,
   ResumeVersionComparison,
   ResumeVersionListItem,
+  ResumeProfileV2,
+  ResumeJobIntentionV2,
+  ResumeEducationV2,
+  ResumeInternshipV2,
+  ResumeProjectV2,
+  ResumeSkillsV2,
+  ResumeCertificateV2,
+  ResumeAwardV2,
+  ResumePortfolioV2,
+  ResumeExtraInfoV2,
 } from '../types';
 
 // ─── ViewModel 类型 ────────────────────────────────────────────────────────────
@@ -50,6 +60,19 @@ export interface ResumeManagementViewModel {
   hasResume: boolean;
   /** V2: schema version (1 or 2), undefined for V1 */
   schemaVersion?: number;
+  /** K8-5-23-B: V2 raw modules for edit backfill */
+  v2?: {
+    profile?: ResumeProfileV2;
+    jobIntention?: ResumeJobIntentionV2;
+    educations?: ResumeEducationV2[];
+    internships?: ResumeInternshipV2[];
+    projects?: ResumeProjectV2[];
+    skills?: ResumeSkillsV2;
+    certificates?: ResumeCertificateV2[];
+    awards?: ResumeAwardV2[];
+    portfolio?: ResumePortfolioV2;
+    extraInfo?: ResumeExtraInfoV2;
+  };
 }
 
 export interface ResumeOptionViewModel {
@@ -223,7 +246,8 @@ export function toResumeOptionViewModelsFromVersions(
 // ─── Management Page VM（V2-aware） ────────────────────────────────────────────
 
 /** 从完整 Resume 构建管理页 ViewModel（V2-aware）。
- * V2 字段优先，V1 fallback。page UI 字段名不变。 */
+ * V2 字段优先，V1 fallback。page UI 字段名不变。
+ * K8-5-23-B: passes V2 raw modules through v2 field for edit backfill. */
 export function toResumeManagementViewModel(
   resume: Resume,
 ): ResumeManagementViewModel {
@@ -242,6 +266,21 @@ export function toResumeManagementViewModel(
 
   const directionLabel = getV2TargetDirection(resume) || resume.direction_label || '暂未填写';
 
+  // K8-5-23-B: Build V2 raw modules from response for edit backfill
+  const hasV2 = schVer === 2;
+  const v2 = hasV2 ? {
+    profile: resume.profile_json ?? resume.profile,
+    jobIntention: resume.job_intention,
+    educations: parseV2Educations(resume),
+    internships: resume.internships,
+    projects: parseV2Projects(resume),
+    skills: parseV2Skills(resume),
+    certificates: resume.certificates,
+    awards: resume.awards,
+    portfolio: resume.portfolio_links,
+    extraInfo: resume.extra_info,
+  } : undefined;
+
   return {
     summary,
     displayName: p.name || resume.name || '暂未填写',
@@ -258,7 +297,36 @@ export function toResumeManagementViewModel(
     selfEvaluation: resume.self_evaluation || '',
     hasResume: !!(p.name || resume.name || p.school),
     schemaVersion: schVer,
+    v2,
   };
+}
+
+// ─── K8-5-23-B: V2 education/projects/skills parsers ──────────────────────────
+
+function parseV2Educations(resume: Resume): ResumeEducationV2[] | undefined {
+  const edu = resume.education;
+  if (!edu || edu.length === 0) return undefined;
+  // V2 educations were stored in education_json; API returns them as "education" array.
+  // They'd have V2 extended fields if saved with schema_version=2.
+  // Simply cast: extra fields beyond V1 get ignored by V1 type but carried here.
+  return edu as unknown as ResumeEducationV2[];
+}
+
+function parseV2Projects(resume: Resume): ResumeProjectV2[] | undefined {
+  const proj = resume.projects;
+  if (!proj || proj.length === 0) return undefined;
+  return proj as unknown as ResumeProjectV2[];
+}
+
+function parseV2Skills(resume: Resume): ResumeSkillsV2 | undefined {
+  // V2 skills are stored as an object; V1 skills are string[].
+  const s = resume.skills;
+  if (!s || (Array.isArray(s) && s.length === 0)) return undefined;
+  if (Array.isArray(s)) {
+    // V1 flat list — wrap into other_keywords
+    return { other_keywords: s };
+  }
+  return s as unknown as ResumeSkillsV2;
 }
 
 export function toResumeComparisonViewModel(
