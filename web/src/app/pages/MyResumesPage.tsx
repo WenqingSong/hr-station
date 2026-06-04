@@ -35,7 +35,6 @@ import {
 // ─── K8-5-22-E: V2 Shell components ──────────────────────────────────────────
 import {
   ResumeEditorShell,
-  ResumeEditorStatusSidebar,
   ResumeEditorSaveCard,
   ResumeBasicsSection,
   BasicInfoSection,
@@ -952,21 +951,6 @@ export function MyResumesPage() {
     <ResumeEditorShell
       title={mode === "add" ? "创建简历" : "编辑简历"}
       subtitle="完善你的经历和技能，让 Offerr鹅 更准确地完成岗位推荐、匹配分析和简历优化。"
-      sidebar={
-        <ResumeEditorStatusSidebar
-          completeness={formVm?.summary.completeness ?? 0}
-          aiReady={!!formVm?.hasResume}
-          missingRequired={0}
-          recommendedToFill={0}
-          aiFunctions={{
-            recommendation: !!formVm?.hasResume,
-            matchAnalysis: !!formVm?.hasResume,
-            resumeOptimization: !!formVm?.hasResume,
-            versionComparison: !!formVm?.hasResume,
-          }}
-          saving={saving}
-        />
-      }
       saveCard={
         <ResumeEditorSaveCard
           mode={mode}
@@ -986,14 +970,14 @@ export function MyResumesPage() {
         返回我的简历
       </Link>
 
-      {/* ── AI hint strip ──────────────────────────────────────────── */}
+      {/* ── Hint strip ──────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
         <Sparkles className="w-3.5 h-3.5 text-[#0052D9] flex-shrink-0" />
         <span className="text-xs text-[#0052D9]">
           当前简历可用于：<strong>岗位推荐</strong> / <strong>岗位匹配分析</strong> / <strong>简历优化</strong>
         </span>
         <span className="w-px h-3.5 bg-blue-200 mx-1" />
-        <span className="text-xs text-gray-400">AI 建议仅作投递前参考，不替代真实经历核实。</span>
+        <span className="text-xs text-gray-400">建议仅作投递前参考，不替代真实经历核实。</span>
       </div>
 
       {/* ── Module 1: 简历基础 ──────────────────────────────────────── */}
@@ -1045,7 +1029,7 @@ export function MyResumesPage() {
           </div>
         </div>
         <p className="mt-5 text-[12px] text-slate-400 leading-relaxed border-t border-gray-100 pt-4">
-          基础信息用于简历展示和基础画像。手机号 / 邮箱不会进入 AI 分析。
+          基础信息用于简历展示和基础画像。手机号 / 邮箱不会用于分析匹配。
         </p>
       </BasicInfoSection>
 

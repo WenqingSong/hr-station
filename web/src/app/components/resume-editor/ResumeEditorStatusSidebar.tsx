@@ -12,13 +12,13 @@ import {
 
 export interface ResumeEditorStatusSidebarProps {
   completeness: number;
-  /** Whether the resume has enough info for AI analysis */
+  /** Whether the resume has enough info for analysis */
   aiReady: boolean;
   /** Count of required fields still missing */
   missingRequired: number;
   /** Count of recommended fields to fill */
   recommendedToFill: number;
-  /** AI function statuses */
+  /** Function statuses */
   aiFunctions?: {
     recommendation: boolean;
     matchAnalysis: boolean;
@@ -32,8 +32,8 @@ export interface ResumeEditorStatusSidebarProps {
 /**
  * Right sidebar for the resume editor.
  *
- * Shows completion status, AI readiness, missing required/recommended fields,
- * and AI function availability.
+ * Shows completion status, readiness, missing required/recommended fields,
+ * and function availability.
  *
  * Desktop: sticky on right. Mobile: placed above the main form.
  */
@@ -69,7 +69,7 @@ export function ResumeEditorStatusSidebar({
           </div>
         </div>
 
-        {/* AI readiness */}
+        {/* Readiness */}
         <div
           className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs ${
             aiReady
@@ -82,7 +82,7 @@ export function ResumeEditorStatusSidebar({
           ) : (
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
           )}
-          <span>{aiReady ? "可用于 AI 分析" : "尚未满足 AI 分析条件"}</span>
+          <span>{aiReady ? "信息完整，可用于分析" : "当前信息尚不完整"}</span>
         </div>
 
         {/* Missing / recommended */}
@@ -117,7 +117,7 @@ export function ResumeEditorStatusSidebar({
         {/* Divider */}
         <div className="border-t border-gray-100" />
 
-        {/* AI functions */}
+        {/* Functions */}
         {aiFunctions && (
           <div className="space-y-2.5">
             <span className="text-xs font-medium text-slate-500">
