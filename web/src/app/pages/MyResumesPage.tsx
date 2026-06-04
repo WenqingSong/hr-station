@@ -374,37 +374,185 @@ export function MyResumesPage() {
 
   // ── Save handler ─────────────────────────────────────────────────────────────
 
+  // K8-5-22-J: Data cleaning helpers for V2 payload assembly.
+  function splitList(value: string): string[] {
+    return value
+      .split(/[，,、\n/]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+  function splitLines(value: string): string[] {
+    return value
+      .split(/\n/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+  function firstOf(list: string[]): string {
+    return list.length > 0 ? list[0] : "";
+  }
+
   async function handleSave() {
     setSaveSuccessMsg("");
     setSaveErrorMsg("");
     setSaving(true);
 
+    // K8-5-22-J: V2 payload with 10 modules + V1 backward-compatible fields.
+    const v2Profile = {
+      name: personalName || undefined,
+      school: school || undefined,
+      degree: degree || undefined,
+      major: major || undefined,
+      graduation_year: gradYear || undefined,
+      current_city: currentCity || undefined,
+    };
+
+    const targetRoles = splitList(direction || jobDirection || "");
+    const expectedCities = splitList(cities || "");
+    const v2JobIntention = {
+      target_roles: targetRoles.length > 0 ? targetRoles : undefined,
+      job_type: jobType || undefined,
+      expected_cities: expectedCities.length > 0 ? expectedCities : undefined,
+      accept_other_cities: acceptOtherCities,
+      earliest_start_date: earliestStartDate || undefined,
+      internship_duration: internshipDuration || undefined,
+      weekly_available_days: weeklyAvailableDays !== "" ? Number(weeklyAvailableDays) : undefined,
+      target_industries: splitList(targetIndustries) || undefined,
+      target_companies: splitList(targetCompanies) || undefined,
+    };
+
+    const v2Educations = educations.length > 0 ? educations.map((e) => ({
+      school: e.school || undefined,
+      degree: e.degree || undefined,
+      major: e.major || undefined,
+      department: e.department || undefined,
+      start_date: e.startDate || undefined,
+      end_date: e.endDate || undefined,
+      gpa: e.gpa || undefined,
+      gpa_scale: e.gpaScale || undefined,
+      rank: e.rank || undefined,
+      core_courses: splitList(e.coreCourses || e.courses || ""),
+      research_direction: e.researchDirection || undefined,
+      lab: e.lab || undefined,
+      paper_summary: e.paperSummary || undefined,
+    })) : undefined;
+
+    const v2Internships = internships.length > 0 ? internships.map((i) => ({
+      company: i.company || undefined,
+      role: i.position || undefined,
+      start_date: i.startDate || undefined,
+      end_date: i.endDate || undefined,
+      work_content: i.content || undefined,
+      tech_stack: splitList(i.techStack || ""),
+      achievements: splitLines(i.achievements || ""),
+      metrics: i.metrics || undefined,
+    })) : undefined;
+
+    const v2Projects = projects.length > 0 ? projects.map((p) => ({
+      name: p.name || undefined,
+      role: p.role || undefined,
+      type: p.projectType || undefined,
+      start_date: p.startDate || undefined,
+      end_date: p.endDate || undefined,
+      tech_stack: splitList(p.stack || ""),
+      description: p.desc || undefined,
+      responsibilities: p.responsibilities || undefined,
+      achievements: splitLines(p.achievements || ""),
+      link: p.link || undefined,
+    })) : undefined;
+
+    const v2Skills = {
+      programming_languages: splitList(skillsDraft.programmingLanguages || ""),
+      backend_frameworks: splitList(skillsDraft.backendFrameworks || ""),
+      frontend_technologies: splitList(skillsDraft.frontendTechnologies || ""),
+      databases: splitList(skillsDraft.databases || ""),
+      middleware: splitList(skillsDraft.middleware || ""),
+      cloud_platforms: splitList(skillsDraft.cloudPlatforms || ""),
+      dev_tools: splitList(skillsDraft.devTools || ""),
+      ai_tools: splitList(skillsDraft.aiTools || ""),
+      ai_application_scenarios: splitList(skillsDraft.aiApplicationScenarios || ""),
+      other_keywords: skills.filter((s) => s.trim().length > 0),
+    };
+
+    const v2Certificates = certificateDrafts.length > 0 ? certificateDrafts.map((c) => ({
+      name: c.name || undefined,
+      type: c.type || undefined,
+      level: c.level || undefined,
+      score: c.score || undefined,
+      issued_at: c.issuedAt || undefined,
+    })) : undefined;
+
+    const v2Awards = awardDrafts.length > 0 ? awardDrafts.map((a) => ({
+      name: a.name || undefined,
+      type: a.type || undefined,
+      level: a.level || undefined,
+      awarded_at: a.awardedAt || undefined,
+      description: a.description || undefined,
+    })) : undefined;
+
+    const v2Portfolio = {
+      github: portfolioDraft.github || undefined,
+      gitee: portfolioDraft.gitee || undefined,
+      cnb: portfolioDraft.cnb || undefined,
+      blog: portfolioDraft.blog || undefined,
+      demo_links: splitLines(portfolioDraft.demoLinks || ""),
+      portfolio_links: splitLines(portfolioDraft.portfolioLinks || ""),
+      homepage: portfolioDraft.homepage || undefined,
+    };
+
+    const v2ExtraInfo = {
+      self_evaluation: summary || undefined,
+      additional_info: extraInfoDraft.additionalInfo || undefined,
+    };
+
+    // V1 backward-compatible fields
+    const firstExpectedCity = firstOf(expectedCities);
+    const v1EducationCompat = educations.map((e) => ({
+      school: e.school,
+      degree: e.degree,
+      major: e.major,
+      start: e.startDate,
+      end: e.endDate,
+    }));
+    const v1ExperienceCompat = internships.map((i) => ({
+      company: i.company,
+      role: i.position,
+      start: i.startDate,
+      end: i.endDate,
+      description: i.content,
+    }));
+    const v1ProjectCompat = projects.map((p) => ({
+      name: p.name,
+      role: p.role,
+      description: p.desc,
+    }));
+
     const payload: Record<string, unknown> = {
+      schema_version: 2,
+      // V2 top-level
+      resume_name: resumeName || personalName || "未命名简历",
+      target_direction: jobDirection || direction || "",
+      description: resumeDesc || undefined,
+      // V2 modules
+      profile: v2Profile,
+      job_intention: v2JobIntention,
+      educations: v2Educations?.length ? v2Educations : educations.length > 0 ? v1EducationCompat : undefined,
+      internships: v2Internships?.length ? v2Internships : undefined,
+      projects: v2Projects?.length ? v2Projects : undefined,
+      skills: v2Skills,
+      certificates: v2Certificates?.length ? v2Certificates : undefined,
+      awards: v2Awards?.length ? v2Awards : undefined,
+      portfolio_links: v2Portfolio,
+      extra_info: v2ExtraInfo,
+      // V1 backward-compatible fields
       name: resumeName || personalName || "未命名简历",
       phone: phone || "",
       email: email || "",
-      location: cities?.split(" / ")[0] || "",
-      target_city: cities || "",
+      location: currentCity || firstExpectedCity || "",
+      target_city: firstExpectedCity || cities || "",
       target_role: direction || jobDirection || "",
-      education: educations.map((e) => ({
-        school: e.school,
-        degree: e.degree,
-        major: e.major,
-        start: e.startDate,
-        end: e.endDate,
-      })),
-      experience: internships.map((i) => ({
-        company: i.company,
-        role: i.position,
-        start: i.startDate,
-        end: i.endDate,
-        description: i.content,
-      })),
-      project: projects.map((p) => ({
-        name: p.name,
-        role: p.role,
-        description: p.desc,
-      })),
+      education: v1EducationCompat,
+      experience: v1ExperienceCompat,
+      project: v1ProjectCompat,
       skills: skills.filter((s) => s.trim().length > 0),
       self_evaluation: summary || "",
     };

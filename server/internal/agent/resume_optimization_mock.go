@@ -8,6 +8,9 @@ import (
 	"offer-catcher/server/internal/model"
 )
 
+// Ensure ResumeOptimizationMockAgent implements ResumeOptimizer.
+var _ ResumeOptimizer = (*ResumeOptimizationMockAgent)(nil)
+
 // ResumeOptimizationMockAgent generates mock resume optimization using rule-based analysis.
 // It does NOT call any real LLM, Prompt, Schema, or Pipeline.
 type ResumeOptimizationMockAgent struct{}
@@ -17,13 +20,16 @@ func NewResumeOptimizationMockAgent() *ResumeOptimizationMockAgent {
 	return &ResumeOptimizationMockAgent{}
 }
 
-// OptimizeInput contains the input for the resume optimization mock agent.
+// OptimizeInput contains the input for the resume optimization agent.
+// K8-5-22-I-R: Added ResumeSnapshot model for dual-path support.
 type OptimizeInput struct {
-	ResumeText     string
-	JobTitle       string
-	JDText         string
-	TargetSection  string
-	TargetRoles    []string
+	ResumeText        string
+	ResumeSnapshot    *model.ResumeSnapshotV2 // V2 structured snapshot (optional)
+	ResumeVersion     *model.ResumeVersion     // DB model for agents that normalize themselves
+	JobTitle          string
+	JDText            string
+	TargetSection     string
+	TargetRoles       []string
 	ExpectedLocations []string
 	AcceptRelocation  bool
 }
@@ -198,6 +204,7 @@ func generateTopFixItems(resumeLower string, jdLower string, jobTitle string, re
 				SelfCheckQuestion: "请确认你是否确实负责过这些模块，而不是团队整体成果。",
 				LearnMoreQuery:   "Go 后端实习 简历 项目经历 STAR 写法",
 				EstimatedEffort:  "within_30_min",
+				ResumeModule:     "projects",
 			})
 		} else {
 			items = append(items, model.ResumeOptimizationFixItem{
@@ -208,6 +215,7 @@ func generateTopFixItems(resumeLower string, jdLower string, jobTitle string, re
 				SelfCheckQuestion: "请确认项目确实是你本人参与完成的。",
 				LearnMoreQuery:   "学生简历 项目经历 怎么写",
 				EstimatedEffort:  "within_1_hour",
+				ResumeModule:     "projects",
 			})
 		}
 	}
@@ -229,6 +237,7 @@ func generateTopFixItems(resumeLower string, jdLower string, jobTitle string, re
 			SelfCheckQuestion: "请确认你确实在项目中使用过这些技术，而不是仅了解概念。",
 			LearnMoreQuery:   fmt.Sprintf("%s 后端开发 实际项目使用场景", kwStr),
 			EstimatedEffort:  "within_30_min",
+			ResumeModule:     "skills",
 		})
 	}
 
@@ -242,6 +251,7 @@ func generateTopFixItems(resumeLower string, jdLower string, jobTitle string, re
 			SelfCheckQuestion: "请确认所有数字均为真实数据，不要编造指标。",
 			LearnMoreQuery:   "后端简历 量化表达 怎么写",
 			EstimatedEffort:  "within_30_min",
+			ResumeModule:     "projects",
 		})
 	}
 
@@ -260,6 +270,7 @@ func generateTopFixItems(resumeLower string, jdLower string, jobTitle string, re
 			SelfCheckQuestion: "请确认所有描述均为真实经历。",
 			LearnMoreQuery:   "简历 关键词优化 投递策略",
 			EstimatedEffort:  "within_30_min",
+			ResumeModule:     "projects",
 		})
 	}
 

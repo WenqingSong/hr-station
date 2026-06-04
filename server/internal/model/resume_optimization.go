@@ -36,6 +36,7 @@ type ResumeOptimizationFixItem struct {
 	SelfCheckQuestion string `json:"self_check_question"`
 	LearnMoreQuery   string `json:"learn_more_query"`
 	EstimatedEffort  string `json:"estimated_effort"`
+	ResumeModule     string `json:"resume_module,omitempty"` // K8-5-22-I-R
 }
 
 // ResumeOptimizationLongTermItem represents a long-term improvement direction.

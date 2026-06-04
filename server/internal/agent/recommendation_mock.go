@@ -30,8 +30,11 @@ func (a *RecommendationMockAgent) Recommend(_ context.Context, resume *model.Res
 	var scored []scoredJob
 
 	// Parse resume skills
-	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
+		resumeSkills := parseJSONStringArray(resume.SkillsJSON)
 	resumeSkillSet := toLowerSet(resumeSkills)
+
+	// Try to build snapshot for richer content (V2 aware)
+	_, _ = normalizeResumeToSnapshot(resume) // best-effort, used by generateRisks/Highlights
 
 	// Parse resume target info
 	targetCity := strings.ToLower(strings.TrimSpace(resume.TargetCity))
@@ -359,6 +362,7 @@ func generateRecTopFixItems(resume *model.ResumeVersion, job *model.Job, applyRe
 			ExampleReference: fmt.Sprintf("示例参考：使用 %s 完成数据持久化，通过连接池优化查询性能。", strings.Join(top, "、")),
 			SelfCheckQuestion: "请确认你确实在项目中使用过这些技术，而不是仅了解概念。",
 			EstimatedEffort:  "within_30_min",
+			ResumeModule:     "skills",
 		})
 	}
 
@@ -370,6 +374,7 @@ func generateRecTopFixItems(resume *model.ResumeVersion, job *model.Job, applyRe
 			ExampleReference: "示例参考：基于 GoFrame 完成后台管理系统用户、角色、权限相关接口开发。",
 			SelfCheckQuestion: "请确认你是否确实负责过这些模块。",
 			EstimatedEffort:  "within_30_min",
+			ResumeModule:     "projects",
 		})
 	}
 

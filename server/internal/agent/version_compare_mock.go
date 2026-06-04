@@ -154,6 +154,7 @@ func generateFieldChanges(from *model.ResumeVersion, to *model.ResumeVersion) []
 			After:      after,
 			ChangeType: changeType,
 			Impact:     impact,
+			ModuleName: "job_intention",
 		})
 	}
 
@@ -201,6 +202,7 @@ func generateFieldChanges(from *model.ResumeVersion, to *model.ResumeVersion) []
 			After:      after,
 			ChangeType: changeType,
 			Impact:     impact,
+			ModuleName: "skills",
 		})
 	}
 
@@ -220,6 +222,7 @@ func generateFieldChanges(from *model.ResumeVersion, to *model.ResumeVersion) []
 			After:      toProjDesc,
 			ChangeType: changeType,
 			Impact:     impact,
+			ModuleName: "projects",
 		})
 	}
 
@@ -243,6 +246,7 @@ func generateFieldChanges(from *model.ResumeVersion, to *model.ResumeVersion) []
 			After:      formatEmpty(toEval),
 			ChangeType: changeType,
 			Impact:     impact,
+			ModuleName: "extra_info",
 		})
 	}
 
@@ -254,6 +258,7 @@ func generateFieldChanges(from *model.ResumeVersion, to *model.ResumeVersion) []
 			After:      "简历内容无显著差异",
 			ChangeType: "unchanged",
 			Impact:     "两个版本之间未检测到明显变化",
+			ModuleName: "overall",
 		})
 	}
 

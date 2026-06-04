@@ -20,6 +20,7 @@ type FieldChange struct {
 	After      string `json:"after"`
 	ChangeType string `json:"change_type"`
 	Impact     string `json:"impact"`
+	ModuleName string `json:"module_name,omitempty"` // K8-5-22-I-R: V2 module name like skills/projects/certificates
 }
 
 // RiskChange represents a change in risk level between versions.

@@ -117,25 +117,42 @@ func (e *ResumeOptFallbackError) Error() string {
 }
 
 // buildPromptValues assembles the placeholders for resume_optimization_v1.md.
+// K8-5-22-I-R: Dual-path support — uses ResumeSnapshot when available, falls back to free text.
 func (a *ResumeOptimizationAgent) buildPromptValues(input *OptimizeInput) (map[string]string, error) {
-	// RESUME_CONTEXT_JSON: serialize resume text and context
+	// Build resume context with optional snapshot
 	resumeContext := map[string]any{
-		"resume_text":     input.ResumeText,
-		"target_section":  input.TargetSection,
-		"target_roles":    input.TargetRoles,
-		"expected_locations": input.ExpectedLocations,
-		"accept_relocation":  input.AcceptRelocation,
+		"target_section":      input.TargetSection,
+		"target_roles":        input.TargetRoles,
+		"expected_locations":  input.ExpectedLocations,
+		"accept_relocation":   input.AcceptRelocation,
 	}
+
+	// Preferred path: use structured ResumeSnapshotV2
+	hasSnapshot := false
+	if input.ResumeVersion != nil {
+		if snapshot, err := normalizeResumeToSnapshot(input.ResumeVersion); err == nil {
+			resumeContext["resume_snapshot"] = snapshotToPromptMap(snapshot)
+			resumeContext["resume_text"] = input.ResumeText // keep text for context
+			hasSnapshot = true
+		}
+	}
+	if !hasSnapshot && input.ResumeSnapshot != nil {
+		resumeContext["resume_snapshot"] = snapshotToPromptMap(*input.ResumeSnapshot)
+		resumeContext["resume_text"] = input.ResumeText
+		hasSnapshot = true
+	}
+
+	// Fallback: free-text only
+	if !hasSnapshot {
+		resumeContext["resume_text"] = input.ResumeText
+	}
+
 	resumeJSON, err := json.Marshal(resumeContext)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal resume context: %w", err)
 	}
 
-	// TARGET_JOB_CONTEXT_JSON: serialize target job
-	jobContext := map[string]any{
-		"job_title": input.JobTitle,
-		"jd_text":   input.JDText,
-	}
+	jobContext := map[string]any{"job_title": input.JobTitle, "jd_text": input.JDText}
 	jobJSON, err := json.Marshal(jobContext)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal target job context: %w", err)
@@ -144,7 +161,7 @@ func (a *ResumeOptimizationAgent) buildPromptValues(input *OptimizeInput) (map[s
 	return map[string]string{
 		"RESUME_CONTEXT_JSON":      string(resumeJSON),
 		"TARGET_JOB_CONTEXT_JSON":  string(jobJSON),
-		"MATCH_ANALYSIS_JSON":      "{}", // No pre-existing match analysis in basic flow
+		"MATCH_ANALYSIS_JSON":      "{}",
 		"BUSINESS_CONTEXT":         resumeOptimizationBusinessContext,
 	}, nil
 }

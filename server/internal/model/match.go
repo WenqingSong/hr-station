@@ -16,9 +16,10 @@ type MatchAnalysis struct {
 
 // MatchEvidence represents a single JD-resume evidence chain entry.
 type MatchEvidence struct {
-	Requirement string `json:"requirement"`
-	ResumePoint string `json:"resume_point"`
-	Judgement   string `json:"judgement"`
+	Requirement  string `json:"requirement"`
+	ResumePoint  string `json:"resume_point"`
+	Judgement    string `json:"judgement"`
+	ResumeModule string `json:"resume_module,omitempty"` // K8-5-22-I-R: module name like skills/projects
 }
 
 // MatchSuggestion represents an optimization suggestion with priority.
@@ -32,12 +33,13 @@ type MatchSuggestion struct {
 // TopFixItem represents a quick fix item before applying (4-3.7.C.1).
 // Shared by MatchAnalysis and Recommendation agents.
 type TopFixItem struct {
-	Issue            string `json:"issue"`
-	WhyItMatters     string `json:"why_it_matters"`
-	Action           string `json:"action"`
-	ExampleReference string `json:"example_reference"`
+	Issue             string `json:"issue"`
+	WhyItMatters      string `json:"why_it_matters"`
+	Action            string `json:"action"`
+	ExampleReference  string `json:"example_reference"`
 	SelfCheckQuestion string `json:"self_check_question"`
-	EstimatedEffort  string `json:"estimated_effort"`
+	EstimatedEffort   string `json:"estimated_effort"`
+	ResumeModule      string `json:"resume_module,omitempty"` // K8-5-22-I-R
 }
 
 // MatchAnalysisResult represents the structured match analysis output.

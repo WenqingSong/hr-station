@@ -194,15 +194,17 @@ func generateEvidenceChain(resume *model.ResumeVersion, job *model.Job) []model.
 	for _, req := range jobSkills {
 		if resumeSkillSet[strings.ToLower(req)] {
 			chain = append(chain, model.MatchEvidence{
-				Requirement: fmt.Sprintf("岗位要求 %s 相关经验", req),
-				ResumePoint: getResumeEvidenceForSkill(resume, req),
-				Judgement:   "strong_match",
+				Requirement:  fmt.Sprintf("岗位要求 %s 相关经验", req),
+				ResumePoint:  getResumeEvidenceForSkill(resume, req),
+				Judgement:    "strong_match",
+				ResumeModule: "skills",
 			})
 		} else {
 			chain = append(chain, model.MatchEvidence{
-				Requirement: fmt.Sprintf("岗位要求 %s 相关经验", req),
-				ResumePoint: getResumeEvidenceForSkill(resume, req),
-				Judgement:   "missing",
+				Requirement:  fmt.Sprintf("岗位要求 %s 相关经验", req),
+				ResumePoint:  getResumeEvidenceForSkill(resume, req),
+				Judgement:    "missing",
+				ResumeModule: "skills",
 			})
 		}
 	}
@@ -259,15 +261,17 @@ func generateEvidenceChain(resume *model.ResumeVersion, job *model.Job) []model.
 		jobText := strings.ToLower(job.Category + " " + job.Title)
 		if containsAny(strings.ToLower(targetRole), jobText) {
 			chain = append(chain, model.MatchEvidence{
-				Requirement: fmt.Sprintf("岗位方向为%s", job.Category),
-				ResumePoint: fmt.Sprintf("目标岗位为%s，方向一致", targetRole),
-				Judgement:   "strong_match",
+				Requirement:  fmt.Sprintf("岗位方向为%s", job.Category),
+				ResumePoint:  fmt.Sprintf("目标岗位为%s，方向一致", targetRole),
+				Judgement:    "strong_match",
+				ResumeModule: "job_intention",
 			})
 		} else {
 			chain = append(chain, model.MatchEvidence{
-				Requirement: fmt.Sprintf("岗位方向为%s", job.Category),
-				ResumePoint: fmt.Sprintf("目标岗位为%s，方向不完全一致", targetRole),
-				Judgement:   "partial_match",
+				Requirement:  fmt.Sprintf("岗位方向为%s", job.Category),
+				ResumePoint:  fmt.Sprintf("目标岗位为%s，方向不完全一致", targetRole),
+				Judgement:    "partial_match",
+				ResumeModule: "job_intention",
 			})
 		}
 	}
@@ -275,9 +279,10 @@ func generateEvidenceChain(resume *model.ResumeVersion, job *model.Job) []model.
 	// Ensure at least 3 evidence entries
 	if len(chain) < 3 {
 		chain = append(chain, model.MatchEvidence{
-			Requirement: "具备相关项目或实习经历",
-			ResumePoint: getExperienceSummary(resume),
-			Judgement:   getExperienceJudgement(resume),
+			Requirement:  "具备相关项目或实习经历",
+			ResumePoint:  getExperienceSummary(resume),
+			Judgement:    getExperienceJudgement(resume),
+			ResumeModule: "internships",
 		})
 	}
 
@@ -615,6 +620,7 @@ func generateMatchTopFixItems(resume *model.ResumeVersion, job *model.Job) []mod
 			ExampleReference: fmt.Sprintf("示例参考：使用 %s 完成数据持久化，通过连接池优化查询性能。", strings.Join(top, "、")),
 			SelfCheckQuestion: "请确认你确实在项目中使用过这些技术，而不是仅了解概念。",
 			EstimatedEffort:  "within_30_min",
+			ResumeModule:     "skills",
 		})
 	}
 
@@ -627,6 +633,7 @@ func generateMatchTopFixItems(resume *model.ResumeVersion, job *model.Job) []mod
 			ExampleReference: "示例参考：基于 Gin 框架实现博客系统，包含用户注册登录、文章 CRUD 和评论功能。",
 			SelfCheckQuestion: "请确认项目确实是你本人参与完成的。",
 			EstimatedEffort:  "within_60_min",
+			ResumeModule:     "projects",
 		})
 	} else {
 		items = append(items, model.TopFixItem{
@@ -636,6 +643,7 @@ func generateMatchTopFixItems(resume *model.ResumeVersion, job *model.Job) []mod
 			ExampleReference: "示例参考：基于 GoFrame 完成后台管理系统用户、角色、权限相关接口开发，并与前端完成联调。",
 			SelfCheckQuestion: "请确认你是否确实负责过这些模块，而不是团队整体成果。",
 			EstimatedEffort:  "within_30_min",
+			ResumeModule:     "projects",
 		})
 	}
 
