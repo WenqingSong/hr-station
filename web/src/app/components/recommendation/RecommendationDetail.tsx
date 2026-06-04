@@ -5,6 +5,25 @@ import { Badge } from "../ui/Badge";
 import { useNavigate } from "react-router";
 import type { RecommendationPageViewModel } from "../../../adapters";
 
+/** K8-5-28-C: map canonical module key to Chinese label */
+const MODULE_LABELS: Record<string, string> = {
+  resume_basics: "简历基础",
+  basic_info: "基础信息",
+  education: "教育经历",
+  projects: "项目经历",
+  skills: "技能信息",
+  internships: "实习经历",
+  certificates_awards: "证书与获奖",
+  portfolio: "作品或个人主页",
+  extra_info: "自我评价",
+  overall: "综合判断",
+};
+
+function moduleLabel(m?: string): string {
+  if (!m) return "";
+  return MODULE_LABELS[m] ?? m;
+}
+
 interface RecommendationDetailProps {
   currentResumeId?: string;
   data?: RecommendationPageViewModel | null;
@@ -61,16 +80,24 @@ export function RecommendationDetail({ currentResumeId = "", data }: Recommendat
             匹配证据
           </h3>
           <div className="border border-gray-200 rounded-md overflow-hidden">
-            <div className="grid grid-cols-12 gap-4 bg-gray-50 p-3 text-[13px] font-medium text-gray-600 border-b border-gray-200">
-              <div className="col-span-5">岗位要求</div>
-              <div className="col-span-5">简历证据</div>
+            <div className="grid grid-cols-12 gap-2 bg-gray-50 p-3 text-[13px] font-medium text-gray-600 border-b border-gray-200">
+              <div className="col-span-2">模块</div>
+              <div className="col-span-4">岗位要求</div>
+              <div className="col-span-4">简历证据</div>
               <div className="col-span-2 text-center">证据强度</div>
             </div>
             <div className="divide-y divide-gray-100 text-[13px]">
               {data.evidenceChain.map((ev, i) => (
-                <div key={i} className="grid grid-cols-12 gap-4 p-3 items-center hover:bg-gray-50 transition-colors">
-                  <div className="col-span-5 text-gray-800">{ev.jdRequirement}</div>
-                  <div className="col-span-5 text-gray-600">{ev.resumeEvidence}</div>
+                <div key={i} className="grid grid-cols-12 gap-2 p-3 items-center hover:bg-gray-50 transition-colors">
+                  <div className="col-span-2">
+                    {ev.resumeModule ? (
+                      <Badge className="bg-blue-50 text-blue-700 border-blue-200 font-normal text-[11px]">{moduleLabel(ev.resumeModule)}</Badge>
+                    ) : (
+                      <span className="text-gray-300 text-[11px]">—</span>
+                    )}
+                  </div>
+                  <div className="col-span-4 text-gray-800">{ev.jdRequirement}</div>
+                  <div className="col-span-4 text-gray-600">{ev.resumeEvidence}</div>
                   <div className="col-span-2 flex justify-center">
                     <Badge className={getStrengthStyle(ev.evidenceStrengthTone) + " font-normal"}>{ev.evidenceStrengthLabel}</Badge>
                   </div>
@@ -79,6 +106,47 @@ export function RecommendationDetail({ currentResumeId = "", data }: Recommendat
             </div>
           </div>
         </section>
+
+        {/* Module 2: Resume fix suggestions (TopFixItems) */}
+        {data.topFixItems && data.topFixItems.length > 0 && (
+        <section>
+          <h3 className="font-bold text-gray-900 mb-4 text-[16px] flex items-center gap-2">
+            <span className="w-1 h-4 bg-emerald-400 rounded-full inline-block"></span>
+            简历补强建议
+          </h3>
+          <div className="space-y-3">
+            {data.topFixItems.map((item, i) => (
+              <div key={i} className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-100 rounded-md hover:border-emerald-200 transition-colors">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white border border-gray-300 text-gray-700 text-[13px] font-bold shrink-0 mt-0.5">
+                  {i + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    {item.resumeModule ? (
+                      <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-normal text-[11px]">{moduleLabel(item.resumeModule)}</Badge>
+                    ) : null}
+                    <span className={`text-[11px] px-1.5 rounded ${item.priorityTone === 'orange' ? 'text-red-600 bg-red-50' : 'text-blue-600 bg-blue-50'}`}>
+                      {item.priorityLabel}
+                    </span>
+                  </div>
+                  <div className="text-[14px] font-medium text-gray-900 mb-1">{item.title}</div>
+                  {item.expectedImpact && (
+                    <div className="text-[12px] text-gray-500">
+                      预期影响：{item.expectedImpact}
+                      {item.needUserVerify ? "（需用户核实）" : ""}
+                    </div>
+                  )}
+                  {item.description && (
+                    <div className="text-[12px] text-gray-600 mt-1.5 bg-white border border-gray-100 rounded p-2">
+                      {item.description}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+        )}
 
         {/* Module 2: Risks */}
         <section>
