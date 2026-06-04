@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
+import { Loader2 } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { login } from "../../api/auth";
 import { setAuthToken, getAuthToken } from "../../api/authStorage";
@@ -30,6 +31,8 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // ── Demo reviewer one-click login ──
+  const [demoLoading, setDemoLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -57,6 +60,23 @@ export function LoginPage() {
     }
   }
 
+  // ── Demo reviewer one-click login ──
+  // Uses the shared reviewer demo account: 13900139000 / 123456.
+  // Reuses the same login API, token storage, and redirect logic as normal login.
+  async function handleDemoLogin() {
+    setError("");
+    setDemoLoading(true);
+    try {
+      const res = await login({ phone: "13900139000", password: "123456" });
+      setAuthToken(res.token);
+      navigate(safeRedirect);
+    } catch (_err: unknown) {
+      setError("示范账号登录失败，请稍后重试");
+    } finally {
+      setDemoLoading(false);
+    }
+  }
+
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
       <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
@@ -71,7 +91,30 @@ export function LoginPage() {
             <PasswordInput id="login-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="请输入密码" />
           </div>
           {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">{error}</p>}
-          <button type="submit" disabled={loading} className="w-full rounded-md bg-[#0052D9] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#0043B3] disabled:cursor-not-allowed disabled:opacity-50">{loading ? "登录中…" : "登录"}</button>
+          <button type="submit" disabled={loading || demoLoading} className="w-full rounded-md bg-[#0052D9] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#0043B3] disabled:cursor-not-allowed disabled:opacity-50">{loading ? "登录中…" : "登录"}</button>
+
+          {/* Demo reviewer one-click experience */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-3 text-xs text-gray-400">或</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={loading || demoLoading}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-md border-2 border-[#0052D9] bg-white text-sm font-medium text-[#0052D9] transition-all hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {demoLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {demoLoading ? "正在进入…" : "🎯 评委一键体验"}
+          </button>
+          <p className="text-center text-xs text-gray-400 -mt-1">
+            使用示范账号快速查看完整 Demo 数据
+          </p>
         </form>
         <p className="mt-4 text-center text-sm text-slate-500">还没有账号？ <Link to="/register" className="font-medium text-[#0052D9] hover:underline">注册</Link></p>
       </div>
