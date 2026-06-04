@@ -13,11 +13,7 @@ export interface PortfolioExtraSectionProps
 }
 
 /**
- * Module 10: 作品链接与补充信息
- *
- * Optional module — collapsed by default.
- * Fields (K8-5-22-H): github, gitee, cnb, blog, demoLinks, portfolioLinks, homepage,
- *   selfEvaluation (V1), additionalInfo.
+ * Module 8/9: 作品或个人主页 / 自我评价 (K8-5-25-E: split)
  */
 export function PortfolioExtraSection({
   children,

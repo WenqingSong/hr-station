@@ -19,9 +19,6 @@ export type { ResumeBasicsSectionProps } from "./modules/ResumeBasicsSection";
 export { BasicInfoSection } from "./modules/BasicInfoSection";
 export type { BasicInfoSectionProps } from "./modules/BasicInfoSection";
 
-export { JobIntentionSection } from "./modules/JobIntentionSection";
-export type { JobIntentionSectionProps } from "./modules/JobIntentionSection";
-
 export { EducationSection } from "./modules/EducationSection";
 export type { EducationSectionProps } from "./modules/EducationSection";
 

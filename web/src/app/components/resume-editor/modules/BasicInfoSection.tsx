@@ -17,7 +17,8 @@ export interface BasicInfoSectionProps
  * Module 2: 基础信息
  *
  * Core module — expanded by default.
- * Fields (K8-5-22-F): name, school, degree, major, graduation_year, current_city, phone, email.
+ * K8-5-25-C: school/degree/major/graduation_year/age removed (→ education).
+ * Fields: name, currentCity, phone, email.
  */
 export function BasicInfoSection({
   children,

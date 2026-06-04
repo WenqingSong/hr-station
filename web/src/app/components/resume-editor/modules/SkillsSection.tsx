@@ -13,12 +13,10 @@ export interface SkillsSectionProps
 }
 
 /**
- * Module 6: 技能信息
+ * Module 5: 技能信息
  *
  * Core module — expanded by default.
- * Fields (K8-5-22-G): 10 categories — programmingLanguages, backendFrameworks,
- *   frontendTechnologies, databases, middleware, cloudPlatforms, devTools,
- *   aiTools, aiApplicationScenarios, otherKeywords.
+ * K8-5-25-D: Tencent-style 3 fields — languageExam, developmentLanguages, aiApplication.
  */
 export function SkillsSection({
   children,

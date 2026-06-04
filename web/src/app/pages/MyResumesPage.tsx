@@ -14,7 +14,7 @@ import { createResume, updateResume, getCurrentResume, getResumes } from "../../
 import type { ResumeManagementViewModel } from "../../adapters";
 import type {
   ResumeEducation, ResumeExperience, ResumeProject,
-  ResumeProfileV2, ResumeJobIntentionV2, ResumeEducationV2,
+  ResumeProfileV2, ResumeEducationV2,
   ResumeInternshipV2, ResumeProjectV2, ResumeSkillsV2,
   ResumeCertificateV2, ResumeAwardV2, ResumePortfolioV2, ResumeExtraInfoV2,
 } from "../../types";
@@ -38,13 +38,11 @@ import {
   ResumeEditorSaveCard,
   ResumeBasicsSection,
   BasicInfoSection,
-  JobIntentionSection,
   EducationSection,
   ProjectSection,
   SkillsSection,
   InternshipSection,
   CertificatesSection,
-  AwardsSection,
   PortfolioExtraSection,
 } from "../components/resume-editor";
 
@@ -98,18 +96,12 @@ interface Internship {
   metrics: string;
 }
 
-/** V2 skill categories draft (K8-5-22-G) */
+/** V2 skills draft (K8-5-25-D: Tencent-style 3 fields) */
 interface SkillsDraft {
-  programmingLanguages: string;
-  backendFrameworks: string;
-  frontendTechnologies: string;
-  databases: string;
-  middleware: string;
-  cloudPlatforms: string;
-  devTools: string;
-  aiTools: string;
-  aiApplicationScenarios: string;
-  otherKeywords: string;
+  languageExamType: string;
+  languageExamScore: string;
+  developmentLanguages: string;
+  aiApplication: string;
 }
 
 /** V2 certificate entry draft (K8-5-22-H) */
@@ -132,14 +124,15 @@ interface AwardDraft {
   description: string;
 }
 
-/** V2 portfolio links draft (K8-5-22-H) */
+/** V2 portfolio links draft (K8-5-25-E: Tencent-style works+homepage) */
+interface WorkDraft {
+  id: number;
+  name: string;
+  link: string;
+  password: string;
+}
 interface PortfolioDraft {
-  github: string;
-  gitee: string;
-  cnb: string;
-  blog: string;
-  demoLinks: string;
-  portfolioLinks: string;
+  works: WorkDraft[];
   homepage: string;
 }
 
@@ -153,7 +146,6 @@ interface ExtraInfoDraft {
 const NAV_SECTIONS = [
   { id: "resume-basic", label: "简历基础" },
   { id: "personal-info", label: "基础信息" },
-  { id: "job-intention", label: "求职方向" },
   { id: "education", label: "教育经历" },
   { id: "internship", label: "实习经历" },
   { id: "projects", label: "项目经历" },
@@ -262,26 +254,12 @@ export function MyResumesPage() {
   // ── Personal info ───────────────────────────────────────────────────────────
   const [personalName, setPersonalName] = useState("");
   const [age, setAge] = useState("");
-  const [degree, setDegree] = useState("本科");
-  const [school, setSchool] = useState("");
-  const [major, setMajor] = useState("");
-  const [gradYear, setGradYear] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  // V2 draft (K8-5-22-F): current city
+  // current city (K8-5-22-F)
   const [currentCity, setCurrentCity] = useState("");
 
-  // ── Job intention ───────────────────────────────────────────────────────────
-  const [direction, setDirection] = useState("");
-  const [cities, setCities] = useState("");
-  const [jobType, setJobType] = useState("校园招聘 / 实习");
-  // V2 draft (K8-5-22-F): new fields
-  const [acceptOtherCities, setAcceptOtherCities] = useState(false);
-  const [earliestStartDate, setEarliestStartDate] = useState("");
-  const [internshipDuration, setInternshipDuration] = useState("");
-  const [weeklyAvailableDays, setWeeklyAvailableDays] = useState("");
-  const [targetIndustries, setTargetIndustries] = useState("");
-  const [targetCompanies, setTargetCompanies] = useState("");
+  // ── Job intention (K8-5-25-C: removed from editor) ──────────────────────────
 
   // ── Education ───────────────────────────────────────────────────────────────
   const [educations, setEducations] = useState<Education[]>([]);
@@ -295,25 +273,20 @@ export function MyResumesPage() {
   // ── Skills ──────────────────────────────────────────────────────────────────
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
-  // V2 draft (K8-5-22-G): skill categories
+  // V2 draft (K8-5-25-D: Tencent-style 3 fields)
   const [skillsDraft, setSkillsDraft] = useState<SkillsDraft>({
-    programmingLanguages: "",
-    backendFrameworks: "",
-    frontendTechnologies: "",
-    databases: "",
-    middleware: "",
-    cloudPlatforms: "",
-    devTools: "",
-    aiTools: "",
-    aiApplicationScenarios: "",
-    otherKeywords: "",
+    languageExamType: "",
+    languageExamScore: "",
+    developmentLanguages: "",
+    aiApplication: "",
   });
 
   // V2 drafts (K8-5-22-H)
   const [certificateDrafts, setCertificateDrafts] = useState<CertificateDraft[]>([]);
   const [awardDrafts, setAwardDrafts] = useState<AwardDraft[]>([]);
   const [portfolioDraft, setPortfolioDraft] = useState<PortfolioDraft>({
-    github: "", gitee: "", cnb: "", blog: "", demoLinks: "", portfolioLinks: "", homepage: "",
+    works: [{ id: 1, name: "", link: "", password: "" }],
+    homepage: "",
   });
   const [extraInfoDraft, setExtraInfoDraft] = useState<ExtraInfoDraft>({ additionalInfo: "" });
 
@@ -337,16 +310,10 @@ export function MyResumesPage() {
     if (!formVm || mode !== "edit") return;
 
     // ── V1 baseline backfill ─────────────────────────────────────────
-    // Personal info
+    // Personal info (K8-5-25-C: school/major removed from basic info)
     setPersonalName(formVm.displayName !== "暂未填写" ? formVm.displayName : "");
     setPhone(formVm.displayPhone || "");
     setEmail(formVm.displayEmail || "");
-    setSchool(formVm.displaySchool !== "暂未填写" ? formVm.displaySchool : "");
-    setMajor(formVm.displayMajor || "");
-
-    // Job intention
-    setDirection(formVm.directionLabel !== "暂未填写" ? formVm.directionLabel : "");
-    setCities(formVm.displayLocation !== "暂未填写" ? formVm.displayLocation : "");
 
     // Education
     const eduList: Education[] = (formVm.education || []).map((e: ResumeEducation, i: number) => ({
@@ -395,30 +362,14 @@ export function MyResumesPage() {
     const name = formVm.summary.name || "";
     if (name) setResumeName(name);
 
-    // Profile V2
+    // Profile V2 (K8-5-25-C: school/degree/major/gradYear removed from basic info)
     if (v2.profile) {
       const pr = v2.profile;
       if (pr.current_city) setCurrentCity(pr.current_city);
-      if (pr.graduation_year) setGradYear(pr.graduation_year);
-      if (pr.degree) setDegree(pr.degree);
-      if (pr.school) setSchool(pr.school);
-      if (pr.major) setMajor(pr.major);
       if (pr.name) setPersonalName(pr.name);
     }
 
-    // Job intention V2
-    if (v2.jobIntention) {
-      const ji = v2.jobIntention;
-      if (ji.target_roles) setDirection(joinList(ji.target_roles));
-      if (ji.expected_cities) setCities(joinList(ji.expected_cities));
-      if (ji.job_type) setJobType(ji.job_type);
-      if (ji.accept_other_cities !== undefined) setAcceptOtherCities(ji.accept_other_cities);
-      if (ji.earliest_start_date) setEarliestStartDate(ji.earliest_start_date);
-      if (ji.internship_duration) setInternshipDuration(ji.internship_duration);
-      if (ji.weekly_available_days !== undefined) setWeeklyAvailableDays(String(ji.weekly_available_days));
-      if (ji.target_industries) setTargetIndustries(joinList(ji.target_industries));
-      if (ji.target_companies) setTargetCompanies(joinList(ji.target_companies));
-    }
+    // K8-5-25-C: Job intention removed from editor — no backfill needed
 
     // Education V2
     if (v2.educations && v2.educations.length > 0) {
@@ -476,20 +427,23 @@ export function MyResumesPage() {
       setProjects(v2ProjList);
     }
 
-    // Skills V2
+    // Skills V2 (K8-5-25-D: Tencent-style 3 fields)
     if (v2.skills) {
       const sk = v2.skills;
+      // New structure
+      const newDev = joinList(sk.development_languages);
+      const newAI = sk.ai_application || "";
+      // Old structure fallback
+      const oldDev = joinList(sk.programming_languages) || joinList(sk.other_keywords);
+      const oldAI = sk.ai_application
+        || joinList(sk.ai_application_scenarios)
+        || joinList(sk.ai_tools);
+
       setSkillsDraft({
-        programmingLanguages: joinList(sk.programming_languages),
-        backendFrameworks: joinList(sk.backend_frameworks),
-        frontendTechnologies: joinList(sk.frontend_technologies),
-        databases: joinList(sk.databases),
-        middleware: joinList(sk.middleware),
-        cloudPlatforms: joinList(sk.cloud_platforms),
-        devTools: joinList(sk.dev_tools),
-        aiTools: joinList(sk.ai_tools),
-        aiApplicationScenarios: joinList(sk.ai_application_scenarios),
-        otherKeywords: joinList(sk.other_keywords),
+        languageExamType: (sk.language_exam as any)?.type || "",
+        languageExamScore: (sk.language_exam as any)?.score || "",
+        developmentLanguages: newDev || oldDev,
+        aiApplication: newAI || oldAI,
       });
     }
 
@@ -519,17 +473,34 @@ export function MyResumesPage() {
       setAwardDrafts(awdList);
     }
 
-    // Portfolio V2
+    // Portfolio V2 (K8-5-25-E: works+homepage with old-field fallback)
     if (v2.portfolio) {
-      const port = v2.portfolio;
+      const port = v2.portfolio as any;
+      const newWorks = port.works as any[];
+      let works: WorkDraft[] = [];
+      if (newWorks && newWorks.length > 0) {
+        works = newWorks.map((w: any, i: number) => ({
+          id: i + 1,
+          name: w.name || "",
+          link: w.link || "",
+          password: w.password || "",
+        }));
+      } else {
+        works = [];
+        if (port.github) works.push({ id: works.length + 1, name: "GitHub", link: port.github, password: "" });
+        if (port.gitee) works.push({ id: works.length + 1, name: "Gitee", link: port.gitee, password: "" });
+        if (port.cnb) works.push({ id: works.length + 1, name: "CNB", link: port.cnb, password: "" });
+        (port.demo_links || []).forEach((l: string) => works.push({ id: works.length + 1, name: "", link: l, password: "" }));
+        (port.portfolio_links || []).forEach((l: string) => works.push({ id: works.length + 1, name: "", link: l, password: "" }));
+        if ((port as any).works) {
+          const aw = (port as any).works as any[];
+          aw.forEach((w: any) => works.push({ id: works.length + 1, name: w.name || "", link: w.link || "", password: w.password || "" }));
+        }
+      }
+      if (works.length === 0) works = [{ id: 1, name: "", link: "", password: "" }];
       setPortfolioDraft({
-        github: port.github || "",
-        gitee: port.gitee || "",
-        cnb: port.cnb || "",
-        blog: port.blog || "",
-        demoLinks: joinLines(port.demo_links),
-        portfolioLinks: joinLines(port.portfolio_links),
-        homepage: port.homepage || "",
+        works,
+        homepage: port.homepage || port.blog || "",
       });
     }
 
@@ -565,28 +536,15 @@ export function MyResumesPage() {
     setSaveErrorMsg("");
     setSaving(true);
 
-    // K8-5-22-J: V2 payload with 10 modules + V1 backward-compatible fields.
+    // K8-5-22-J/K8-5-25-C: V2 payload — school/degree/major/grad_year from educations[0]
+    const primaryEducation = educations[0];
     const v2Profile = {
       name: personalName || undefined,
-      school: school || undefined,
-      degree: degree || undefined,
-      major: major || undefined,
-      graduation_year: gradYear || undefined,
+      school: primaryEducation?.school || undefined,
+      degree: primaryEducation?.degree || undefined,
+      major: primaryEducation?.major || undefined,
+      graduation_year: primaryEducation?.endDate || undefined,
       current_city: currentCity || undefined,
-    };
-
-    const targetRoles = splitList(direction || "");
-    const expectedCities = splitList(cities || "");
-    const v2JobIntention = {
-      target_roles: targetRoles.length > 0 ? targetRoles : undefined,
-      job_type: jobType || undefined,
-      expected_cities: expectedCities.length > 0 ? expectedCities : undefined,
-      accept_other_cities: acceptOtherCities,
-      earliest_start_date: earliestStartDate || undefined,
-      internship_duration: internshipDuration || undefined,
-      weekly_available_days: weeklyAvailableDays !== "" ? Number(weeklyAvailableDays) : undefined,
-      target_industries: splitList(targetIndustries) || undefined,
-      target_companies: splitList(targetCompanies) || undefined,
     };
 
     const v2Educations = educations.length > 0 ? educations.map((e) => ({
@@ -629,17 +587,15 @@ export function MyResumesPage() {
       link: p.link || undefined,
     })) : undefined;
 
+    // K8-5-25-D: Tencent-style skills payload
+    const devLanguages = splitList(skillsDraft.developmentLanguages || "");
     const v2Skills = {
-      programming_languages: splitList(skillsDraft.programmingLanguages || ""),
-      backend_frameworks: splitList(skillsDraft.backendFrameworks || ""),
-      frontend_technologies: splitList(skillsDraft.frontendTechnologies || ""),
-      databases: splitList(skillsDraft.databases || ""),
-      middleware: splitList(skillsDraft.middleware || ""),
-      cloud_platforms: splitList(skillsDraft.cloudPlatforms || ""),
-      dev_tools: splitList(skillsDraft.devTools || ""),
-      ai_tools: splitList(skillsDraft.aiTools || ""),
-      ai_application_scenarios: splitList(skillsDraft.aiApplicationScenarios || ""),
-      other_keywords: skills.filter((s) => s.trim().length > 0),
+      language_exam: {
+        type: skillsDraft.languageExamType || undefined,
+        score: skillsDraft.languageExamScore || undefined,
+      },
+      development_languages: devLanguages.length > 0 ? devLanguages : undefined,
+      ai_application: skillsDraft.aiApplication || undefined,
     };
 
     const v2Certificates = certificateDrafts.length > 0 ? certificateDrafts.map((c) => ({
@@ -658,13 +614,15 @@ export function MyResumesPage() {
       description: a.description || undefined,
     })) : undefined;
 
+    // K8-5-25-E: Tencent-style works + homepage
     const v2Portfolio = {
-      github: portfolioDraft.github || undefined,
-      gitee: portfolioDraft.gitee || undefined,
-      cnb: portfolioDraft.cnb || undefined,
-      blog: portfolioDraft.blog || undefined,
-      demo_links: splitLines(portfolioDraft.demoLinks || ""),
-      portfolio_links: splitLines(portfolioDraft.portfolioLinks || ""),
+      works: portfolioDraft.works
+        .filter((w) => w.name || w.link)
+        .map((w) => ({
+          name: w.name || undefined,
+          link: w.link || undefined,
+          password: w.password || undefined,
+        })),
       homepage: portfolioDraft.homepage || undefined,
     };
 
@@ -699,11 +657,10 @@ export function MyResumesPage() {
       schema_version: 2,
       // V2 top-level
       resume_name: resumeName || personalName || "未命名简历",
-      target_direction: direction || "",
+      target_direction: "",
       description: undefined,
       // V2 modules
       profile: v2Profile,
-      job_intention: v2JobIntention,
       educations: v2Educations?.length ? v2Educations : educations.length > 0 ? v1EducationCompat : undefined,
       internships: v2Internships?.length ? v2Internships : undefined,
       projects: v2Projects?.length ? v2Projects : undefined,
@@ -716,13 +673,14 @@ export function MyResumesPage() {
       name: resumeName || personalName || "未命名简历",
       phone: phone || "",
       email: email || "",
-      location: currentCity || firstExpectedCity || "",
-      target_city: firstExpectedCity || cities || "",
-      target_role: direction || "",
+      location: currentCity || "",
+      target_city: "",
+      target_role: "",
       education: v1EducationCompat,
       experience: v1ExperienceCompat,
       project: v1ProjectCompat,
-      skills: skills.filter((s) => s.trim().length > 0),
+      // V1 skills compat: from developmentLanguages (K8-5-25-D)
+      skills: devLanguages.length > 0 ? devLanguages : skills.filter((s) => s.trim().length > 0),
       self_evaluation: summary || "",
     };
 
@@ -821,8 +779,21 @@ export function MyResumesPage() {
     setSkillsDraft((prev) => ({ ...prev, [field]: value }));
   }
 
-  function updatePortfolioDraft(field: keyof PortfolioDraft, value: string) {
-    setPortfolioDraft((prev) => ({ ...prev, [field]: value }));
+  // K8-5-25-E: works helpers
+  function addWork() {
+    setPortfolioDraft((prev) => ({
+      ...prev,
+      works: [...prev.works, { id: Math.max(0, ...prev.works.map((w) => w.id)) + 1, name: "", link: "", password: "" }],
+    }));
+  }
+  function updateWork(id: number, field: keyof WorkDraft, value: string) {
+    setPortfolioDraft((prev) => ({
+      ...prev,
+      works: prev.works.map((w) => (w.id === id ? { ...w, [field]: value } : w)),
+    }));
+  }
+  function removeWork(id: number) {
+    setPortfolioDraft((prev) => ({ ...prev, works: prev.works.filter((w) => w.id !== id) }));
   }
 
   function addCertificate() {
@@ -977,43 +948,6 @@ export function MyResumesPage() {
             <Input value={personalName} onChange={(e) => setPersonalName(e.target.value)} placeholder="姓名" />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">年龄</label>
-            <Input value={age} onChange={(e) => setAge(e.target.value)} placeholder="年龄" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              学历 <span className="text-red-500">*</span>
-            </label>
-            <Select value={degree} onValueChange={setDegree}>
-              <SelectTrigger className="sm:max-w-[200px]">
-                <SelectValue placeholder="选择学历" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="本科">本科</SelectItem>
-                <SelectItem value="硕士">硕士</SelectItem>
-                <SelectItem value="博士">博士</SelectItem>
-                <SelectItem value="专科">专科</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">毕业时间</label>
-            <Input value={gradYear} onChange={(e) => setGradYear(e.target.value)} placeholder="如：2026" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              学校 <span className="text-red-500">*</span>
-            </label>
-            <Input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="学校名称" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              专业 <span className="text-red-500">*</span>
-            </label>
-            <Input value={major} onChange={(e) => setMajor(e.target.value)} placeholder="专业名称" />
-          </div>
-          {/* V2 draft (K8-5-22-F): current city */}
-          <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">当前城市</label>
             <Input value={currentCity} onChange={(e) => setCurrentCity(e.target.value)} placeholder="如：深圳" />
           </div>
@@ -1033,121 +967,9 @@ export function MyResumesPage() {
         </p>
       </BasicInfoSection>
 
-      {/* ── Module 3: 求职意向 ──────────────────────────────────────── */}
-      <JobIntentionSection>
-        {/* V1 + shared fields */}
-        <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 mb-5">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              目标岗位方向 <span className="text-red-500">*</span>
-            </label>
-            <Input value={direction} onChange={(e) => setDirection(e.target.value)} placeholder="如：后端开发" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">期望城市</label>
-            <Input value={cities} onChange={(e) => setCities(e.target.value)} placeholder="如：深圳 / 北京 / 上海" />
-          </div>
-        </div>
-        <div className="mb-5">
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">岗位类型</label>
-          <Select value={jobType} onValueChange={setJobType}>
-            <SelectTrigger className="sm:max-w-xs">
-              <SelectValue placeholder="选择岗位类型" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="校园招聘 / 实习">校园招聘 / 实习</SelectItem>
-              <SelectItem value="校园招聘">校园招聘</SelectItem>
-              <SelectItem value="实习">实习</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* K8-5-25-C: 求职意向已删除 — 岗位推荐不需要用户预填意向 */}
 
-        {/* ── V2 draft fields (K8-5-22-F) ──────────────────────────────── */}
-        <div className="border-t border-gray-100 pt-5 space-y-5">
-          <h4 className="text-sm font-medium text-slate-600 flex items-center gap-1.5">
-            <span className="inline-block w-1 h-3.5 rounded-full bg-amber-400"></span>
-            推荐填写 <span className="text-xs font-normal text-slate-400">— 帮助 Offerr鹅 更精确地筛选岗位</span>
-          </h4>
-          <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">最早可入职时间</label>
-              <Input
-                type="date"
-                value={earliestStartDate}
-                onChange={(e) => setEarliestStartDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">可实习时长</label>
-              <Input
-                value={internshipDuration}
-                onChange={(e) => setInternshipDuration(e.target.value)}
-                placeholder="如：3个月 / 6个月及以上"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">每周可出勤天数</label>
-              <Select
-                value={weeklyAvailableDays || undefined}
-                onValueChange={(v) => setWeeklyAvailableDays(v)}
-              >
-                <SelectTrigger className="sm:max-w-[200px]">
-                  <SelectValue placeholder="选择天数" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-                    <SelectItem key={d} value={String(d)}>{d} 天</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">是否接受其他城市</label>
-              <div className="flex items-center gap-3 pt-1.5">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={acceptOtherCities}
-                    onChange={(e) => setAcceptOtherCities(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-[#0052D9] focus:ring-[#0052D9]"
-                  />
-                  <span className="text-sm text-slate-700">接受调剂到其他城市</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── V2 optional fields (K8-5-22-F) ──────────────────────────────── */}
-        <div className="border-t border-gray-100 pt-5 mt-5 space-y-4">
-          <h4 className="text-sm font-medium text-slate-500 flex items-center gap-1.5">
-            <span className="inline-block w-1 h-3.5 rounded-full bg-slate-300"></span>
-            可选 <span className="text-xs font-normal text-slate-400">— 填写后提升匹配精度</span>
-          </h4>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">目标行业 / 业务方向</label>
-            <Input
-              value={targetIndustries}
-              onChange={(e) => setTargetIndustries(e.target.value)}
-              placeholder="如：互联网、金融科技、人工智能（逗号分隔）"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">目标公司偏好</label>
-            <Input
-              value={targetCompanies}
-              onChange={(e) => setTargetCompanies(e.target.value)}
-              placeholder="如：腾讯、字节跳动（逗号分隔）"
-            />
-          </div>
-        </div>
-
-        <p className="mt-5 text-[12px] text-slate-400 leading-relaxed border-t border-gray-100 pt-4">
-          求职意向会影响岗位推荐和匹配排序，建议尽可能完整填写。
-        </p>
-      </JobIntentionSection>
-
-      {/* ── Module 4: 教育经历 ──────────────────────────────────────── */}
+      {/* ── Module 3: 教育经历 ──────────────────────────────────────── */}
       <EducationSection onAdd={addEducation}>
         {educations.length === 0 ? (
           <div className="rounded-xl bg-gray-50/70 py-8 text-center">
@@ -1372,100 +1194,56 @@ export function MyResumesPage() {
 
       {/* ── Module 6: 技能信息 ──────────────────────────────────────── */}
       <SkillsSection>
-        {/* V1 legacy skills as tags */}
-        {skills.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {skills.map((s) => (
-              <span
-                key={s}
-                className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[13px] text-[#0052D9] ring-1 ring-blue-100"
-              >
-                {s}
-                <button onClick={() => removeSkill(s)} className="text-blue-300 hover:text-blue-600">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-        <div className="flex gap-2 mb-6">
-          <Input className="h-10 flex-1" value={skillInput} onChange={(e) => setSkillInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addSkill()} placeholder="输入技能关键词后按回车添加" />
-          <button onClick={addSkill} className="rounded-xl bg-[#0052D9] px-5 text-[13px] font-medium text-white hover:bg-[#0047BD] transition-colors flex-shrink-0">添加</button>
-        </div>
-
-        {/* V2 分类技能 (K8-5-22-G) */}
-        <div className="border-t border-gray-200 pt-5 space-y-5">
-          <h4 className="text-sm font-medium text-slate-600 flex items-center gap-1.5">
-            <span className="inline-block w-1 h-3.5 rounded-full bg-blue-500"></span>
-            常用技术能力
-          </h4>
+        {/* 1-外语考试/等级 */}
+        <div className="space-y-4">
           <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">编程语言</label>
-              <Input className="h-10" value={skillsDraft.programmingLanguages} onChange={(e) => updateSkillsDraft("programmingLanguages", e.target.value)} placeholder="如：Go、Python、Java、C++（逗号分隔）" />
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">外语考试 / 等级</label>
+              <Select value={skillsDraft.languageExamType || undefined} onValueChange={(v) => updateSkillsDraft("languageExamType", v)}>
+                <SelectTrigger className="h-10"><SelectValue placeholder="选择考试类型" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CET-4">CET-4</SelectItem>
+                  <SelectItem value="CET-6">CET-6</SelectItem>
+                  <SelectItem value="IELTS">IELTS</SelectItem>
+                  <SelectItem value="TOEFL">TOEFL</SelectItem>
+                  <SelectItem value="其他">其他</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">后端框架</label>
-              <Input className="h-10" value={skillsDraft.backendFrameworks} onChange={(e) => updateSkillsDraft("backendFrameworks", e.target.value)} placeholder="如：Gin、Spring Boot、Django（逗号分隔）" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">数据库</label>
-              <Input className="h-10" value={skillsDraft.databases} onChange={(e) => updateSkillsDraft("databases", e.target.value)} placeholder="如：MySQL、Redis、MongoDB（逗号分隔）" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">中间件</label>
-              <Input className="h-10" value={skillsDraft.middleware} onChange={(e) => updateSkillsDraft("middleware", e.target.value)} placeholder="如：Kafka、RabbitMQ、Nginx（逗号分隔）" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">云平台</label>
-              <Input className="h-10" value={skillsDraft.cloudPlatforms} onChange={(e) => updateSkillsDraft("cloudPlatforms", e.target.value)} placeholder="如：腾讯云、AWS、Docker、K8s（逗号分隔）" />
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">分数 / 等级</label>
+              <Input className="h-10" value={skillsDraft.languageExamScore} onChange={(e) => updateSkillsDraft("languageExamScore", e.target.value)} placeholder="例如：503 / 6.5 / 95" />
             </div>
           </div>
         </div>
 
-        <div className="border-t border-gray-200 pt-5 space-y-4">
-          <h4 className="text-sm font-medium text-slate-600 flex items-center gap-1.5">
-            <span className="inline-block w-1 h-3.5 rounded-full bg-slate-400"></span>
-            工程与工具 <span className="text-xs font-normal text-slate-400">— 可选</span>
-          </h4>
-          <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">前端技术</label>
-              <Input className="h-10" value={skillsDraft.frontendTechnologies} onChange={(e) => updateSkillsDraft("frontendTechnologies", e.target.value)} placeholder="如：React、Vue、TypeScript（逗号分隔）" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">开发工具</label>
-              <Input className="h-10" value={skillsDraft.devTools} onChange={(e) => updateSkillsDraft("devTools", e.target.value)} placeholder="如：Git、Linux、Postman（逗号分隔）" />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">其他技能关键词</label>
-            <Input className="h-10" value={skillsDraft.otherKeywords} onChange={(e) => updateSkillsDraft("otherKeywords", e.target.value)} placeholder="其他未归类的技能（逗号分隔）" />
-          </div>
-        </div>
-
-        <div className="border-t border-gray-200 pt-5 space-y-4">
+        <div className="border-t border-gray-200 pt-5 mt-5 space-y-4">
           <h4 className="text-sm font-medium text-amber-600 flex items-center gap-1.5">
             <span className="inline-block w-1 h-3.5 rounded-full bg-amber-400"></span>
-            AI 应用能力 <span className="text-xs font-normal text-amber-500">— 推荐填写</span>
+            推荐填写
           </h4>
+
+          {/* 2-开发语言 */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">AI 工具</label>
-            <Input className="h-10" value={skillsDraft.aiTools} onChange={(e) => updateSkillsDraft("aiTools", e.target.value)} placeholder="如：CodeBuddy、Cursor、ChatGPT、Copilot（逗号分隔）" />
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">开发语言</label>
+            <Input className="h-10" value={skillsDraft.developmentLanguages} onChange={(e) => updateSkillsDraft("developmentLanguages", e.target.value)} placeholder="例如：Go、Java、Python、C++（逗号、顿号或换行分隔）" />
+            <p className="mt-1.5 text-xs text-slate-400">多个语言用逗号、顿号或换行分隔。</p>
           </div>
+
+          {/* 3-AI 应用技能 */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">AI 应用场景</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">AI 应用技能</label>
             <Textarea
-              className="min-h-[72px] resize-none" rows={2}
-              value={skillsDraft.aiApplicationScenarios}
-              onChange={(e) => updateSkillsDraft("aiApplicationScenarios", e.target.value)}
+              className="min-h-[88px] resize-none" rows={3}
+              value={skillsDraft.aiApplication}
+              onChange={(e) => updateSkillsDraft("aiApplication", e.target.value)}
               placeholder="例如：使用 CodeBuddy 辅助需求拆解、代码生成、Bug 定位、接口文档、测试用例和项目复盘。"
             />
           </div>
         </div>
 
         <p className="mt-5 text-[12px] text-slate-400 border-t border-gray-100 pt-4">
-          技能分类越详细，AI 匹配精度越高。V1 标签输入仍可用于快速添加，随后可在分类中细化。
+          技能信息有助于 Offerr鹅 提升岗位推荐、匹配分析和简历优化质量。
         </p>
       </SkillsSection>
 
@@ -1539,186 +1317,97 @@ export function MyResumesPage() {
         )}
       </InternshipSection>
 
-      {/* ── Module 8: 证书与语言能力 (K8-5-22-H) ──────────────────────── */}
+      {/* ── Module 7: 证书与获奖 (K8-5-25-E: merged) ──────────────────────── */}
       <CertificatesSection onAdd={addCertificate}>
-        {certificateDrafts.length === 0 ? (
+        {certificateDrafts.length === 0 && awardDrafts.length === 0 ? (
           <div className="rounded-xl bg-gray-50/70 py-8 text-center">
-            <p className="text-sm text-slate-500 mb-1">暂无证书或语言成绩</p>
-            <p className="text-xs text-slate-400 mb-3">
-              可以添加英语四六级、雅思/托福、云计算认证（如 AWS/阿里云/腾讯云）、计算机等级考试、软考等证书。
-            </p>
-            <button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加证书</button>
+            <p className="text-sm text-slate-500 mb-1">暂无证书或获奖</p>
+            <p className="text-xs text-slate-400 mb-3">可以添加语言成绩、云计算认证、竞赛获奖等。</p>
+            <button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline mr-3">+ 添加证书</button>
+            <button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <>
+            {/* Certificate entries */}
+            {certificateDrafts.length > 0 && <h4 className="text-sm font-medium text-slate-600 mb-3">证书</h4>}
             {certificateDrafts.map((cert, idx) => (
-              <div key={cert.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4">
+              <div key={cert.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">证书 {idx + 1}</span>
                   <button onClick={() => removeCertificate(cert.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">证书名称 <span className="text-red-500">*</span></label>
-                  <Input className="h-10" value={cert.name} onChange={(e) => updateCertificate(cert.id, "name", e.target.value)} placeholder="如：CET-4 503、阿里云 ACP 云计算工程师" />
+                <div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书名称 <span className="text-red-500">*</span></label><Input className="h-10" value={cert.name} onChange={(e) => updateCertificate(cert.id, "name", e.target.value)} placeholder="如：CET-4 503、阿里云 ACP" /></div>
+                <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书类型</label><Select value={cert.type || undefined} onValueChange={(v) => updateCertificate(cert.id, "type", v)}><SelectTrigger className="h-10"><SelectValue placeholder="选择类型" /></SelectTrigger><SelectContent><SelectItem value="语言能力">语言能力</SelectItem><SelectItem value="云计算认证">云计算认证</SelectItem><SelectItem value="软件/计算机认证">软件/计算机认证</SelectItem><SelectItem value="职业资格">职业资格</SelectItem><SelectItem value="其他">其他</SelectItem></SelectContent></Select></div>
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书级别</label><Input className="h-10" value={cert.level} onChange={(e) => updateCertificate(cert.id, "level", e.target.value)} placeholder="如：初级、中级、高级" /></div>
                 </div>
                 <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">证书类型</label>
-                    <Select value={cert.type || undefined} onValueChange={(v) => updateCertificate(cert.id, "type", v)}>
-                      <SelectTrigger className="h-10"><SelectValue placeholder="选择类型" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="语言能力">语言能力</SelectItem>
-                        <SelectItem value="云计算认证">云计算认证</SelectItem>
-                        <SelectItem value="软件/计算机认证">软件/计算机认证</SelectItem>
-                        <SelectItem value="职业资格">职业资格</SelectItem>
-                        <SelectItem value="其他">其他</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">证书级别</label>
-                    <Input className="h-10" value={cert.level} onChange={(e) => updateCertificate(cert.id, "level", e.target.value)} placeholder="如：初级、中级、高级" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">成绩 / 分数</label>
-                    <Input className="h-10" value={cert.score} onChange={(e) => updateCertificate(cert.id, "score", e.target.value)} placeholder="如：503、80" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">获得时间</label>
-                    <Input className="h-10" type="month" value={cert.issuedAt} onChange={(e) => updateCertificate(cert.id, "issuedAt", e.target.value)} />
-                  </div>
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">成绩 / 分数</label><Input className="h-10" value={cert.score} onChange={(e) => updateCertificate(cert.id, "score", e.target.value)} placeholder="如：503、80" /></div>
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">获得时间</label><Input className="h-10" type="month" value={cert.issuedAt} onChange={(e) => updateCertificate(cert.id, "issuedAt", e.target.value)} /></div>
                 </div>
               </div>
             ))}
-          </div>
-        )}
-      </CertificatesSection>
-
-      {/* ── Module 9: 获奖与竞赛 (K8-5-22-H) ──────────────────────────── */}
-      <AwardsSection onAdd={addAward}>
-        {awardDrafts.length === 0 ? (
-          <div className="rounded-xl bg-gray-50/70 py-8 text-center">
-            <p className="text-sm text-slate-500 mb-1">暂无获奖或竞赛经历</p>
-            <p className="text-xs text-slate-400 mb-3">
-              可以添加奖学金（如国家奖学金）、竞赛获奖（如 ACM/数模/挑战杯）、荣誉称号（如优秀学生干部）和科研奖项。
-            </p>
-            <button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button>
-          </div>
-        ) : (
-          <div className="space-y-4">
+            {/* Award entries */}
+            {awardDrafts.length > 0 && <h4 className="text-sm font-medium text-slate-600 mb-3 mt-2">获奖</h4>}
             {awardDrafts.map((award, idx) => (
-              <div key={award.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4">
+              <div key={award.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">获奖 {idx + 1}</span>
                   <button onClick={() => removeAward(award.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">奖项名称 <span className="text-red-500">*</span></label>
-                  <Input className="h-10" value={award.name} onChange={(e) => updateAward(award.id, "name", e.target.value)} placeholder="如：国家奖学金、ACM-ICPC 银牌" />
+                <div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项名称 <span className="text-red-500">*</span></label><Input className="h-10" value={award.name} onChange={(e) => updateAward(award.id, "name", e.target.value)} placeholder="如：国家奖学金、ACM-ICPC 银牌" /></div>
+                <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项类型</label><Select value={award.type || undefined} onValueChange={(v) => updateAward(award.id, "type", v)}><SelectTrigger className="h-10"><SelectValue placeholder="选择类型" /></SelectTrigger><SelectContent><SelectItem value="奖学金">奖学金</SelectItem><SelectItem value="竞赛获奖">竞赛获奖</SelectItem><SelectItem value="荣誉称号">荣誉称号</SelectItem><SelectItem value="科研奖项">科研奖项</SelectItem><SelectItem value="其他">其他</SelectItem></SelectContent></Select></div>
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项级别</label><Select value={award.level || undefined} onValueChange={(v) => updateAward(award.id, "level", v)}><SelectTrigger className="h-10"><SelectValue placeholder="选择级别" /></SelectTrigger><SelectContent><SelectItem value="校级">校级</SelectItem><SelectItem value="市级">市级</SelectItem><SelectItem value="省级">省级</SelectItem><SelectItem value="国家级">国家级</SelectItem><SelectItem value="国际级">国际级</SelectItem><SelectItem value="其他">其他</SelectItem></SelectContent></Select></div>
                 </div>
                 <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">奖项类型</label>
-                    <Select value={award.type || undefined} onValueChange={(v) => updateAward(award.id, "type", v)}>
-                      <SelectTrigger className="h-10"><SelectValue placeholder="选择类型" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="奖学金">奖学金</SelectItem>
-                        <SelectItem value="竞赛获奖">竞赛获奖</SelectItem>
-                        <SelectItem value="荣誉称号">荣誉称号</SelectItem>
-                        <SelectItem value="科研奖项">科研奖项</SelectItem>
-                        <SelectItem value="其他">其他</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">奖项级别</label>
-                    <Select value={award.level || undefined} onValueChange={(v) => updateAward(award.id, "level", v)}>
-                      <SelectTrigger className="h-10"><SelectValue placeholder="选择级别" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="校级">校级</SelectItem>
-                        <SelectItem value="市级">市级</SelectItem>
-                        <SelectItem value="省级">省级</SelectItem>
-                        <SelectItem value="国家级">国家级</SelectItem>
-                        <SelectItem value="国际级">国际级</SelectItem>
-                        <SelectItem value="其他">其他</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">获奖时间</label><Input className="h-10" type="month" value={award.awardedAt} onChange={(e) => updateAward(award.id, "awardedAt", e.target.value)} /></div>
                 </div>
-                <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">获奖时间</label>
-                    <Input className="h-10" type="month" value={award.awardedAt} onChange={(e) => updateAward(award.id, "awardedAt", e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">奖项说明</label>
-                  <Textarea className="min-h-[72px] resize-none" rows={2} value={award.description} onChange={(e) => updateAward(award.id, "description", e.target.value)} placeholder="简要描述获奖原因或竞赛内容" />
-                </div>
+                <div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项说明</label><Textarea className="min-h-[72px] resize-none" rows={2} value={award.description} onChange={(e) => updateAward(award.id, "description", e.target.value)} placeholder="简要描述获奖原因或竞赛内容" /></div>
               </div>
             ))}
-          </div>
+            {certificateDrafts.length === 0 && awardDrafts.length === 0 && null}
+            {(certificateDrafts.length > 0 || awardDrafts.length > 0) && (
+              <div className="flex gap-2 mt-2">
+                <button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加证书</button>
+                <button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button>
+              </div>
+            )}
+          </>
         )}
-      </AwardsSection>
+      </CertificatesSection>
 
-      {/* ── Module 10: 作品链接与补充信息 (K8-5-22-H) ──────────────────── */}
+      {/* ── Module 8: 作品或个人主页 (K8-5-25-E: works+homepage) ── */}
       <PortfolioExtraSection>
-        {/* V1 self evaluation */}
-        <div className="mb-6">
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">自我评价</label>
-          <p className="text-[13px] text-slate-500 mb-5">用一小段话概括你的优势、学习能力和求职方向。建议控制在 100-300 字。</p>
-          <Textarea className="min-h-[140px]" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="简要介绍自己的技术背景、求职意向和个人优势" />
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-[12px] text-slate-400">建议包含：技术方向、项目经验、学习能力、目标岗位。</span>
-            <span className="text-[12px] text-slate-400">当前约 {summary.length} 字</span>
+        <p className="text-[13px] text-slate-500 mb-5">只支持链接，不支持附件上传。</p>
+        {portfolioDraft.works.length === 0 && (
+          <button onClick={addWork} className="text-[13px] font-medium text-[#0052D9] hover:underline mb-4 inline-block">+ 添加作品链接</button>
+        )}
+        {portfolioDraft.works.map((work, idx) => (
+          <div key={work.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500">作品链接 {idx + 1}</span>
+              <button onClick={() => removeWork(work.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+            </div>
+            <div><label className="mb-1.5 block text-sm font-medium text-slate-700">作品名称</label><Input className="h-10" value={work.name} onChange={(e) => updateWork(work.id, "name", e.target.value)} placeholder="如：分布式在线考试系统" /></div>
+            <div><label className="mb-1.5 block text-sm font-medium text-slate-700">作品链接</label><Input className="h-10" value={work.link} onChange={(e) => updateWork(work.id, "link", e.target.value)} placeholder="如：https://cnb.cool/xxx" /></div>
+            <div><label className="mb-1.5 block text-sm font-medium text-slate-700">密码或提取码</label><Input className="h-10" value={work.password} onChange={(e) => updateWork(work.id, "password", e.target.value)} placeholder="如无需密码留空" /></div>
           </div>
-        </div>
+        ))}
+        <button onClick={addWork} className="text-[13px] font-medium text-[#0052D9] hover:underline mb-4 inline-block">+ 添加作品链接</button>
+        <div className="mt-4"><label className="mb-1.5 block text-sm font-medium text-slate-700">个人主页</label><Input className="h-10" value={portfolioDraft.homepage} onChange={(e) => setPortfolioDraft((prev) => ({ ...prev, homepage: e.target.value }))} placeholder="如：https://github.com/xxx" /></div>
+      </PortfolioExtraSection>
 
-        {/* V2 portfolio links */}
-        <div className="border-t border-gray-200 pt-5 space-y-5">
-          <h4 className="text-sm font-medium text-amber-600 flex items-center gap-1.5">
-            <span className="inline-block w-1 h-3.5 rounded-full bg-amber-400"></span>
-            作品与个人链接 <span className="text-xs font-normal text-amber-500">— 推荐填写</span>
-          </h4>
-          <p className="text-[12px] text-slate-400 -mt-3">只支持链接，不支持附件上传。</p>
-          <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-            <div><label className="mb-1.5 block text-sm font-medium text-slate-700">GitHub</label><Input className="h-10" value={portfolioDraft.github} onChange={(e) => updatePortfolioDraft("github", e.target.value)} placeholder="https://github.com/xxx" /></div>
-            <div><label className="mb-1.5 block text-sm font-medium text-slate-700">CNB</label><Input className="h-10" value={portfolioDraft.cnb} onChange={(e) => updatePortfolioDraft("cnb", e.target.value)} placeholder="https://cnb.cool/xxx" /></div>
-            <div><label className="mb-1.5 block text-sm font-medium text-slate-700">个人博客</label><Input className="h-10" value={portfolioDraft.blog} onChange={(e) => updatePortfolioDraft("blog", e.target.value)} placeholder="https://xxx" /></div>
-            <div><label className="mb-1.5 block text-sm font-medium text-slate-700">个人主页</label><Input className="h-10" value={portfolioDraft.homepage} onChange={(e) => updatePortfolioDraft("homepage", e.target.value)} placeholder="https://xxx" /></div>
-          </div>
+      {/* ── Module 9: 自我评价 (K8-5-25-E: independent) ───────────────── */}
+      <PortfolioExtraSection>
+        <p className="text-[13px] text-slate-500 mb-5">用一小段话概括你的优势、学习能力和求职方向。建议控制在 100-300 字。</p>
+        <Textarea className="min-h-[140px]" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="简要介绍自己的技术背景、求职意向和个人优势" />
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-[12px] text-slate-400">建议包含：技术方向、项目经验、学习能力、目标岗位。</span>
+          <span className="text-[12px] text-slate-400">当前约 {summary.length} 字</span>
         </div>
-
-        <div className="border-t border-gray-200 pt-5 mt-5 space-y-4">
-          <h4 className="text-sm font-medium text-slate-500 flex items-center gap-1.5">
-            <span className="inline-block w-1 h-3.5 rounded-full bg-slate-300"></span>
-            更多链接 <span className="text-xs font-normal text-slate-400">— 可选</span>
-          </h4>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Gitee</label>
-            <Input className="h-10" value={portfolioDraft.gitee} onChange={(e) => updatePortfolioDraft("gitee", e.target.value)} placeholder="https://gitee.com/xxx" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">项目演示链接</label>
-            <Textarea className="min-h-[72px] resize-none" rows={2} value={portfolioDraft.demoLinks} onChange={(e) => updatePortfolioDraft("demoLinks", e.target.value)} placeholder="一行一个链接，例如：&#10;https://demo.example.com&#10;https://xxx" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">作品集链接</label>
-            <Textarea className="min-h-[72px] resize-none" rows={2} value={portfolioDraft.portfolioLinks} onChange={(e) => updatePortfolioDraft("portfolioLinks", e.target.value)} placeholder="一行一个链接" />
-          </div>
-        </div>
-
-        <div className="border-t border-gray-200 pt-5 mt-5 space-y-4">
-          <h4 className="text-sm font-medium text-amber-600 flex items-center gap-1.5">
-            <span className="inline-block w-1 h-3.5 rounded-full bg-amber-400"></span>
-            补充信息 <span className="text-xs font-normal text-amber-500">— 推荐填写</span>
-          </h4>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">补充说明</label>
-            <Textarea className="min-h-[88px] resize-none" rows={3} value={extraInfoDraft.additionalInfo} onChange={(e) => setExtraInfoDraft({ additionalInfo: e.target.value })} placeholder="补充其他未覆盖的信息，如社团经历、志愿服务、兴趣爱好等" />
-          </div>
+        <div className="border-t border-gray-200 pt-5 mt-5">
+          <div><label className="mb-1.5 block text-sm font-medium text-slate-700">补充信息</label><Textarea className="min-h-[88px] resize-none" rows={3} value={extraInfoDraft.additionalInfo} onChange={(e) => setExtraInfoDraft({ additionalInfo: e.target.value })} placeholder="补充其他未覆盖的信息，如社团经历、志愿服务、兴趣爱好等" /></div>
         </div>
       </PortfolioExtraSection>
 

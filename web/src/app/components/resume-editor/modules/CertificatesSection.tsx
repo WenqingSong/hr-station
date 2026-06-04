@@ -15,10 +15,10 @@ export interface CertificatesSectionProps
 }
 
 /**
- * Module 8: 证书与语言能力
+ * Module 7: 证书与获奖 (merged)
  *
- * New module — collapsed by default.
- * Fields (K8-5-22-H): name, type, level, score, issuedAt (array).
+ * Collapsed by default.
+ * K8-5-25-E: merged with AwardsSection.
  */
 export function CertificatesSection({
   children,
@@ -28,8 +28,8 @@ export function CertificatesSection({
 }: CertificatesSectionProps) {
   return (
     <ResumeEditorSectionCard
-      title="证书与语言能力"
-      description="补充语言成绩（四六级/雅思/托福等）和专业证书，提升简历信息完整度。"
+      title="证书与获奖"
+      description="补充语言成绩、专业证书和竞赛获奖，提升简历信息完整度。"
       badge="可选"
       defaultOpen={false}
       collapsible

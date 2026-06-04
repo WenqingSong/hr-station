@@ -117,8 +117,9 @@ export interface ResumeProjectV2 {
   link?: string;
 }
 
-/** V2 技能 — 模块 6 */
+/** V2 技能 — 模块 5 (K8-5-25-D: Tencent-style) */
 export interface ResumeSkillsV2 {
+  // Old 10-category fields (kept for backward compat)
   programming_languages?: string[];
   backend_frameworks?: string[];
   frontend_technologies?: string[];
@@ -129,6 +130,10 @@ export interface ResumeSkillsV2 {
   ai_tools?: string[];
   ai_application_scenarios?: string[];
   other_keywords?: string[];
+  // New K8-5-25-D fields
+  language_exam?: { type?: string; score?: string };
+  development_languages?: string[];
+  ai_application?: string;
 }
 
 /** V2 证书与语言 — 模块 7 */
