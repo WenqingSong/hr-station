@@ -7,7 +7,12 @@ import type {
   ResumeVersionComparison,
   ResumeVersionsResponse,
   ResumeVersionListItem,
+  CreateResumeRequest,
+  CreateResumeRequestV1,
+  CreateResumeRequestV2,
 } from '../types';
+
+export type { CreateResumeRequest, CreateResumeRequestV1, CreateResumeRequestV2 };
 
 // ─── P0 读取 ──────────────────────────────────────────────────────────────────
 
@@ -20,6 +25,7 @@ export async function getResumes(): Promise<Resume[]> {
 }
 
 /** 获取版本列表（真实 {versions, total} 结构）。
+ * 返回完整的版本列表项（包含 V2 字段）。
  * 调用 GET /api/resumes/versions。失败时错误直接向上传播。
  */
 export async function getResumeVersions(): Promise<ResumeVersionListItem[]> {
@@ -68,19 +74,21 @@ export async function compareResumes(
 
 /**
  * 创建新简历。
+ * 接受 V1 或 V2 payload。V1 传递 Partial<Resume>；V2 传递 CreateResumeRequestV2。
  * 调用 POST /api/resumes。失败时错误直接向上传播。
  */
-export async function createResume(input: Partial<Resume>): Promise<Resume> {
+export async function createResume(input: Partial<Resume> | CreateResumeRequestV2): Promise<Resume> {
   return post<Resume>('/resumes', input);
 }
 
 /**
  * 更新简历（后端采用版本迭代模型：POST 生成新版本）。
+ * 接受 V1 或 V2 payload。
  * 调用 POST /api/resumes。失败时错误直接向上传播。
  */
 export async function updateResume(
   _resumeId: string,
-  input: Partial<Resume>,
+  input: Partial<Resume> | CreateResumeRequestV2,
 ): Promise<Resume> {
   return post<Resume>('/resumes', input);
 }

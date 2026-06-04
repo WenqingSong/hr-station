@@ -431,7 +431,7 @@ func TestRecommendationAgent_PromptValuesContainKeys(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	requiredKeys := []string{"RESUME_CONTEXT_JSON", "JOB_CANDIDATES_JSON", "BUSINESS_CONTEXT"}
+	requiredKeys := []string{"RESUME_SNAPSHOT_JSON", "JOB_CANDIDATES_JSON", "BUSINESS_CONTEXT"}
 	for _, key := range requiredKeys {
 		if _, ok := values[key]; !ok {
 			t.Errorf("expected prompt value key %s", key)

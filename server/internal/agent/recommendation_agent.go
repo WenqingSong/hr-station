@@ -128,37 +128,31 @@ func (e *RecFallbackError) Error() string {
 		e.FallbackReason, e.ErrorCode, e.ErrorMessage)
 }
 
-// buildPromptValues assembles the three placeholders for recommendation_v1.md.
+// buildPromptValues assembles the placeholders for recommendation_v1.md.
+// K8-5-22-I: Uses NormalizeResumeToSnapshotV2 to build structured snapshot input.
 func (a *RecommendationAgent) buildPromptValues(resume *model.ResumeVersion, jobs []*model.Job) (map[string]string, error) {
-	// RESUME_CONTEXT_JSON: serialize resume (safe subset, no API key)
-	resumeJSON, err := json.Marshal(map[string]any{
-		"version_no":      resume.VersionNo,
-		"target_role":     resume.TargetRole,
-		"target_city":     resume.TargetCity,
-		"skills":          safeParseJSONArray(resume.SkillsJSON),
-		"education":       safeParseJSONArray(resume.EducationJSON),
-		"experience":      safeParseJSONArray(resume.ExperienceJSON),
-		"project":         safeParseJSONArray(resume.ProjectJSON),
-		"self_evaluation": resume.SelfEvaluation,
-	})
+	// RESUME_SNAPSHOT_JSON: unified V2 snapshot with all 11 modules
+	resumeSnapshotJSON, err := buildResumeSnapshotJSON(resume)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal resume context: %w", err)
+		log.Printf("[RecommendationAgent] WARNING: resume snapshot partial failure: %v", err)
+		if resumeSnapshotJSON == "" {
+			resumeSnapshotJSON = "{}"
+		}
 	}
 
 	// JOB_CANDIDATES_JSON: serialize candidate jobs
-	// Only include fields the LLM needs; avoid including raw_json or other internal data.
 	type candidateJob struct {
-		JobID        uint64   `json:"job_id"`
-		Title        string   `json:"title"`
-		Department   string   `json:"department"`
-		City         string   `json:"city"`
-		Category     string   `json:"category"`
-		JobType      string   `json:"job_type"`
-		Description  string   `json:"description,omitempty"`
-		Requirements string   `json:"requirements,omitempty"`
+		JobID         uint64   `json:"job_id"`
+		Title         string   `json:"title"`
+		Department    string   `json:"department"`
+		City          string   `json:"city"`
+		Category      string   `json:"category"`
+		JobType       string   `json:"job_type"`
+		Description   string   `json:"description,omitempty"`
+		Requirements  string   `json:"requirements,omitempty"`
 		SkillKeywords []string `json:"skill_keywords,omitempty"`
-		ExternalID   string   `json:"external_id,omitempty"`
-		DataQuality  string   `json:"data_quality"`
+		ExternalID    string   `json:"external_id,omitempty"`
+		DataQuality   string   `json:"data_quality"`
 	}
 
 	candidates := make([]candidateJob, 0, len(jobs))
@@ -187,7 +181,7 @@ func (a *RecommendationAgent) buildPromptValues(resume *model.ResumeVersion, job
 	}
 
 	return map[string]string{
-		"RESUME_CONTEXT_JSON":  string(resumeJSON),
+		"RESUME_SNAPSHOT_JSON": resumeSnapshotJSON,
 		"JOB_CANDIDATES_JSON":  string(candidatesJSON),
 		"BUSINESS_CONTEXT":     recommendationBusinessContext,
 	}, nil

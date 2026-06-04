@@ -6,7 +6,10 @@ export type ResumeDirection = 'backend' | 'cloud' | 'product' | 'algorithm' | st
 /** 简历状态 */
 export type ResumeStatus = 'current' | 'history' | 'inactive' | string;
 
-/** 个人信息 */
+/** 简历 Schema 版本 */
+export type ResumeSchemaVersion = 1 | 2;
+
+/** 个人信息（V1） */
 export interface ResumeProfile {
   name: string;
   age?: number;
@@ -18,7 +21,7 @@ export interface ResumeProfile {
   email: string;
 }
 
-/** 项目经历 */
+/** 项目经历（V1） */
 export interface ResumeProject {
   id: string;
   name: string;
@@ -27,7 +30,7 @@ export interface ResumeProject {
   responsibilities: string[];
 }
 
-/** 实习/工作经历 */
+/** 实习/工作经历（V1） */
 export interface ResumeExperience {
   company: string;
   role: string;
@@ -36,7 +39,7 @@ export interface ResumeExperience {
   description: string;
 }
 
-/** 教育经历 */
+/** 教育经历（V1） */
 export interface ResumeEducation {
   school: string;
   major: string;
@@ -46,8 +49,126 @@ export interface ResumeEducation {
   courses: string[];
 }
 
-/** 简历完整记录 */
+// ─── V2 模块类型（K8-5-22-D） ─────────────────────────────────────────────────
+
+/** V2 基础信息 — 模块 1 */
+export interface ResumeProfileV2 {
+  name?: string;
+  school?: string;
+  degree?: string;
+  major?: string;
+  graduation_year?: string;
+  current_city?: string;
+}
+
+/** V2 求职意向 — 模块 2 */
+export interface ResumeJobIntentionV2 {
+  target_roles?: string[];
+  job_type?: string;
+  expected_cities?: string[];
+  accept_other_cities?: boolean;
+  earliest_start_date?: string;
+  internship_duration?: string;
+  weekly_available_days?: number;
+  target_industries?: string[];
+  target_companies?: string[];
+}
+
+/** V2 教育经历 — 模块 3 */
+export interface ResumeEducationV2 {
+  school?: string;
+  degree?: string;
+  major?: string;
+  department?: string;
+  start_date?: string;
+  end_date?: string;
+  gpa?: string;
+  gpa_scale?: string;
+  rank?: string;
+  core_courses?: string[];
+  research_direction?: string;
+  lab?: string;
+  paper_summary?: string;
+}
+
+/** V2 实习经历 — 模块 4 */
+export interface ResumeInternshipV2 {
+  company?: string;
+  role?: string;
+  start_date?: string;
+  end_date?: string;
+  work_content?: string;
+  tech_stack?: string[];
+  achievements?: string[];
+  metrics?: string;
+}
+
+/** V2 项目经历 — 模块 5 */
+export interface ResumeProjectV2 {
+  name?: string;
+  role?: string;
+  type?: string;
+  start_date?: string;
+  end_date?: string;
+  tech_stack?: string[];
+  description?: string;
+  responsibilities?: string;
+  achievements?: string[];
+  link?: string;
+}
+
+/** V2 技能 — 模块 6 */
+export interface ResumeSkillsV2 {
+  programming_languages?: string[];
+  backend_frameworks?: string[];
+  frontend_technologies?: string[];
+  databases?: string[];
+  middleware?: string[];
+  cloud_platforms?: string[];
+  dev_tools?: string[];
+  ai_tools?: string[];
+  ai_application_scenarios?: string[];
+  other_keywords?: string[];
+}
+
+/** V2 证书与语言 — 模块 7 */
+export interface ResumeCertificateV2 {
+  name?: string;
+  type?: string;
+  level?: string;
+  score?: string;
+  issued_at?: string;
+}
+
+/** V2 获奖与竞赛 — 模块 8 */
+export interface ResumeAwardV2 {
+  name?: string;
+  type?: string;
+  level?: string;
+  awarded_at?: string;
+  description?: string;
+}
+
+/** V2 作品链接 — 模块 9 */
+export interface ResumePortfolioV2 {
+  github?: string;
+  gitee?: string;
+  cnb?: string;
+  blog?: string;
+  demo_links?: string[];
+  portfolio_links?: string[];
+  homepage?: string;
+}
+
+/** V2 补充信息 — 模块 10 */
+export interface ResumeExtraInfoV2 {
+  self_evaluation?: string;
+  additional_info?: string;
+}
+
+/** 简历完整记录（兼容 V1 + V2） */
 export interface Resume {
+  // ── V1 fields ──
   id: string;
   name: string;
   version: string;
@@ -65,6 +186,34 @@ export interface Resume {
   experiences: ResumeExperience[];
   projects: ResumeProject[];
   self_evaluation: string;
+
+  // ── V2 fields (K8-5-22-D) ──
+  /** Schema 版本：1=V1 2=V2 */
+  schema_version?: ResumeSchemaVersion;
+  /** V2 目标方向（摘要列） */
+  target_direction?: string;
+  /** V2 学校（摘要列，来自 profile JSON） */
+  school?: string;
+  /** V2 学历（摘要列，来自 profile JSON） */
+  degree?: string;
+  /** V2 专业（摘要列，来自 profile JSON） */
+  major?: string;
+  /** V2 毕业年份（摘要列，来自 profile JSON） */
+  graduation_year?: string;
+  /** V2 基础信息 JSON — raw response field */
+  profile_json?: ResumeProfileV2;
+  /** V2 求职意向 JSON — raw response field */
+  job_intention?: ResumeJobIntentionV2;
+  /** V2 实习经历 JSON — raw response field */
+  internships?: ResumeInternshipV2[];
+  /** V2 证书与语言 JSON — raw response field */
+  certificates?: ResumeCertificateV2[];
+  /** V2 获奖与竞赛 JSON — raw response field */
+  awards?: ResumeAwardV2[];
+  /** V2 作品链接 JSON — raw response field */
+  portfolio_links?: ResumePortfolioV2;
+  /** V2 补充信息 JSON — raw response field */
+  extra_info?: ResumeExtraInfoV2;
 }
 
 /** 选择简历弹窗中的简历选项 */
@@ -104,6 +253,13 @@ export interface ResumeVersionListItem {
   target_city: string;
   target_role: string;
   created_at: string;
+
+  // ── V2 fields (K8-5-22-D) ──
+  schema_version?: ResumeSchemaVersion;
+  target_direction?: string;
+  expected_cities?: string;
+  school?: string;
+  degree?: string;
 }
 
 /** 简历版本列表响应 */
@@ -159,3 +315,43 @@ export interface ResumeVersionComparison {
   result: VersionCompareResult;
   created_at: string;
 }
+
+// ─── V2 API request types (K8-5-22-D) ──────────────────────────────────────────
+
+/** V2 request payload for create/update resume */
+export interface CreateResumeRequestV2 {
+  schema_version: 2;
+  resume_name?: string;
+  target_direction?: string;
+  description?: string;
+  profile?: ResumeProfileV2;
+  job_intention?: ResumeJobIntentionV2;
+  educations?: ResumeEducationV2[];
+  internships?: ResumeInternshipV2[];
+  projects?: ResumeProjectV2[];
+  skills?: ResumeSkillsV2;
+  certificates?: ResumeCertificateV2[];
+  awards?: ResumeAwardV2[];
+  portfolio_links?: ResumePortfolioV2;
+  extra_info?: ResumeExtraInfoV2;
+}
+
+/** V1 request payload (legacy, V1 field names) */
+export interface CreateResumeRequestV1 {
+  schema_version?: 1;
+  name?: string;
+  phone?: string;
+  email?: string;
+  location?: string;
+  target_city?: string;
+  target_role?: string;
+  education?: unknown;
+  experience?: unknown;
+  project?: unknown;
+  skills?: unknown;
+  self_evaluation?: string;
+  raw_text?: string;
+}
+
+/** Union type: V1 or V2 request */
+export type CreateResumeRequest = CreateResumeRequestV1 | CreateResumeRequestV2;

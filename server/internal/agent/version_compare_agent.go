@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -86,28 +85,27 @@ func (e *VersionCompareFallbackError) Error() string {
 		e.FallbackReason, e.ErrorCode, e.ErrorMessage)
 }
 
+// buildPromptValues uses ResumeSnapshotV2 for both versions.
+// K8-5-22-I: Replaces old resumeToMap with snapshot-based serialization.
 func (a *VersionCompareLLMAgent) buildPromptValues(from *model.ResumeVersion, to *model.ResumeVersion) (map[string]string, error) {
-	oldJSON, _ := json.Marshal(resumeToMap(from))
-	newJSON, _ := json.Marshal(resumeToMap(to))
+	oldJSON, err := buildResumeSnapshotJSON(from)
+	if err != nil {
+		log.Printf("[VersionCompareAgent] WARNING: old version snapshot failure: %v", err)
+		if oldJSON == "" { oldJSON = "{}" }
+	}
+	newJSON, err := buildResumeSnapshotJSON(to)
+	if err != nil {
+		log.Printf("[VersionCompareAgent] WARNING: new version snapshot failure: %v", err)
+		if newJSON == "" { newJSON = "{}" }
+	}
 	return map[string]string{
-		"OLD_RESUME_JSON":   string(oldJSON),
-		"NEW_RESUME_JSON":   string(newJSON),
-		"BUSINESS_CONTEXT":  versionCompareBusinessContext,
+		"OLD_RESUME_JSON":  oldJSON,
+		"NEW_RESUME_JSON":  newJSON,
+		"BUSINESS_CONTEXT": versionCompareBusinessContext,
 	}, nil
 }
 
-func resumeToMap(r *model.ResumeVersion) map[string]any {
-	return map[string]any{
-		"version_no":      r.VersionNo,
-		"target_role":     r.TargetRole,
-		"target_city":     r.TargetCity,
-		"skills":          safeParseJSONArray(r.SkillsJSON),
-		"education":       safeParseJSONArray(r.EducationJSON),
-		"experience":      safeParseJSONArray(r.ExperienceJSON),
-		"project":         safeParseJSONArray(r.ProjectJSON),
-		"self_evaluation": r.SelfEvaluation,
-	}
-}
+// resumeToMap is removed; replaced by buildResumeSnapshotJSON using NormalizeResumeToSnapshotV2.
 
 func mapParsedToCompareResult(parsed map[string]any, from, to *model.ResumeVersion) (*model.VersionCompareAnalysis, error) {
 	if parsed == nil {

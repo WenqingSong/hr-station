@@ -24,6 +24,8 @@ export interface ResumeSummaryViewModel {
   gapItems: string[];
   projectCount: number;
   profileSummary: string;
+  /** V2: schema version (1 or 2), undefined for V1 */
+  schemaVersion?: number;
 }
 
 /** 简历管理页完整 ViewModel — 用于 ResumeManagementPage 真实数据展示 */
@@ -46,6 +48,8 @@ export interface ResumeManagementViewModel {
   selfEvaluation: string;
   // No-profile indicator
   hasResume: boolean;
+  /** V2: schema version (1 or 2), undefined for V1 */
+  schemaVersion?: number;
 }
 
 export interface ResumeOptionViewModel {
@@ -60,6 +64,8 @@ export interface ResumeOptionViewModel {
   isRecommended: boolean;
   recommendationLabel?: string;
   mismatchReason?: string;
+  /** V2: schema version (1 or 2), undefined for V1 */
+  schemaVersion?: number;
 }
 
 export interface ResumeComparisonViewModel {
@@ -82,13 +88,56 @@ export interface ResumeComparisonViewModel {
   createdAt: string;
 }
 
+// ─── V2 helper: extract V2 summary fields with V1 fallback ──────────────────────
+
+function getSchemaVersion(resume: Resume): number | undefined {
+  return resume.schema_version;
+}
+
+function getV2TargetDirection(resume: Resume): string {
+  return resume.target_direction || resume.direction_label || resume.direction || '';
+}
+
+function getV2School(resume: Resume): string {
+  if (resume.school) return resume.school;
+  if (resume.profile?.school) return resume.profile.school;
+  if (resume.education?.[0]?.school) return resume.education[0].school;
+  return '';
+}
+
+function getV2Degree(resume: Resume): string {
+  if (resume.degree) return resume.degree;
+  if (resume.profile?.education) return resume.profile.education;
+  if (resume.education?.[0]?.degree) return resume.education[0].degree;
+  return '';
+}
+
+function getV2Major(resume: Resume): string {
+  if (resume.major) return resume.major;
+  if (resume.profile?.major) return resume.profile.major;
+  if (resume.education?.[0]?.major) return resume.education[0].major;
+  return '';
+}
+
+function getV2GraduationYear(resume: Resume): string {
+  if (resume.graduation_year) return resume.graduation_year;
+  if (resume.profile?.graduation_year) return resume.profile.graduation_year;
+  return '';
+}
+
+function getV2ExpectedCities(resume: Resume): string[] {
+  if (resume.expected_cities?.length) return resume.expected_cities;
+  return [];
+}
+
 // ─── 转换函数 ──────────────────────────────────────────────────────────────────
 
 function buildProfileSummary(resume: Resume): string {
-  const { profile } = resume;
-  return [profile.school, profile.major, profile.education, profile.graduation_year]
-    .filter(Boolean)
-    .join(' / ');
+  const school = getV2School(resume) || resume.profile?.school || '';
+  const major = getV2Major(resume) || resume.profile?.major || '';
+  const degree = getV2Degree(resume) || resume.profile?.education || '';
+  const gradYear = getV2GraduationYear(resume) || resume.profile?.graduation_year || '';
+  return [school, major, degree, gradYear].filter(Boolean).join(' / ');
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -98,19 +147,20 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function toResumeSummaryViewModel(resume?: Resume | null): ResumeSummaryViewModel {
-  if (!resume) return { id: '', name: '', version: '', statusLabel: '', directionLabel: '', completeness: 0, updatedAt: '', skillTags: [], gapItems: [], projectCount: 0, profileSummary: '' };
+  if (!resume) return { id: '', name: '', version: '', statusLabel: '', directionLabel: '', completeness: 0, updatedAt: '', skillTags: [], gapItems: [], projectCount: 0, profileSummary: '', schemaVersion: undefined };
   return {
     id: resume.id,
     name: resume.name,
     version: resume.version,
     statusLabel: STATUS_LABELS[resume.status] || resume.status,
-    directionLabel: resume.direction_label,
+    directionLabel: getV2TargetDirection(resume) || resume.direction_label,
     completeness: resume.completeness,
     updatedAt: resume.updated_at,
     skillTags: resume.skills,
     gapItems: resume.gaps,
-    projectCount: resume.projects.length,
+    projectCount: resume.projects?.length ?? 0,
     profileSummary: buildProfileSummary(resume),
+    schemaVersion: getSchemaVersion(resume),
   };
 }
 
@@ -129,6 +179,7 @@ export function toResumeOptionViewModel(
     isRecommended: option.is_recommended,
     recommendationLabel: option.recommendation_label,
     mismatchReason: option.mismatch_reason,
+    schemaVersion: undefined,
   };
 }
 
@@ -138,51 +189,75 @@ export function toResumeOptionViewModels(
   return options.map(toResumeOptionViewModel);
 }
 
-// ─── API versions → Options（10-1） ──────────────────────────────────────────
+// ─── API versions → Options（V2-aware） ────────────────────────────────────────
 
-/** 从真实版本列表构建简历选项 VM（10-1-R：使用 ResumeVersionListItem） */
+/** 从真实版本列表构建简历选项 VM（V2-aware）。
+ * 优先使用 V2 摘要字段（target_direction、expected_cities），
+ * 缺失时 fallback 到 V1 字段（target_role、target_city）。 */
 export function toResumeOptionViewModelsFromVersions(
   versions: ResumeVersionListItem[],
 ): ResumeOptionViewModel[] {
-  return versions.map((v, i) => ({
-    id: String(v.version_no),
-    name: v.name || `简历版本 V${v.version_no}`,
-    statusLabel: i === 0 ? "当前使用" : "历史版本",
-    directionLabel: v.target_role || "",
-    tags: v.target_city ? [v.target_city] : [],
-    projectCount: 0,
-    updatedAt: v.created_at?.substring(0, 10) || "",
-    isDefault: i === 0,
-    isRecommended: i === 0,
-  }));
+  return versions.map((v, i) => {
+    const directionLabel = v.target_direction || v.target_role || '';
+    const tags: string[] = [];
+    if (v.expected_cities) {
+      tags.push(...v.expected_cities.split(',').filter(Boolean));
+    } else if (v.target_city) {
+      tags.push(v.target_city);
+    }
+    return {
+      id: String(v.version_no),
+      name: v.name || `简历版本 V${v.version_no}`,
+      statusLabel: i === 0 ? "当前使用" : "历史版本",
+      directionLabel,
+      tags,
+      projectCount: 0,
+      updatedAt: v.created_at?.substring(0, 10) || "",
+      isDefault: i === 0,
+      isRecommended: i === 0,
+      schemaVersion: v.schema_version,
+    };
+  });
 }
 
-// ─── Management Page VM ─────────────────────────────────────────────────────────
+// ─── Management Page VM（V2-aware） ────────────────────────────────────────────
 
-/** 从完整 Resume 构建管理页 ViewModel，含空值兜底 */
+/** 从完整 Resume 构建管理页 ViewModel（V2-aware）。
+ * V2 字段优先，V1 fallback。page UI 字段名不变。 */
 export function toResumeManagementViewModel(
   resume: Resume,
 ): ResumeManagementViewModel {
   const summary = toResumeSummaryViewModel(resume);
   const p = resume.profile ?? ({} as Resume['profile']);
+  const schVer = getSchemaVersion(resume);
+
+  // V2: prefer V2 school/degree/major over V1 profile fields
+  const displaySchool = getV2School(resume) || p.school || '暂未填写';
+  const displayMajor = getV2Major(resume) || p.major || '';
+  const displayLocation = getV2ExpectedCities(resume).length
+    ? getV2ExpectedCities(resume).join(' / ')
+    : (resume.expected_cities?.length
+      ? resume.expected_cities.join(' / ')
+      : '暂未填写');
+
+  const directionLabel = getV2TargetDirection(resume) || resume.direction_label || '暂未填写';
 
   return {
     summary,
     displayName: p.name || resume.name || '暂未填写',
-    displaySchool: p.school || '暂未填写',
-    displayMajor: p.major || '',
+    displaySchool,
+    displayMajor,
     displayPhone: p.phone || '',
     displayEmail: p.email || '',
-    displayLocation: resume.expected_cities?.length
-      ? resume.expected_cities.join(' / ')
-      : '暂未填写',
-    directionLabel: resume.direction_label || '暂未填写',
+    displayLocation,
+    directionLabel,
     education: Array.isArray(resume.education) ? resume.education : [],
     experiences: Array.isArray(resume.experiences) ? resume.experiences : [],
     projects: Array.isArray(resume.projects) ? resume.projects : [],
     skills: Array.isArray(resume.skills) ? resume.skills : [],
     selfEvaluation: resume.self_evaluation || '',
     hasResume: !!(p.name || resume.name || p.school),
+    schemaVersion: schVer,
   };
 }
 

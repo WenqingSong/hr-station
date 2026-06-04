@@ -125,33 +125,22 @@ func (e *MatchFallbackError) Error() string {
 		e.FallbackReason, e.ErrorCode, e.ErrorMessage)
 }
 
-// buildPromptValues assembles the three placeholders for match_analysis_v1.md.
+// buildPromptValues assembles the placeholders for match_analysis_v1.md.
+// K8-5-22-I: Uses NormalizeResumeToSnapshotV2 for structured input.
 func (a *MatchAnalysisAgent) buildPromptValues(resume *model.ResumeVersion, job *model.Job) (map[string]string, error) {
-	// RESUME_CONTEXT_JSON: serialize resume (safe subset, no API key)
-	resumeJSON, err := json.Marshal(map[string]any{
-		"version_no":       resume.VersionNo,
-		"target_role":      resume.TargetRole,
-		"target_city":      resume.TargetCity,
-		"skills":           safeParseJSONArray(resume.SkillsJSON),
-		"education":        safeParseJSONArray(resume.EducationJSON),
-		"experience":       safeParseJSONArray(resume.ExperienceJSON),
-		"project":          safeParseJSONArray(resume.ProjectJSON),
-		"self_evaluation":  resume.SelfEvaluation,
-	})
+	resumeSnapshotJSON, err := buildResumeSnapshotJSON(resume)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal resume context: %w", err)
+		log.Printf("[MatchAnalysisAgent] WARNING: snapshot partial failure: %v", err)
+		if resumeSnapshotJSON == "" {
+			resumeSnapshotJSON = "{}"
+		}
 	}
 
-	// JOB_CONTEXT_JSON: serialize job
 	jobJSON, err := json.Marshal(map[string]any{
-		"id":            job.ID,
-		"title":         job.Title,
-		"department":    job.Department,
-		"city":          job.City,
-		"category":      job.Category,
-		"description":   job.Description,
-		"requirements":  job.Requirements,
-		"data_quality":  job.DataQuality,
+		"id": job.ID, "title": job.Title, "department": job.Department,
+		"city": job.City, "category": job.Category,
+		"description": job.Description, "requirements": job.Requirements,
+		"data_quality": job.DataQuality,
 		"skill_keywords": safeParseJSONArray(job.SkillKeywordsJSON),
 	})
 	if err != nil {
@@ -159,9 +148,9 @@ func (a *MatchAnalysisAgent) buildPromptValues(resume *model.ResumeVersion, job 
 	}
 
 	return map[string]string{
-		"RESUME_CONTEXT_JSON": string(resumeJSON),
-		"JOB_CONTEXT_JSON":    string(jobJSON),
-		"BUSINESS_CONTEXT":    matchAnalysisBusinessContext,
+		"RESUME_SNAPSHOT_JSON": resumeSnapshotJSON,
+		"JOB_CONTEXT_JSON":     string(jobJSON),
+		"BUSINESS_CONTEXT":     matchAnalysisBusinessContext,
 	}, nil
 }
 

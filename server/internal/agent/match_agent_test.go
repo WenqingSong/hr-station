@@ -584,17 +584,17 @@ func TestBuildPromptValues(t *testing.T) {
 		t.Fatalf("buildPromptValues() error: %v", err)
 	}
 
-	// Check all three keys exist
-	for _, key := range []string{"RESUME_CONTEXT_JSON", "JOB_CONTEXT_JSON", "BUSINESS_CONTEXT"} {
+	// Check all three keys exist (K8-5-22-I: RESUME_CONTEXT_JSON → RESUME_SNAPSHOT_JSON)
+	for _, key := range []string{"RESUME_SNAPSHOT_JSON", "JOB_CONTEXT_JSON", "BUSINESS_CONTEXT"} {
 		if _, ok := values[key]; !ok {
 			t.Errorf("missing prompt value key: %s", key)
 		}
 	}
 
-	// Verify RESUME_CONTEXT_JSON is valid JSON
+	// Verify RESUME_SNAPSHOT_JSON is valid JSON (K8-5-22-I)
 	var resumeCtx map[string]any
-	if err := json.Unmarshal([]byte(values["RESUME_CONTEXT_JSON"]), &resumeCtx); err != nil {
-		t.Errorf("RESUME_CONTEXT_JSON is not valid JSON: %v", err)
+	if err := json.Unmarshal([]byte(values["RESUME_SNAPSHOT_JSON"]), &resumeCtx); err != nil {
+		t.Errorf("RESUME_SNAPSHOT_JSON is not valid JSON: %v", err)
 	}
 
 	// Verify JOB_CONTEXT_JSON is valid JSON
