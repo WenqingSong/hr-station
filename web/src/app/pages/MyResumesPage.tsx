@@ -97,12 +97,16 @@ interface Internship {
   metrics: string;
 }
 
-/** V2 skills draft (K8-5-25-D: Tencent-style 3 fields) */
+/** V2 skills draft (K8-5-25-D: Tencent-style 2 fields; K8-5-29-B: languageExam moved to independent list) */
 interface SkillsDraft {
-  languageExamType: string;
-  languageExamScore: string;
   developmentLanguages: string;
   aiApplication: string;
+}
+
+/** K8-5-29-B: language exam dynamic list */
+interface LanguageExamDraft {
+  name: string;
+  score: string;
 }
 
 /** V2 certificate entry draft (K8-5-22-H) */
@@ -274,13 +278,14 @@ export function MyResumesPage() {
   // ── Skills ──────────────────────────────────────────────────────────────────
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
-  // V2 draft (K8-5-25-D: Tencent-style 3 fields)
+  // V2 draft (K8-5-25-D: Tencent-style 2 fields; K8-5-29-B: languageExam removed)
   const [skillsDraft, setSkillsDraft] = useState<SkillsDraft>({
-    languageExamType: "",
-    languageExamScore: "",
     developmentLanguages: "",
     aiApplication: "",
   });
+
+  // K8-5-29-B: language exam dynamic list
+  const [languageExamDrafts, setLanguageExamDrafts] = useState<LanguageExamDraft[]>([]);
 
   // V2 drafts (K8-5-22-H)
   const [certificateDrafts, setCertificateDrafts] = useState<CertificateDraft[]>([]);
@@ -440,23 +445,25 @@ export function MyResumesPage() {
         || joinList(sk.ai_application_scenarios)
         || joinList(sk.ai_tools);
 
+      // K8-5-29-B: language exam moved to independent list; old skills.language_exam fallback
+      const oldLangExam = (sk.language_exam as any);
+      if (oldLangExam && (oldLangExam.type || oldLangExam.score)) {
+        setLanguageExamDrafts([{ name: oldLangExam.type || "", score: oldLangExam.score || "" }]);
+      }
       setSkillsDraft({
-        languageExamType: (sk.language_exam as any)?.type || "",
-        languageExamScore: (sk.language_exam as any)?.score || "",
         developmentLanguages: newDev || oldDev,
         aiApplication: newAI || oldAI,
       });
     }
 
-    // Certificates V2 (K8-5-27-D: separate language_exam from normal certs)
+    // Certificates V2 (K8-5-29-B: backfill ALL language_exam, not just the first)
     if (v2.certificates && v2.certificates.length > 0) {
-      const langExam = v2.certificates.find((c: any) => c.type === "language_exam");
-      if (langExam) {
-        setSkillsDraft((prev) => ({
-          ...prev,
-          languageExamType: langExam.name || langExam.level || "",
-          languageExamScore: langExam.score || "",
-        }));
+      const langExams = v2.certificates.filter((c: any) => c.type === "language_exam");
+      if (langExams.length > 0) {
+        setLanguageExamDrafts(langExams.map((c: any) => ({
+          name: c.name || c.level || "",
+          score: c.score || "",
+        })));
       }
       const normalCerts = v2.certificates.filter((c: any) => c.type !== "language_exam");
       if (normalCerts.length > 0) {
@@ -606,18 +613,18 @@ export function MyResumesPage() {
       ai_application: skillsDraft.aiApplication || undefined,
     };
 
-    // K8-5-27-D: language exam merged into certificates
-    const langExamName = skillsDraft.languageExamType || "";
-    const langExamScore = skillsDraft.languageExamScore || "";
-    const langExamCert = (langExamName || langExamScore) ? {
-      name: langExamName || "外语考试",
-      type: "language_exam",
-      level: langExamName || undefined,
-      score: langExamScore || undefined,
-      issued_at: undefined,
-    } : null;
+    // K8-5-29-B: language exam from dynamic list (multiple entries)
+    const languageExamCertificates = languageExamDrafts
+      .filter((le) => le.name.trim() || le.score.trim())
+      .map((le) => ({
+        name: le.name.trim() || undefined,
+        type: "language_exam",
+        level: le.name.trim() || undefined,
+        score: le.score.trim() || undefined,
+        issued_at: undefined,
+      }));
     const allCertificates = [
-      ...(langExamCert ? [langExamCert] : []),
+      ...languageExamCertificates,
       ...certificateDrafts.map((c) => ({
         name: c.name || undefined,
         type: c.type || undefined,
@@ -860,6 +867,13 @@ export function MyResumesPage() {
   function removeCertificate(id: number) {
     setCertificateDrafts((cs) => cs.filter((c) => c.id !== id));
   }
+
+  // K8-5-29-B: language exam dynamic list helpers
+  const addLanguageExam = () => setLanguageExamDrafts((prev) => [...prev, { name: "", score: "" }]);
+  const updateLanguageExam = (idx: number, field: keyof LanguageExamDraft, value: string) => {
+    setLanguageExamDrafts((prev) => prev.map((le, i) => (i === idx ? { ...le, [field]: value } : le)));
+  };
+  const removeLanguageExam = (idx: number) => setLanguageExamDrafts((prev) => prev.filter((_, i) => i !== idx));
 
   function addAward() {
     const newId = Math.max(0, ...awardDrafts.map((a) => a.id)) + 1;
@@ -1357,28 +1371,44 @@ export function MyResumesPage() {
 
       {/* ── Module 7: 证书与获奖 (K8-5-25-E: merged) ──────────────────────── */}
       <CertificatesSection onAdd={addCertificate}>
-        {/* K8-5-27-D: 外语考试 / 等级 */}
+        {/* K8-5-29-B: 外语考试 / 等级 — dynamic list */}
         <div className="mb-5 pb-5 border-b border-gray-100">
           <h4 className="text-sm font-medium text-slate-600 mb-3">外语考试 / 等级</h4>
-          <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">考试类型</label>
-              <Select value={skillsDraft.languageExamType || undefined} onValueChange={(v) => updateSkillsDraft("languageExamType", v)}>
-                <SelectTrigger className="h-10"><SelectValue placeholder="选择考试类型" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CET-4">CET-4</SelectItem>
-                  <SelectItem value="CET-6">CET-6</SelectItem>
-                  <SelectItem value="IELTS">IELTS</SelectItem>
-                  <SelectItem value="TOEFL">TOEFL</SelectItem>
-                  <SelectItem value="其他">其他</SelectItem>
-                </SelectContent>
-              </Select>
+          {languageExamDrafts.length === 0 ? (
+            <div className="rounded-xl bg-gray-50/70 py-6 text-center">
+              <p className="text-sm text-slate-500 mb-1">暂无外语考试</p>
+              <p className="text-xs text-slate-400 mb-3">可以添加 CET-4、CET-6、雅思、托福、日语等级等。</p>
+              <button onClick={addLanguageExam} className="text-[13px] font-medium text-[#0052D9] hover:underline">
+                + 添加外语考试
+              </button>
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">分数 / 等级</label>
-              <Input className="h-10" value={skillsDraft.languageExamScore} onChange={(e) => updateSkillsDraft("languageExamScore", e.target.value)} placeholder="例如：503 / 6.5 / 95" />
-            </div>
-          </div>
+          ) : (
+            <>
+              {languageExamDrafts.map((le, idx) => (
+                <div key={idx} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-4 space-y-3 mb-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-500">外语考试 {idx + 1}</span>
+                    <button onClick={() => removeLanguageExam(idx)} className="text-slate-400 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">考试类型</label>
+                      <Input className="h-10" value={le.name} onChange={(e) => updateLanguageExam(idx, "name", e.target.value)} placeholder="如：CET-4、CET-6、IELTS、TOEFL、日语 N2" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">分数 / 等级</label>
+                      <Input className="h-10" value={le.score} onChange={(e) => updateLanguageExam(idx, "score", e.target.value)} placeholder="例如：503 / 6.5 / N2 / 95" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button onClick={addLanguageExam} className="text-[13px] font-medium text-[#0052D9] hover:underline">
+                + 添加外语考试
+              </button>
+            </>
+          )}
         </div>
 
         {certificateDrafts.length === 0 && awardDrafts.length === 0 ? (
