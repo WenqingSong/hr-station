@@ -39,6 +39,9 @@ export function AuthDialog({
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
+  // ── Demo reviewer one-click login ──
+  const [demoLoading, setDemoLoading] = useState(false);
+
   // ── Register fields ──
   const [regPhone, setRegPhone] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -77,6 +80,22 @@ export function AuthDialog({
       setLoginError(msg.includes("401") ? "手机号或密码错误" : "登录失败，请稍后重试");
     } finally {
       setLoginLoading(false);
+    }
+  }
+
+  // ── Demo reviewer one-click login ──
+  async function handleDemoLogin() {
+    setLoginError("");
+    setDemoLoading(true);
+    try {
+      const res = await login({ phone: "13900139000", password: "123456" });
+      setAuthToken(res.token);
+      onLoginSuccess?.();
+      onOpenChange(false);
+    } catch (err: unknown) {
+      setLoginError("示范账号登录失败，请稍后重试");
+    } finally {
+      setDemoLoading(false);
     }
   }
 
@@ -209,12 +228,35 @@ export function AuthDialog({
 
                 <button
                   type="submit"
-                  disabled={loginLoading}
+                  disabled={loginLoading || demoLoading}
                   className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0052D9] text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#0047BD] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loginLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                   {loginLoading ? "登录中…" : "登录"}
                 </button>
+
+                {/* Demo reviewer one-click experience */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t border-gray-200" />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-white/88 px-3 text-xs text-gray-400">或</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleDemoLogin}
+                  disabled={loginLoading || demoLoading}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-[#0052D9] bg-white text-sm font-medium text-[#0052D9] shadow-sm transition-all hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {demoLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {demoLoading ? "正在进入…" : "🎯 评委一键体验"}
+                </button>
+                <p className="text-center text-[11px] text-gray-400 -mt-2">
+                  使用示范账号快速查看完整 Demo 数据
+                </p>
 
                 <p className="text-center text-sm text-slate-500">
                   还没有账号？{" "}
