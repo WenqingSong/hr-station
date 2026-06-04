@@ -284,6 +284,10 @@ export function MyResumesPage() {
     aiApplication: "",
   });
 
+  // K8-5-29-D-R: track recently added item to animate only the new one, not backfilled items
+  type RecentKey = "education" | "project" | "internship" | "certificate" | "award" | "languageExam" | "work";
+  const [recentlyAdded, setRecentlyAdded] = useState<{ type: RecentKey; key: string } | null>(null);
+
   // K8-5-29-B: language exam dynamic list
   const [languageExamDrafts, setLanguageExamDrafts] = useState<LanguageExamDraft[]>([]);
 
@@ -816,6 +820,7 @@ export function MyResumesPage() {
 
   function addProject() {
     const newId = Math.max(0, ...projects.map((p) => p.id)) + 1;
+    setRecentlyAdded({ type: "project", key: String(newId) });
     setProjects((ps) => [
       ...ps,
       {
@@ -842,9 +847,11 @@ export function MyResumesPage() {
 
   // K8-5-25-E: works helpers
   function addWork() {
+    const newId = Math.max(0, ...portfolioDraft.works.map((w) => w.id)) + 1;
+    setRecentlyAdded({ type: "work", key: String(newId) });
     setPortfolioDraft((prev) => ({
       ...prev,
-      works: [...prev.works, { id: Math.max(0, ...prev.works.map((w) => w.id)) + 1, name: "", link: "", password: "" }],
+      works: [...prev.works, { id: newId, name: "", link: "", password: "" }],
     }));
   }
   function updateWork(id: number, field: keyof WorkDraft, value: string) {
@@ -859,6 +866,7 @@ export function MyResumesPage() {
 
   function addCertificate() {
     const newId = Math.max(0, ...certificateDrafts.map((c) => c.id)) + 1;
+    setRecentlyAdded({ type: "certificate", key: String(newId) });
     setCertificateDrafts((cs) => [...cs, { id: newId, name: "", type: "", level: "", score: "", issuedAt: "" }]);
   }
   function updateCertificate(id: number, field: keyof CertificateDraft, value: string) {
@@ -869,7 +877,10 @@ export function MyResumesPage() {
   }
 
   // K8-5-29-B: language exam dynamic list helpers
-  const addLanguageExam = () => setLanguageExamDrafts((prev) => [...prev, { name: "", score: "" }]);
+  const addLanguageExam = () => {
+    setRecentlyAdded({ type: "languageExam", key: String(languageExamDrafts.length) });
+    setLanguageExamDrafts((prev) => [...prev, { name: "", score: "" }]);
+  };
   const updateLanguageExam = (idx: number, field: keyof LanguageExamDraft, value: string) => {
     setLanguageExamDrafts((prev) => prev.map((le, i) => (i === idx ? { ...le, [field]: value } : le)));
   };
@@ -877,6 +888,7 @@ export function MyResumesPage() {
 
   function addAward() {
     const newId = Math.max(0, ...awardDrafts.map((a) => a.id)) + 1;
+    setRecentlyAdded({ type: "award", key: String(newId) });
     setAwardDrafts((as) => [...as, { id: newId, name: "", type: "", level: "", awardedAt: "", description: "" }]);
   }
   function updateAward(id: number, field: keyof AwardDraft, value: string) {
@@ -888,6 +900,7 @@ export function MyResumesPage() {
 
   function addEducation() {
     const newId = Math.max(0, ...educations.map((e) => e.id)) + 1;
+    setRecentlyAdded({ type: "education", key: String(newId) });
     setEducations((es) => [
       ...es,
       {
@@ -905,6 +918,7 @@ export function MyResumesPage() {
 
   function addInternship() {
     const newId = Math.max(0, ...internships.map((i) => i.id)) + 1;
+    setRecentlyAdded({ type: "internship", key: String(newId) });
     setInternships((is) => [
       ...is,
       {
@@ -1048,7 +1062,7 @@ export function MyResumesPage() {
         ) : (
           <div className="space-y-4">
             {educations.map((edu, idx) => (
-              <div key={edu.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4">
+              <div key={edu.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "education" && recentlyAdded.key === String(edu.id) ? "resume-item-enter" : ""}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">教育经历 {idx + 1}</span>
                   <button onClick={() => setEducations((es) => es.filter((e) => e.id !== edu.id))} className="text-slate-400 hover:text-red-500 transition-colors">
@@ -1169,7 +1183,7 @@ export function MyResumesPage() {
         ) : (
           <div className="space-y-4">
             {projects.map((proj, idx) => (
-              <div key={proj.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4">
+              <div key={proj.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "project" && recentlyAdded.key === String(proj.id) ? "resume-item-enter" : ""}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">项目经历 {idx + 1}</span>
                   <div className="flex items-center gap-1">
@@ -1303,7 +1317,7 @@ export function MyResumesPage() {
         ) : (
           <div className="space-y-4">
             {internships.map((intern, idx) => (
-              <div key={intern.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4">
+              <div key={intern.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "internship" && recentlyAdded.key === String(intern.id) ? "resume-item-enter" : ""}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">实习经历 {idx + 1}</span>
                   <button onClick={() => setInternships((is) => is.filter((i) => i.id !== intern.id))} className="text-slate-400 hover:text-red-500 transition-colors">
@@ -1385,7 +1399,7 @@ export function MyResumesPage() {
           ) : (
             <>
               {languageExamDrafts.map((le, idx) => (
-                <div key={idx} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-4 space-y-3 mb-3">
+                <div key={idx} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-4 space-y-3 mb-3 ${recentlyAdded?.type === "languageExam" && recentlyAdded.key === String(idx) ? "resume-item-enter" : ""}`}>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-slate-500">外语考试 {idx + 1}</span>
                     <button onClick={() => removeLanguageExam(idx)} className="text-slate-400 hover:text-red-500 transition-colors">
@@ -1423,7 +1437,7 @@ export function MyResumesPage() {
             {/* Certificate entries */}
             {certificateDrafts.length > 0 && <h4 className="text-sm font-medium text-slate-600 mb-3">证书</h4>}
             {certificateDrafts.map((cert, idx) => (
-              <div key={cert.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4">
+              <div key={cert.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "certificate" && recentlyAdded.key === String(cert.id) ? "resume-item-enter" : ""}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">证书 {idx + 1}</span>
                   <button onClick={() => removeCertificate(cert.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
@@ -1442,7 +1456,7 @@ export function MyResumesPage() {
             {/* Award entries */}
             {awardDrafts.length > 0 && <h4 className="text-sm font-medium text-slate-600 mb-3 mt-2">获奖</h4>}
             {awardDrafts.map((award, idx) => (
-              <div key={award.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4">
+              <div key={award.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "award" && recentlyAdded.key === String(award.id) ? "resume-item-enter" : ""}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">获奖 {idx + 1}</span>
                   <button onClick={() => removeAward(award.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
@@ -1476,7 +1490,7 @@ export function MyResumesPage() {
           <button onClick={addWork} className="text-[13px] font-medium text-[#0052D9] hover:underline mb-4 inline-block">+ 添加作品链接</button>
         )}
         {portfolioDraft.works.map((work, idx) => (
-          <div key={work.id} className="rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4">
+          <div key={work.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "work" && recentlyAdded.key === String(work.id) ? "resume-item-enter" : ""}`}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500">作品链接 {idx + 1}</span>
               <button onClick={() => removeWork(work.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
