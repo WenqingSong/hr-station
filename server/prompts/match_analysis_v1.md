@@ -7,7 +7,7 @@ Template Name: match_analysis_v1
 Template Type: Agent Prompt Template
 Agent Name: MatchAnalysisAgent
 Business Scene: 学生求职岗位匹配分析
-Primary Goal: 判断学生简历与目标岗位的匹配程度，并给出提升简历初筛命中率的具体建议
+Primary Goal: 基于岗位 JD 和简历全貌（Snapshot），逐模块分析匹配程度，给出提升初筛命中率的建议。**目标岗位以所选 JD 为准，不依赖简历中可能为空或已过时的 target_role。**
 Output Format: Strict JSON
 Language: zh-CN
 Version: v1
@@ -68,7 +68,7 @@ Version: v1
 ```text
 resume_id
 version_id
-target_role
+target_role（可选参考，匹配以 JD 为准）
 skills
 projects
 education
@@ -282,10 +282,10 @@ next_actions
 
 加分规则：
 
-1. 简历中有和 JD 核心要求直接对应的项目证据；
-2. 项目经历能体现工程深度；
-3. 技能栈、项目、目标岗位方向一致；
-4. 有量化指标或可验证成果；
+1. 简历中有和 JD 核心要求直接对应的项目/实习证据；
+2. 项目/实习 achievements 有量化指标或可验证成果；
+3. 技能（development_languages / ai_application）与 JD 关键词匹配；
+4. 有相关证书/作品链接/补充信息加分；
 5. 能支撑技术面试追问。
 
 ---

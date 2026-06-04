@@ -38,6 +38,7 @@ func (a *RecommendationMockAgent) Recommend(_ context.Context, resume *model.Res
 
 	// Parse resume target info
 	targetCity := strings.ToLower(strings.TrimSpace(resume.TargetCity))
+	// K8-5-26-E: target_role may be empty; recommendation based on skills/experience/profile
 	targetRole := strings.ToLower(strings.TrimSpace(resume.TargetRole))
 
 	for _, job := range jobs {
@@ -242,12 +243,12 @@ func generateHighlights(resume *model.ResumeVersion, job *model.Job, resumeSkill
 		highlights = append(highlights, "目标城市与简历 target_city 一致")
 	}
 
-	// Role match
+	// Role match (K8-5-26-E: target_role optional)
 	targetRole := strings.TrimSpace(resume.TargetRole)
 	if targetRole != "" {
 		jobText := strings.ToLower(job.Category + " " + job.Title)
 		if containsAny(strings.ToLower(targetRole), jobText) {
-			highlights = append(highlights, "目标岗位与简历 target_role 接近")
+			highlights = append(highlights, "岗位方向与简历推断能力画像匹配")
 		}
 	}
 
@@ -272,7 +273,7 @@ func generateHighlights(resume *model.ResumeVersion, job *model.Job, resumeSkill
 	}
 
 	if len(highlights) == 0 {
-		highlights = append(highlights, "岗位方向与求职目标部分相关")
+		highlights = append(highlights, "岗位方向与简历能力画像匹配")
 	}
 
 	return highlights
@@ -330,7 +331,7 @@ func determineRecApplyReadiness(score int, job *model.Job) (string, string) {
 	if score >= 60 {
 		return "quick_fix_before_apply", "fix_top_3_then_apply"
 	}
-	return "not_ready_for_this_role", "target_role_mismatch"
+	return "not_ready_for_this_role", "needs_more_evidence" // K8-5-26-E: avoid target_role_mismatch when role unknown
 }
 
 // generateRecTopFixItems generates quick fix items for a recommended job.

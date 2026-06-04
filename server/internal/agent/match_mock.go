@@ -264,14 +264,14 @@ func generateEvidenceChain(resume *model.ResumeVersion, job *model.Job) []model.
 				Requirement:  fmt.Sprintf("岗位方向为%s", job.Category),
 				ResumePoint:  fmt.Sprintf("目标岗位为%s，方向一致", targetRole),
 				Judgement:    "strong_match",
-				ResumeModule: "job_intention",
+				ResumeModule: "projects",
 			})
 		} else {
 			chain = append(chain, model.MatchEvidence{
 				Requirement:  fmt.Sprintf("岗位方向为%s", job.Category),
 				ResumePoint:  fmt.Sprintf("目标岗位为%s，方向不完全一致", targetRole),
 				Judgement:    "partial_match",
-				ResumeModule: "job_intention",
+				ResumeModule: "projects",
 			})
 		}
 	}

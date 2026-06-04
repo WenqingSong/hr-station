@@ -6,7 +6,17 @@
 
 ## 2. Task
 
-请基于以下两份简历内容进行对比分析：
+请基于以下两份简历内容进行对比分析。简历内容按最终 9 模块组织：
+
+1. 简历基础（resume_name）
+2. 基础信息（profile: name, current_city）
+3. 教育经历（educations: school, degree, major, gpa, core_courses）
+4. 项目经历（projects: name, role, tech_stack, achievements, link）
+5. 技能信息（professional_skills / development_languages, ai_application）
+6. 实习经历（internships: company, role, tech_stack, achievements, metrics）
+7. 证书与获奖（certificates 含 type="language_exam", awards）
+8. 作品或个人主页（portfolio: works + homepage）
+9. 自我评价（extra_info: self_evaluation, additional_info）
 
 - OLD_RESUME：旧版本简历（JSON）
 - NEW_RESUME：新版本简历（JSON）

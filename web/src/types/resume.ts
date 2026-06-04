@@ -280,6 +280,8 @@ export interface FieldChange {
   after: string;
   change_type: string;
   impact: string;
+  /** K8-5-28-B: V2 module name (skills/projects/certificates/extra_info/overall) */
+  module_name?: string;
 }
 
 /** 版本对比 — 风险变化 */

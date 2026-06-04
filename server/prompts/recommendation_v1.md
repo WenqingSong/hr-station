@@ -6,8 +6,8 @@
 Template Name: recommendation_v1
 Template Type: Agent Prompt Template
 Agent Name: RecommendationAgent
-Business Scene: 学生求职岗位推荐
-Primary Goal: 基于学生简历和候选岗位列表，帮助学生判断优先投递哪些岗位、哪些岗位需要先了解、哪些岗位暂不建议作为主攻方向
+Business Scene: 学生求职岗位推荐（通用岗位适配）
+Primary Goal: 基于学生简历全貌（教育·项目·实习·技能·证书获奖·作品·自评），推断能力画像，推荐适合的岗位方向。**不要求**用户先填写目标岗位或求职意向。
 Output Format: Strict JSON
 Language: zh-CN
 Version: v1
@@ -75,7 +75,7 @@ Version: v1
 ```text
 resume_id
 version_id
-target_role
+target_role（可选，可能为空）
 skills
 projects
 education
@@ -333,8 +333,8 @@ not_recommended -> 暂不建议
 适用条件：
 
 1. 简历有直接相关项目；
-2. 技能栈和岗位要求高度一致；
-3. 岗位方向和学生目标方向一致；
+2. 技能栈（development_languages / ai_application）和岗位要求高度一致；
+3. 岗位方向和学生教育·项目·技能产出推断的能力画像匹配，不依赖 target_role；
 4. 优化简历后有较明显初筛机会；
 5. 风险点可通过短期准备缓解。
 
@@ -482,7 +482,7 @@ insufficient_information：信息不足以做出可靠判断
 stop_and_apply
 fix_top_3_then_apply
 needs_more_evidence
-target_role_mismatch
+target_role_mismatch（保留兼容，K8-5-27后改为 direction_mismatch：岗位与推断画像不匹配）
 ```
 
 含义：
@@ -491,7 +491,7 @@ target_role_mismatch
 stop_and_apply：该岗位简历已准备好投递，不要过度优化
 fix_top_3_then_apply：先完成 top_fix_items 中的修复项再投递
 needs_more_evidence：问题不是表达能解决的，需要真实经验或证据
-target_role_mismatch：该岗位和简历证据或用户意图不匹配
+target_role_mismatch（兼容）：该岗位与简历推断的能力画像不匹配（注意：target_role 可能为空，不应仅因 target_role 为空而判定 mismatch）
 ```
 
 对应关系：

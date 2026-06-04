@@ -97,6 +97,8 @@ export interface TopFixItem {
   expected_impact: string;
   need_user_verify: boolean;
   description?: string;
+  /** K8-5-28-B: resume module (skills/projects/internships/...) */
+  resume_module?: string;
 }
 
 /** JD 证据链条目 */
@@ -105,6 +107,8 @@ export interface EvidenceItem {
   resume_evidence: string;
   evidence_strength: EvidenceStrength;
   risk_note?: string;
+  /** K8-5-28-B: resume module (skills/projects/certificates/...) */
+  resume_module?: string;
 }
 
 // ─── 三类 Agent Result ─────────────────────────────────────────────────────────
@@ -173,6 +177,16 @@ export interface RewriteExample {
   verification_notice: string;
 }
 
+/** K8-5-28-B: JD 证据链条目（优化 Agent） — 对齐后端 ResumeOptimizationJDEvidenceItem */
+export interface JDEvidenceChainItem {
+  jd_requirement: string;
+  resume_evidence: string;
+  evidence_strength: EvidenceStrength;
+  match_judgement: string;
+  gap_analysis?: string;
+  screening_risk?: string;
+}
+
 /** 简历优化 Agent Result */
 export interface ResumeOptimizationResult {
   summary: string;
@@ -185,4 +199,6 @@ export interface ResumeOptimizationResult {
   rewrite_examples: RewriteExample[];
   verification_notice: string;
   final_checklist: string[];
+  /** K8-5-28-B: JD evidence chain (优化 Agent) */
+  jd_evidence_chain: JDEvidenceChainItem[];
 }

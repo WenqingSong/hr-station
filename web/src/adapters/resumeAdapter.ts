@@ -101,7 +101,7 @@ export interface ResumeComparisonViewModel {
   scoreBefore: number;
   scoreAfter: number;
   scoreChange: number;
-  fieldChanges: { field: string; before: string; after: string; changeType: string; impact: string }[];
+  fieldChanges: { field: string; before: string; after: string; changeType: string; impact: string; moduleName?: string }[];
   riskChanges: { risk: string; before: string; after: string; trend: string }[];
   suggestionCompletion: { suggestion: string; status: string; evidence: string }[];
   keyImprovements: string[];
@@ -351,6 +351,8 @@ export function toResumeComparisonViewModel(
       after: fc.after,
       changeType: fc.change_type,
       impact: fc.impact,
+      // K8-5-28-B: pass through module_name
+      moduleName: fc.module_name,
     })),
     riskChanges: (r.risk_changes || []).map((rc) => ({
       risk: rc.risk,

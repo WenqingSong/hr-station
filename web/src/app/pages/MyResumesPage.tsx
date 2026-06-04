@@ -19,6 +19,7 @@ import type {
   ResumeCertificateV2, ResumeAwardV2, ResumePortfolioV2, ResumeExtraInfoV2,
 } from "../../types";
 import { ResumeSkeleton } from "../components/ui/ResumeSkeleton";
+import { YearMonthPicker } from "../components/resume-editor/YearMonthPicker";
 import { PageError, PageLoading } from "../components/PageState";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { Input } from "../components/ui/input";
@@ -59,7 +60,7 @@ interface Project {
   startDate: string;
   endDate: string;
   responsibilities: string;
-  achievements: string;
+  achievements: string[]; /* K8-5-27-E: dynamic list */
   link: string;
 }
 
@@ -92,7 +93,7 @@ interface Internship {
   content: string;
   // V2 draft fields (K8-5-22-G)
   techStack: string;
-  achievements: string;
+  achievements: string[]; /* K8-5-27-E: dynamic list */
   metrics: string;
 }
 
@@ -403,7 +404,7 @@ export function MyResumesPage() {
         endDate: it.end_date || "",
         content: it.work_content || "",
         techStack: joinList(it.tech_stack),
-        achievements: joinLines(it.achievements),
+        achievements: toAchievementList(it.achievements),
         metrics: it.metrics || "",
       }));
       setInternships(v2IntList);
@@ -421,7 +422,7 @@ export function MyResumesPage() {
         startDate: pj.start_date || "",
         endDate: pj.end_date || "",
         responsibilities: pj.responsibilities || "",
-        achievements: joinLines(pj.achievements),
+        achievements: toAchievementList(pj.achievements),
         link: pj.link || "",
       }));
       setProjects(v2ProjList);
@@ -447,17 +448,28 @@ export function MyResumesPage() {
       });
     }
 
-    // Certificates V2
+    // Certificates V2 (K8-5-27-D: separate language_exam from normal certs)
     if (v2.certificates && v2.certificates.length > 0) {
-      const certList: CertificateDraft[] = v2.certificates.map((c: ResumeCertificateV2, i: number) => ({
-        id: i + 1,
-        name: c.name || "",
-        type: c.type || "",
-        level: c.level || "",
-        score: c.score || "",
-        issuedAt: c.issued_at || "",
-      }));
-      setCertificateDrafts(certList);
+      const langExam = v2.certificates.find((c: any) => c.type === "language_exam");
+      if (langExam) {
+        setSkillsDraft((prev) => ({
+          ...prev,
+          languageExamType: langExam.name || langExam.level || "",
+          languageExamScore: langExam.score || "",
+        }));
+      }
+      const normalCerts = v2.certificates.filter((c: any) => c.type !== "language_exam");
+      if (normalCerts.length > 0) {
+        const certList: CertificateDraft[] = normalCerts.map((c: ResumeCertificateV2, i: number) => ({
+          id: i + 1,
+          name: c.name || "",
+          type: c.type || "",
+          level: c.level || "",
+          score: c.score || "",
+          issuedAt: c.issued_at || "",
+        }));
+        setCertificateDrafts(certList);
+      }
     }
 
     // Awards V2
@@ -570,7 +582,7 @@ export function MyResumesPage() {
       end_date: i.endDate || undefined,
       work_content: i.content || undefined,
       tech_stack: splitList(i.techStack || ""),
-      achievements: splitLines(i.achievements || ""),
+      achievements: i.achievements.filter(Boolean),
       metrics: i.metrics || undefined,
     })) : undefined;
 
@@ -583,28 +595,38 @@ export function MyResumesPage() {
       tech_stack: splitList(p.stack || ""),
       description: p.desc || undefined,
       responsibilities: p.responsibilities || undefined,
-      achievements: splitLines(p.achievements || ""),
+      achievements: p.achievements.filter(Boolean),
       link: p.link || undefined,
     })) : undefined;
 
-    // K8-5-25-D: Tencent-style skills payload
+    // K8-5-25-D/K8-5-27-D: skills payload (language_exam migrated to certificates)
     const devLanguages = splitList(skillsDraft.developmentLanguages || "");
     const v2Skills = {
-      language_exam: {
-        type: skillsDraft.languageExamType || undefined,
-        score: skillsDraft.languageExamScore || undefined,
-      },
       development_languages: devLanguages.length > 0 ? devLanguages : undefined,
       ai_application: skillsDraft.aiApplication || undefined,
     };
 
-    const v2Certificates = certificateDrafts.length > 0 ? certificateDrafts.map((c) => ({
-      name: c.name || undefined,
-      type: c.type || undefined,
-      level: c.level || undefined,
-      score: c.score || undefined,
-      issued_at: c.issuedAt || undefined,
-    })) : undefined;
+    // K8-5-27-D: language exam merged into certificates
+    const langExamName = skillsDraft.languageExamType || "";
+    const langExamScore = skillsDraft.languageExamScore || "";
+    const langExamCert = (langExamName || langExamScore) ? {
+      name: langExamName || "外语考试",
+      type: "language_exam",
+      level: langExamName || undefined,
+      score: langExamScore || undefined,
+      issued_at: undefined,
+    } : null;
+    const allCertificates = [
+      ...(langExamCert ? [langExamCert] : []),
+      ...certificateDrafts.map((c) => ({
+        name: c.name || undefined,
+        type: c.type || undefined,
+        level: c.level || undefined,
+        score: c.score || undefined,
+        issued_at: c.issuedAt || undefined,
+      })),
+    ];
+    const v2Certificates = allCertificates.length > 0 ? allCertificates : undefined;
 
     const v2Awards = awardDrafts.length > 0 ? awardDrafts.map((a) => ({
       name: a.name || undefined,
@@ -753,6 +775,38 @@ export function MyResumesPage() {
     setProjects((ps) => ps.filter((p) => p.id !== id));
   }
 
+  // K8-5-27-E: compat helper — converts old string/no-data to string[]
+  function toAchievementList(value: any): string[] {
+    if (Array.isArray(value)) return value.length > 0 ? value : [""];
+    if (typeof value === "string" && value.trim()) return splitLines(value);
+    return [""];
+  }
+
+  // K8-5-27-E: achievement helpers for Project
+  function addProjectAchievement(projIdx: number) {
+    setProjects((ps) => ps.map((p, i) => i === projIdx ? { ...p, achievements: [...p.achievements, ""] } : p));
+  }
+  function updateProjectAchievement(projIdx: number, itemIdx: number, value: string) {
+    setProjects((ps) => ps.map((p, i) =>
+      i === projIdx ? { ...p, achievements: p.achievements.map((a, j) => j === itemIdx ? value : a) } : p));
+  }
+  function removeProjectAchievement(projIdx: number, itemIdx: number) {
+    setProjects((ps) => ps.map((p, i) =>
+      i === projIdx ? { ...p, achievements: p.achievements.length > 1 ? p.achievements.filter((_, j) => j !== itemIdx) : [""] } : p));
+  }
+  // Internship achievement helpers
+  function addInternshipAchievement(intIdx: number) {
+    setInternships((is) => is.map((it, i) => i === intIdx ? { ...it, achievements: [...it.achievements, ""] } : it));
+  }
+  function updateInternshipAchievement(intIdx: number, itemIdx: number, value: string) {
+    setInternships((is) => is.map((it, i) =>
+      i === intIdx ? { ...it, achievements: it.achievements.map((a, j) => j === itemIdx ? value : a) } : it));
+  }
+  function removeInternshipAchievement(intIdx: number, itemIdx: number) {
+    setInternships((is) => is.map((it, i) =>
+      i === intIdx ? { ...it, achievements: it.achievements.length > 1 ? it.achievements.filter((_, j) => j !== itemIdx) : [""] } : it));
+  }
+
   function addProject() {
     const newId = Math.max(0, ...projects.map((p) => p.id)) + 1;
     setProjects((ps) => [
@@ -760,7 +814,7 @@ export function MyResumesPage() {
       {
         id: newId, name: "", stack: "", desc: "", role: "",
         projectType: "", startDate: "", endDate: "",
-        responsibilities: "", achievements: "", link: "",
+        responsibilities: "", achievements: [""], link: "",
       },
     ]);
   }
@@ -841,7 +895,7 @@ export function MyResumesPage() {
       ...is,
       {
         id: newId, company: "", position: "", startDate: "", endDate: "",
-        content: "", techStack: "", achievements: "", metrics: "",
+        content: "", techStack: "", achievements: [""], metrics: "",
       },
     ]);
   }
@@ -1017,16 +1071,15 @@ export function MyResumesPage() {
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-slate-700">时间</label>
                     <div className="flex items-center gap-2">
-                      <Input className="h-10 flex-1" value={edu.startDate} onChange={(e) => updateEdu(edu.id, "startDate", e.target.value)} placeholder="2022.09" />
+                      <YearMonthPicker value={edu.startDate} onChange={(v) => updateEdu(edu.id, "startDate", v)} placeholder="开始时间" />
                       <span className="text-slate-400">—</span>
-                      <Input className="h-10 flex-1" value={edu.endDate} onChange={(e) => updateEdu(edu.id, "endDate", e.target.value)} placeholder="2026.06" />
+                      <YearMonthPicker value={edu.endDate} onChange={(v) => updateEdu(edu.id, "endDate", v)} placeholder="结束时间" />
                     </div>
                   </div>
                 </div>
 
                 {/* Recommended fields */}
                 <div className="border-t border-gray-200 pt-4">
-                  <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded inline-block mb-3">推荐填写</span>
                   <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-3">
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">GPA</label>
@@ -1058,7 +1111,6 @@ export function MyResumesPage() {
 
                 {/* Optional fields */}
                 <div className="border-t border-gray-200 pt-4">
-                  <span className="text-xs font-medium text-slate-400 bg-gray-50 px-2 py-0.5 rounded inline-block mb-3">可选</span>
                   <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">研究方向</label>
@@ -1134,9 +1186,9 @@ export function MyResumesPage() {
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-slate-700">项目时间</label>
                     <div className="flex items-center gap-2">
-                      <Input className="h-10 flex-1" value={proj.startDate} onChange={(e) => updateProject(proj.id, "startDate", e.target.value)} placeholder="开始" />
+                      <YearMonthPicker value={proj.startDate} onChange={(v) => updateProject(proj.id, "startDate", v)} placeholder="开始时间" />
                       <span className="text-slate-400">—</span>
-                      <Input className="h-10 flex-1" value={proj.endDate} onChange={(e) => updateProject(proj.id, "endDate", e.target.value)} placeholder="结束" />
+                      <YearMonthPicker value={proj.endDate} onChange={(v) => updateProject(proj.id, "endDate", v)} placeholder="结束时间" />
                     </div>
                   </div>
                 </div>
@@ -1155,7 +1207,6 @@ export function MyResumesPage() {
 
                 {/* V2 recommended fields */}
                 <div className="border-t border-gray-200 pt-4">
-                  <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded inline-block mb-3">推荐填写</span>
                   <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">技术栈（详细）</label>
@@ -1167,20 +1218,27 @@ export function MyResumesPage() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-slate-700">项目成果</label>
-                      <Textarea
-                        className="min-h-[72px] resize-none" rows={2}
-                        value={proj.achievements}
-                        onChange={(e) => updateProject(proj.id, "achievements", e.target.value)}
-                        placeholder="一行一个成果，例如：&#10;QPS 提升 30%&#10;用户量增长 2000+"
-                      />
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">核心成果</label>
+                      <div className="space-y-2">
+                        {proj.achievements.map((ach, aIdx) => (
+                          <div key={aIdx} className="flex gap-2 items-start">
+                            <Input
+                              className="h-10 flex-1"
+                              value={ach}
+                              onChange={(e) => updateProjectAchievement(idx, aIdx, e.target.value)}
+                              placeholder={aIdx === 0 ? "例如：QPS 提升 30%" : "例如：用户量增长 2000+"}
+                            />
+                            <button onClick={() => removeProjectAchievement(idx, aIdx)} className="mt-1.5 text-slate-400 hover:text-red-500 flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={() => addProjectAchievement(idx)} className="mt-2 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加成果</button>
                     </div>
                   </div>
                 </div>
 
                 {/* V2 optional */}
                 <div className="border-t border-gray-200 pt-4">
-                  <span className="text-xs font-medium text-slate-400 bg-gray-50 px-2 py-0.5 rounded inline-block mb-3">可选</span>
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-slate-700">项目链接</label>
                     <Input className="h-10" value={proj.link} onChange={(e) => updateProject(proj.id, "link", e.target.value)} placeholder="如：https://github.com/xxx" />
@@ -1194,45 +1252,18 @@ export function MyResumesPage() {
 
       {/* ── Module 6: 技能信息 ──────────────────────────────────────── */}
       <SkillsSection>
-        {/* 1-外语考试/等级 */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">外语考试 / 等级</label>
-              <Select value={skillsDraft.languageExamType || undefined} onValueChange={(v) => updateSkillsDraft("languageExamType", v)}>
-                <SelectTrigger className="h-10"><SelectValue placeholder="选择考试类型" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CET-4">CET-4</SelectItem>
-                  <SelectItem value="CET-6">CET-6</SelectItem>
-                  <SelectItem value="IELTS">IELTS</SelectItem>
-                  <SelectItem value="TOEFL">TOEFL</SelectItem>
-                  <SelectItem value="其他">其他</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">分数 / 等级</label>
-              <Input className="h-10" value={skillsDraft.languageExamScore} onChange={(e) => updateSkillsDraft("languageExamScore", e.target.value)} placeholder="例如：503 / 6.5 / 95" />
-            </div>
-          </div>
-        </div>
-
         <div className="border-t border-gray-200 pt-5 mt-5 space-y-4">
-          <h4 className="text-sm font-medium text-amber-600 flex items-center gap-1.5">
-            <span className="inline-block w-1 h-3.5 rounded-full bg-amber-400"></span>
-            推荐填写
-          </h4>
 
-          {/* 2-开发语言 */}
+          {/* 2-专业技能 / 工具能力 */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">开发语言</label>
-            <Input className="h-10" value={skillsDraft.developmentLanguages} onChange={(e) => updateSkillsDraft("developmentLanguages", e.target.value)} placeholder="例如：Go、Java、Python、C++（逗号、顿号或换行分隔）" />
-            <p className="mt-1.5 text-xs text-slate-400">多个语言用逗号、顿号或换行分隔。</p>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">专业技能 / 工具能力</label>
+            <Input className="h-10" value={skillsDraft.developmentLanguages} onChange={(e) => updateSkillsDraft("developmentLanguages", e.target.value)} placeholder="技术岗可填 Go / Java / SQL；产品运营可填 Axure / 数据分析 / 用户调研；职能商务可填 Excel / PPT / 商务沟通（逗号、顿号或换行分隔）" />
+            <p className="mt-1.5 text-xs text-slate-400">可填写开发语言、设计工具、数据分析方法、办公软件等，多个用逗号、顿号或换行分隔。</p>
           </div>
 
           {/* 3-AI 应用技能 */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">AI 应用技能</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">AI 应用技能 <span className="text-xs font-normal text-amber-600">推荐</span></label>
             <Textarea
               className="min-h-[88px] resize-none" rows={3}
               value={skillsDraft.aiApplication}
@@ -1278,9 +1309,9 @@ export function MyResumesPage() {
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">时间</label>
                   <div className="flex items-center gap-2">
-                    <Input className="h-10 flex-1" value={intern.startDate} onChange={(e) => updateIntern(intern.id, "startDate", e.target.value)} placeholder="2025.06" />
+                    <YearMonthPicker value={intern.startDate} onChange={(v) => updateIntern(intern.id, "startDate", v)} placeholder="开始时间" />
                     <span className="text-slate-400">—</span>
-                    <Input className="h-10 flex-1" value={intern.endDate} onChange={(e) => updateIntern(intern.id, "endDate", e.target.value)} placeholder="2025.09" />
+                    <YearMonthPicker value={intern.endDate} onChange={(v) => updateIntern(intern.id, "endDate", v)} placeholder="结束时间" />
                   </div>
                 </div>
                 <div>
@@ -1290,7 +1321,6 @@ export function MyResumesPage() {
 
                 {/* V2 recommended fields (K8-5-22-G) */}
                 <div className="border-t border-gray-200 pt-4">
-                  <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded inline-block mb-3">推荐填写</span>
                   <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-slate-700">使用技术</label>
@@ -1303,12 +1333,20 @@ export function MyResumesPage() {
                   </div>
                   <div className="mt-4">
                     <label className="mb-1.5 block text-sm font-medium text-slate-700">核心成果</label>
-                    <Textarea
-                      className="min-h-[72px] resize-none" rows={2}
-                      value={intern.achievements}
-                      onChange={(e) => updateIntern(intern.id, "achievements", e.target.value)}
-                      placeholder="一行一个成果，例如：&#10;成功优化核心接口，P99 延迟降低 40%&#10;独立完成 XX 模块从 0 到 1 的开发"
-                    />
+                    <div className="space-y-2">
+                      {intern.achievements.map((ach, aIdx) => (
+                        <div key={aIdx} className="flex gap-2 items-start">
+                          <Input
+                            className="h-10 flex-1"
+                            value={ach}
+                            onChange={(e) => updateInternshipAchievement(idx, aIdx, e.target.value)}
+                            placeholder={aIdx === 0 ? "例如：成功优化核心接口，P99 延迟降低 40%" : "例如：独立完成 XX 模块从 0 到 1 的开发"}
+                          />
+                          <button onClick={() => removeInternshipAchievement(idx, aIdx)} className="mt-1.5 text-slate-400 hover:text-red-500 flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={() => addInternshipAchievement(idx)} className="mt-2 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加成果</button>
                   </div>
                 </div>
               </div>
@@ -1319,6 +1357,30 @@ export function MyResumesPage() {
 
       {/* ── Module 7: 证书与获奖 (K8-5-25-E: merged) ──────────────────────── */}
       <CertificatesSection onAdd={addCertificate}>
+        {/* K8-5-27-D: 外语考试 / 等级 */}
+        <div className="mb-5 pb-5 border-b border-gray-100">
+          <h4 className="text-sm font-medium text-slate-600 mb-3">外语考试 / 等级</h4>
+          <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">考试类型</label>
+              <Select value={skillsDraft.languageExamType || undefined} onValueChange={(v) => updateSkillsDraft("languageExamType", v)}>
+                <SelectTrigger className="h-10"><SelectValue placeholder="选择考试类型" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CET-4">CET-4</SelectItem>
+                  <SelectItem value="CET-6">CET-6</SelectItem>
+                  <SelectItem value="IELTS">IELTS</SelectItem>
+                  <SelectItem value="TOEFL">TOEFL</SelectItem>
+                  <SelectItem value="其他">其他</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">分数 / 等级</label>
+              <Input className="h-10" value={skillsDraft.languageExamScore} onChange={(e) => updateSkillsDraft("languageExamScore", e.target.value)} placeholder="例如：503 / 6.5 / 95" />
+            </div>
+          </div>
+        </div>
+
         {certificateDrafts.length === 0 && awardDrafts.length === 0 ? (
           <div className="rounded-xl bg-gray-50/70 py-8 text-center">
             <p className="text-sm text-slate-500 mb-1">暂无证书或获奖</p>
@@ -1343,7 +1405,7 @@ export function MyResumesPage() {
                 </div>
                 <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                   <div><label className="mb-1.5 block text-sm font-medium text-slate-700">成绩 / 分数</label><Input className="h-10" value={cert.score} onChange={(e) => updateCertificate(cert.id, "score", e.target.value)} placeholder="如：503、80" /></div>
-                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">获得时间</label><Input className="h-10" type="month" value={cert.issuedAt} onChange={(e) => updateCertificate(cert.id, "issuedAt", e.target.value)} /></div>
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">获得时间</label><YearMonthPicker value={cert.issuedAt} onChange={(v) => updateCertificate(cert.id, "issuedAt", v)} placeholder="选择时间" /></div>
                 </div>
               </div>
             ))}
@@ -1361,7 +1423,7 @@ export function MyResumesPage() {
                   <div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项级别</label><Select value={award.level || undefined} onValueChange={(v) => updateAward(award.id, "level", v)}><SelectTrigger className="h-10"><SelectValue placeholder="选择级别" /></SelectTrigger><SelectContent><SelectItem value="校级">校级</SelectItem><SelectItem value="市级">市级</SelectItem><SelectItem value="省级">省级</SelectItem><SelectItem value="国家级">国家级</SelectItem><SelectItem value="国际级">国际级</SelectItem><SelectItem value="其他">其他</SelectItem></SelectContent></Select></div>
                 </div>
                 <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">获奖时间</label><Input className="h-10" type="month" value={award.awardedAt} onChange={(e) => updateAward(award.id, "awardedAt", e.target.value)} /></div>
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">获奖时间</label><YearMonthPicker value={award.awardedAt} onChange={(v) => updateAward(award.id, "awardedAt", v)} placeholder="选择时间" /></div>
                 </div>
                 <div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项说明</label><Textarea className="min-h-[72px] resize-none" rows={2} value={award.description} onChange={(e) => updateAward(award.id, "description", e.target.value)} placeholder="简要描述获奖原因或竞赛内容" /></div>
               </div>

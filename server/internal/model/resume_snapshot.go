@@ -94,8 +94,15 @@ type ResumeSnapshotProject struct {
 	Link            string   `json:"link,omitempty"`
 }
 
-// ResumeSnapshotSkills — module 6: skill categories.
+// ResumeSnapshotSkills — module 5: skill categories.
+// K8-5-26-B: added ProfessionalSkills / AIApplication for final 9-module structure;
+// old 10-category fields retained for backward compatibility.
 type ResumeSnapshotSkills struct {
+	// New K8-5-26-B fields (final 9-module structure)
+	ProfessionalSkills []string `json:"professional_skills,omitempty"`
+	AIApplication      string   `json:"ai_application,omitempty"`
+
+	// Old 10-category fields (retained for backward compatibility)
 	ProgrammingLanguages  []string `json:"programming_languages,omitempty"`
 	BackendFrameworks     []string `json:"backend_frameworks,omitempty"`
 	FrontendTechnologies  []string `json:"frontend_technologies,omitempty"`
@@ -126,15 +133,29 @@ type ResumeSnapshotAward struct {
 	Description string `json:"description,omitempty"`
 }
 
-// ResumeSnapshotPortfolio — module 9: portfolio links.
+// ResumeSnapshotPortfolioWork — a single work entry in the portfolio.
+// K8-5-26-B: added for final 9-module works[] structure.
+type ResumeSnapshotPortfolioWork struct {
+	Name     string `json:"name,omitempty"`
+	Link     string `json:"link,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
+// ResumeSnapshotPortfolio — module 8: portfolio links.
+// K8-5-26-B: added Works for final 9-module structure;
+// old platform fields retained for backward compatibility.
 type ResumeSnapshotPortfolio struct {
+	// New K8-5-26-B fields
+	Works    []ResumeSnapshotPortfolioWork `json:"works,omitempty"`
+	Homepage string                        `json:"homepage,omitempty"`
+
+	// Old platform fields (retained for backward compatibility)
 	Github         string   `json:"github,omitempty"`
 	Gitee          string   `json:"gitee,omitempty"`
 	CNB            string   `json:"cnb,omitempty"`
 	Blog           string   `json:"blog,omitempty"`
 	DemoLinks      []string `json:"demo_links,omitempty"`
 	PortfolioLinks []string `json:"portfolio_links,omitempty"`
-	Homepage       string   `json:"homepage,omitempty"`
 }
 
 // ResumeSnapshotExtraInfo — module 10: extra / supplementary info.

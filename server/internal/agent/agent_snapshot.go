@@ -260,14 +260,25 @@ func normalizeV2Snapshot(snapshot *model.ResumeSnapshotV2, v *model.ResumeVersio
 		snapshot.Projects = append(snapshot.Projects, proj)
 	}
 
-	// skills
+	// skills (K8-5-26-B: final 9-module — new keys first, old fallback)
 	sk, _ := decodeJSONObject[map[string]any](bytesToStr(v.SkillsJSON), map[string]any{})
+	profSkills := toStrSlice(sk["development_languages"])
+	aiApp := s(sk, "ai_application")
+	oldLangs := toStrSlice(sk["languages"])
+	oldAI := toStrSlice(sk["ai_scenarios"])
 	snapshot.Skills = model.ResumeSnapshotSkills{
-		ProgrammingLanguages: toStrSlice(sk["languages"]), BackendFrameworks: toStrSlice(sk["frameworks"]),
-		FrontendTechnologies: toStrSlice(sk["frontend"]), Databases: toStrSlice(sk["databases"]),
-		Middleware: toStrSlice(sk["middleware"]), CloudPlatforms: toStrSlice(sk["cloud"]),
-		DevTools: toStrSlice(sk["tools"]), AITools: toStrSlice(sk["ai_skills"]),
-		AIApplicationScenarios: toStrSlice(sk["ai_scenarios"]), OtherKeywords: toStrSlice(sk["other_keywords"]),
+		ProfessionalSkills: profSkills,
+		AIApplication:      aiApp,
+		ProgrammingLanguages:   orSliceStr(oldLangs, profSkills),
+		BackendFrameworks:      toStrSlice(sk["frameworks"]),
+		FrontendTechnologies:   toStrSlice(sk["frontend"]),
+		Databases:              toStrSlice(sk["databases"]),
+		Middleware:             toStrSlice(sk["middleware"]),
+		CloudPlatforms:         toStrSlice(sk["cloud"]),
+		DevTools:               toStrSlice(sk["tools"]),
+		AITools:                toStrSlice(sk["ai_skills"]),
+		AIApplicationScenarios: orSliceStr(oldAI, splitStr1(aiApp)),
+		OtherKeywords:          toStrSlice(sk["other_keywords"]),
 	}
 
 	// certs
@@ -292,12 +303,17 @@ func normalizeV2Snapshot(snapshot *model.ResumeSnapshotV2, v *model.ResumeVersio
 		snapshot.Awards = append(snapshot.Awards, awd)
 	}
 
-	// portfolio
+	// portfolio (K8-5-26-B: new works + homepage, old fallback)
 	port, _ := decodeJSONObject[map[string]any](bytesToStr(v.PortfolioJSON), map[string]any{})
+	hp := s(port, "homepage")
 	snapshot.Portfolio = model.ResumeSnapshotPortfolio{
+		Works:    parseAgentPortfolioWorks(port),
+		Homepage: hp,
 		Github: s(port, "github"), Gitee: s(port, "gitee"), CNB: s(port, "cnb"),
-		Blog: s(port, "blog"), Homepage: s(port, "homepage"),
-		DemoLinks: toStrSlice(port["demo_links"]), PortfolioLinks: toStrSlice(port["other_links"]),
+		Blog: s(port, "blog"), DemoLinks: toStrSlice(port["demo_links"]), PortfolioLinks: toStrSlice(port["other_links"]),
+	}
+	if snapshot.Portfolio.Homepage == "" {
+		snapshot.Portfolio.Homepage = s(port, "blog")
 	}
 
 	// extraInfo
@@ -365,4 +381,32 @@ func toInt(v any) int {
 		if i, err := n.Int64(); err == nil { return int(i) }
 	}
 	return 0
+}
+
+// K8-5-26-B helpers
+
+func orSliceStr(a, b []string) []string {
+	if len(a) > 0 { return a }
+	return b
+}
+
+func splitStr1(s string) []string {
+	if s == "" { return nil }
+	return []string{s}
+}
+
+func parseAgentPortfolioWorks(port map[string]any) []model.ResumeSnapshotPortfolioWork {
+	raw, ok := port["works"]
+	if !ok { return nil }
+	arr, ok := raw.([]any)
+	if !ok { return nil }
+	works := make([]model.ResumeSnapshotPortfolioWork, 0, len(arr))
+	for _, w := range arr {
+		wm, ok := w.(map[string]any)
+		if !ok { continue }
+		works = append(works, model.ResumeSnapshotPortfolioWork{
+			Name: s(wm, "name"), Link: s(wm, "link"), Password: s(wm, "password"),
+		})
+	}
+	return works
 }

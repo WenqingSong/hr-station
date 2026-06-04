@@ -1,6 +1,6 @@
 // ─── 简历优化 Adapter ───────────────────────────────────────────────────────────
 
-import type { ResumeOptimizationResult, AgentResponseMeta } from '../types';
+import type { ResumeOptimizationResult, AgentResponseMeta, JDEvidenceChainItem } from '../types';
 import {
   toAgentMetaViewModel,
   toTopFixItemViewModels,
@@ -31,6 +31,16 @@ export interface RewriteExampleViewModel {
   verificationNotice: string;
 }
 
+/** K8-5-28-B: JD evidence chain ViewModel (优化 Agent) */
+export interface JDEvidenceChainViewModel {
+  jdRequirement: string;
+  resumeEvidence: string;
+  evidenceStrength: string;
+  matchJudgement: string;
+  gapAnalysis?: string;
+  screeningRisk?: string;
+}
+
 export interface ResumeOptimizationPageViewModel {
   summary: string;
   applyReadiness: string;
@@ -43,6 +53,8 @@ export interface ResumeOptimizationPageViewModel {
   verificationNotice: string;
   finalChecklist: string[];
   meta?: AgentMetaViewModel;
+  /** K8-5-28-B: JD evidence chain (优化 Agent) */
+  jdEvidenceChain: JDEvidenceChainViewModel[];
 }
 
 // ─── 转换函数 ──────────────────────────────────────────────────────────────────
@@ -87,6 +99,8 @@ export function toResumeOptimizationPageViewModel(
   const keywordAlignment = Array.isArray(result.keyword_alignment) ? result.keyword_alignment : [];
   const projectOptimization = Array.isArray(result.project_optimization) ? result.project_optimization : [];
   const rewriteExamples = Array.isArray(result.rewrite_examples) ? result.rewrite_examples : [];
+  // K8-5-28-B: pass through jd_evidence_chain
+  const jdEvidenceChain = Array.isArray(result.jd_evidence_chain) ? result.jd_evidence_chain : [];
   return {
     summary: result.summary ?? '',
     applyReadiness: result.apply_readiness ?? '',
@@ -99,5 +113,14 @@ export function toResumeOptimizationPageViewModel(
     verificationNotice: result.verification_notice ?? '',
     finalChecklist: Array.isArray(result.final_checklist) ? result.final_checklist : [],
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
+    // K8-5-28-B: map jd_evidence_chain
+    jdEvidenceChain: jdEvidenceChain.map((ev: JDEvidenceChainItem) => ({
+      jdRequirement: ev.jd_requirement,
+      resumeEvidence: ev.resume_evidence,
+      evidenceStrength: ev.evidence_strength,
+      matchJudgement: ev.match_judgement,
+      gapAnalysis: ev.gap_analysis,
+      screeningRisk: ev.screening_risk,
+    })),
   };
 }

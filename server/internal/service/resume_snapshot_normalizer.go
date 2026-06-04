@@ -368,8 +368,16 @@ func normalizeV2ToSnapshot(snapshot *model.ResumeSnapshotV2, v model.ResumeVersi
 	if err != nil {
 		return fmt.Errorf("v2 skills_json: %w", err)
 	}
+	// K8-5-26-B: final 9-module skills — new keys first, old keys fallback
+	profSkills := toSlice(skills["development_languages"])
+	aiApp := toString(skills["ai_application"])
+
 	snapshot.Skills = model.ResumeSnapshotSkills{
-		ProgrammingLanguages:   toSlice(skills["languages"]),
+		ProfessionalSkills: profSkills,
+		AIApplication:      aiApp,
+
+		// Old 10-category fields for backward compatibility
+		ProgrammingLanguages:   orSlice(toSlice(skills["languages"]), profSkills),
 		BackendFrameworks:      toSlice(skills["frameworks"]),
 		FrontendTechnologies:   toSlice(skills["frontend"]),
 		Databases:              toSlice(skills["databases"]),
@@ -377,7 +385,7 @@ func normalizeV2ToSnapshot(snapshot *model.ResumeSnapshotV2, v model.ResumeVersi
 		CloudPlatforms:         toSlice(skills["cloud"]),
 		DevTools:               toSlice(skills["tools"]),
 		AITools:                toSlice(skills["ai_skills"]),
-		AIApplicationScenarios: toSlice(skills["ai_scenarios"]),
+		AIApplicationScenarios: orSlice(toSlice(skills["ai_scenarios"]), splitStr(aiApp)),
 		OtherKeywords:          toSlice(skills["other_keywords"]),
 	}
 
@@ -426,14 +434,18 @@ func normalizeV2ToSnapshot(snapshot *model.ResumeSnapshotV2, v model.ResumeVersi
 	if err != nil {
 		return fmt.Errorf("v2 portfolio_json: %w", err)
 	}
+	// K8-5-26-B: new works + homepage, old fields fallback
+	hp := toString(portfolio["homepage"])
+	works := parsePortfolioWorks(portfolio)
 	snapshot.Portfolio = model.ResumeSnapshotPortfolio{
-		Github:         toString(portfolio["github"]),
-		Gitee:          toString(portfolio["gitee"]),
-		CNB:            toString(portfolio["cnb"]),
-		Blog:           toString(portfolio["blog"]),
-		Homepage:       toString(portfolio["homepage"]),
-		DemoLinks:      toSlice(portfolio["demo_links"]),
-		PortfolioLinks: toSlice(portfolio["other_links"]),
+		Works:    works,
+		Homepage: hp,
+		Github:   toString(portfolio["github"]), Gitee: toString(portfolio["gitee"]),
+		CNB: toString(portfolio["cnb"]), Blog: toString(portfolio["blog"]),
+		DemoLinks: toSlice(portfolio["demo_links"]), PortfolioLinks: toSlice(portfolio["other_links"]),
+	}
+	if snapshot.Portfolio.Homepage == "" {
+		snapshot.Portfolio.Homepage = toString(portfolio["blog"])
 	}
 
 	// extraInfo: parse ExtraJSON, fallback to self_evaluation column
@@ -531,6 +543,48 @@ func toBool(v any) bool {
 		return false
 	}
 	return b
+}
+
+// orSlice returns a if non-empty, otherwise b (fallback). K8-5-26-B.
+func orSlice(a, b []string) []string {
+	if len(a) > 0 {
+		return a
+	}
+	return b
+}
+
+// splitStr splits a string by newlines and commas for AI application fallback. K8-5-26-B.
+func splitStr(s string) []string {
+	if s == "" {
+		return nil
+	}
+	// Simple split: just return as single-element slice for now
+	return []string{s}
+}
+
+// parsePortfolioWorks extracts works[] from the portfolio JSON. K8-5-26-B.
+func parsePortfolioWorks(port map[string]any) []model.ResumeSnapshotPortfolioWork {
+	raw, ok := port["works"]
+	if !ok {
+		return nil
+	}
+	arr, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	works := make([]model.ResumeSnapshotPortfolioWork, 0, len(arr))
+	for _, w := range arr {
+		wm, ok := w.(map[string]any)
+		if !ok {
+			continue
+		}
+		works = append(works, model.ResumeSnapshotPortfolioWork{
+			Name:     toString(wm["name"]),
+			Link:     toString(wm["link"]),
+			Password: toString(wm["password"]),
+		})
+	}
+	return works
 }
 
 func toInt(v any) int {

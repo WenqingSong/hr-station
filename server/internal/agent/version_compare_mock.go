@@ -154,7 +154,7 @@ func generateFieldChanges(from *model.ResumeVersion, to *model.ResumeVersion) []
 			After:      after,
 			ChangeType: changeType,
 			Impact:     impact,
-			ModuleName: "job_intention",
+			ModuleName: "projects", // K8-5-26-E: job_intention removed
 		})
 	}
 

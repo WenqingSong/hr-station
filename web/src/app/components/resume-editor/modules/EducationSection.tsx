@@ -31,7 +31,7 @@ export function EducationSection({
     <ResumeEditorSectionCard
       title="教育经历"
       description="补充教育背景，帮助 Offerr鹅 判断你的学历、专业和岗位匹配基础。"
-      badge="推荐"
+      badge="可选"
       defaultOpen={true}
       {...rest}
     >

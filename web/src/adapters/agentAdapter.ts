@@ -35,6 +35,8 @@ export interface TopFixItemViewModel {
   expectedImpact: string;
   needUserVerify: boolean;
   description?: string;
+  /** K8-5-28-B */
+  resumeModule?: string;
 }
 
 export interface EvidenceItemViewModel {
@@ -43,6 +45,8 @@ export interface EvidenceItemViewModel {
   evidenceStrengthLabel: string;
   evidenceStrengthTone: BadgeTone;
   riskNote?: string;
+  /** K8-5-28-B */
+  resumeModule?: string;
 }
 
 // ─── 转换函数 ──────────────────────────────────────────────────────────────────
@@ -74,6 +78,8 @@ export function toTopFixItemViewModel(item: TopFixItem): TopFixItemViewModel {
     expectedImpact: item.expected_impact,
     needUserVerify: item.need_user_verify,
     description: item.description,
+    // K8-5-28-B: pass through resume_module
+    resumeModule: item.resume_module,
   };
 }
 
@@ -89,6 +95,8 @@ export function toEvidenceItemViewModel(item: EvidenceItem): EvidenceItemViewMod
     evidenceStrengthLabel: evidenceStrengthToLabel(item.evidence_strength),
     evidenceStrengthTone: evidenceStrengthToTone(item.evidence_strength),
     riskNote: item.risk_note,
+    // K8-5-28-B: pass through resume_module
+    resumeModule: item.resume_module,
   };
 }
 

@@ -27,7 +27,7 @@ export function ProjectSection({
     <ResumeEditorSectionCard
       title="项目经历"
       description="项目经历是技术岗位匹配的重要依据，建议写清楚技术栈、职责和量化结果。"
-      badge="推荐"
+      badge="可选"
       defaultOpen={true}
       {...rest}
     >
