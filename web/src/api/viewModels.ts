@@ -97,7 +97,9 @@ export async function loadResumeOptionViewModelsFromApi(): Promise<ResumeOptionV
   return [];
 }
 
-/** 加载简历管理页完整 ViewModel（含教育/项目/经历/技能/自评） */
+/** 加载简历管理页完整 ViewModel（含教育/项目/经历/技能/自评）
+ * NOTE: K8-5-34-C — ResumeManagementPage now uses getResumeVersions() directly.
+ * This loader is still used by MyResumesPage (edit mode backfill). */
 export async function loadResumeManagementPageViewModel(): Promise<ResumeManagementViewModel | null> {
   try {
     const resume = await getCurrentResume();

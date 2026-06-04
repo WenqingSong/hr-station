@@ -75,6 +75,16 @@ export interface ResumeManagementViewModel {
   };
 }
 
+/** K8-5-34-B: 简历管理页完整 ViewModel（current + versions 列表） */
+export interface ResumeManagementPageViewModel {
+  /** 当前简历（latest version） */
+  current: ResumeManagementViewModel | null;
+  /** 所有简历版本列表（来自 /api/resumes/versions） */
+  versions: ResumeOptionViewModel[];
+  /** 是否有任何简历 */
+  hasAnyResume: boolean;
+}
+
 export interface ResumeOptionViewModel {
   id: string;
   name: string;
@@ -171,16 +181,20 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function toResumeSummaryViewModel(resume?: Resume | null): ResumeSummaryViewModel {
   if (!resume) return { id: '', name: '', version: '', statusLabel: '', directionLabel: '', completeness: 0, updatedAt: '', skillTags: [], gapItems: [], projectCount: 0, profileSummary: '', schemaVersion: undefined };
+  const raw = resume as Record<string, unknown>;
+  // K8-5-34-B: backend returns version_no (int) and created_at; also accept V1 "version" / "updated_at"
+  const versionStr = raw.version_no != null ? `V${raw.version_no}` : (resume.version || '');
+  const updatedAtStr = (resume.updated_at || String(raw.created_at ?? '')) as string;
   return {
-    id: resume.id,
+    id: String(resume.id ?? ''),
     name: resume.name,
-    version: resume.version,
-    statusLabel: STATUS_LABELS[resume.status] || resume.status,
-    directionLabel: getV2TargetDirection(resume) || resume.direction_label,
-    completeness: resume.completeness,
-    updatedAt: resume.updated_at,
-    skillTags: resume.skills,
-    gapItems: resume.gaps,
+    version: versionStr,
+    statusLabel: STATUS_LABELS[resume.status] || resume.status || (raw.version_no != null ? '历史版本' : ''),
+    directionLabel: getV2TargetDirection(resume) || resume.direction_label || '',
+    completeness: resume.completeness != null ? resume.completeness : 0,
+    updatedAt: updatedAtStr,
+    skillTags: resume.skills || [],
+    gapItems: resume.gaps || [],
     projectCount: resume.projects?.length ?? 0,
     profileSummary: buildProfileSummary(resume),
     schemaVersion: getSchemaVersion(resume),
@@ -247,10 +261,17 @@ export function toResumeOptionViewModelsFromVersions(
 
 /** 从完整 Resume 构建管理页 ViewModel（V2-aware）。
  * V2 字段优先，V1 fallback。page UI 字段名不变。
- * K8-5-23-B: passes V2 raw modules through v2 field for edit backfill. */
+ * K8-5-23-B: passes V2 raw modules through v2 field for edit backfill.
+ * K8-5-34-B: handles backend field names (experience/version_no/created_at). */
 export function toResumeManagementViewModel(
   resume: Resume,
 ): ResumeManagementViewModel {
+  const raw = resume as Record<string, unknown>;
+  // Backend returns "experience" (singular) or "internships" (V2), not "experiences"
+  const rawExperiences = Array.isArray(resume.experiences) ? resume.experiences
+    : Array.isArray(raw.experience) ? raw.experience as ResumeExperience[]
+    : [];
+
   const summary = toResumeSummaryViewModel(resume);
   const p = resume.profile ?? ({} as Resume['profile']);
   const schVer = getSchemaVersion(resume);
@@ -291,13 +312,30 @@ export function toResumeManagementViewModel(
     displayLocation,
     directionLabel,
     education: Array.isArray(resume.education) ? resume.education : [],
-    experiences: Array.isArray(resume.experiences) ? resume.experiences : [],
+    experiences: rawExperiences,
     projects: Array.isArray(resume.projects) ? resume.projects : [],
     skills: Array.isArray(resume.skills) ? resume.skills : [],
     selfEvaluation: resume.self_evaluation || '',
-    hasResume: !!(p.name || resume.name || p.school),
+    hasResume: !!(p.name || resume.name || p.school || resume.school),
     schemaVersion: schVer,
     v2,
+  };
+}
+
+// ─── K8-5-34-B: Management Page VM (current + versions) ───────────────────────
+
+/** 从 current resume 和 versions 列表构建管理页完整 ViewModel。
+ * 只在 current + versions 都为空时才 hasAnyResume=false。 */
+export function toResumeManagementPageViewModel(
+  currentResume: Resume | null,
+  versionList: ResumeVersionListItem[],
+): ResumeManagementPageViewModel {
+  const current = currentResume ? toResumeManagementViewModel(currentResume) : null;
+  const versions = toResumeOptionViewModelsFromVersions(versionList);
+  return {
+    current,
+    versions,
+    hasAnyResume: versions.length > 0 || current !== null,
   };
 }
 
