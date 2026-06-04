@@ -24,13 +24,27 @@ func (r *ResumeRepository) CreateVersion(ctx context.Context, resume *model.Resu
 		`INSERT INTO resume_versions
 			(user_id, version_no, name, phone, email, location, target_city, target_role,
 			 education_json, experience_json, project_json, skills_json,
-			 self_evaluation, raw_text)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 self_evaluation, raw_text,
+			 schema_version,
+			 target_direction, job_type, expected_cities,
+			 school, degree, major, graduation_year,
+			 profile_json, job_intention_json, internship_json,
+			 certificates_json, awards_json, portfolio_json, extra_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+		         ?, ?, ?, ?, ?, ?, ?, ?,
+		         ?, ?, ?, ?, ?, ?, ?)`,
 		resume.UserID, resume.VersionNo, resume.Name, resume.Phone, resume.Email,
 		resume.Location, resume.TargetCity, resume.TargetRole,
 		toNullJSON(resume.EducationJSON), toNullJSON(resume.ExperienceJSON),
 		toNullJSON(resume.ProjectJSON), toNullJSON(resume.SkillsJSON),
 		toNullString(resume.SelfEvaluation), toNullString(resume.RawText),
+		resume.SchemaVersion,
+		resume.TargetDirection, resume.JobType, resume.ExpectedCities,
+		resume.School, resume.Degree, resume.Major, resume.GraduationYear,
+		toNullJSON(resume.ProfileJSON), toNullJSON(resume.JobIntentionJSON),
+		toNullJSON(resume.InternshipJSON), toNullJSON(resume.CertificatesJSON),
+		toNullJSON(resume.AwardsJSON), toNullJSON(resume.PortfolioJSON),
+		toNullJSON(resume.ExtraJSON),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create resume version: %w", err)
@@ -50,18 +64,34 @@ func (r *ResumeRepository) FindByID(ctx context.Context, id uint64) (*model.Resu
 	var resume model.ResumeVersion
 	var educationJSON, experienceJSON, projectJSON, skillsJSON sql.NullString
 	var selfEvaluation, rawText sql.NullString
+	var profileJSON, jobIntentionJSON, internshipJSON sql.NullString
+	var certificatesJSON, awardsJSON, portfolioJSON, extraJSON sql.NullString
+	var targetDirection, jobType, expectedCities sql.NullString
+	var school, degree, major, graduationYear sql.NullString
 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, user_id, version_no, name, phone, email, location, target_city, target_role,
 		        education_json, experience_json, project_json, skills_json,
-		        self_evaluation, raw_text, created_at
+		        self_evaluation, raw_text,
+		        schema_version,
+		        target_direction, job_type, expected_cities,
+		        school, degree, major, graduation_year,
+		        profile_json, job_intention_json, internship_json,
+		        certificates_json, awards_json, portfolio_json, extra_json,
+		        created_at
 		 FROM resume_versions
 		 WHERE id = ?`,
 		id,
 	).Scan(&resume.ID, &resume.UserID, &resume.VersionNo, &resume.Name, &resume.Phone,
 		&resume.Email, &resume.Location, &resume.TargetCity, &resume.TargetRole,
 		&educationJSON, &experienceJSON, &projectJSON, &skillsJSON,
-		&selfEvaluation, &rawText, &resume.CreatedAt)
+		&selfEvaluation, &rawText,
+		&resume.SchemaVersion,
+		&targetDirection, &jobType, &expectedCities,
+		&school, &degree, &major, &graduationYear,
+		&profileJSON, &jobIntentionJSON, &internshipJSON,
+		&certificatesJSON, &awardsJSON, &portfolioJSON, &extraJSON,
+		&resume.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -77,6 +107,22 @@ func (r *ResumeRepository) FindByID(ctx context.Context, id uint64) (*model.Resu
 	resume.SelfEvaluation = selfEvaluation.String
 	resume.RawText = rawText.String
 
+	resume.TargetDirection = targetDirection.String
+	resume.JobType = jobType.String
+	resume.ExpectedCities = expectedCities.String
+	resume.School = school.String
+	resume.Degree = degree.String
+	resume.Major = major.String
+	resume.GraduationYear = graduationYear.String
+
+	resume.ProfileJSON = fromNullJSON(profileJSON)
+	resume.JobIntentionJSON = fromNullJSON(jobIntentionJSON)
+	resume.InternshipJSON = fromNullJSON(internshipJSON)
+	resume.CertificatesJSON = fromNullJSON(certificatesJSON)
+	resume.AwardsJSON = fromNullJSON(awardsJSON)
+	resume.PortfolioJSON = fromNullJSON(portfolioJSON)
+	resume.ExtraJSON = fromNullJSON(extraJSON)
+
 	return &resume, nil
 }
 
@@ -86,11 +132,21 @@ func (r *ResumeRepository) GetCurrentByUserID(ctx context.Context, userID uint64
 	var resume model.ResumeVersion
 	var educationJSON, experienceJSON, projectJSON, skillsJSON sql.NullString
 	var selfEvaluation, rawText sql.NullString
+	var profileJSON, jobIntentionJSON, internshipJSON sql.NullString
+	var certificatesJSON, awardsJSON, portfolioJSON, extraJSON sql.NullString
+	var targetDirection, jobType, expectedCities sql.NullString
+	var school, degree, major, graduationYear sql.NullString
 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, user_id, version_no, name, phone, email, location, target_city, target_role,
 		        education_json, experience_json, project_json, skills_json,
-		        self_evaluation, raw_text, created_at
+		        self_evaluation, raw_text,
+		        schema_version,
+		        target_direction, job_type, expected_cities,
+		        school, degree, major, graduation_year,
+		        profile_json, job_intention_json, internship_json,
+		        certificates_json, awards_json, portfolio_json, extra_json,
+		        created_at
 		 FROM resume_versions
 		 WHERE user_id = ?
 		 ORDER BY version_no DESC
@@ -99,7 +155,13 @@ func (r *ResumeRepository) GetCurrentByUserID(ctx context.Context, userID uint64
 	).Scan(&resume.ID, &resume.UserID, &resume.VersionNo, &resume.Name, &resume.Phone,
 		&resume.Email, &resume.Location, &resume.TargetCity, &resume.TargetRole,
 		&educationJSON, &experienceJSON, &projectJSON, &skillsJSON,
-		&selfEvaluation, &rawText, &resume.CreatedAt)
+		&selfEvaluation, &rawText,
+		&resume.SchemaVersion,
+		&targetDirection, &jobType, &expectedCities,
+		&school, &degree, &major, &graduationYear,
+		&profileJSON, &jobIntentionJSON, &internshipJSON,
+		&certificatesJSON, &awardsJSON, &portfolioJSON, &extraJSON,
+		&resume.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -115,6 +177,22 @@ func (r *ResumeRepository) GetCurrentByUserID(ctx context.Context, userID uint64
 	resume.SelfEvaluation = selfEvaluation.String
 	resume.RawText = rawText.String
 
+	resume.TargetDirection = targetDirection.String
+	resume.JobType = jobType.String
+	resume.ExpectedCities = expectedCities.String
+	resume.School = school.String
+	resume.Degree = degree.String
+	resume.Major = major.String
+	resume.GraduationYear = graduationYear.String
+
+	resume.ProfileJSON = fromNullJSON(profileJSON)
+	resume.JobIntentionJSON = fromNullJSON(jobIntentionJSON)
+	resume.InternshipJSON = fromNullJSON(internshipJSON)
+	resume.CertificatesJSON = fromNullJSON(certificatesJSON)
+	resume.AwardsJSON = fromNullJSON(awardsJSON)
+	resume.PortfolioJSON = fromNullJSON(portfolioJSON)
+	resume.ExtraJSON = fromNullJSON(extraJSON)
+
 	return &resume, nil
 }
 
@@ -124,7 +202,13 @@ func (r *ResumeRepository) ListVersionsByUserID(ctx context.Context, userID uint
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, user_id, version_no, name, phone, email, location, target_city, target_role,
 		        education_json, experience_json, project_json, skills_json,
-		        self_evaluation, raw_text, created_at
+		        self_evaluation, raw_text,
+		        schema_version,
+		        target_direction, job_type, expected_cities,
+		        school, degree, major, graduation_year,
+		        profile_json, job_intention_json, internship_json,
+		        certificates_json, awards_json, portfolio_json, extra_json,
+		        created_at
 		 FROM resume_versions
 		 WHERE user_id = ?
 		 ORDER BY version_no DESC`,
@@ -140,11 +224,21 @@ func (r *ResumeRepository) ListVersionsByUserID(ctx context.Context, userID uint
 		var v model.ResumeVersion
 		var educationJSON, experienceJSON, projectJSON, skillsJSON sql.NullString
 		var selfEvaluation, rawText sql.NullString
+		var profileJSON, jobIntentionJSON, internshipJSON sql.NullString
+		var certificatesJSON, awardsJSON, portfolioJSON, extraJSON sql.NullString
+		var targetDirection, jobType, expectedCities sql.NullString
+		var school, degree, major, graduationYear sql.NullString
 
 		err := rows.Scan(&v.ID, &v.UserID, &v.VersionNo, &v.Name, &v.Phone,
 			&v.Email, &v.Location, &v.TargetCity, &v.TargetRole,
 			&educationJSON, &experienceJSON, &projectJSON, &skillsJSON,
-			&selfEvaluation, &rawText, &v.CreatedAt)
+			&selfEvaluation, &rawText,
+			&v.SchemaVersion,
+			&targetDirection, &jobType, &expectedCities,
+			&school, &degree, &major, &graduationYear,
+			&profileJSON, &jobIntentionJSON, &internshipJSON,
+			&certificatesJSON, &awardsJSON, &portfolioJSON, &extraJSON,
+			&v.CreatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan resume version: %w", err)
 		}
@@ -155,6 +249,22 @@ func (r *ResumeRepository) ListVersionsByUserID(ctx context.Context, userID uint
 		v.SkillsJSON = fromNullJSON(skillsJSON)
 		v.SelfEvaluation = selfEvaluation.String
 		v.RawText = rawText.String
+
+		v.TargetDirection = targetDirection.String
+		v.JobType = jobType.String
+		v.ExpectedCities = expectedCities.String
+		v.School = school.String
+		v.Degree = degree.String
+		v.Major = major.String
+		v.GraduationYear = graduationYear.String
+
+		v.ProfileJSON = fromNullJSON(profileJSON)
+		v.JobIntentionJSON = fromNullJSON(jobIntentionJSON)
+		v.InternshipJSON = fromNullJSON(internshipJSON)
+		v.CertificatesJSON = fromNullJSON(certificatesJSON)
+		v.AwardsJSON = fromNullJSON(awardsJSON)
+		v.PortfolioJSON = fromNullJSON(portfolioJSON)
+		v.ExtraJSON = fromNullJSON(extraJSON)
 
 		versions = append(versions, &v)
 	}
@@ -172,18 +282,34 @@ func (r *ResumeRepository) GetByUserIDAndVersionNo(ctx context.Context, userID u
 	var resume model.ResumeVersion
 	var educationJSON, experienceJSON, projectJSON, skillsJSON sql.NullString
 	var selfEvaluation, rawText sql.NullString
+	var profileJSON, jobIntentionJSON, internshipJSON sql.NullString
+	var certificatesJSON, awardsJSON, portfolioJSON, extraJSON sql.NullString
+	var targetDirection, jobType, expectedCities sql.NullString
+	var school, degree, major, graduationYear sql.NullString
 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, user_id, version_no, name, phone, email, location, target_city, target_role,
 		        education_json, experience_json, project_json, skills_json,
-		        self_evaluation, raw_text, created_at
+		        self_evaluation, raw_text,
+		        schema_version,
+		        target_direction, job_type, expected_cities,
+		        school, degree, major, graduation_year,
+		        profile_json, job_intention_json, internship_json,
+		        certificates_json, awards_json, portfolio_json, extra_json,
+		        created_at
 		 FROM resume_versions
 		 WHERE user_id = ? AND version_no = ?`,
 		userID, versionNo,
 	).Scan(&resume.ID, &resume.UserID, &resume.VersionNo, &resume.Name, &resume.Phone,
 		&resume.Email, &resume.Location, &resume.TargetCity, &resume.TargetRole,
 		&educationJSON, &experienceJSON, &projectJSON, &skillsJSON,
-		&selfEvaluation, &rawText, &resume.CreatedAt)
+		&selfEvaluation, &rawText,
+		&resume.SchemaVersion,
+		&targetDirection, &jobType, &expectedCities,
+		&school, &degree, &major, &graduationYear,
+		&profileJSON, &jobIntentionJSON, &internshipJSON,
+		&certificatesJSON, &awardsJSON, &portfolioJSON, &extraJSON,
+		&resume.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -198,6 +324,22 @@ func (r *ResumeRepository) GetByUserIDAndVersionNo(ctx context.Context, userID u
 	resume.SkillsJSON = fromNullJSON(skillsJSON)
 	resume.SelfEvaluation = selfEvaluation.String
 	resume.RawText = rawText.String
+
+	resume.TargetDirection = targetDirection.String
+	resume.JobType = jobType.String
+	resume.ExpectedCities = expectedCities.String
+	resume.School = school.String
+	resume.Degree = degree.String
+	resume.Major = major.String
+	resume.GraduationYear = graduationYear.String
+
+	resume.ProfileJSON = fromNullJSON(profileJSON)
+	resume.JobIntentionJSON = fromNullJSON(jobIntentionJSON)
+	resume.InternshipJSON = fromNullJSON(internshipJSON)
+	resume.CertificatesJSON = fromNullJSON(certificatesJSON)
+	resume.AwardsJSON = fromNullJSON(awardsJSON)
+	resume.PortfolioJSON = fromNullJSON(portfolioJSON)
+	resume.ExtraJSON = fromNullJSON(extraJSON)
 
 	return &resume, nil
 }
