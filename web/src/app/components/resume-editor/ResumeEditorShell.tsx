@@ -40,7 +40,12 @@ export function ResumeEditorShell({
       {/* ── Main layout: two-column on desktop, single on mobile ──── */}
       <div className="flex flex-col lg:flex-row lg:gap-6">
         {/* Main form area */}
-        <div className="flex-1 min-w-0 space-y-5">{children}</div>
+        <div className="flex-1 min-w-0 space-y-5">
+          {children}
+
+          {/* ── Bottom Save Card — inside main column for left-alignment ─ */}
+          {saveCard && <div className="mt-3">{saveCard}</div>}
+        </div>
 
         {/* Right sidebar — desktop: sticky, mobile: top/shrink */}
         {hasSidebar && (
@@ -49,9 +54,6 @@ export function ResumeEditorShell({
           </aside>
         )}
       </div>
-
-      {/* ── Bottom Save Card ───────────────────────────────────────── */}
-      {saveCard && <div className="mt-8">{saveCard}</div>}
     </ContentPageShell>
   );
 }

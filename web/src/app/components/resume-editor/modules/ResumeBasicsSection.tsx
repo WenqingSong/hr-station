@@ -15,16 +15,16 @@ export type ResumeBasicsSectionProps = Omit<
  * Module 1: 简历基础
  *
  * Core module — always expanded, non-collapsible.
- * Contains: resume name, target direction, description.
+ * Contains: resume name only.
  *
- * In K8-5-22-E, the existing V1 form content for this module is
- * passed as children from MyResumesPage.
+ * K8-5-24-B: Removed target direction & description — recommendation
+ * should not require users to pre-specify a job direction.
  */
 export function ResumeBasicsSection({ children, ...rest }: ResumeBasicsSectionProps) {
   return (
     <ResumeEditorSectionCard
       title="简历基础"
-      description="先确定这份简历的求职定位，后续推荐、匹配和优化都会基于这里的信息。"
+      description="给这份简历起一个便于区分的名称。"
       badge="必填"
       defaultOpen={true}
       collapsible={false}

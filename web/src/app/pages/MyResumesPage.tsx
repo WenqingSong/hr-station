@@ -250,14 +250,12 @@ export function MyResumesPage() {
 
   // ── Resume basic ────────────────────────────────────────────────────────────
   const [resumeName, setResumeName] = useState(mode === "add" ? "" : "");
-  const [jobDirection, setJobDirection] = useState("");
-  const [resumeDesc, setResumeDesc] = useState("");
+  // K8-5-24-B: jobDirection / resumeDesc removed — target direction belongs in JobIntention, optional.
 
   // 编辑模式：从 VM 回填基础字段
   useEffect(() => {
     if (formVm && mode === "edit") {
       setResumeName(formVm.summary.name || "");
-      setJobDirection(formVm.directionLabel || "");
     }
   }, [formVm, mode]);
 
@@ -393,12 +391,9 @@ export function MyResumesPage() {
     const v2 = formVm.v2;
     if (!v2) return;
 
-    // Resume basics
+    // Resume basics — name only (K8-5-24-B)
     const name = formVm.summary.name || "";
     if (name) setResumeName(name);
-    if (v2.jobIntention?.target_roles?.length) {
-      setJobDirection(joinList(v2.jobIntention.target_roles));
-    }
 
     // Profile V2
     if (v2.profile) {
@@ -580,7 +575,7 @@ export function MyResumesPage() {
       current_city: currentCity || undefined,
     };
 
-    const targetRoles = splitList(direction || jobDirection || "");
+    const targetRoles = splitList(direction || "");
     const expectedCities = splitList(cities || "");
     const v2JobIntention = {
       target_roles: targetRoles.length > 0 ? targetRoles : undefined,
@@ -704,8 +699,8 @@ export function MyResumesPage() {
       schema_version: 2,
       // V2 top-level
       resume_name: resumeName || personalName || "未命名简历",
-      target_direction: jobDirection || direction || "",
-      description: resumeDesc || undefined,
+      target_direction: direction || "",
+      description: undefined,
       // V2 modules
       profile: v2Profile,
       job_intention: v2JobIntention,
@@ -723,7 +718,7 @@ export function MyResumesPage() {
       email: email || "",
       location: currentCity || firstExpectedCity || "",
       target_city: firstExpectedCity || cities || "",
-      target_role: direction || jobDirection || "",
+      target_role: direction || "",
       education: v1EducationCompat,
       experience: v1ExperienceCompat,
       project: v1ProjectCompat,
@@ -958,35 +953,14 @@ export function MyResumesPage() {
             <Input
               value={resumeName}
               onChange={(e) => setResumeName(e.target.value)}
-              placeholder="为这份简历起一个名字，例如「腾讯云后端实习版」"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              目标方向 <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={jobDirection}
-              onChange={(e) => setJobDirection(e.target.value)}
-              placeholder="如：后端开发、云计算、产品"
-            />
-            <p className="mt-1.5 text-xs text-slate-400">会影响岗位推荐、匹配分析和优化建议</p>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">简历说明</label>
-            <Textarea
-              className="min-h-[80px] resize-none"
-              rows={2}
-              value={resumeDesc}
-              onChange={(e) => setResumeDesc(e.target.value)}
-              placeholder="可写本版本的定位，例如「腾讯云后端实习版」「春招通用版」"
+              placeholder="用于区分不同简历版本，例如「后端开发通用版」「云计算实习版」「春招通用版」"
             />
           </div>
           <div>
             <div className="flex items-start gap-2 rounded-xl bg-blue-50/60 border border-blue-100/40 px-4 py-3">
               <Sparkles className="w-4 h-4 text-[#0052D9] mt-0.5" />
               <p className="text-[13px] text-slate-600 leading-relaxed">
-                保存后，最新版本将自动用于岗位推荐、岗位匹配分析和简历优化建议。
+                保存后，最新版本将自动用于岗位推荐、岗位匹配分析和简历优化建议。如果你暂时不确定求职方向，可以留空求职意向模块，Offerr鹅 会基于你的教育、技能和项目经历推荐适合的岗位。
               </p>
             </div>
           </div>
