@@ -162,7 +162,7 @@ export function AuthDialog({
               Offerr鹅
             </p>
             <p className="text-[13px] font-medium text-slate-500 mb-3">
-              学生求职匹配智能体
+              学生求职匹配与简历优化智能体
             </p>
             <h2 className="text-lg font-semibold text-slate-950">
               {mode === "login" ? "登录" : "注册"}

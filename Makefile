@@ -1,5 +1,5 @@
 # ============================================================
-# Offer Catcher - Makefile
+# Offerr鹅 - Makefile
 # 适配 CNB 云原生开发环境反复重启场景
 # Makefile = 统一入口 / 命令编排层
 # scripts/dev/*.sh = 具体执行逻辑
@@ -41,7 +41,7 @@ DEV_SCRIPT := scripts/dev
 
 help: ## 查看所有可用命令
 	@echo ""
-	@echo "[Offer Catcher] Makefile 命令"
+	@echo "[Offerr鹅] Makefile 命令"
 	@echo "=============================="
 	@echo ""
 	@echo "基础命令:"
@@ -170,7 +170,7 @@ ensure-env: ## 确保 .env 存在（优先 .env.local → .env.example）
 
 status: ## 查看所有服务运行状态
 	@echo ""
-	@echo "[Offer Catcher] Service Status"
+	@echo "[Offerr鹅] Service Status"
 	@echo "==============================="
 	@echo ""
 	@echo "--- 基础设施 ---"
@@ -228,14 +228,14 @@ up: ensure-env ## 一键启动完整开发环境
 	@bash $(DEV_SCRIPT)/up.sh
 
 stop: ## 停止本地前后端进程，保留 Docker 数据
-	@echo "[Offer Catcher] Stopping local processes..."
+	@echo "[Offerr鹅] Stopping local processes..."
 	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@echo ""
 	@echo "[OK] 前后端进程已停止（Docker 数据保留）"
 
 down: ## 停止服务，保留数据库 volume
-	@echo "[Offer Catcher] Stopping all services..."
+	@echo "[Offerr鹅] Stopping all services..."
 	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/infra.sh down
@@ -243,14 +243,14 @@ down: ## 停止服务，保留数据库 volume
 	@echo "[OK] 所有服务已停止（volume 保留）"
 
 restart: ensure-env ## 软重启（stop + up，不清空 volume）
-	@echo "[Offer Catcher] Soft restart (volume preserved)..."
+	@echo "[Offerr鹅] Soft restart (volume preserved)..."
 	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@sleep 1
 	@$(MAKE) up
 
 restart-soft: ensure-env ## 同 restart（软重启）
-	@echo "[Offer Catcher] Soft restart (volume preserved)..."
+	@echo "[Offerr鹅] Soft restart (volume preserved)..."
 	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@sleep 1
@@ -264,7 +264,7 @@ reset: ## ⚠️ 危险：停止并清空 volume，需要 CONFIRM=yes
 		echo ""; \
 		exit 1; \
 	fi
-	@echo "[Offer Catcher] Resetting (removing volumes)..."
+	@echo "[Offerr鹅] Resetting (removing volumes)..."
 	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/infra.sh down
@@ -282,7 +282,7 @@ reset-up: ensure-env ## ⚠️ 危险：清空 volume 后重启，需要 CONFIRM
 		echo ""; \
 		exit 1; \
 	fi
-	@echo "[Offer Catcher] Reset and restart (removing volumes)..."
+	@echo "[Offerr鹅] Reset and restart (removing volumes)..."
 	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/infra.sh down
@@ -300,7 +300,7 @@ rebuild: ## ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes
 		echo ""; \
 		exit 1; \
 	fi
-	@echo "[Offer Catcher] Rebuilding..."
+	@echo "[Offerr鹅] Rebuilding..."
 	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/clean.sh clean
@@ -574,7 +574,7 @@ jobs-seed-generate: ## 从 JSON 生成 server/sql/seed/tencent_jobs.sql
 		--output ./sql/seed/tencent_jobs.sql
 
 jobs-seed-apply: ## 导入 SQL seed 到 MySQL
-	@echo "[Offer Catcher] Applying tencent_jobs seed..."
+	@echo "[Offerr鹅] Applying tencent_jobs seed..."
 	@docker exec -i offer-catcher-mysql mysql -u$$(grep -E '^DB_USER=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo root) \
 		-p$$(grep -E '^DB_PASSWORD=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo password) \
 		$$(grep -E '^DB_NAME=' .env .env.example 2>/dev/null | head -1 | cut -d'=' -f2 || echo offer_catcher) \

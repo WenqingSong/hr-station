@@ -162,7 +162,7 @@ func (r *Runner) callLLM(ctx context.Context, req RunRequest, renderedPrompt str
 		Messages: []llm.Message{
 			{
 				Role:    llm.RoleSystem,
-				Content: "你是 Offer Catcher AI Agent，只输出严格 JSON，不要输出 Markdown、解释性前后缀或代码块。",
+				Content: "你是 Offerr鹅 AI Agent，只输出严格 JSON，不要输出 Markdown、解释性前后缀或代码块。",
 			},
 			{
 				Role:    llm.RoleUser,

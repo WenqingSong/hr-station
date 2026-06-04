@@ -1,5 +1,5 @@
 # ============================================================
-# Offer 捕手 - Docker Compose 配置（混合式开发环境）
+# Offerr鹅 - Docker Compose 配置（混合式开发环境）
 # 说明：
 # 1. Docker Compose 仅管理 MySQL + Nginx
 # 2. Backend / Frontend 由 Makefile 以本机后台进程管理
