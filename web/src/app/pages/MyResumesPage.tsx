@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   ChevronLeft,
   ChevronUp,
@@ -10,8 +10,9 @@ import {
   X,
 } from "lucide-react";
 import { loadResumeManagementPageViewModel } from "../../api";
-import { createResume, updateResume, getCurrentResume, getResumes } from "../../api/resumes";
+import { createResume, updateResume, getCurrentResume, getResumes, getResumeDetail } from "../../api/resumes";
 import type { ResumeManagementViewModel } from "../../adapters";
+import { toResumeManagementViewModel } from "../../adapters";
 import type {
   ResumeEducation, ResumeExperience, ResumeProject,
   ResumeProfileV2, ResumeEducationV2,
@@ -22,6 +23,7 @@ import { ResumeSkeleton } from "../components/ui/ResumeSkeleton";
 import { YearMonthPicker } from "../components/resume-editor/YearMonthPicker";
 import { PageError, PageLoading } from "../components/PageState";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
+import { isApiClientError } from "../../api/errors";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import {
@@ -218,6 +220,9 @@ function FieldRow({ label, required, children, hint }: {
 export function MyResumesPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const versionNoParam = searchParams.get("versionNo");
+  const editingVersionNo = versionNoParam && /^\d+$/.test(versionNoParam) ? Number(versionNoParam) : null;
   const mode: "edit" | "add" = location.pathname.includes("/new") ? "add" : "edit";
   const [saving, setSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
@@ -227,20 +232,71 @@ export function MyResumesPage() {
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // 编辑模式：加载完整 current resume
+  // 编辑模式：根据 query 参数决定加载指定版本或 current
   useEffect(() => {
     if (mode === "edit") {
       setLoading(true);
       setResumeError(null);
+
+      // K8-5-40-B：如果 URL 传了 versionNo，加载指定版本详情
+      if (editingVersionNo !== null && editingVersionNo > 0) {
+        getResumeDetail(editingVersionNo)
+          .then((resume) => {
+            // K8-5-40-F：adapter 转换与 API 请求分层
+            let vm: ReturnType<typeof toResumeManagementViewModel>;
+            try {
+              vm = toResumeManagementViewModel(resume);
+            } catch (adapterError) {
+              setLoading(false);
+              console.error("[resume-edit] adapter failed for resume version", {
+                versionNo: editingVersionNo,
+                error: adapterError,
+                resumeKeys: resume ? Object.keys(resume) : null,
+              });
+              setResumeError("简历数据解析失败，请稍后重试或检查该版本数据结构是否完整。");
+              return;
+            }
+            setFormVm(vm);
+            setLoading(false);
+          })
+          .catch((err: unknown) => {
+            // K8-5-40-D：API 请求失败分类处理
+            setLoading(false);
+
+            // 401 → token 过期/未登录 → 跳转统一登录，保留当前 URL 作为 redirect
+            if (isApiClientError(err) && err.status === 401) {
+              console.error("[resume-edit] unauthorized while loading version", { versionNo: editingVersionNo, error: err });
+              const loginRedirect = `/?auth=login&redirect=${encodeURIComponent(`/resumes/edit?versionNo=${editingVersionNo}`)}`;
+              navigate(loginRedirect, { replace: true });
+              return;
+            }
+
+            // 404 → 版本不存在
+            if (isApiClientError(err) && err.status === 404) {
+              console.error("[resume-edit] resume version not found", { versionNo: editingVersionNo, error: err });
+              setResumeError("该简历版本不存在或已被删除。");
+              return;
+            }
+
+            // 其他 API 错误 → 通用提示
+            console.error("[resume-edit] failed to load resume version", { versionNo: editingVersionNo, error: err });
+            setResumeError("指定简历版本加载失败，请稍后重试。");
+          });
+        return;
+      }
+
+      // 无 versionNo → 保持原逻辑：加载 current
       loadResumeManagementPageViewModel()
         .then((vm) => { setFormVm(vm); setLoading(false); })
         .catch((err) => {
+          setLoading(false);
           const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
           if (authRedirect) { navigate(authRedirect, { replace: true }); return; }
-          setResumeError("简历加载失败，请稍后重试。"); setLoading(false);
+          console.error("[resume-edit] failed to load current resume", { error: err });
+          setResumeError("简历加载失败，请稍后重试。");
         });
     }
-  }, [mode, retryCount]);
+  }, [mode, retryCount, editingVersionNo]);
 
   const handleRetryLoad = useCallback(() => setRetryCount((c) => c + 1), []);
 
@@ -947,6 +1003,21 @@ export function MyResumesPage() {
     );
   }
 
+  // ── K8-5-41-B：有内容模块默认展开判断 ────────────────────────────────
+  const isEditingExistingResume = Boolean(editingVersionNo);
+  const hasInternshipContent = internships.length > 0;
+  const hasCertificateAwardContent =
+    languageExamDrafts.length > 0 ||
+    certificateDrafts.length > 0 ||
+    awardDrafts.length > 0;
+  const hasPortfolioExtraContent =
+    portfolioDraft.works.some((w) => w.name.trim() || w.link.trim()) ||
+    !!portfolioDraft.homepage.trim() ||
+    !!summary.trim() ||
+    !!extraInfoDraft.additionalInfo.trim();
+  // K8-5-41-C：autoOpenKey 包含 resumeName，数据回填完成后 key 会变化（""→实际名称）
+  const sectionAutoOpenKey = `${editingVersionNo ?? "_new"}:${resumeName || "_empty"}`;
+
   return (
     <ResumeEditorShell
       title={mode === "add" ? "创建简历" : "编辑简历"}
@@ -1291,7 +1362,10 @@ export function MyResumesPage() {
       </SkillsSection>
 
       {/* ── Module 7: 实习经历 ──────────────────────────────────────── */}
-      <InternshipSection>
+      <InternshipSection
+        defaultOpen={isEditingExistingResume && hasInternshipContent}
+        autoOpenKey={sectionAutoOpenKey}
+      >
         {internships.length === 0 ? (
           <div className="rounded-xl bg-gray-50/70 py-8 text-center">
             <p className="text-sm text-slate-500 mb-1">暂无实习经历</p>
@@ -1368,7 +1442,11 @@ export function MyResumesPage() {
       </InternshipSection>
 
       {/* ── Module 7: 证书与获奖 (K8-5-25-E: merged) ──────────────────────── */}
-      <CertificatesSection onAdd={addCertificate}>
+      <CertificatesSection
+        onAdd={addCertificate}
+        defaultOpen={isEditingExistingResume && hasCertificateAwardContent}
+        autoOpenKey={sectionAutoOpenKey}
+      >
         {/* K8-5-29-B: 外语考试 / 等级 — dynamic list */}
         <div className="mb-5 pb-5 border-b border-gray-100">
           <h4 className="text-sm font-medium text-slate-600 mb-3">外语考试 / 等级</h4>
@@ -1468,7 +1546,10 @@ export function MyResumesPage() {
       </CertificatesSection>
 
       {/* ── Module 8: 作品或个人主页 (K8-5-25-E: works+homepage) ── */}
-      <PortfolioExtraSection>
+      <PortfolioExtraSection
+        defaultOpen={isEditingExistingResume && hasPortfolioExtraContent}
+        autoOpenKey={sectionAutoOpenKey}
+      >
         <p className="text-[13px] text-slate-500 mb-5">只支持链接，不支持附件上传。</p>
         {portfolioDraft.works.length === 0 && (
           <button onClick={addWork} className="text-[13px] font-medium text-[#0052D9] hover:underline mb-4 inline-block">+ 添加作品链接</button>
@@ -1489,7 +1570,11 @@ export function MyResumesPage() {
       </PortfolioExtraSection>
 
       {/* ── Module 9: 自我评价 (K8-5-25-E: independent) ───────────────── */}
-      <PortfolioExtraSection>
+      <PortfolioExtraSection
+        title="自我评价"
+        defaultOpen={isEditingExistingResume && hasPortfolioExtraContent}
+        autoOpenKey={sectionAutoOpenKey}
+      >
         <p className="text-[13px] text-slate-500 mb-5">用一小段话概括你的优势、学习能力和求职方向。建议控制在 100-300 字。</p>
         <Textarea className="min-h-[140px]" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="简要介绍自己的技术背景、求职意向和个人优势" />
         <div className="mt-2 flex items-center justify-between">

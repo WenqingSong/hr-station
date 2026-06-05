@@ -159,7 +159,8 @@ function getV2GraduationYear(resume: Resume): string {
 }
 
 function getV2ExpectedCities(resume: Resume): string[] {
-  if (resume.expected_cities?.length) return resume.expected_cities;
+  const cities = resume.expected_cities;
+  if (Array.isArray(cities) && cities.length > 0) return cities;
   return [];
 }
 
@@ -195,7 +196,7 @@ export function toResumeSummaryViewModel(resume?: Resume | null): ResumeSummaryV
     updatedAt: updatedAtStr,
     skillTags: resume.skills || [],
     gapItems: resume.gaps || [],
-    projectCount: resume.projects?.length ?? 0,
+    projectCount: getProjectsSafe(resume).length,
     profileSummary: buildProfileSummary(resume),
     schemaVersion: getSchemaVersion(resume),
   };
@@ -281,7 +282,7 @@ export function toResumeManagementViewModel(
   const displayMajor = getV2Major(resume) || p.major || '';
   const displayLocation = getV2ExpectedCities(resume).length
     ? getV2ExpectedCities(resume).join(' / ')
-    : (resume.expected_cities?.length
+    : (Array.isArray(resume.expected_cities) && resume.expected_cities.length > 0
       ? resume.expected_cities.join(' / ')
       : '暂未填写');
 
@@ -313,7 +314,7 @@ export function toResumeManagementViewModel(
     directionLabel,
     education: Array.isArray(resume.education) ? resume.education : [],
     experiences: rawExperiences,
-    projects: Array.isArray(resume.projects) ? resume.projects : [],
+    projects: getProjectsSafe(resume) as ResumeProject[],
     skills: Array.isArray(resume.skills) ? resume.skills : [],
     selfEvaluation: resume.self_evaluation || '',
     hasResume: !!(p.name || resume.name || p.school || resume.school),
@@ -350,8 +351,18 @@ function parseV2Educations(resume: Resume): ResumeEducationV2[] | undefined {
   return edu as unknown as ResumeEducationV2[];
 }
 
+// K8-5-42-B：统一读取项目数组（兼容 API project/projects 双写）
+function getProjectsSafe(resume: Resume): ResumeProject[] | unknown[] {
+  const raw = resume as Record<string, unknown>;
+  const plural = raw.projects;
+  const singular = raw.project;
+  if (Array.isArray(plural) && plural.length > 0) return plural as ResumeProject[];
+  if (Array.isArray(singular) && singular.length > 0) return singular as ResumeProject[];
+  return [];
+}
+
 function parseV2Projects(resume: Resume): ResumeProjectV2[] | undefined {
-  const proj = resume.projects;
+  const proj = getProjectsSafe(resume);
   if (!proj || proj.length === 0) return undefined;
   return proj as unknown as ResumeProjectV2[];
 }

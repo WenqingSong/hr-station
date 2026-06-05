@@ -7,9 +7,11 @@ import {
 export interface PortfolioExtraSectionProps
   extends Omit<
     ResumeEditorSectionCardProps,
-    "title" | "description" | "badge" | "defaultOpen" | "collapsible" | "required" | "children"
+    "description" | "badge" | "defaultOpen" | "collapsible" | "required" | "children"
   > {
   children?: React.ReactNode;
+  /** K8-5-41-C：允许覆盖模块标题，避免两个同名"作品链接与补充信息" */
+  title?: string;
 }
 
 /**
@@ -17,11 +19,12 @@ export interface PortfolioExtraSectionProps
  */
 export function PortfolioExtraSection({
   children,
+  title = "作品链接与补充信息",
   ...rest
 }: PortfolioExtraSectionProps) {
   return (
     <ResumeEditorSectionCard
-      title="作品链接与补充信息"
+      title={title}
       description="补充 GitHub、博客、作品集链接和个人补充信息，让简历更立体。"
       badge="可选"
       defaultOpen={false}
