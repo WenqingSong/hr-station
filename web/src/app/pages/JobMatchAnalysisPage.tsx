@@ -11,6 +11,8 @@ import type { MatchAnalysisPageViewModel, ResumeOptionViewModel } from "../../ad
 import type { Resume } from "../../types";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
+import { PageLoading } from "../components/PageState";
+import { AIThinkingLoading } from "../components/common/AIThinkingLoading";
 
 /** 从 URL 查询参数中解析 resume_version_no（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -130,11 +132,7 @@ export function JobMatchAnalysisPage() {
 
   // ── 空态：加载中 ──
   if (loadingJob || loadingOptions) {
-    return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center text-gray-400 text-sm">
-        正在加载岗位和简历信息…
-      </div>
-    );
+    return <PageLoading message="正在加载岗位和简历信息…" />;
   }
 
   // ── 空态：无简历版本 ──
@@ -150,11 +148,7 @@ export function JobMatchAnalysisPage() {
 
   // ── 空态：版本详情加载中 ──
   if (loadingResumeDetail) {
-    return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center text-gray-400 text-sm">
-        正在加载简历版本详情…
-      </div>
-    );
+    return <PageLoading message="正在加载简历版本详情…" />;
   }
 
   // ── 空态：版本详情加载失败 ──
@@ -171,9 +165,11 @@ export function JobMatchAnalysisPage() {
   // ── 加载匹配结果 ──
   if (loadingMatch) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center text-gray-400 text-sm">
-        正在生成匹配分析…
-      </div>
+      <AIThinkingLoading
+        title="正在分析岗位匹配度"
+        description="Offerr鹅正在结合简历内容和岗位要求，生成匹配分、优势与风险点。"
+        steps={["读取简历关键信息", "对齐岗位 JD 要求", "生成可解释分析结果"]}
+      />
     );
   }
 

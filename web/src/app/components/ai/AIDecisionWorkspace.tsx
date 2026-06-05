@@ -5,25 +5,25 @@ import { Badge } from "../ui/Badge";
 import { useNavigate } from "react-router";
 import { loadCurrentResumeSummaryViewModel } from "../../../api";
 import type { ResumeSummaryViewModel } from "../../../adapters";
-import { getAuthToken } from "../../../api/authStorage";
+import { useAuth } from "../../../stores/authStore";
 import { AuthDialog } from "../auth/AuthDialog";
 
 export function AIDecisionWorkspace() {
   const navigate = useNavigate();
+  const { isAuthenticated, setAuthenticated } = useAuth();
   const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!getAuthToken());
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authDialogMode, setAuthDialogMode] = useState<"login" | "register">("login");
 
   useEffect(() => {
-    if (!isLoggedIn) { setLoading(false); return; }
+    if (!isAuthenticated) { setLoading(false); return; }
     loadCurrentResumeSummaryViewModel()
       .then(setResumeVm)
       .catch(() => setResumeVm(null))
       .finally(() => setLoading(false));
-  }, [isLoggedIn]);
+  }, [isAuthenticated]);
   
   return (
     <div className="flex flex-col gap-3">
@@ -39,7 +39,7 @@ export function AIDecisionWorkspace() {
       </div>
 
       {/* ── 状态 A：未登录 ── */}
-      {!isLoggedIn && (
+      {!isAuthenticated && (
         <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
           <LogIn className="w-6 h-6 text-gray-300 mx-auto mb-2.5" />
           <p className="text-[13px] text-gray-600 mb-1">登录后使用 Offerr鹅</p>
@@ -56,14 +56,14 @@ export function AIDecisionWorkspace() {
       )}
 
       {/* ── 加载中（已登录） ── */}
-      {isLoggedIn && loading && (
+      {isAuthenticated && loading && (
         <div className="bg-white border border-gray-100 rounded-xl p-4 text-center text-[13px] text-gray-400">
           正在加载…
         </div>
       )}
 
       {/* ── 状态 B：已登录但无简历 ── */}
-      {isLoggedIn && !loading && !resumeVm && (
+      {isAuthenticated && !loading && !resumeVm && (
         <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
           <FileText className="w-6 h-6 text-gray-300 mx-auto mb-2.5" />
           <p className="text-[13px] text-gray-600 mb-1">完善简历后开始智能推荐</p>
@@ -76,7 +76,7 @@ export function AIDecisionWorkspace() {
       )}
 
       {/* ── 状态 C：已登录且有简历 ── */}
-      {isLoggedIn && !loading && resumeVm && (
+      {isAuthenticated && !loading && resumeVm && (
         <>
           {/* Current Resume Card */}
           <div className="bg-white border border-gray-100 rounded-xl p-4">
@@ -122,9 +122,6 @@ export function AIDecisionWorkspace() {
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
         defaultMode={authDialogMode}
-        onLoginSuccess={() => {
-          setIsLoggedIn(!!getAuthToken());
-        }}
       />
     </div>
   );

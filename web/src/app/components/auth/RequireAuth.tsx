@@ -1,31 +1,34 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router";
-import { getAuthToken } from "../../../api/authStorage";
+import { useAuth } from "../../../stores/authStore";
+import { PageLoading } from "../PageState";
 
 type RequireAuthProps = {
   children: ReactNode;
 };
 
 /**
- * RequireAuth — 路由级登录鉴权守卫。
+ * RequireAuth — 路由级登录鉴权守卫（K8-5-36-C 接入统一 AuthContext）。
  *
  * 行为：
- * - 调用 getAuthToken() 同步检查 localStorage 中的 token。
- * - 无 token → <Navigate to="/login?redirect=<当前路径>" replace />
- * - 有 token → 渲染 children。
+ *   - isAuthReady 为 false（bootstrap 未完成）→ 显示 loading
+ *   - isAuthReady 为 true && isAuthenticated 为 false → 跳转 /?auth=login&redirect=<当前路径>
+ *   - isAuthenticated 为 true → 渲染 children
  *
- * 不做：
- * - 不弹 AuthDialog（AuthDialog 绑定 Navbar state）。
- * - 不修改 client.ts 401 逻辑。
- * - 不做 token 过期校验（token 过期由后端 401 驱动，归 E 阶段）。
+ * 不再直接读 localStorage token。
+ * 不再跳转到 /login（旧独立 LoginPage）。
  */
 export function RequireAuth({ children }: RequireAuthProps) {
   const location = useLocation();
-  const token = getAuthToken();
+  const { isAuthenticated, isAuthReady } = useAuth();
 
-  if (!token) {
+  if (!isAuthReady) {
+    return <PageLoading message="正在验证登录状态…" />;
+  }
+
+  if (!isAuthenticated) {
     const redirect = encodeURIComponent(location.pathname + location.search);
-    return <Navigate to={`/login?redirect=${redirect}`} replace />;
+    return <Navigate to={`/?auth=login&redirect=${redirect}`} replace />;
   }
 
   return <>{children}</>;

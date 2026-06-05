@@ -256,50 +256,43 @@ restart-soft: ensure-env ## 同 restart（软重启）
 	@sleep 1
 	@$(MAKE) up
 
-reset: ## ⚠️ 危险：停止并清空 volume，需要 CONFIRM=yes
-	@if [ "$(CONFIRM)" != "yes" ]; then \
-		echo ""; \
-		echo "[ERROR] This command will remove development volumes (including MySQL data)."; \
-		echo "        Re-run with: make reset CONFIRM=yes"; \
-		echo ""; \
-		exit 1; \
-	fi
-	@echo "[Offerr鹅] Resetting (removing volumes)..."
+# Internal: shared reset steps (stop all services + remove volumes + clean)
+define _reset_core
 	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/infra.sh down
 	@docker compose down -v
 	@$(DEV_SCRIPT)/clean.sh clean
+endef
+
+# Internal: guard dangerous operations requiring CONFIRM=yes
+_require_confirm = \
+	@if [ "$(CONFIRM)" != "yes" ]; then \
+		echo ""; \
+		echo "[ERROR] This command will remove development volumes (including MySQL data)."; \
+		echo "        Re-run with: make $@ CONFIRM=yes"; \
+		echo ""; \
+		exit 1; \
+	fi
+
+reset: ## ⚠️ 危险：停止并清空 volume，需要 CONFIRM=yes
+	$(_require_confirm)
+	@echo "[Offerr鹅] Resetting (removing volumes)..."
+	$(_reset_core)
 	@echo ""
 	@echo "[OK] Services stopped and volumes removed."
 	@echo "[INFO] Run 'make up' to start fresh, or 'make reset-up CONFIRM=yes' to reset and start."
 
 reset-up: ensure-env ## ⚠️ 危险：清空 volume 后重启，需要 CONFIRM=yes
-	@if [ "$(CONFIRM)" != "yes" ]; then \
-		echo ""; \
-		echo "[ERROR] This command will remove development volumes (including MySQL data)."; \
-		echo "        Re-run with: make reset-up CONFIRM=yes"; \
-		echo ""; \
-		exit 1; \
-	fi
+	$(_require_confirm)
 	@echo "[Offerr鹅] Reset and restart (removing volumes)..."
-	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
-	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true
-	@$(DEV_SCRIPT)/infra.sh down
-	@docker compose down -v
-	@$(DEV_SCRIPT)/clean.sh clean
+	$(_reset_core)
 	@echo ""
 	@echo "[OK] Volumes removed. Starting fresh..."
 	@$(MAKE) up
 
-rebuild: ## ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes
-	@if [ "$(CONFIRM)" != "yes" ]; then \
-		echo ""; \
-		echo "[ERROR] This command will reset local development environment."; \
-		echo "        Re-run with: make rebuild CONFIRM=yes"; \
-		echo ""; \
-		exit 1; \
-	fi
+rebuild: ensure-env ## ⚠️ 危险：清理运行态并重建，需要 CONFIRM=yes
+	$(_require_confirm)
 	@echo "[Offerr鹅] Rebuilding..."
 	@$(DEV_SCRIPT)/backend.sh stop 2>/dev/null || true
 	@$(DEV_SCRIPT)/web.sh stop 2>/dev/null || true

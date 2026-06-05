@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { login, register } from "../../../api/auth";
-import { setAuthToken } from "../../../api/authStorage";
+import { useAuth } from "../../../stores/authStore";
 import type { LoginRequest, RegisterRequest } from "../../../types/auth";
 import { Dialog, DialogPortal, DialogOverlay } from "../ui/dialog";
 import { Input } from "../ui/input";
@@ -32,6 +32,7 @@ export function AuthDialog({
   onLoginSuccess,
 }: AuthDialogProps) {
   const [mode, setMode] = useState<AuthDialogMode>(defaultMode);
+  const { setAuthenticated } = useAuth();
 
   // ── Login fields ──
   const [loginPhone, setLoginPhone] = useState("");
@@ -72,7 +73,7 @@ export function AuthDialog({
     try {
       const input: LoginRequest = { phone, password: loginPassword };
       const res = await login(input);
-      setAuthToken(res.token);
+      setAuthenticated(res.token, res.user);
       onLoginSuccess?.();
       onOpenChange(false);
     } catch (err: unknown) {
@@ -89,7 +90,7 @@ export function AuthDialog({
     setDemoLoading(true);
     try {
       const res = await login({ phone: "13900139000", password: "123456" });
-      setAuthToken(res.token);
+      setAuthenticated(res.token, res.user);
       onLoginSuccess?.();
       onOpenChange(false);
     } catch (err: unknown) {
@@ -115,7 +116,7 @@ export function AuthDialog({
     try {
       const input: RegisterRequest = { phone, password: regPassword };
       const res = await register(input);
-      setAuthToken(res.token);
+      setAuthenticated(res.token, res.user);
       onLoginSuccess?.();
       onOpenChange(false);
     } catch (err: unknown) {

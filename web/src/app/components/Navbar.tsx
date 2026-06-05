@@ -1,32 +1,33 @@
 import { useState, useEffect, useRef } from "react";
 import { FileText, LogIn, LogOut } from "lucide-react";
-import { Link, useNavigate, useLocation } from "react-router";
-import { getAuthToken, clearAuthToken } from "../../api/authStorage";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router";
 import { logout } from "../../api/auth";
+import { useAuth } from "../../stores/authStore";
 import { AuthDialog } from "./auth/AuthDialog";
 
 export function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isAuthenticated, clearAuth } = useAuth();
   const [hidden, setHidden] = useState(false);
   const [isTop, setIsTop] = useState(true);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authDialogMode, setAuthDialogMode] = useState<"login" | "register">("login");
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
+  const redirectAfterLoginRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setIsLoggedIn(!!getAuthToken());
-  }, [location]);
-
-  // 监听 storage 变化（跨 tab 同步）
-  useEffect(() => {
-    function checkAuth() {
-      setIsLoggedIn(!!getAuthToken());
+    const auth = searchParams.get("auth");
+    if (auth === "login" || auth === "register") {
+      redirectAfterLoginRef.current = searchParams.get("redirect");
+      setAuthDialogMode(auth === "register" ? "register" : "login");
+      setAuthDialogOpen(true);
+      // 清理 URL 参数，避免刷新时反复触发
+      setSearchParams({}, { replace: true });
     }
-    window.addEventListener("storage", checkAuth);
-    return () => window.removeEventListener("storage", checkAuth);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 滚动隐藏 / 显示 + 顶部判定
   useEffect(() => {
@@ -54,13 +55,18 @@ export function Navbar() {
   }, []);
 
   const handleAuthSuccess = () => {
-    setIsLoggedIn(Boolean(getAuthToken()));
+    // AuthDialog 已调用 useAuth().setAuthenticated() 更新全局状态
+    // 此处仅处理 redirect 跳转
+    if (redirectAfterLoginRef.current) {
+      const target = redirectAfterLoginRef.current;
+      redirectAfterLoginRef.current = null;
+      navigate(target);
+    }
   };
 
   async function handleLogout() {
     try { await logout(); } catch (_) { /* ignore if API fails */ }
-    clearAuthToken();
-    setIsLoggedIn(false);
+    clearAuth();
     navigate("/");
   }
 
@@ -122,7 +128,7 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-5">
-          {isLoggedIn ? (
+          {isAuthenticated ? (
             <>
               <Link
                 to="/resumes"
@@ -142,7 +148,7 @@ export function Navbar() {
           ) : (
             <button
               type="button"
-              onClick={() => setAuthDialogOpen(true)}
+              onClick={() => { setAuthDialogMode("login"); setAuthDialogOpen(true); }}
               className={`inline-flex items-center gap-1.5 ${loginButtonClass}`}
             >
               <LogIn className="h-4 w-4" />
@@ -153,11 +159,11 @@ export function Navbar() {
       </div>
     </nav>
 
-    {/* K8-5-13-D：登录弹窗 */}
+    {/* K8-5-13-D：登录弹窗 — K8-5-36-A 支持 URL 参数驱动自动打开与 mode 切换 */}
     <AuthDialog
       open={authDialogOpen}
       onOpenChange={setAuthDialogOpen}
-      defaultMode="login"
+      defaultMode={authDialogMode}
       onLoginSuccess={handleAuthSuccess}
     />
     </>

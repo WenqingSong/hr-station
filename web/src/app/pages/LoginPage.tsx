@@ -1,123 +1,28 @@
-import { useState, useEffect, type FormEvent } from "react";
-import { Loader2 } from "lucide-react";
-import { Link, useNavigate, useLocation } from "react-router";
-import { login } from "../../api/auth";
-import { setAuthToken, getAuthToken } from "../../api/authStorage";
-import type { LoginRequest } from "../../types/auth";
-import { Input } from "../components/ui/input";
-import { PasswordInput } from "../components/ui/password-input";
+import { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 
-/** 安全读取 redirect 参数，只允许站内路径 */
-function getSafeRedirect(search: string): string {
-  const params = new URLSearchParams(search);
-  const redirect = params.get("redirect");
-  if (!redirect) return "/jobs";
-  if (!redirect.startsWith("/")) return "/jobs";
-  if (redirect.startsWith("//")) return "/jobs";
-  if (redirect.includes("://")) return "/jobs";
-  return redirect;
-}
-
+/**
+ * LoginPage — K8-5-36-A：已废弃独立登录表单，转为统一 AuthDialog 重定向。
+ *
+ * 本组件不再是用户可见的独立登录页面。
+ * 所有 /login 访问自动重定向到首页并触发统一登录弹窗：
+ *   /login                      → /?auth=login
+ *   /login?redirect=%2Fresumes  → /?auth=login&redirect=%2Fresumes
+ *
+ * 统一登录体验由 Navbar + AuthDialog 提供。
+ * "评委一键体验"保留在 AuthDialog 内。
+ */
 export function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const safeRedirect = getSafeRedirect(location.search);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    if (getAuthToken()) navigate(safeRedirect);
+    const redirect = searchParams.get("redirect");
+    const target = redirect
+      ? `/?auth=login&redirect=${encodeURIComponent(redirect)}`
+      : "/?auth=login";
+    navigate(target, { replace: true });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  // ── Demo reviewer one-click login ──
-  const [demoLoading, setDemoLoading] = useState(false);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-
-    if (!phone.trim()) { setError("请输入手机号"); return; }
-    if (!/^1[3-9]\d{9}$/.test(phone.trim())) { setError("手机号格式不正确"); return; }
-    if (!password) { setError("请输入密码"); return; }
-
-    setLoading(true);
-    try {
-      const input: LoginRequest = { phone: phone.trim(), password };
-      const response = await login(input);
-      setAuthToken(response.token);
-      navigate(safeRedirect);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "登录失败，请稍后重试";
-      if (msg.includes("手机号或密码错误") || msg.includes("401")) {
-        setError("手机号或密码错误");
-      } else {
-        setError("登录失败，请稍后重试");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ── Demo reviewer one-click login ──
-  // Uses the shared reviewer demo account: 13900139000 / 123456.
-  // Reuses the same login API, token storage, and redirect logic as normal login.
-  async function handleDemoLogin() {
-    setError("");
-    setDemoLoading(true);
-    try {
-      const res = await login({ phone: "13900139000", password: "123456" });
-      setAuthToken(res.token);
-      navigate(safeRedirect);
-    } catch (_err: unknown) {
-      setError("示范账号登录失败，请稍后重试");
-    } finally {
-      setDemoLoading(false);
-    }
-  }
-
-  return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-6 text-center text-xl font-semibold text-slate-900">登录 Offerr鹅</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="login-phone" className="mb-1 block text-sm font-medium text-slate-700">手机号</label>
-            <Input id="login-phone" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="请输入手机号" />
-          </div>
-          <div>
-            <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-slate-700">密码</label>
-            <PasswordInput id="login-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="请输入密码" />
-          </div>
-          {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">{error}</p>}
-          <button type="submit" disabled={loading || demoLoading} className="w-full rounded-md bg-[#0052D9] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#0043B3] disabled:cursor-not-allowed disabled:opacity-50">{loading ? "登录中…" : "登录"}</button>
-
-          {/* Demo reviewer one-click experience */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-              <div className="w-full border-t border-gray-200" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-3 text-xs text-gray-400">或</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            disabled={loading || demoLoading}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-md border-2 border-[#0052D9] bg-white text-sm font-medium text-[#0052D9] transition-all hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {demoLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {demoLoading ? "正在进入…" : "🎯 评委一键体验"}
-          </button>
-          <p className="text-center text-xs text-gray-400 -mt-1">
-            使用示范账号快速查看完整 Demo 数据
-          </p>
-        </form>
-        <p className="mt-4 text-center text-sm text-slate-500">还没有账号？ <Link to="/register" className="font-medium text-[#0052D9] hover:underline">注册</Link></p>
-      </div>
-    </div>
-  );
+  return null;
 }

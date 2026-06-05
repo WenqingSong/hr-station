@@ -110,9 +110,12 @@ export async function requestRaw<TData, TBody = unknown>(
   }
 
   if (!response.ok) {
-    // 401 统一清 token，但不跳转页面（路由跳转由 8-4 处理）
+    // 401 统一清 token + 通知 React 组件刷新登录态（K8-5-36-C）
     if (response.status === 401) {
       clearAuthToken();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("offerr-auth-expired"));
+      }
     }
     throw new ApiClientError(
       `HTTP ${response.status}: ${response.statusText}`,

@@ -11,6 +11,8 @@ import type { ResumeOptimizationPageViewModel, ResumeOptionViewModel } from "../
 import type { Resume } from "../../types";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
+import { PageLoading } from "../components/PageState";
+import { AIThinkingLoading } from "../components/common/AIThinkingLoading";
 
 /** 从 URL 查询参数中解析 resume versionNo（兼容 legacy resumeId=resume-vN） */
 function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
@@ -191,11 +193,7 @@ export function ResumeOptimizationPage() {
 
   // ── 空态：加载中 ──
   if (loadingJob || loadingOptions) {
-    return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center text-gray-400 text-sm">
-        正在加载岗位和简历信息…
-      </div>
-    );
+    return <PageLoading message="正在加载岗位和简历信息…" />;
   }
 
   // ── 空态：岗位加载失败 ──
@@ -222,11 +220,7 @@ export function ResumeOptimizationPage() {
 
   // ── 空态：版本详情加载中 ──
   if (loadingResumeDetail) {
-    return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center text-gray-400 text-sm">
-        正在加载简历版本详情…
-      </div>
-    );
+    return <PageLoading message="正在加载简历版本详情…" />;
   }
 
   // ── 空态：版本详情加载失败 ──
@@ -243,9 +237,11 @@ export function ResumeOptimizationPage() {
   // ── 加载优化结果 ──
   if (loadingOptimize) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center text-gray-400 text-sm">
-        正在生成简历优化建议…
-      </div>
+      <AIThinkingLoading
+        title="正在生成简历优化建议"
+        description="Offerr鹅正在分析简历表达、岗位要求和可补强内容。"
+        steps={["识别简历薄弱项", "匹配岗位筛选关注点", "生成可执行优化建议"]}
+      />
     );
   }
 

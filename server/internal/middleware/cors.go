@@ -75,5 +75,9 @@ func isAllowedOrigin(origin string) bool {
 	if origin == "http://localhost" || origin == "http://127.0.0.1" {
 		return true
 	}
+	// Allow CNB cloud development environment (*.cnb.run)
+	if strings.HasSuffix(origin, ".cnb.run") || strings.Contains(origin, ".cnb.run:") {
+		return true
+	}
 	return false
 }
