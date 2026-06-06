@@ -113,18 +113,26 @@ export interface EvidenceItem {
 
 // ─── 三类 Agent Result ─────────────────────────────────────────────────────────
 
-/** 推荐岗位项 */
+/** 推荐岗位项 — aligned with backend /api/jobs/recommend response */
 export interface RecommendedJobItem {
-  job_id: string;
-  job_title: string;
-  recommendation_level: string;
+  job_id: number;
+  title: string;
+  department?: string;
+  city?: string;
+  category?: string;
+  job_type?: string;
+
   recommendation_score?: number;
   recommendation_reason?: string;
-  match_keywords: string[];
-  location: string;
-  reason: string;
-  risk_tags: string[];
-  next_action: string;
+  match_highlights?: string[];
+  risk_points?: string[];
+  suggested_action?: string;
+
+  external_source?: string;
+  generated_by?: string;
+  agent_status?: string;
+  priority?: string;
+  is_featured?: boolean;
 }
 
 /** 岗位推荐 Agent Result */
