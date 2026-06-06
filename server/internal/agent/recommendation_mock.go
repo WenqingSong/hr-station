@@ -301,6 +301,16 @@ func extractJobTags(job *model.Job) jobTagProfile {
 		jp.tags.set("requires_engineering_ability", 3)
 		jp.tags.set("requires_modeling_ability", 0)
 		jp.tags.set("requires_research_ability", 0)
+		if matchAny(t, "云平台", "云服务", "云开发", "云", "paas", "容器") {
+			jp.tags.set("cloud_infrastructure", 2)
+		}
+	} else if matchAny(t, "产品经理", "产品策划", "产品运营", "用户研究", "运营", "增长", "项目管理") {
+		jp.tags.set("product_operation", 3)
+		jp.tags.set("requires_product_sense", 3)
+		jp.tags.set("requires_business_understanding", 2)
+		jp.tags.set("requires_communication", 2)
+		jp.tags.set("requires_modeling_ability", 0)
+		jp.tags.set("requires_research_ability", 0)
 	} else if matchAny(t, "解决方案", "行业咨询", "采购", "商务") {
 		jp.tags.set("solution_consulting", 3)
 		jp.tags.set("requires_business_understanding", 3)
@@ -317,11 +327,11 @@ func extractJobTags(job *model.Job) jobTagProfile {
 
 func tagMatrixScore(cTags tagSet, jTags tagSet) int {
 	score := 0
-	pairs := []struct {
+		pairs := []struct {
 		cTag, jTag string
 		weight     int
 	}{
-		// Strong
+		// K9-1-M: algorithm-domain pairs
 		{"recommendation_system", "recommendation_system", 18},
 		{"search_algorithm", "search_algorithm", 18},
 		{"nlp", "nlp", 18},
@@ -331,13 +341,25 @@ func tagMatrixScore(cTags tagSet, jTags tagSet) int {
 		{"research_ability", "technical_research", 14},
 		{"research_ability", "requires_research_ability", 12},
 		{"data_analysis_ability", "data_science", 12},
-		{"engineering_ability", "backend_service", 10},
+		// K9-1-M: backend-domain pairs (was too weak)
+		{"backend", "backend_service", 14},
+		{"engineering_ability", "backend_service", 12},
+		{"engineering_ability", "requires_engineering_ability", 14},
+		{"backend", "cloud_infrastructure", 10},
+		{"backend_service", "cloud_infrastructure", 10},
+		// K9-1-M: product/business pairs (new)
+		{"product", "product_operation", 14},
+		{"product_sense", "requires_product_sense", 14},
+		{"business_understanding", "requires_business_understanding", 12},
+		{"communication_ability", "requires_communication", 10},
+		{"business_understanding", "solution_consulting", 10},
 		// Medium
 		{"algorithm", "algorithm_core", 12},
 		{"data", "data_science", 10},
 		{"engineering_ability", "technical_research", 6},
 		{"modeling_ability", "machine_learning_platform", 8},
-		{"backend", "cloud_infrastructure", 6},
+		{"business_understanding", "business_function", 10},
+		{"business", "business_function", 12},
 		// Weak
 		{"engineering_ability", "client_development", 4},
 		{"algorithm", "backend_service", 2},
@@ -361,27 +383,47 @@ func tagMatrixScore(cTags tagSet, jTags tagSet) int {
 // ══════════════════════════════════════════════════════════════════════════
 
 func directionFit(profile string, jTags tagSet) string {
-	if jTags.has("algorithm_core", 2) || jTags.has("data_science", 2) || jTags.has("technical_research", 2) ||
-		jTags.has("nlp", 2) || jTags.has("multimodal", 2) || jTags.has("recommendation_system", 2) {
-		if profile == "algorithm_research" {
-			return "strong"
-		}
-		if profile == "backend_engineering" {
-			return "medium"
-		}
+	// K9-1-M: profile-aware direction matching
+	isAlgo := jTags.has("algorithm_core", 2) || jTags.has("data_science", 2) || jTags.has("technical_research", 2) ||
+		jTags.has("nlp", 2) || jTags.has("multimodal", 2) || jTags.has("recommendation_system", 2) ||
+		jTags.has("machine_learning_platform", 2)
+	isBackend := jTags.has("backend_service", 2) || jTags.has("cloud_infrastructure", 2)
+	isProduct := jTags.has("product_operation", 2) || jTags.has("requires_product_sense", 2)
+	isSolution := jTags.has("solution_consulting", 2) || jTags.has("business_function", 2) || jTags.has("supply_chain_business", 2)
+
+	// algorithm_research
+	if profile == "algorithm_research" {
+		if isAlgo { return "strong" }
+		if isBackend { return "weak" }
+		if isSolution { return "weak" }
+		return "medium"
 	}
-	if jTags.has("backend_service", 2) {
-		if profile == "backend_engineering" {
-			return "strong"
-		}
-		if profile == "algorithm_research" {
-			return "weak"
-		}
+	// backend_engineering
+	if profile == "backend_engineering" {
+		if isBackend { return "strong" }
+		if isAlgo { return "weak" }
+		if isSolution { return "weak" }
+		return "medium"
 	}
-	if jTags.has("solution_consulting", 2) {
-		if profile == "algorithm_research" || profile == "backend_engineering" {
-			return "weak"
-		}
+	// product_operation
+	if profile == "product_operation" {
+		if isProduct { return "strong" }
+		if isSolution { return "medium" }
+		if isAlgo || isBackend { return "weak" }
+		return "medium"
+	}
+	// business_solution
+	if profile == "business_solution" {
+		if isSolution { return "strong" }
+		if isProduct { return "medium" }
+		if isAlgo || isBackend { return "weak" }
+		return "medium"
+	}
+	// career_exploration / default
+	if profile == "career_exploration" {
+		if isAlgo || isBackend { return "weak" }
+		if isProduct || isSolution { return "medium" }
+		return "medium"
 	}
 	return "medium"
 }
@@ -414,14 +456,41 @@ func riskLevel(dirFit string, tFit string, tagScore int) string {
 // ══════════════════════════════════════════════════════════════════════════
 
 func recommendationLabelV2(score int, dirFit, tFit, risk string, profile string, jTags tagSet) (string, string) {
-	// Hard constraint: algorithm_research + backend_service cannot be strong
-	if profile == "algorithm_research" && jTags.has("backend_service", 2) {
-		if score >= 70 {
-			return "可尝试，需要补强", "try"
-		}
+	isAlgo := jTags.has("algorithm_core", 2) || jTags.has("data_science", 2) || jTags.has("nlp", 2) || jTags.has("multimodal", 2)
+	isBackend := jTags.has("backend_service", 2)
+	isSolution := jTags.has("solution_consulting", 2)
+
+	// K9-1-M: hard guard — algorithm_research + backend cannot be strong/high
+	if profile == "algorithm_research" && isBackend {
+		if score >= 70 { return "可尝试，需要补强", "try" }
 		return "备选参考，不建议优先", "backup"
 	}
-	if profile == "algorithm_research" && jTags.has("solution_consulting", 2) {
+	if profile == "algorithm_research" && isSolution {
+		return "备选参考，不建议优先", "backup"
+	}
+
+	// K9-1-M: hard guard — backend_engineering + pure algorithm cannot be strong/high
+	if profile == "backend_engineering" && isAlgo {
+		if score >= 75 { return "可尝试，需要补强", "try" }
+		return "备选参考，不建议优先", "backup"
+	}
+
+	// K9-1-M: hard guard — product_operation + algorithm/backend cannot be strong/high
+	if profile == "product_operation" && (isAlgo || isBackend) {
+		if score >= 70 { return "可尝试，需要补强", "try" }
+		return "备选参考，不建议优先", "backup"
+	}
+
+	// K9-1-M: hard guard — business_solution + algorithm/backend capped at backup
+	if profile == "business_solution" && (isAlgo || isBackend) {
+		return "备选参考，不建议优先", "backup"
+	}
+
+	// K9-1-M: career_exploration — very conservative
+	if profile == "career_exploration" {
+		if isAlgo || isBackend { return "备选参考，不建议优先", "backup" }
+		if score >= 80 { return "高匹配，重点关注", "high" }
+		if score >= 70 { return "可尝试，需要补强", "try" }
 		return "备选参考，不建议优先", "backup"
 	}
 
@@ -482,8 +551,28 @@ func scoreAllJobs(cp *candidateTagProfile, jobs []*model.Job, qualityMode bool) 
 		if dirF == "weak" && score > 78 {
 			score = 78
 		}
-		if cp.dominantProfile == "algorithm_research" && jp.tags.has("backend_service", 2) && score > 74 {
-			score = 74
+
+		// K9-1-M: profile-aware score caps
+		isAlgoJob := jp.tags.has("algorithm_core", 2) || jp.tags.has("data_science", 2)
+		isBackendJob := jp.tags.has("backend_service", 2)
+
+		switch cp.dominantProfile {
+		case "algorithm_research":
+			if isBackendJob && score > 74 { score = 74 }
+		case "backend_engineering":
+			if isAlgoJob && score > 74 { score = 74 }
+		case "product_operation":
+			if isAlgoJob || isBackendJob {
+				if score > 69 { score = 69 }
+			}
+		case "business_solution":
+			if isAlgoJob || isBackendJob {
+				if score > 69 { score = 69 }
+			}
+		case "career_exploration":
+			if isAlgoJob || isBackendJob {
+				if score > 74 { score = 74 }
+			}
 		}
 
 		if score > 95 {
@@ -512,15 +601,23 @@ func scoreAllJobs(cp *candidateTagProfile, jobs []*model.Job, qualityMode bool) 
 			scored[i].score = 95
 		}
 	}
+	// K9-1-M: profile-aware tie-break
 	sort.Slice(scored, func(i, j int) bool {
 		if scored[i].score != scored[j].score {
 			return scored[i].score > scored[j].score
 		}
-		// Tie-break: algorithm jobs first for algorithm_research
-		aAlg := scored[i].jp.tags.has("algorithm_core", 2)
-		bAlg := scored[j].jp.tags.has("algorithm_core", 2)
-		if aAlg && !bAlg { return true }
-		if !aAlg && bAlg { return false }
+		aiAlgo := scored[i].jp.tags.has("algorithm_core", 2)
+		ajAlgo := scored[j].jp.tags.has("algorithm_core", 2)
+		aiBack := scored[i].jp.tags.has("backend_service", 2)
+		ajBack := scored[j].jp.tags.has("backend_service", 2)
+		switch cp.dominantProfile {
+		case "algorithm_research":
+			if aiAlgo && !ajAlgo { return true }
+			if !aiAlgo && ajAlgo { return false }
+		case "backend_engineering":
+			if aiBack && !ajBack { return true }
+			if !aiBack && ajBack { return false }
+		}
 		return scored[i].score > scored[j].score
 	})
 
@@ -797,10 +894,24 @@ func buildProfileFromStored(resume *model.ResumeVersion, dominant string, candTa
 	cp.internText = strings.ToLower(internshipsText(resume))
 	cp.schoolLevel = 1
 	cp.degreeLevel = 1
-	// Override with profile-determined dominant
+	// K9-1-M: Override tags based on profile-determined dominant
 	if dominant == "algorithm_research" {
 		cp.tags.set("algorithm", maxOf(cp.tags.get("algorithm"), 2))
 		cp.tags.set("research_ability", maxOf(cp.tags.get("research_ability"), 2))
+	}
+	if dominant == "backend_engineering" {
+		cp.tags.set("backend", maxOf(cp.tags.get("backend"), 2))
+		cp.tags.set("engineering_ability", maxOf(cp.tags.get("engineering_ability"), 2))
+	}
+	if dominant == "product_operation" {
+		cp.tags.set("product", maxOf(cp.tags.get("product"), 2))
+		cp.tags.set("product_sense", maxOf(cp.tags.get("product_sense"), 2))
+		cp.tags.set("business_understanding", maxOf(cp.tags.get("business_understanding"), 2))
+	}
+	if dominant == "business_solution" {
+		cp.tags.set("business", maxOf(cp.tags.get("business"), 2))
+		cp.tags.set("business_understanding", maxOf(cp.tags.get("business_understanding"), 2))
+		cp.tags.set("communication_ability", maxOf(cp.tags.get("communication_ability"), 2))
 	}
 	return cp
 }
