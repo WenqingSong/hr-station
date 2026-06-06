@@ -30,6 +30,8 @@ type RecommendationResponse struct {
 	Summary         string                        `json:"summary"`
 	CreatedAt       string                        `json:"created_at"`
 	Meta            model.AgentResponseMeta       `json:"meta"`
+	PipelineMode    string                        `json:"pipeline_mode,omitempty"`
+	JudgeResult     *model.RecommendationJudgeResult `json:"judge_result,omitempty"`
 }
 
 // RecommendationBusinessResult wraps the business result for recommendation.
@@ -124,11 +126,12 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 		log.Printf("[RecommendationService] LLM pipeline fallback: %v", fallbackErr)
 
 		// Fall back to Mock Agent
-		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr)
+		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, false)
 	}
 
 	// LLM disabled — use Mock Agent directly
-	return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, nil)
+	qualityMode := req.GenerationTier == model.GenerationTierQuality
+	return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, nil, qualityMode)
 }
 
 // getResume retrieves the resume version based on the request.
@@ -233,22 +236,31 @@ func (s *RecommendationService) recommendWithLLM(ctx context.Context, userID uin
 }
 
 // recommendWithMock calls the Mock Agent and builds the response.
-// If fbErr is non-nil, it means we're in fallback mode from a failed LLM attempt.
-func (s *RecommendationService) recommendWithMock(ctx context.Context, userID uint64, resume *model.ResumeVersion, jobs []*model.Job, limit int, fbErr *agent.RecFallbackError) (*RecommendationResponse, error) {
-	recommendedJobs, err := s.mockAgent.Recommend(ctx, resume, jobs)
+func (s *RecommendationService) recommendWithMock(ctx context.Context, userID uint64, resume *model.ResumeVersion, jobs []*model.Job, limit int, fbErr *agent.RecFallbackError, qualityMode bool) (*RecommendationResponse, error) {
+	var recommendedJobs []model.RecommendedJob
+	var err error
+
+	if qualityMode {
+		recommendedJobs, err = s.mockAgent.RecommendQuality(ctx, resume, jobs)
+	} else {
+		recommendedJobs, err = s.mockAgent.Recommend(ctx, resume, jobs)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate recommendations: %w", err)
 	}
 
-	// Apply limit
 	if len(recommendedJobs) > limit {
 		recommendedJobs = recommendedJobs[:limit]
 	}
 
-	// Set metadata for mock results
+	generatedBy := "mock_agent"
+	if qualityMode {
+		generatedBy = "mock_quality"
+	}
+
 	var meta model.AgentResponseMeta
 	for i := range recommendedJobs {
-		recommendedJobs[i].GeneratedBy = "mock_agent"
+		recommendedJobs[i].GeneratedBy = generatedBy
 		if fbErr != nil {
 			recommendedJobs[i].AgentStatus = "fallback"
 			recommendedJobs[i].FallbackReason = fbErr.FallbackReason
@@ -284,14 +296,20 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 
 	recResult := &RecommendationBusinessResult{RecommendedJobs: jobPtrs}
 
+	pipelineMode := "fast_rule"
+	if qualityMode {
+		pipelineMode = "quality_pipeline"
+	}
 	resp := &RecommendationResponse{
-		ResumeID: resume.ID,
+		ResumeID:        resume.ID,
 		GeneratedBy:     "mock_agent",
 		RecommendedJobs: jobPtrs,
 		Result:          recResult,
 		Summary:         summary,
 		CreatedAt:       now.Format("2006-01-02T15:04:05Z07:00"),
 		Meta:            meta,
+		PipelineMode:    pipelineMode,
+		JudgeResult:     &model.RecommendationJudgeResult{Pass: true, Severity: "pass", Issues: nil, FixStrategy: "none"},
 	}
 
 	// Save recommendation result snapshot

@@ -3,7 +3,6 @@ package model
 import "time"
 
 // RecommendationResult represents a saved recommendation snapshot.
-// Maps to the `recommendation_results` table in MySQL.
 type RecommendationResult struct {
 	ID         uint64
 	UserID     uint64
@@ -36,9 +35,14 @@ type RecommendedJob struct {
 	OfferGoSummary   string   `json:"offer_go_summary,omitempty"`
 	QuerySuggestions []string `json:"query_suggestions,omitempty"`
 
+	RecommendationLabel    string   `json:"recommendation_label,omitempty"`
+	RecommendationPriority string   `json:"recommendation_priority,omitempty"`
+
 	ApplyReadiness         string       `json:"apply_readiness,omitempty"`
 	OptimizationStopSignal string       `json:"optimization_stop_signal,omitempty"`
 	TopFixItems            []TopFixItem `json:"top_fix_items,omitempty"`
+
+	MatchEvidence []RecommendationEvidence `json:"match_evidence,omitempty"`
 
 	GeneratedBy    string `json:"generated_by,omitempty"`
 	AgentStatus    string `json:"agent_status,omitempty"`
@@ -46,3 +50,20 @@ type RecommendedJob struct {
 	FallbackReason string `json:"fallback_reason,omitempty"`
 	ErrorCode      string `json:"error_code,omitempty"`
 }
+
+// RecommendationEvidence represents match evidence for a single job.
+type RecommendationEvidence struct {
+	ResumeSignal   string `json:"resume_signal"`
+	JobRequirement string `json:"job_requirement"`
+	Strength       string `json:"strength"`
+	Explanation    string `json:"explanation"`
+}
+
+// RecommendationJudgeResult represents the result of the Judge layer.
+type RecommendationJudgeResult struct {
+	Pass        bool     `json:"pass"`
+	Severity    string   `json:"severity"`
+	Issues      []string `json:"issues"`
+	FixStrategy string   `json:"fix_strategy"`
+}
+

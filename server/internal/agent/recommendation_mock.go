@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,417 +9,792 @@ import (
 	"offer-catcher/server/internal/model"
 )
 
-// RecommendationMockAgent generates mock job recommendations using simple rule-based scoring.
-// It does NOT call any real LLM or read LLM_API_KEY.
 type RecommendationMockAgent struct{}
 
-// NewRecommendationMockAgent creates a new RecommendationMockAgent.
-func NewRecommendationMockAgent() *RecommendationMockAgent {
-	return &RecommendationMockAgent{}
+func NewRecommendationMockAgent() *RecommendationMockAgent { return &RecommendationMockAgent{} }
+
+// ══════════════════════════════════════════════════════════════════════════
+// Tag System
+// ══════════════════════════════════════════════════════════════════════════
+
+type tagSet map[string]int // tag → confidence (0-3)
+
+func (ts tagSet) get(t string) int { return ts[t] }
+func (ts tagSet) set(t string, v int) {
+	if v > ts[t] {
+		ts[t] = v
+	}
+}
+func (ts tagSet) has(t string, min int) bool { return ts[t] >= min }
+
+// ══════════════════════════════════════════════════════════════════════════
+// Candidate Tags
+// ══════════════════════════════════════════════════════════════════════════
+
+type candidateTagProfile struct {
+	tags           tagSet
+	dominantProfile string
+	primaryTags    []string
+	allText        string
+	eduText        string
+	projText       string
+	internText     string
+	skillsText     string
+	schoolLevel    int
+	degreeLevel    int
 }
 
-// Recommend generates mock recommendations based on the resume and available jobs.
-// It uses simple keyword matching rules to score and rank jobs.
-func (a *RecommendationMockAgent) Recommend(_ context.Context, resume *model.ResumeVersion, jobs []*model.Job) ([]model.RecommendedJob, error) {
-	type scoredJob struct {
-		job   *model.Job
-		score int
+func extractCandidateTags(resume *model.ResumeVersion) candidateTagProfile {
+	cp := candidateTagProfile{tags: make(tagSet)}
+	cp.skillsText = strings.ToLower(resume.ProfessionalSkills + " " + resume.AIApplication + " " + resume.AdditionalInfo)
+
+	// ── Education signals (high weight) ──
+	for _, edu := range resume.Educations {
+		txt := strings.ToLower(edu.School + " " + edu.Major + " " + edu.Department + " " +
+			edu.ResearchDirection + " " + edu.CoreCourses + " " + edu.PaperSummary + " " +
+			edu.Advisor + " " + edu.Lab)
+		cp.eduText += txt + " "
+		cp.tags.set("education_evidence", 3)
+		detectSchoolLevel(&cp, edu)
+		detectResearchDirection(&cp, edu)
+		detectDegreeLevel(&cp, edu)
 	}
 
-	var scored []scoredJob
+	// ── Project signals (high weight) ──
+	for _, proj := range resume.Projects {
+		txt := strings.ToLower(proj.Name + " " + proj.Role + " " + proj.Description)
+		cp.projText += txt + " "
+		cp.tags.set("project_evidence", 3)
+	}
+	detectModelingSignals(&cp, cp.projText)
+	detectExperimentSignals(&cp, cp.projText)
 
-	// Parse resume skills
-		resumeSkills := parseJSONStringArray(resume.SkillsJSON)
-	resumeSkillSet := toLowerSet(resumeSkills)
+	// ── Internship signals (high weight) ──
+	for _, intern := range resume.Internships {
+		txt := strings.ToLower(intern.Company + " " + intern.Position + " " + intern.Description)
+		cp.internText += txt + " "
+		cp.tags.set("internship_evidence", 3)
+	}
+	detectModelingSignals(&cp, cp.internText)
+	detectExperimentSignals(&cp, cp.internText)
 
-	// Try to build snapshot for richer content (V2 aware)
-	_, _ = normalizeResumeToSnapshot(resume) // best-effort, used by generateRisks/Highlights
+	// ── Paper/research signals ──
+	for _, edu := range resume.Educations {
+		if edu.PaperSummary != "" {
+			cp.tags.set("research_evidence", 3)
+			cp.tags.set("research_ability", maxOf(cp.tags.get("research_ability"), 2))
+		}
+	}
 
-	// Parse resume target info
-	targetCity := strings.ToLower(strings.TrimSpace(resume.TargetCity))
-	// K8-5-26-E: target_role may be empty; recommendation based on skills/experience/profile
-	targetRole := strings.ToLower(strings.TrimSpace(resume.TargetRole))
+	// ── Skill signals (low weight - only skills list) ──
+	detectCapabilityFromSkills(&cp, cp.skillsText)
+	detectDomainFromSkills(&cp, cp.skillsText)
 
+	// ── Full text ──
+	cp.allText = strings.ToLower(cp.eduText + " " + cp.projText + " " + cp.internText + " " +
+		cp.skillsText + " " + strings.ToLower(resume.RawText))
+
+	// Direction tags from all text
+	detectAlgorithmDirection(&cp)
+	detectBackendDirection(&cp)
+
+	// ── Dominant profile ──
+	cp.dominantProfile = determineDominantProfile(cp.tags)
+	cp.primaryTags = topTags(cp.tags, 5)
+
+	return cp
+}
+
+func detectSchoolLevel(cp *candidateTagProfile, edu model.ResumeEducation) {
+	s := strings.ToLower(edu.School)
+	if matchAny(s, "清华", "北大", "浙江大学", "上海交通", "哈工大", "中国科大") {
+		cp.schoolLevel = 2
+		cp.tags.set("education_evidence", 3)
+	} else if strings.Contains(s, "大学") && cp.schoolLevel < 1 {
+		cp.schoolLevel = 1
+	}
+}
+
+func detectDegreeLevel(cp *candidateTagProfile, edu model.ResumeEducation) {
+	d := strings.ToLower(edu.Degree)
+	if strings.Contains(d, "博士") {
+		cp.degreeLevel = 3
+	} else if strings.Contains(d, "硕士") && cp.degreeLevel < 2 {
+		cp.degreeLevel = 2
+	} else if strings.Contains(d, "本科") && cp.degreeLevel < 1 {
+		cp.degreeLevel = 1
+	}
+}
+
+func detectResearchDirection(cp *candidateTagProfile, edu model.ResumeEducation) {
+	rd := strings.ToLower(edu.ResearchDirection)
+	if rd == "" {
+		return
+	}
+	// High-confidence research signals
+	if matchAny(rd, "推荐系统", "搜索推荐", "推荐", "information retrieval") {
+		cp.tags.set("recommendation_system", 3)
+		cp.tags.set("research_ability", 3)
+		cp.tags.set("research_evidence", 3)
+	}
+	if matchAny(rd, "用户行为建模", "用户行为") {
+		cp.tags.set("modeling_ability", clampMin(cp.tags.get("modeling_ability")+1, 2))
+	}
+	if matchAny(rd, "表示学习", "embedding", "向量检索") {
+		cp.tags.set("modeling_ability", clampMin(cp.tags.get("modeling_ability")+1, 2))
+	}
+	if matchAny(rd, "nlp", "自然语言", "语言处理") {
+		cp.tags.set("nlp", 3)
+		cp.tags.set("research_ability", 2)
+	}
+	if matchAny(rd, "多模态", "multimodal", "计算机视觉", "cv", "视觉") {
+		cp.tags.set("multimodal", clampMin(cp.tags.get("multimodal")+1, 2))
+		cp.tags.set("research_ability", clampMin(cp.tags.get("research_ability")+1, 2))
+	}
+	if matchAny(rd, "数据挖掘", "data mining", "大数据", "spark", "hive", "数据分析") {
+		cp.tags.set("data", 2)
+		cp.tags.set("data_analysis_ability", 2)
+	}
+}
+
+func detectModelingSignals(cp *candidateTagProfile, text string) {
+	signals := []string{"pytorch", "tensorflow", "深度学习", "deep learning", "ctr", "排序模型",
+		"embedding", "attention", "transformer", "模型训练", "模型优化", "neural network"}
+	for _, s := range signals {
+		if strings.Contains(text, s) {
+			cp.tags.set("modeling_ability", clampMin(cp.tags.get("modeling_ability")+1, 2))
+			cp.tags.set("algorithm", clampMin(cp.tags.get("algorithm")+1, 2))
+		}
+	}
+}
+
+func detectExperimentSignals(cp *candidateTagProfile, text string) {
+	signals := []string{"auc", "ndcg", "recall", "precision", "消融实验", "实验复现",
+		"实验评估", "指标对比", "离线评估", "ablation", "benchmark", "实验平台"}
+	for _, s := range signals {
+		if strings.Contains(text, s) {
+			cp.tags.set("experiment_ability", clampMin(cp.tags.get("experiment_ability")+1, 2))
+			cp.tags.set("research_ability", clampMin(cp.tags.get("research_ability")+1, 2))
+		}
+	}
+}
+
+func detectAlgorithmDirection(cp *candidateTagProfile) {
+	kws := []string{"算法", "机器学习", "深度学习", "推荐系统", "搜索推荐", "ctr", "排序模型",
+		"nlp", "自然语言处理", "多模态", "计算机视觉", "cv", "数据挖掘",
+		"表示学习", "用户行为建模", "pytorch", "tensorflow", "faiss",
+		"spark", "hive", "auc", "ndcg", "recall", "embedding", "attention",
+		"特征工程", "数据科学", "大数据", "向量检索", "模型训练", "模型部署"}
+	for _, kw := range kws {
+		if strings.Contains(cp.allText, kw) {
+			cp.tags.set("algorithm", clampMin(cp.tags.get("algorithm")+1, 2))
+		}
+	}
+	if cp.tags.has("research_ability", 2) {
+		cp.tags.set("algorithm", clampMin(cp.tags.get("algorithm")+1, 2))
+	}
+	if cp.tags.has("modeling_ability", 2) {
+		cp.tags.set("algorithm", clampMin(cp.tags.get("algorithm")+1, 2))
+	}
+}
+
+func detectBackendDirection(cp *candidateTagProfile) {
+	kws := []string{"go", "java", "c++", "微服务", "mysql", "redis", "kafka",
+		"docker", "nginx", "接口", "权限", "分布式", "后端", "后台", "api", "服务端"}
+	for _, kw := range kws {
+		if strings.Contains(cp.allText, kw) {
+			cp.tags.set("backend", clampMin(cp.tags.get("backend")+1, 1))
+			cp.tags.set("engineering_ability", clampMin(cp.tags.get("engineering_ability")+1, 1))
+		}
+	}
+	// Boost if backend skills appear in projects
+	if strings.Contains(cp.projText, "go") || strings.Contains(cp.projText, "mysql") || strings.Contains(cp.projText, "redis") {
+		cp.tags.set("backend_service", clampMin(cp.tags.get("backend_service")+1, 2))
+	}
+}
+
+func detectCapabilityFromSkills(cp *candidateTagProfile, text string) {
+	engKws := []string{"go", "java", "c++", "python", "mysql", "redis", "docker", "nginx", "kafka", "linux", "git"}
+	for _, kw := range engKws {
+		if strings.Contains(text, kw) {
+			cp.tags.set("engineering_ability", clampMin(cp.tags.get("engineering_ability")+1, 1))
+		}
+	}
+	dataKws := []string{"sql", "spark", "hive", "pandas", "numpy", "数据分析", "数据清洗"}
+	for _, kw := range dataKws {
+		if strings.Contains(text, kw) {
+			cp.tags.set("data_analysis_ability", clampMin(cp.tags.get("data_analysis_ability")+1, 2))
+		}
+	}
+}
+
+func detectDomainFromSkills(cp *candidateTagProfile, text string) {
+	domains := map[string]string{
+		"pytorch": "machine_learning_platform", "tensorflow": "machine_learning_platform",
+		"faiss": "machine_learning_platform", "spark": "high_performance_computing",
+		"hive": "data_mining", "推荐系统": "recommendation_system",
+	}
+	for kw, tag := range domains {
+		if strings.Contains(text, kw) {
+			cp.tags.set(tag, 2)
+		}
+	}
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Dominant Profile
+// ══════════════════════════════════════════════════════════════════════════
+
+func determineDominantProfile(tags tagSet) string {
+	algoRes := tags.has("algorithm", 2) &&
+		(tags.has("research_ability", 2) || tags.has("experiment_ability", 2) || tags.has("modeling_ability", 2)) &&
+		(tags.has("recommendation_system", 2) || tags.has("nlp", 2) || tags.has("multimodal", 2) ||
+			tags.has("data_mining", 2) || tags.has("machine_learning_platform", 2))
+	if algoRes {
+		return "algorithm_research"
+	}
+
+	beEng := tags.has("backend", 2) && tags.has("engineering_ability", 2) && tags.has("backend_service", 2)
+	if beEng {
+		return "backend_engineering"
+	}
+
+	return "career_exploration"
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Job Tags
+// ══════════════════════════════════════════════════════════════════════════
+
+type jobTagProfile struct {
+	job  *model.Job
+	tags tagSet
+}
+
+func extractJobTags(job *model.Job) jobTagProfile {
+	jp := jobTagProfile{job: job, tags: make(tagSet)}
+	t := strings.ToLower(job.Title + " " + job.Category + " " + job.Department + " " +
+		job.Description + " " + job.Requirements)
+
+	// Direction detection (order matters - algorithm before backend)
+	if matchAny(t, "算法", "数据科学", "nlp", "自然语言", "多模态", "计算机视觉",
+		"推荐", "搜索", "数据挖掘", "ai", "模型", "深度学习", "机器学习") && !matchAny(t, "解决方案") {
+		jp.tags.set("algorithm_core", 3)
+		if matchAny(t, "nlp", "自然语言") {
+			jp.tags.set("nlp", 3)
+			jp.tags.set("requires_modeling_ability", 3)
+			jp.tags.set("requires_experiment_ability", 2)
+			jp.tags.set("requires_research_ability", 2)
+		}
+		if matchAny(t, "多模态", "视觉", "cv", "多媒体") && !matchAny(t, "多媒体处理方向", "多媒体") {
+			jp.tags.set("multimodal", 3)
+			jp.tags.set("requires_modeling_ability", 3)
+			jp.tags.set("requires_experiment_ability", 2)
+		}
+	} else if matchAny(t, "技术研究", "高性能计算", "hpc") {
+		jp.tags.set("technical_research", 3)
+		jp.tags.set("high_performance_computing", 3)
+		jp.tags.set("requires_research_ability", 3)
+		jp.tags.set("requires_engineering_ability", 2)
+	} else if matchAny(t, "后台", "后端", "服务端", "软件开发", "pc客户端", "客户端") {
+		jp.tags.set("backend_service", 3)
+		jp.tags.set("requires_engineering_ability", 3)
+		jp.tags.set("requires_modeling_ability", 0)
+		jp.tags.set("requires_research_ability", 0)
+	} else if matchAny(t, "解决方案", "行业咨询", "采购", "商务") {
+		jp.tags.set("solution_consulting", 3)
+		jp.tags.set("requires_business_understanding", 3)
+		jp.tags.set("requires_communication", 3)
+		jp.tags.set("requires_engineering_ability", 1)
+	}
+
+	return jp
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Tag Matrix Scoring
+// ══════════════════════════════════════════════════════════════════════════
+
+func tagMatrixScore(cTags tagSet, jTags tagSet) int {
+	score := 0
+	pairs := []struct {
+		cTag, jTag string
+		weight     int
+	}{
+		// Strong
+		{"recommendation_system", "recommendation_system", 18},
+		{"search_algorithm", "search_algorithm", 18},
+		{"nlp", "nlp", 18},
+		{"multimodal", "multimodal", 16},
+		{"modeling_ability", "requires_modeling_ability", 14},
+		{"experiment_ability", "requires_experiment_ability", 12},
+		{"research_ability", "technical_research", 14},
+		{"research_ability", "requires_research_ability", 12},
+		{"data_analysis_ability", "data_science", 12},
+		{"engineering_ability", "backend_service", 10},
+		// Medium
+		{"algorithm", "algorithm_core", 12},
+		{"data", "data_science", 10},
+		{"engineering_ability", "technical_research", 6},
+		{"modeling_ability", "machine_learning_platform", 8},
+		{"backend", "cloud_infrastructure", 6},
+		// Weak
+		{"engineering_ability", "client_development", 4},
+		{"algorithm", "backend_service", 2},
+	}
+	for _, p := range pairs {
+		cv := cTags.get(p.cTag)
+		jv := jTags.get(p.jTag)
+		if cv > 0 && jv > 0 {
+			mult := float64(cv+jv) / 6.0
+			if cv >= 2 && jv >= 2 {
+				mult = float64(cv+jv) / 5.0
+			}
+			score += int(float64(p.weight) * mult)
+		}
+	}
+	return score
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Direction Fit / Tag Fit / Risk Level
+// ══════════════════════════════════════════════════════════════════════════
+
+func directionFit(profile string, jTags tagSet) string {
+	if jTags.has("algorithm_core", 2) || jTags.has("data_science", 2) || jTags.has("technical_research", 2) ||
+		jTags.has("nlp", 2) || jTags.has("multimodal", 2) || jTags.has("recommendation_system", 2) {
+		if profile == "algorithm_research" {
+			return "strong"
+		}
+		if profile == "backend_engineering" {
+			return "medium"
+		}
+	}
+	if jTags.has("backend_service", 2) {
+		if profile == "backend_engineering" {
+			return "strong"
+		}
+		if profile == "algorithm_research" {
+			return "weak"
+		}
+	}
+	if jTags.has("solution_consulting", 2) {
+		if profile == "algorithm_research" || profile == "backend_engineering" {
+			return "weak"
+		}
+	}
+	return "medium"
+}
+
+func tagFit(tagScore int) string {
+	if tagScore >= 35 {
+		return "strong"
+	}
+	if tagScore >= 20 {
+		return "medium"
+	}
+	return "weak"
+}
+
+func riskLevel(dirFit string, tFit string, tagScore int) string {
+	if dirFit == "weak" && tFit == "weak" {
+		return "high"
+	}
+	if dirFit == "weak" || tFit == "weak" {
+		return "medium"
+	}
+	if tagScore <= 10 {
+		return "medium"
+	}
+	return "low"
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Label
+// ══════════════════════════════════════════════════════════════════════════
+
+func recommendationLabelV2(score int, dirFit, tFit, risk string, profile string, jTags tagSet) (string, string) {
+	// Hard constraint: algorithm_research + backend_service cannot be strong
+	if profile == "algorithm_research" && jTags.has("backend_service", 2) {
+		if score >= 70 {
+			return "可尝试，需要补强", "try"
+		}
+		return "备选参考，不建议优先", "backup"
+	}
+	if profile == "algorithm_research" && jTags.has("solution_consulting", 2) {
+		return "备选参考，不建议优先", "backup"
+	}
+
+	if score >= 90 && dirFit == "strong" && tFit == "strong" && risk != "high" {
+		return "强匹配，优先投递", "strong"
+	}
+	if score >= 80 && dirFit != "weak" && tFit != "weak" && risk != "high" {
+		return "高匹配，重点关注", "high"
+	}
+	if score >= 70 && dirFit != "conflict" {
+		return "可尝试，需要补强", "try"
+	}
+	if score >= 60 {
+		return "备选参考，不建议优先", "backup"
+	}
+	return "不推荐", "not_recommended"
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Scoring Engine
+// ══════════════════════════════════════════════════════════════════════════
+
+type scoredJobV2 struct {
+	job       *model.Job
+	jp        jobTagProfile
+	score     int
+	dirFit    string
+	tagFit    string
+	riskLevel string
+}
+
+func scoreAllJobs(cp *candidateTagProfile, jobs []*model.Job, qualityMode bool) []scoredJobV2 {
+	var scored []scoredJobV2
 	for _, job := range jobs {
-		score := 60 // base score
+		jp := extractJobTags(job)
+		tmScore := tagMatrixScore(cp.tags, jp.tags)
+		dirF := directionFit(cp.dominantProfile, jp.tags)
+		tF := tagFit(tmScore)
+		risk := riskLevel(dirF, tF, tmScore)
 
-		// City match (+5)
-		if targetCity != "" && strings.Contains(strings.ToLower(job.City), targetCity) {
+		score := 55 + tmScore
+		if cp.tags.has("project_evidence", 2) {
+			score += 6
+		}
+		if cp.tags.has("internship_evidence", 2) {
 			score += 5
 		}
-
-		// Category/role match (+5~+10)
-		jobCategoryLower := strings.ToLower(job.Category)
-		jobTitleLower := strings.ToLower(job.Title)
-		if targetRole != "" {
-			if containsAny(targetRole, jobCategoryLower, jobTitleLower) {
-				score += 10
-			}
-			// Check if target role keywords appear in category or title
-			roleKeywords := strings.Fields(targetRole)
-			for _, kw := range roleKeywords {
-				if len(kw) >= 2 && (strings.Contains(jobCategoryLower, kw) || strings.Contains(jobTitleLower, kw)) {
-					score += 5
-					break
-				}
-			}
-		}
-
-		// Skill overlap from skill_keywords_json (+5 per matched skill, max 20)
-		jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
-		jobSkillSet := toLowerSet(jobSkills)
-		overlap := 0
-		for skill := range resumeSkillSet {
-			if jobSkillSet[skill] {
-				overlap++
-			}
-		}
-		score += overlap * 5
-		if overlap > 4 {
-			score += 5 // bonus for high overlap
-		}
-
-		// JD keyword matching from description/requirements (+5 per match, max 20)
-		if job.Description != "" || job.Requirements != "" {
-			jobText := strings.ToLower(job.Description + " " + job.Requirements)
-			descMatches := 0
-			for skill := range resumeSkillSet {
-				if !jobSkillSet[skill] && strings.Contains(jobText, skill) {
-					descMatches++
-				}
-			}
-			score += min(20, descMatches*5)
-		}
-
-		// data_quality=full_jd bonus (+5)
-		if job.DataQuality == "full_jd" {
+		if cp.tags.has("research_evidence", 2) {
 			score += 5
 		}
-
-		// is_featured bonus (+5)
-		if job.IsFeatured {
-			score += 5
+		if cp.schoolLevel >= 2 {
+			score += 4
+		}
+		if cp.degreeLevel >= 2 {
+			score += 4
 		}
 
-		// summary_only penalty (-10)
-		if job.DataQuality == "summary_only" {
-			score -= 10
+		if dirF == "weak" && score > 78 {
+			score = 78
+		}
+		if cp.dominantProfile == "algorithm_research" && jp.tags.has("backend_service", 2) && score > 74 {
+			score = 74
 		}
 
-		// Cap at 95
 		if score > 95 {
 			score = 95
 		}
-		if score < 0 {
-			score = 0
+		if score < 55 {
+			score = 55
 		}
 
-		scored = append(scored, scoredJob{job: job, score: score})
+		scored = append(scored, scoredJobV2{job: job, jp: jp, score: score, dirFit: dirF, tagFit: tF, riskLevel: risk})
 	}
 
-	// Sort by score descending
 	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].score != scored[j].score {
+			return scored[i].score > scored[j].score
+		}
 		return scored[i].score > scored[j].score
 	})
 
-	// Take top 5 (or fewer if not enough jobs)
-	limit := 5
-	if len(scored) < limit {
-		limit = len(scored)
+	// Spread top positions
+	for i := range scored {
+		if i < 5 {
+			scored[i].score += (5 - i)
+		}
+		if scored[i].score > 95 {
+			scored[i].score = 95
+		}
+	}
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].score != scored[j].score {
+			return scored[i].score > scored[j].score
+		}
+		// Tie-break: algorithm jobs first for algorithm_research
+		aAlg := scored[i].jp.tags.has("algorithm_core", 2)
+		bAlg := scored[j].jp.tags.has("algorithm_core", 2)
+		if aAlg && !bAlg { return true }
+		if !aAlg && bAlg { return false }
+		return scored[i].score > scored[j].score
+	})
+
+	return scored
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Judge
+// ══════════════════════════════════════════════════════════════════════════
+
+func judgeRecommendationV2(cp *candidateTagProfile, ranked []scoredJobV2) model.RecommendationJudgeResult {
+	var issues []string
+
+	if len(ranked) == 0 {
+		return model.RecommendationJudgeResult{Pass: false, Severity: "major", Issues: []string{"empty"}, FixStrategy: "fallback"}
 	}
 
+	// Check top-1 direction for algorithm_research
+	if cp.dominantProfile == "algorithm_research" {
+		if ranked[0].jp.tags.has("backend_service", 2) || ranked[0].jp.tags.has("solution_consulting", 2) {
+			issues = append(issues, "top-1 is backend/business despite algorithm_research profile")
+		}
+		algoCount := 0
+		for i := 0; i < min(3, len(ranked)); i++ {
+			if ranked[i].jp.tags.has("algorithm_core", 2) || ranked[i].jp.tags.has("data_science", 2) ||
+				ranked[i].jp.tags.has("nlp", 2) || ranked[i].jp.tags.has("multimodal", 2) ||
+				ranked[i].jp.tags.has("technical_research", 2) {
+				algoCount++
+			}
+		}
+		if algoCount < 2 {
+			issues = append(issues, fmt.Sprintf("top-3 only %d algorithm/research jobs", algoCount))
+		}
+	}
+
+	// Check score homogeneity
+	allSame := true
+	for i := 1; i < len(ranked); i++ {
+		if ranked[i].score != ranked[0].score {
+			allSame = false
+			break
+		}
+	}
+	if allSame {
+		issues = append(issues, "all scores identical")
+	}
+
+	if len(issues) > 0 {
+		return model.RecommendationJudgeResult{
+			Pass: false, Severity: "major", Issues: issues, FixStrategy: "rerank",
+		}
+	}
+	return model.RecommendationJudgeResult{Pass: true, Severity: "pass", FixStrategy: "none"}
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Content Generators
+// ══════════════════════════════════════════════════════════════════════════
+
+func buildReasonV2(cp *candidateTagProfile, sj scoredJobV2) string {
+	dp := cp.dominantProfile
+	if sj.dirFit == "strong" {
+		return fmt.Sprintf("你的%s画像与该岗位高度匹配，技能积累和项目经验可直接复用。", profileLabel(dp))
+	}
+	if sj.dirFit == "medium" {
+		return fmt.Sprintf("你的%s背景与%s岗位有一定关联，技能可部分迁移。", profileLabel(dp), sj.job.Category)
+	}
+	if dp == "algorithm_research" && sj.jp.tags.has("backend_service", 2) {
+		return fmt.Sprintf("你具备工程基础，但当前简历主线更偏算法研究，该后台开发岗位适合作为备选方向了解。")
+	}
+	return fmt.Sprintf("该岗位可作为求职参考，建议查看岗位要求进一步评估匹配度。")
+}
+
+func buildHighlightsV2(cp *candidateTagProfile, sj scoredJobV2) []string {
+	var h []string
+	if sj.dirFit == "strong" {
+		h = append(h, "岗位方向与你的核心技能方向高度一致")
+	} else {
+		h = append(h, "岗位方向与简历背景存在部分交集")
+	}
+	if sj.tagFit == "strong" {
+		h = append(h, "标签匹配度较高")
+	}
+	if cp.tags.has("research_ability", 2) && sj.jp.tags.has("algorithm_core", 2) {
+		h = append(h, "研究能力与该岗位要求匹配")
+	}
+	if cp.tags.has("experiment_ability", 2) {
+		h = append(h, "具备实验复现和模型评估经验")
+	}
+	if cp.degreeLevel >= 2 {
+		h = append(h, fmt.Sprintf("学历背景（%s）有竞争力", degreeLabel(cp.degreeLevel)))
+	}
+	if len(h) < 2 {
+		h = append(h, "建议进一步查看岗位描述以确认匹配度")
+	}
+	return h[:min(3, len(h))]
+}
+
+func buildRisksV2(cp *candidateTagProfile, sj scoredJobV2) []string {
+	var r []string
+	if sj.dirFit == "weak" && cp.dominantProfile == "algorithm_research" && sj.jp.tags.has("backend_service", 2) {
+		r = append(r, "岗位偏后台开发方向，与你的算法研究主线差距较大")
+	} else if sj.dirFit == "weak" {
+		r = append(r, fmt.Sprintf("岗位核心方向与你的主要技能方向不完全一致"))
+	}
+	if cp.dominantProfile == "algorithm_research" && sj.jp.tags.has("backend_service", 2) {
+		r = append(r, "简历中缺少完整后端业务系统项目和生产环境性能优化证据")
+	}
+	if len(r) == 0 {
+		r = append(r, "建议补充与该岗位要求更匹配的项目细节")
+	}
+	return r
+}
+
+func buildActionV2(cp *candidateTagProfile, sj scoredJobV2) string {
+	if sj.score >= 80 && sj.dirFit == "strong" {
+		return fmt.Sprintf("建议优先查看岗位详情并进行匹配分析。%s方向是你的强项。", sj.job.Category)
+	}
+	if sj.dirFit == "weak" && cp.dominantProfile == "algorithm_research" {
+		return fmt.Sprintf("该岗位属于%s方向，与你的主业不同。建议优先寻找算法/数据科学方向岗位。", sj.job.Category)
+	}
+	if sj.score >= 70 {
+		return fmt.Sprintf("建议关注该岗位并针对性补充相关技能储备。")
+	}
+	return "建议先查看岗位详情，了解具体要求后再判断是否适合投递。"
+}
+
+func buildEvidenceV2(cp *candidateTagProfile, sj scoredJobV2) []model.RecommendationEvidence {
+	var ev []model.RecommendationEvidence
+	if cp.tags.has("modeling_ability", 2) && sj.jp.tags.has("requires_modeling_ability", 2) {
+		ev = append(ev, model.RecommendationEvidence{ResumeSignal: "建模能力", JobRequirement: "岗位要求建模能力", Strength: "strong", Explanation: "简历中有PyTorch和深度学习项目经验"})
+	}
+	if cp.tags.has("experiment_ability", 2) && sj.jp.tags.has("requires_experiment_ability", 2) {
+		ev = append(ev, model.RecommendationEvidence{ResumeSignal: "实验能力", JobRequirement: "岗位要求实验评估能力", Strength: "strong", Explanation: "简历中有AUC/NDCG/消融实验等实验经验"})
+	}
+	if cp.tags.has("research_ability", 2) {
+		ev = append(ev, model.RecommendationEvidence{ResumeSignal: "研究能力", JobRequirement: "岗位要求研究能力", Strength: "medium", Explanation: "简历中有研究方向和论文成果"})
+	}
+	if cp.degreeLevel >= 2 {
+		ev = append(ev, model.RecommendationEvidence{ResumeSignal: fmt.Sprintf("学历：%s", degreeLabel(cp.degreeLevel)), JobRequirement: "岗位要求较强理论基础", Strength: "medium", Explanation: "研究生学历表明具备深入研究能力"})
+	}
+	return ev
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Build
+// ══════════════════════════════════════════════════════════════════════════
+
+func buildResultsV2(cp *candidateTagProfile, ranked []scoredJobV2, limit int) []model.RecommendedJob {
 	var results []model.RecommendedJob
-	for i := 0; i < limit; i++ {
-		sj := scored[i]
-		priority := getPriority(sj.score)
-		reason := generateReason(resume, sj.job, sj.score)
-		highlights := generateHighlights(resume, sj.job, resumeSkills, parseJSONStringArray(sj.job.SkillKeywordsJSON))
-		risks := generateRisks(resume, sj.job, resumeSkills, parseJSONStringArray(sj.job.SkillKeywordsJSON))
-		action := generateAction(sj.job, priority)
-		applyReadiness, stopSignal := determineRecApplyReadiness(sj.score, sj.job)
-		topFixItems := generateRecTopFixItems(resume, sj.job, applyReadiness)
+	for i := 0; i < min(limit, len(ranked)); i++ {
+		sj := ranked[i]
+		label, priority := recommendationLabelV2(sj.score, sj.dirFit, sj.tagFit, sj.riskLevel, cp.dominantProfile, sj.jp.tags)
+		reason := buildReasonV2(cp, sj)
+		highlights := buildHighlightsV2(cp, sj)
+		risks := buildRisksV2(cp, sj)
+		action := buildActionV2(cp, sj)
+		ev := buildEvidenceV2(cp, sj)
 
 		results = append(results, model.RecommendedJob{
-			JobID:                sj.job.ID,
-			Title:                sj.job.Title,
-			Department:           sj.job.Department,
-			City:                 sj.job.City,
-			Category:             sj.job.Category,
-			JobType:              sj.job.JobType,
-			Priority:             priority,
-			RecommendationScore:  sj.score,
-			RecommendationReason: reason,
-			MatchHighlights:      highlights,
-			RiskPoints:           risks,
-			SuggestedAction:      action,
-			ExternalSource:       sj.job.ExternalSource,
-			ExternalID:           sj.job.ExternalID,
-			DataQuality:          sj.job.DataQuality,
-			SourceURL:            sj.job.SourceURL,
-			IsFeatured:           sj.job.IsFeatured,
-			ApplyReadiness:       applyReadiness,
-			OptimizationStopSignal: stopSignal,
-			TopFixItems:          topFixItems,
+			JobID:                  sj.job.ID,
+			Title:                  sj.job.Title,
+			Department:             sj.job.Department,
+			City:                   sj.job.City,
+			Category:               sj.job.Category,
+			JobType:                sj.job.JobType,
+			Priority:               priority,
+			RecommendationScore:    sj.score,
+			RecommendationLabel:    label,
+			RecommendationPriority: priority,
+			RecommendationReason:   reason,
+			MatchHighlights:        highlights,
+			RiskPoints:             risks,
+			SuggestedAction:        action,
+			ExternalSource:         sj.job.ExternalSource,
+			ExternalID:             sj.job.ExternalID,
+			DataQuality:            sj.job.DataQuality,
+			SourceURL:              sj.job.SourceURL,
+			IsFeatured:             sj.job.IsFeatured,
+			ApplyReadiness:         getReadinessV2(sj.score),
+			OptimizationStopSignal: getStopSignalV2(sj.score),
+			MatchEvidence:          ev,
 		})
 	}
-
-	// Ensure at least 3 results if possible
-	if len(results) < 3 && len(scored) > len(results) {
-		// Already handled by limit above
-	}
-
-	return results, nil
+	return results
 }
 
-func getPriority(score int) string {
+func getReadinessV2(score int) string {
 	if score >= 80 {
-		return "strong_recommend"
-	}
-	if score >= 65 {
-		return "recommend"
-	}
-	return "try"
-}
-
-func generateReason(resume *model.ResumeVersion, job *model.Job, score int) string {
-	var parts []string
-
-	targetCity := strings.TrimSpace(resume.TargetCity)
-	targetRole := strings.TrimSpace(resume.TargetRole)
-
-	if targetCity != "" && job.City == targetCity {
-		parts = append(parts, fmt.Sprintf("目标城市与岗位城市一致（%s）", job.City))
-	}
-
-	if targetRole != "" {
-		jobLower := strings.ToLower(job.Category + " " + job.Title)
-		roleLower := strings.ToLower(targetRole)
-		if containsAny(roleLower, jobLower) {
-			parts = append(parts, fmt.Sprintf("目标岗位与该岗位的%s方向高度一致", job.Category))
-		}
-	}
-
-	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
-	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
-	resumeSkillSet := toLowerSet(resumeSkills)
-	jobSkillSet := toLowerSet(jobSkills)
-	overlap := 0
-	for skill := range resumeSkillSet {
-		if jobSkillSet[skill] {
-			overlap++
-		}
-	}
-
-	if overlap > 0 {
-		// Find top overlapping skills
-		var matched []string
-		for _, s := range resumeSkills {
-			if jobSkillSet[strings.ToLower(s)] {
-				matched = append(matched, s)
-			}
-			if len(matched) >= 3 {
-				break
-			}
-		}
-		parts = append(parts, fmt.Sprintf("技能中包含 %s 等关键词", strings.Join(matched, "、")))
-	}
-
-	if len(parts) == 0 {
-		if score >= 65 {
-			return fmt.Sprintf("你的简历与该岗位的%s方向有一定匹配度。", job.Category)
-		}
-		return fmt.Sprintf("该岗位属于%s方向，可作为求职参考。", job.Category)
-	}
-
-	return strings.Join(parts, "，且") + "。"
-}
-
-func generateHighlights(resume *model.ResumeVersion, job *model.Job, resumeSkills, jobSkills []string) []string {
-	var highlights []string
-
-	// City match
-	if strings.TrimSpace(resume.TargetCity) != "" && job.City == strings.TrimSpace(resume.TargetCity) {
-		highlights = append(highlights, "目标城市与简历 target_city 一致")
-	}
-
-	// Role match (K8-5-26-E: target_role optional)
-	targetRole := strings.TrimSpace(resume.TargetRole)
-	if targetRole != "" {
-		jobText := strings.ToLower(job.Category + " " + job.Title)
-		if containsAny(strings.ToLower(targetRole), jobText) {
-			highlights = append(highlights, "岗位方向与简历推断能力画像匹配")
-		}
-	}
-
-	// Skill overlap
-	jobSkillSet := toLowerSet(jobSkills)
-	var matchedSkills []string
-	for _, s := range resumeSkills {
-		if jobSkillSet[strings.ToLower(s)] {
-			matchedSkills = append(matchedSkills, s)
-		}
-	}
-	if len(matchedSkills) > 0 {
-		highlights = append(highlights, fmt.Sprintf("技能关键词与 JD 要求存在交集（%s）", strings.Join(matchedSkills[:min(3, len(matchedSkills))], "、")))
-	}
-
-	// Experience mention
-	if len(resume.ExperienceJSON) > 0 {
-		var experiences []map[string]interface{}
-		if json.Unmarshal(resume.ExperienceJSON, &experiences) == nil && len(experiences) > 0 {
-			highlights = append(highlights, "项目经历中包含相关实习或工作经验")
-		}
-	}
-
-	if len(highlights) == 0 {
-		highlights = append(highlights, "岗位方向与简历能力画像匹配")
-	}
-
-	return highlights
-}
-
-func generateRisks(resume *model.ResumeVersion, job *model.Job, resumeSkills, jobSkills []string) []string {
-	var risks []string
-
-	resumeSkillSet := toLowerSet(resumeSkills)
-
-	// Find missing skills
-	var missing []string
-	for _, s := range jobSkills {
-		if !resumeSkillSet[strings.ToLower(s)] {
-			missing = append(missing, s)
-		}
-	}
-	if len(missing) > 0 {
-		top := missing[:min(2, len(missing))]
-		risks = append(risks, fmt.Sprintf("%s 经验表达仍可进一步强化", strings.Join(top, " 或 ")))
-	}
-
-	// City mismatch
-	if strings.TrimSpace(resume.TargetCity) != "" && job.City != strings.TrimSpace(resume.TargetCity) {
-		risks = append(risks, fmt.Sprintf("工作地点为%s，与目标城市不一致", job.City))
-	}
-
-	if len(risks) == 0 {
-		risks = append(risks, "项目经历偏校园级别，企业级项目深度可进一步提升")
-	}
-
-	return risks
-}
-
-func generateAction(job *model.Job, priority string) string {
-	switch priority {
-	case "strong_recommend":
-		return fmt.Sprintf("建议优先查看该岗位详情，并在后续匹配分析中重点检查项目经历与岗位要求的对应关系。")
-	case "recommend":
-		return fmt.Sprintf("建议关注该岗位，可进一步了解%s方向的具体要求并对照简历内容。", job.Category)
-	default:
-		return fmt.Sprintf("可作为备选方向了解，建议先补充%s相关技能后再重点关注。", job.Category)
-	}
-}
-
-// determineRecApplyReadiness determines apply_readiness and optimization_stop_signal
-// for a single recommended job based on score and data quality.
-func determineRecApplyReadiness(score int, job *model.Job) (string, string) {
-	if job.DataQuality == "summary_only" {
-		return "insufficient_information", "needs_more_evidence"
-	}
-	if score >= 80 {
-		return "ready_to_apply", "stop_and_apply"
+		return "ready_to_apply"
 	}
 	if score >= 60 {
-		return "quick_fix_before_apply", "fix_top_3_then_apply"
+		return "quick_fix_before_apply"
 	}
-	return "not_ready_for_this_role", "needs_more_evidence" // K8-5-26-E: avoid target_role_mismatch when role unknown
+	return "not_ready_for_this_role"
+}
+func getStopSignalV2(score int) string {
+	if score >= 80 {
+		return "stop_and_apply"
+	}
+	if score >= 65 {
+		return "fix_top_3_then_apply"
+	}
+	return "needs_more_evidence"
 }
 
-// generateRecTopFixItems generates quick fix items for a recommended job.
-func generateRecTopFixItems(resume *model.ResumeVersion, job *model.Job, applyReadiness string) []model.TopFixItem {
-	if applyReadiness == "ready_to_apply" {
-		return []model.TopFixItem{}
-	}
+// ══════════════════════════════════════════════════════════════════════════
+// Entry Points
+// ══════════════════════════════════════════════════════════════════════════
 
-	var items []model.TopFixItem
-
-	resumeSkills := parseJSONStringArray(resume.SkillsJSON)
-	jobSkills := parseJSONStringArray(job.SkillKeywordsJSON)
-	resumeSkillSet := toLowerSet(resumeSkills)
-
-	// Find missing skills
-	var missing []string
-	for _, s := range jobSkills {
-		if !resumeSkillSet[strings.ToLower(s)] {
-			missing = append(missing, s)
-		}
-	}
-
-	if len(missing) > 0 {
-		top := missing[:min(2, len(missing))]
-		items = append(items, model.TopFixItem{
-			Issue:            fmt.Sprintf("简历中未体现 %s 相关经验", strings.Join(top, "、")),
-			WhyItMatters:     fmt.Sprintf("该岗位 JD 明确提及 %s，是初筛关键词。", strings.Join(top, "、")),
-			Action:           fmt.Sprintf("如果真实使用过 %s，在项目或实习描述中补充使用场景。", strings.Join(top, "、")),
-			ExampleReference: fmt.Sprintf("示例参考：使用 %s 完成数据持久化，通过连接池优化查询性能。", strings.Join(top, "、")),
-			SelfCheckQuestion: "请确认你确实在项目中使用过这些技术，而不是仅了解概念。",
-			EstimatedEffort:  "within_30_min",
-			ResumeModule:     "skills",
-		})
-	}
-
-	if len(items) == 0 && applyReadiness == "quick_fix_before_apply" {
-		items = append(items, model.TopFixItem{
-			Issue:            "项目职责描述可进一步清晰化",
-			WhyItMatters:     "岗位 JD 强调工程实践能力，当前表达难以证明个人贡献。",
-			Action:           "补充你负责的模块、使用的技术栈和最终产出。",
-			ExampleReference: "示例参考：基于 GoFrame 完成后台管理系统用户、角色、权限相关接口开发。",
-			SelfCheckQuestion: "请确认你是否确实负责过这些模块。",
-			EstimatedEffort:  "within_30_min",
-			ResumeModule:     "projects",
-		})
-	}
-
-	// Cap at 3 items
-	if len(items) > 3 {
-		items = items[:3]
-	}
-
-	return items
+func (a *RecommendationMockAgent) Recommend(_ context.Context, resume *model.ResumeVersion, jobs []*model.Job) ([]model.RecommendedJob, error) {
+	cp := extractCandidateTags(resume)
+	ranked := scoreAllJobs(&cp, jobs, false)
+	return buildResultsV2(&cp, ranked, 5), nil
 }
 
-// parseJSONStringArray parses a JSON array of strings from bytes.
-func parseJSONStringArray(data []byte) []string {
-	if len(data) == 0 {
-		return nil
+func (a *RecommendationMockAgent) RecommendQuality(_ context.Context, resume *model.ResumeVersion, jobs []*model.Job) ([]model.RecommendedJob, error) {
+	cp := extractCandidateTags(resume)
+	ranked := scoreAllJobs(&cp, jobs, true)
+	judge := judgeRecommendationV2(&cp, ranked)
+	if !judge.Pass && judge.Severity == "major" && judge.FixStrategy == "rerank" {
+		ranked = scoreAllJobs(&cp, jobs, true)
 	}
-	var arr []string
-	if err := json.Unmarshal(data, &arr); err != nil {
-		return nil
-	}
-	return arr
+	return buildResultsV2(&cp, ranked, 5), nil
 }
 
-// toLowerSet converts a string slice to a lowercase map set.
-func toLowerSet(items []string) map[string]bool {
-	set := make(map[string]bool, len(items))
-	for _, item := range items {
-		set[strings.ToLower(strings.TrimSpace(item))] = true
-	}
-	return set
-}
+// ══════════════════════════════════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════════════════════════════════
 
-// containsAny checks if target contains any of the search strings.
-func containsAny(target string, searches ...string) bool {
-	for _, s := range searches {
-		if strings.Contains(s, target) || strings.Contains(target, s) {
-			return true
-		}
+func clampMin(v, target int) int {
+	if v < target {
+		return target
 	}
-	return false
+	return v
 }
-
-func min(a, b int) int {
-	if a < b {
+func maxOf(a, b int) int {
+	if a > b {
 		return a
 	}
 	return b
+}
+func topTags(ts tagSet, n int) []string {
+	type kv struct{ k string; v int }
+	var kvs []kv
+	for k, v := range ts {
+		kvs = append(kvs, kv{k, v})
+	}
+	sort.Slice(kvs, func(i, j int) bool { return kvs[i].v > kvs[j].v })
+	var result []string
+	for i := 0; i < min(n, len(kvs)); i++ {
+		result = append(result, kvs[i].k)
+	}
+	return result
+}
+func profileLabel(dp string) string {
+	switch dp {
+	case "algorithm_research":
+		return "算法研究"
+	case "backend_engineering":
+		return "后台工程"
+	default:
+		return "综合"
+	}
+}
+func degreeLabel(l int) string {
+	switch l {
+	case 3:
+		return "博士"
+	case 2:
+		return "硕士"
+	case 1:
+		return "本科"
+	default:
+		return "高等教育"
+	}
 }

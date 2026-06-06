@@ -74,12 +74,14 @@ function getScoreLabel(score: number): string {
 function getSource(generatedBy?: string): RecommendationSource {
   if (!generatedBy) return "unknown";
   if (generatedBy === "mock_agent") return "mock";
+  if (generatedBy === "mock_quality") return "deep_llm";
   if (generatedBy === "llm_agent") return "deep_llm";
-  if (generatedBy.includes("fallback") || generatedBy.includes("mock")) return "fallback";
+  if (generatedBy.includes("fallback")) return "fallback";
   return "unknown";
 }
 
-function getSourceLabel(source: RecommendationSource): string {
+function getSourceLabel(source: RecommendationSource, isQuality?: boolean): string {
+  if (isQuality && source === "mock") return "深度推荐 · 演示数据";
   switch (source) {
     case "mock": return "快速推荐 · 演示数据";
     case "fast_llm": return "快速推荐 · AI 生成";
@@ -98,6 +100,7 @@ function toRecommendedJobViewModel(
 ): RecommendedJobViewModel {
   const score = typeof job.recommendation_score === "number" ? job.recommendation_score : 0;
   const source = getSource(job.generated_by);
+  const isQuality = job.generated_by === "mock_quality" || job.generated_by === "llm_agent";
   return {
     rank,
     jobId: job.job_id,
@@ -114,7 +117,7 @@ function toRecommendedJobViewModel(
     riskPoints: (job.risk_points && job.risk_points.length > 0) ? job.risk_points : ["建议进一步补充与该岗位相关的项目细节"],
     suggestedAction: job.suggested_action || "建议先查看岗位详情，再进行岗位匹配分析。",
     source,
-    sourceLabel: getSourceLabel(source),
+    sourceLabel: getSourceLabel(source, isQuality),
   };
 }
 
@@ -125,6 +128,8 @@ export function toRecommendationPageViewModel(
   const jobs = Array.isArray(result.recommended_jobs) ? result.recommended_jobs : [];
   const recommendedJobs = jobs.map((job, i) => toRecommendedJobViewModel(job, i + 1));
   const firstSource = recommendedJobs[0]?.source ?? "unknown";
+  const firstJob = jobs[0];
+  const isQuality = firstJob?.generated_by === "mock_quality" || firstJob?.generated_by === "llm_agent";
 
   return {
     recommendedJobs,
@@ -135,7 +140,7 @@ export function toRecommendationPageViewModel(
     evidenceChain: toEvidenceItemViewModels(result.evidence_chain),
     riskItems: Array.isArray(result.risk_items) ? result.risk_items : [],
     nextActions: Array.isArray(result.next_actions) ? result.next_actions : [],
-    sourceLabel: getSourceLabel(firstSource),
+    sourceLabel: getSourceLabel(firstSource, isQuality),
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
   };
 }

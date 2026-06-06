@@ -82,10 +82,8 @@ export function JobRecommendationPage() {
       });
       setDeepResult(vm);
       setPhase("deep_done");
-      if (vm.recommendedJobs.length > 0) {
-        const currentSel = vm.recommendedJobs.find((j) => j.jobId === selJobId);
-        if (currentSel) setSelJobId(currentSel.jobId);
-      }
+      // Select deep Top 1
+      if (vm.recommendedJobs.length > 0) setSelJobId(vm.recommendedJobs[0].jobId);
     } catch {
       setPhase("deep_error");
       setDeepErrorMessage("深度分析暂时生成失败，快速推荐结果仍可参考。");
@@ -341,6 +339,19 @@ export function JobRecommendationPage() {
           </div>
         </aside>
       </div>
+      {/* ── Deep loading global overlay ─────────────────────────────── */}
+      {phase === "deep_loading" && (
+        <div className="fixed inset-0 z-50 bg-slate-900/20 backdrop-blur-md flex items-center justify-center">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md mx-4 text-center">
+            <Loader2 className="w-10 h-10 animate-spin text-[#0052D9] mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-gray-900 mb-2">正在生成深度岗位推荐</h2>
+            <p className="text-sm text-gray-500 leading-relaxed mb-4">
+              系统正在重新分析你的简历画像、项目经历和岗位要求，生成更高质量的 Top 5 推荐结果，请稍等。
+            </p>
+            <p className="text-xs text-gray-400">当前快速推荐结果会在生成完成后自动替换。</p>
+          </div>
+        </div>
+      )}
     </ContentPageShell>
   );
 }
