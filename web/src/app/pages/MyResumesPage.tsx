@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, Sparkles } from "lucide-react";
-import { loadResumeManagementPageViewModel } from "../../api";
 import { createResume, updateResume, getCurrentResume, getResumes, getResumeById, checkResumeName } from "../../api/resumes";
 import type { ResumeManagementViewModel } from "../../adapters";
 import { toResumeManagementViewModel } from "../../adapters";
@@ -10,7 +9,6 @@ import { ResumeSkeleton } from "../components/ui/ResumeSkeleton";
 import { YearMonthPicker } from "../components/resume-editor/YearMonthPicker";
 import { PageError, PageLoading } from "../components/PageState";
 import { isValidResumeId } from "../../utils/redirect";
-import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { isApiClientError } from "../../api/errors";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -60,12 +58,15 @@ export function MyResumesPage() {
 
   useEffect(() => {
     if (mode !== "edit") return;
+    let cancelled = false;
     setLoading(true); setResumeError(null);
     if (editingResumeId !== null && editingResumeId > 0) {
       getResumeById(editingResumeId).then((resume) => {
+        if (cancelled) return;
         try { setFormVm(toResumeManagementViewModel(resume)); setLoading(false); }
         catch (adapterError) { setLoading(false); setResumeError("简历数据解析失败，请稍后重试。"); }
       }).catch((err: unknown) => {
+        if (cancelled) return;
         setLoading(false);
         if (isApiClientError(err) && err.status === 401) {
           navigate(`/?auth=login&redirect=${encodeURIComponent(`/resumes/edit?id=${editingResumeId}`)}`, { replace: true });
@@ -73,16 +74,19 @@ export function MyResumesPage() {
           setResumeError("该简历不存在或已被删除。");
         } else { setResumeError("指定简历加载失败，请稍后重试。"); }
       });
-      return;
+      return () => { cancelled = true; };
     }
-    loadResumeManagementPageViewModel().then((vm) => { setFormVm(vm); setLoading(false); })
-      .catch((err) => { setLoading(false); const r = getAuthRedirectIf401(err, location.pathname, location.search); if (r) navigate(r, { replace: true }); else setResumeError("简历加载失败，请稍后重试。"); });
+    // Create mode: blank form, no API call needed — resetForCreate handles cleanup
+    setFormVm(null);
+    setLoading(false);
+    return () => { cancelled = true; };
   }, [mode, retryCount, editingResumeId]);
 
   const handleRetryLoad = useCallback(() => setRetryCount((c) => c + 1), []);
 
   // ── Form reset for create mode ─────────────────────────────────────────────
   function resetFormForCreate() {
+    setFormVm(null);
     setResumeName("");
     setPersonalName("");
     setPhone("");
@@ -323,7 +327,15 @@ export function MyResumesPage() {
   const hasInternshipContent = internships.length > 0;
   const hasCertificateAwardContent = languageExamDrafts.length > 0 || certificateDrafts.length > 0 || awardDrafts.length > 0;
   const hasPortfolioExtraContent = portfolioDraft.works.some((w) => w.name.trim() || w.link.trim()) || !!portfolioDraft.homepage.trim() || !!extraInfoDraft.additionalInfo.trim();
-  const sectionAutoOpenKey = `${editingResumeId ?? "_new"}:${resumeName || "_empty"}`;
+  // K8-5-49-E-B: 有内容才默认展开，避免空模块全部展开
+  const hasEducationContent = educations.some((edu) =>
+    edu.school || edu.major || edu.degree !== "本科" || edu.department || edu.startDate || edu.endDate || edu.gpa || edu.gpaScale || edu.rank || edu.coreCourses || edu.researchDirection || edu.lab || edu.paperSummary
+  );
+  const hasProjectContent = projects.some((proj) =>
+    proj.name || proj.role || proj.desc || proj.startDate || proj.endDate
+  );
+  const hasSkillsContent = !!(skillsDraft.developmentLanguages.trim() || skillsDraft.aiApplication.trim());
+  const sectionAutoOpenKey = isCreateMode ? "create" : `edit-${editingResumeId}:${resumeName || "_empty"}`;
 
   return (
     <>
@@ -362,7 +374,7 @@ export function MyResumesPage() {
         <p className="mt-5 text-[12px] text-slate-400 leading-relaxed border-t border-gray-100 pt-4">基础信息用于简历展示和基础画像。手机号 / 邮箱不会用于分析匹配。</p>
       </BasicInfoSection>
 
-      <EducationSection defaultOpen={!isCreateMode} onAdd={addEducation}>
+      <EducationSection defaultOpen={isEditingExistingResume && hasEducationContent} onAdd={addEducation}>
         {educations.length === 0 ? (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><p className="text-sm text-slate-500 mb-1">暂无教育经历</p><p className="text-xs text-slate-400 mb-3">可以先添加你的学校、专业和学历信息。</p><button onClick={addEducation} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加教育经历</button></div>) : (
           <div className="space-y-4">{educations.map((edu, idx) => (
             <div key={edu.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "education" && recentlyAdded.key === String(edu.id) ? "resume-item-enter" : ""}`}>
@@ -393,7 +405,7 @@ export function MyResumesPage() {
           ))}</div>)}
       </EducationSection>
 
-      <ProjectSection defaultOpen={!isCreateMode}>
+      <ProjectSection defaultOpen={isEditingExistingResume && hasProjectContent}>
         {projects.length === 0 ? (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><p className="text-sm text-slate-500 mb-1">暂无项目经历</p><p className="text-xs text-slate-400 mb-3">可以补充课程项目、比赛项目或个人项目。</p><button onClick={addProject} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加项目经历</button></div>) : (
           <div className="space-y-4">{projects.map((proj, idx) => (
             <div key={proj.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "project" && recentlyAdded.key === String(proj.id) ? "resume-item-enter" : ""}`}>
@@ -406,7 +418,7 @@ export function MyResumesPage() {
           ))}</div>)}
       </ProjectSection>
 
-      <SkillsSection defaultOpen={!isCreateMode}>
+      <SkillsSection defaultOpen={isEditingExistingResume && hasSkillsContent}>
         <div className="border-t border-gray-200 pt-5 mt-5 space-y-4">
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">专业技能 / 工具能力</label><Input className="h-10" value={skillsDraft.developmentLanguages} onChange={(e) => updateSkillsDraft("developmentLanguages", e.target.value)} placeholder="技术岗可填 Go / Java / SQL" /><p className="mt-1.5 text-xs text-slate-400">可填写开发语言、设计工具、数据分析方法、办公软件等。</p></div>
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">AI 应用技能 <span className="text-xs font-normal text-amber-600">推荐</span></label><Textarea className="min-h-[88px] resize-none" rows={3} value={skillsDraft.aiApplication} onChange={(e) => updateSkillsDraft("aiApplication", e.target.value)} placeholder="例如：使用 CodeBuddy 辅助需求拆解、代码生成、Bug 定位、接口文档、测试用例和项目复盘。" /></div>
