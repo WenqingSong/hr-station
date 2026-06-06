@@ -3,8 +3,8 @@ import { Link, useNavigate, useLocation } from "react-router";
 import { PageLoading, PageError } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { FileText, Plus, Search, Sparkles, Wand2, GitCompare, Pencil } from "lucide-react";
-import { getResumeVersions } from "../../api/resumes";
-import type { ResumeVersionListItem } from "../../types";
+import { getResumes } from "../../api/resumes";
+import type { Resume } from "../../types";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { isApiClientError } from "../../api/errors";
 
@@ -13,19 +13,18 @@ import { isApiClientError } from "../../api/errors";
 interface ResumeRow {
   id: number;
   name: string;
-  versionNo: number;
+  isCurrent: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function toRows(versions: ResumeVersionListItem[]): ResumeRow[] {
-  return versions
-    .map((v) => ({
-      id: v.id,
-      name: v.name || "",
-      versionNo: v.version_no,
-    }))
-    .sort((a, b) => b.versionNo - a.versionNo); // 最新在前
+function toRows(resumes: Resume[]): ResumeRow[] {
+  return resumes
+    .map((r) => ({
+      id: r.id,
+      name: r.name || "",
+      isCurrent: r.is_current || false,
+    }));
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -50,19 +49,19 @@ function EmptyState() {
 }
 
 interface SmartAssistantProps {
-  selectedVersionNo: number | null;
+  selectedResumeId: number | null;
   hasResumes: boolean;
 }
 
-function SmartAssistant({ selectedVersionNo, hasResumes }: SmartAssistantProps) {
-  const disabled = !hasResumes || selectedVersionNo === null;
+function SmartAssistant({ selectedResumeId, hasResumes }: SmartAssistantProps) {
+  const disabled = !hasResumes || selectedResumeId === null;
 
   const entries = [
     {
       icon: Sparkles,
       label: "推荐适合的岗位",
       desc: "基于简历能力画像，AI 推荐高匹配度岗位",
-      href: selectedVersionNo ? `/recommend?resumeVersionNo=${selectedVersionNo}` : "#",
+      href: selectedResumeId ? `/recommend?resumeId=${selectedResumeId}` : "#",
       disabled,
     },
     {
@@ -76,7 +75,7 @@ function SmartAssistant({ selectedVersionNo, hasResumes }: SmartAssistantProps) 
       icon: Wand2,
       label: "优化当前简历",
       desc: "AI 分析简历薄弱项，给出可执行优化建议",
-      href: selectedVersionNo ? `/resume-optimization?resumeVersionNo=${selectedVersionNo}` : "#",
+      href: selectedResumeId ? `/resume-optimization?resumeId=${selectedResumeId}` : "#",
       disabled,
     },
     {
@@ -132,17 +131,17 @@ export function ResumeManagementPage() {
   const [rows, setRows] = useState<ResumeRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [selectedVersionNo, setSelectedVersionNo] = useState<number | null>(null);
+  const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    getResumeVersions()
-      .then((versions) => {
-        const sorted = toRows(versions);
+    getResumes()
+      .then((resumes) => {
+        const sorted = toRows(resumes);
         setRows(sorted);
         if (sorted.length > 0) {
-          setSelectedVersionNo(sorted[0].versionNo);
+          setSelectedResumeId(sorted[0].id);
         }
       })
       .catch((err: unknown) => {
@@ -157,7 +156,6 @@ export function ResumeManagementPage() {
 
   const hasResumes = useMemo(() => (rows && rows.length > 0) ?? false, [rows]);
 
-  // ── Loading ──
   if (loading) {
     return (
       <ContentPageShell maxWidthClassName="max-w-[1040px]">
@@ -166,7 +164,6 @@ export function ResumeManagementPage() {
     );
   }
 
-  // ── Error ──
   if (error) {
     return (
       <ContentPageShell maxWidthClassName="max-w-[1040px]">
@@ -177,7 +174,6 @@ export function ResumeManagementPage() {
     );
   }
 
-  // ── Empty ──
   if (!rows || rows.length === 0) {
     return (
       <ContentPageShell maxWidthClassName="max-w-[1040px]">
@@ -189,7 +185,6 @@ export function ResumeManagementPage() {
   return (
     <ContentPageShell maxWidthClassName="max-w-[1040px]">
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-[22px] font-semibold text-gray-900">我的简历</h1>
@@ -206,39 +201,42 @@ export function ResumeManagementPage() {
         </Link>
       </div>
 
-      {/* ── Two-column Layout ────────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row gap-6">
 
-        {/* ── Left: Resume List ──────────────────────────────────────── */}
         <div className="flex-[2] min-w-0">
           <div className="bg-white rounded-2xl ring-1 ring-gray-100 overflow-hidden">
-            {/* List header */}
             <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-gray-700">简历列表</h2>
               <span className="text-xs text-gray-400">共 {rows.length} 份简历</span>
             </div>
 
-            {/* List rows */}
             <div className="divide-y divide-gray-100">
               {rows.map((row) => {
-                const isSelected = selectedVersionNo === row.versionNo;
+                const isSelected = selectedResumeId === row.id;
                 return (
                   <div
                     key={row.id}
-                    onClick={() => setSelectedVersionNo(row.versionNo)}
+                    onClick={() => setSelectedResumeId(row.id)}
                     className={`flex items-center justify-between px-5 py-4 cursor-pointer transition-colors group ${
                       isSelected
                         ? "bg-blue-50/60 border-l-[3px] border-l-[#0052D9] pl-[17px]"
                         : "hover:bg-gray-50 border-l-[3px] border-l-transparent pl-[17px]"
                     }`}
                   >
-                    <span className={`text-sm font-medium truncate ${
-                      isSelected ? "text-[#0052D9]" : "text-gray-900"
-                    }`}>
-                      {row.name}
-                    </span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-sm font-medium truncate ${
+                        isSelected ? "text-[#0052D9]" : "text-gray-900"
+                      }`}>
+                        {row.name}
+                      </span>
+                      {row.isCurrent && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0052D9]/10 text-[#0052D9] font-medium shrink-0">
+                          当前
+                        </span>
+                      )}
+                    </div>
                     <Link
-                      to={`/resumes/edit?versionNo=${row.versionNo}`}
+                      to={`/resumes/edit?id=${row.id}`}
                       onClick={(e) => e.stopPropagation()}
                       className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0052D9] transition-colors ml-3 shrink-0"
                     >
@@ -252,9 +250,8 @@ export function ResumeManagementPage() {
           </div>
         </div>
 
-        {/* ── Right: Smart Assistant ────────────────────────────────────── */}
         <div className="flex-1 min-w-0 lg:max-w-[320px]">
-          <SmartAssistant selectedVersionNo={selectedVersionNo} hasResumes={hasResumes} />
+          <SmartAssistant selectedResumeId={selectedResumeId} hasResumes={hasResumes} />
         </div>
 
       </div>

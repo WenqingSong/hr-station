@@ -20,11 +20,18 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- 1. 删除表（按外键依赖反向）
 -- ============================================================
 
-DROP TABLE IF EXISTS `resume_optimization_results`;
 DROP TABLE IF EXISTS `resume_compare_results`;
 DROP TABLE IF EXISTS `version_compare_results`;
 DROP TABLE IF EXISTS `match_analyses`;
 DROP TABLE IF EXISTS `recommendation_results`;
+
+DROP TABLE IF EXISTS `resume_works`;
+DROP TABLE IF EXISTS `resume_awards`;
+DROP TABLE IF EXISTS `resume_certificates`;
+DROP TABLE IF EXISTS `resume_language_exams`;
+DROP TABLE IF EXISTS `resume_internships`;
+DROP TABLE IF EXISTS `resume_projects`;
+DROP TABLE IF EXISTS `resume_educations`;
 
 DROP TABLE IF EXISTS `job_filter_option_relations`;
 DROP TABLE IF EXISTS `job_filter_options`;
@@ -59,46 +66,104 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
 -- -----------------------------------------------------------
--- 2.2 resumes - 简历主表（替代 resume_versions，移除 version_no）
+-- 2.2 resumes - 简历主表（K8-5-48-B：关系型拆表）
 -- -----------------------------------------------------------
 CREATE TABLE `resumes` (
-  `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id`         BIGINT UNSIGNED NOT NULL,
-  `schema_version`  INTEGER          NOT NULL DEFAULT 1     COMMENT 'schema版本：1=V1旧版 2=V2新版',
-  `name`            VARCHAR(100)     NOT NULL DEFAULT '',
-  `phone`           VARCHAR(50)      NOT NULL DEFAULT '',
-  `email`           VARCHAR(255)     NOT NULL DEFAULT '',
-  `location`        VARCHAR(100)     NOT NULL DEFAULT '',
-  `target_city`     VARCHAR(100)     NOT NULL DEFAULT '',
-  `target_role`     VARCHAR(100)     NOT NULL DEFAULT '',
-  `education_json`  JSON             NULL,
-  `experience_json` JSON             NULL,
-  `project_json`    JSON             NULL,
-  `skills_json`     JSON             NULL,
-  -- V2 摘要结构化列
-  `target_direction` VARCHAR(100)     NOT NULL DEFAULT ''    COMMENT '目标方向（摘要列）',
-  `job_type`         VARCHAR(50)      NOT NULL DEFAULT ''    COMMENT '岗位类型（摘要列）',
-  `expected_cities`  VARCHAR(255)     NOT NULL DEFAULT ''    COMMENT '期望城市逗号分隔（摘要列）',
-  `school`           VARCHAR(100)     NOT NULL DEFAULT ''    COMMENT '学校（摘要列）',
-  `degree`           VARCHAR(20)      NOT NULL DEFAULT ''    COMMENT '学历（摘要列）',
-  `major`            VARCHAR(100)     NOT NULL DEFAULT ''    COMMENT '专业（摘要列）',
-  `graduation_year`  VARCHAR(10)      NOT NULL DEFAULT ''    COMMENT '毕业时间（摘要列）',
-  -- V2 模块 JSON 字段
-  `profile_json`       JSON           NULL                   COMMENT '基础信息 JSON',
-  `job_intention_json` JSON           NULL                   COMMENT '求职意向 JSON',
-  `internship_json`    JSON           NULL                   COMMENT '实习经历 JSON',
-  `certificates_json`  JSON           NULL                   COMMENT '证书与语言 JSON',
-  `awards_json`        JSON           NULL                   COMMENT '获奖与竞赛 JSON',
-  `portfolio_json`     JSON           NULL                   COMMENT '作品链接 JSON',
-  `extra_json`         JSON           NULL                   COMMENT '补充信息 JSON',
-  `self_evaluation` TEXT             NULL,
-  `raw_text`        TEXT             NULL,
-  `created_at`      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at`      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`       BIGINT UNSIGNED NOT NULL,
+  `name`          VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '简历名称',
+  `is_current`    TINYINT(1)       NOT NULL DEFAULT 0  COMMENT '是否当前默认简历',
+
+  `real_name`            VARCHAR(50)  NOT NULL DEFAULT '' COMMENT '姓名',
+  `phone`                VARCHAR(50)  NOT NULL DEFAULT '' COMMENT '手机号',
+  `email`                VARCHAR(255) NOT NULL DEFAULT '' COMMENT '邮箱',
+  `city`                 VARCHAR(100) NOT NULL DEFAULT '' COMMENT '当前城市',
+
+  `professional_skills`  TEXT NULL COMMENT '专业技能 / 工具能力',
+  `ai_application`       TEXT NULL COMMENT 'AI 应用技能',
+  `homepage`             VARCHAR(500) NOT NULL DEFAULT '' COMMENT '个人主页',
+  `additional_info`      TEXT NULL COMMENT '补充信息',
+
+  `raw_text`      MEDIUMTEXT NULL COMMENT 'AI 文本快照',
+
+  `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
   PRIMARY KEY (`id`),
-  KEY `idx_resumes_user_created` (`user_id`, `created_at`),
+  KEY `idx_resumes_user_current` (`user_id`, `is_current`, `updated_at`),
+  KEY `idx_resumes_user_updated`  (`user_id`, `updated_at`),
   CONSTRAINT `fk_resumes_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='简历表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='简历主表';
+
+CREATE TABLE `resume_educations` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `resume_id` BIGINT UNSIGNED NOT NULL,
+  `school` VARCHAR(100) NOT NULL DEFAULT '', `degree` VARCHAR(50) NOT NULL DEFAULT '',
+  `major` VARCHAR(100) NOT NULL DEFAULT '', `department` VARCHAR(100) NOT NULL DEFAULT '',
+  `start_date` VARCHAR(20) NOT NULL DEFAULT '', `end_date` VARCHAR(20) NOT NULL DEFAULT '',
+  `gpa` VARCHAR(20) NOT NULL DEFAULT '', `gpa_scale` VARCHAR(20) NOT NULL DEFAULT '',
+  `rank_text` VARCHAR(50) NOT NULL DEFAULT '', `core_courses` TEXT NULL,
+  `research_direction` VARCHAR(255) NOT NULL DEFAULT '', `lab` VARCHAR(255) NOT NULL DEFAULT '',
+  `paper_summary` TEXT NULL, `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`), KEY `idx_re_resume` (`resume_id`,`sort_order`),
+  CONSTRAINT `fk_re_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `resume_projects` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `resume_id` BIGINT UNSIGNED NOT NULL,
+  `name` VARCHAR(150) NOT NULL DEFAULT '', `role` VARCHAR(100) NOT NULL DEFAULT '',
+  `start_date` VARCHAR(20) NOT NULL DEFAULT '', `end_date` VARCHAR(20) NOT NULL DEFAULT '',
+  `description` TEXT NULL, `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`), KEY `idx_rp_resume` (`resume_id`,`sort_order`),
+  CONSTRAINT `fk_rp_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `resume_internships` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `resume_id` BIGINT UNSIGNED NOT NULL,
+  `company` VARCHAR(150) NOT NULL DEFAULT '', `position` VARCHAR(100) NOT NULL DEFAULT '',
+  `start_date` VARCHAR(20) NOT NULL DEFAULT '', `end_date` VARCHAR(20) NOT NULL DEFAULT '',
+  `description` TEXT NULL, `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`), KEY `idx_ri_resume` (`resume_id`,`sort_order`),
+  CONSTRAINT `fk_ri_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `resume_language_exams` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `resume_id` BIGINT UNSIGNED NOT NULL,
+  `exam_type` VARCHAR(100) NOT NULL DEFAULT '', `score` VARCHAR(100) NOT NULL DEFAULT '',
+  `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`), KEY `idx_rle_resume` (`resume_id`,`sort_order`),
+  CONSTRAINT `fk_rle_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `resume_certificates` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `resume_id` BIGINT UNSIGNED NOT NULL,
+  `name` VARCHAR(150) NOT NULL DEFAULT '', `description` TEXT NULL,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`), KEY `idx_rc_resume` (`resume_id`,`sort_order`),
+  CONSTRAINT `fk_rc_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `resume_awards` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `resume_id` BIGINT UNSIGNED NOT NULL,
+  `name` VARCHAR(150) NOT NULL DEFAULT '', `description` TEXT NULL,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`), KEY `idx_ra_resume` (`resume_id`,`sort_order`),
+  CONSTRAINT `fk_ra_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `resume_works` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `resume_id` BIGINT UNSIGNED NOT NULL,
+  `name` VARCHAR(150) NOT NULL DEFAULT '', `url` VARCHAR(500) NOT NULL DEFAULT '',
+  `password` VARCHAR(100) NOT NULL DEFAULT '', `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`), KEY `idx_rw_resume` (`resume_id`,`sort_order`),
+  CONSTRAINT `fk_rw_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 
@@ -270,7 +335,7 @@ CREATE TABLE `recommendation_results` (
   KEY `idx_rec_resume` (`resume_id`),
   CONSTRAINT `fk_rec_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_rec_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推荐结果表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位推荐结果表';
 
 -- -----------------------------------------------------------
 -- match_analyses - 岗位匹配分析结果
@@ -290,7 +355,7 @@ CREATE TABLE `match_analyses` (
   CONSTRAINT `fk_match_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_match_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes` (`id`),
   CONSTRAINT `fk_match_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='匹配分析结果表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位匹配分析结果表';
 
 -- -----------------------------------------------------------
 -- resume_compare_results - 简历对比结果（替代 version_compare_results）
@@ -341,26 +406,9 @@ INSERT INTO `users` (`id`, `email`, `phone`, `password_hash`, `name`) VALUES
 (1, 'arthur@example.com',       '13800138000', '$2a$10$hUKwISi3F6uHLRj.cFkUkO23HNLW9nH60me2O9fm7q2Hr/Z1nTG3u', 'Arthur'),
 (2, 'demo@offer-catcher.com',   '13900139000', '$2a$10$hUKwISi3F6uHLRj.cFkUkO23HNLW9nH60me2O9fm7q2Hr/Z1nTG3u', 'Demo用户');
 
--- -----------------------------------------------------------
--- 3.2 种子简历（Arthur 用户 x2）
--- -----------------------------------------------------------
-INSERT INTO `resumes` (`id`, `user_id`, `name`, `phone`, `email`, `location`, `target_city`, `target_role`, `education_json`, `experience_json`, `project_json`, `skills_json`, `self_evaluation`) VALUES
-(1, 1, 'Arthur', '13912345678', 'arthur@example.com', '深圳', '深圳', '后端开发工程师',
-  '[{"school":"南方科技大学","major":"计算机科学与技术","degree":"本科","start_date":"2022-09","end_date":"2026-06"}]',
-  '[{"company":"某科技公司","position":"后端开发实习生","start_date":"2025-03","end_date":"2025-09","description":"参与公司内部工具的后端开发，使用 Go 语言编写 API 接口，负责数据库设计"}]',
-  '[{"name":"校园二手交易平台","role":"后端负责人","start_date":"2024-03","end_date":"2024-09","description":"使用 Go 框架开发 API，实现认证、商品发布等功能"}]',
-  '["Go","MySQL","Redis","Docker","Git","Linux"]',
-  '计算机专业本科生，对后端开发和云原生技术有浓厚兴趣。'),
-(2, 1, 'Arthur', '13912345678', 'arthur@example.com', '深圳', '深圳', '后端开发工程师',
-  '[{"school":"南方科技大学","major":"计算机科学与技术","degree":"本科","start_date":"2022-09","end_date":"2026-06"}]',
-  '[{"company":"某科技公司","position":"后端开发实习生","start_date":"2025-03","end_date":"2025-09","description":"使用 Go 语言编写 API，独立完成 3 个微服务开发和上线，处理峰值 QPS 达 5000+"},{"company":"某云计算公司","position":"云原生开发实习生","start_date":"2025-10","end_date":"2026-03","description":"参与 Kubernetes Operator 开发，使用 Go 编写自定义控制器"}]',
-  '[{"name":"校园二手交易平台","role":"后端负责人","start_date":"2024-03","end_date":"2024-09","description":"使用 Go 框架开发 API，日均活跃用户 500+，累计订单 2000+ 笔"},{"name":"分布式任务调度系统","role":"核心开发者","start_date":"2025-01","end_date":"2025-06","description":"基于 etcd 实现分布式任务调度，调度延迟小于 100ms"}]',
-  '["Go","MySQL","Redis","Docker","Kubernetes","etcd","gRPC","Git","Linux"]',
-  '计算机专业本科生，具备 Go 后端开发和云原生实践经验。');
-
 -- ============================================================
 -- 注意：
 -- 腾讯岗位 seed (tencent_jobs.sql) 由 up.sh step 6b 自动导入（含 46 条岗位）
--- 9 份示范简历 seed (resume_versions.sql) 由 mysql.sh import 自动导入
+-- Resumes demo seed 不再自动导入，测试简历应通过 API 或页面创建。
 -- AI 结果 seed 暂不导入（依赖 jobs 表，jobs 由 tencent_jobs 导入）
 -- ============================================================

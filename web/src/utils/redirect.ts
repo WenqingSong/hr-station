@@ -1,4 +1,4 @@
-// ─── Redirect 安全校验工具（K8-5-46-B） ────────────────────────────────────────
+// ─── Redirect 安全校验工具（K8-5-48-C：versionNo → id） ──────────────────────
 
 const DEFAULT_REDIRECT = "/jobs";
 
@@ -15,13 +15,9 @@ const SAFE_PATH_PREFIXES = [
 /** 检查 redirect 是否为站内安全路径 */
 export function isSafeRedirect(value: string | null | undefined): boolean {
   if (!value || typeof value !== "string") return false;
-  // 必须以 / 开头，不能以 // 开头
   if (!value.startsWith("/") || value.startsWith("//")) return false;
-  // 禁止 http/https/javascript
   if (/^(https?:|javascript:)/i.test(value)) return false;
-  // 禁止反斜杠和控制字符
   if (/[\\<>"'\x00-\x1f]/.test(value)) return false;
-  // 路径前缀在白名单内
   return SAFE_PATH_PREFIXES.some((prefix) => value.startsWith(prefix));
 }
 
@@ -32,7 +28,6 @@ export function normalizeRedirect(
 ): string {
   if (!isSafeRedirect(value)) return fallback;
 
-  // 特殊处理：/resumes/edit?versionNo=0 等非法参数替换为 /resumes
   const v = value!;
   if (v.startsWith("/resumes/edit")) {
     const clean = normalizeResumeEditRedirect(v);
@@ -43,17 +38,17 @@ export function normalizeRedirect(
 }
 
 /**
- * /resumes/edit?versionNo=1  → 保留
- * /resumes/edit?versionNo=0  → /resumes
- * /resumes/edit?versionNo=abc → /resumes
- * /resumes/edit              → 保留（新增）
+ * /resumes/edit?id=1  → 保留
+ * /resumes/edit?id=0  → /resumes
+ * /resumes/edit?id=abc → /resumes
+ * /resumes/edit       → 保留（新增）
  */
 export function normalizeResumeEditRedirect(value: string): string {
   try {
     const url = new URL(value, "http://localhost");
-    const versionNo = url.searchParams.get("versionNo");
-    if (versionNo !== null) {
-      const parsed = Number(versionNo);
+    const id = url.searchParams.get("id");
+    if (id !== null) {
+      const parsed = Number(id);
       if (!Number.isInteger(parsed) || parsed <= 0) {
         return "/resumes";
       }
@@ -66,7 +61,6 @@ export function normalizeResumeEditRedirect(value: string): string {
 
 /**
  * 为 RequireAuth 生成安全的 returnTo 值。
- * 从 pathname + search 构造，非法时 fallback。
  */
 export function normalizeReturnTo(
   pathname: string,
@@ -79,7 +73,6 @@ export function normalizeReturnTo(
   const full = pathname + (search || "");
   if (!isSafeRedirect(pathname)) return fallback;
 
-  // /resumes/edit 特殊处理 versionNo
   if (pathname.startsWith("/resumes/edit")) {
     return normalizeResumeEditRedirect(full);
   }
@@ -87,9 +80,12 @@ export function normalizeReturnTo(
   return full;
 }
 
-/** 校验 versionNo 参数是否为合法正整数 */
-export function isValidVersionNo(raw: string | null): boolean {
+/** 校验 resumeId 参数是否为合法正整数 */
+export function isValidResumeId(raw: string | null): boolean {
   if (raw === null) return true; // 无参数 = 合法（新增简历）
   const parsed = Number(raw);
   return Number.isInteger(parsed) && parsed > 0;
 }
+
+/** @deprecated use isValidResumeId */
+export const isValidVersionNo = isValidResumeId;

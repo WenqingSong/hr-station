@@ -1,103 +1,80 @@
-// ─── Resumes API ───────────────────────────────────────────────────────────────
+// ─── Resumes API（K8-5-48-C：关系型 DTO） ─────────────────────────────────────
 
-import { get, post } from './client';
+import { get, post, put, request } from './client';
 import type {
   Resume,
   ResumeOption,
-  ResumeVersionComparison,
-  ResumeVersionsResponse,
-  ResumeVersionListItem,
-  CreateResumeRequest,
-  CreateResumeRequestV1,
-  CreateResumeRequestV2,
+  ResumeComparison,
+  SaveResumePayload,
 } from '../types';
 
-export type { CreateResumeRequest, CreateResumeRequestV1, CreateResumeRequestV2 };
+// ─── 读取 ─────────────────────────────────────────────────────────────────────
 
-// ─── P0 读取 ──────────────────────────────────────────────────────────────────
-
-/**
- * 获取简历版本列表。
- * 调用 GET /api/resumes/versions。失败时错误直接向上传播。
- */
+/** 获取所有简历列表 */
 export async function getResumes(): Promise<Resume[]> {
-  return get<Resume[]>('/resumes/versions');
+  return get<Resume[]>('/resumes');
 }
 
-/** 获取版本列表（真实 {versions, total} 结构）。
- * 返回完整的版本列表项（包含 V2 字段）。
- * 调用 GET /api/resumes/versions。失败时错误直接向上传播。
- */
-export async function getResumeVersions(): Promise<ResumeVersionListItem[]> {
-  const response = await get<ResumeVersionsResponse>('/resumes/versions');
-  return Array.isArray(response?.versions) ? response.versions : [];
+/** 获取当前简历 */
+export async function getCurrentResume(): Promise<Resume | null> {
+  try {
+    return await get<Resume>('/resumes/current');
+  } catch {
+    return null;
+  }
 }
 
-/**
- * 获取当前简历。
- * 调用 GET /api/resumes/current。失败时错误直接向上传播。
- */
-export async function getCurrentResume(): Promise<Resume> {
-  return get<Resume>('/resumes/current');
+/** 获取指定简历详情 */
+export async function getResumeById(id: number): Promise<Resume> {
+  return get<Resume>(`/resumes/${id}`);
 }
 
-/**
- * 获取简历详情（指定版本）。
- * 调用 GET /api/resumes/versions/{versionNo}。失败时错误直接向上传播。
- */
-export async function getResumeDetail(versionNo: number): Promise<Resume> {
-  return get<Resume>(`/resumes/versions/${versionNo}`);
-}
-
-/**
- * 获取简历选项列表（选择简历弹窗专用）。
- * 调用 GET /api/resumes/versions。失败时错误直接向上传播。
- */
+/** 获取简历选项列表（选择弹窗用） */
 export async function getResumeOptions(): Promise<ResumeOption[]> {
-  return get<ResumeOption[]>('/resumes/versions');
+  return get<ResumeOption[]>('/resumes');
 }
 
-/**
- * 获取简历版本比较。
- * 调用 GET /api/resumes/versions/compare?from={v1}&to={v2}。失败时错误直接向上传播。
- */
+/** 版本对比（from_id / to_id） */
 export async function compareResumes(
-  baseId: string,
-  targetId: string,
-): Promise<ResumeVersionComparison> {
-  return get<ResumeVersionComparison>(
-    `/resumes/versions/compare?from=${encodeURIComponent(baseId)}&to=${encodeURIComponent(targetId)}`,
+  fromId: number,
+  toId: number,
+): Promise<ResumeComparison> {
+  return get<ResumeComparison>(
+    `/resumes/compare?from_id=${fromId}&to_id=${toId}`,
   );
 }
 
-// ─── P1 写入 ───────────────────────────────────────────────────────────────────
+// ─── 写入 ─────────────────────────────────────────────────────────────────────
 
-/**
- * 创建新简历。
- * 接受 V1 或 V2 payload。V1 传递 Partial<Resume>；V2 传递 CreateResumeRequestV2。
- * 调用 POST /api/resumes。失败时错误直接向上传播。
- */
-export async function createResume(input: Partial<Resume> | CreateResumeRequestV2): Promise<Resume> {
-  return post<Resume>('/resumes', input);
-}
-
-/**
- * 更新简历（后端采用版本迭代模型：POST 生成新版本）。
- * 接受 V1 或 V2 payload。
- * 调用 POST /api/resumes。失败时错误直接向上传播。
- */
-export async function updateResume(
-  _resumeId: string,
-  input: Partial<Resume> | CreateResumeRequestV2,
+/** 创建新简历 */
+export async function createResume(
+  payload: SaveResumePayload,
 ): Promise<Resume> {
-  return post<Resume>('/resumes', input);
+  return post<Resume>('/resumes', payload);
 }
 
-/**
- * 设为当前简历。
- * 后端设计：current = 最新版本。前端通过再次 POST /resumes 创建新版本即可自动成为 current。
- * 无独立 set-current 接口，调用方应使用 createResume/updateResume 代替。
- */
-export async function setCurrentResume(_resumeId: string): Promise<Resume> {
-  throw new Error('setCurrentResume: 后端无此接口，请使用 createResume/updateResume 创建新版本');
+/** 更新简历 */
+export async function updateResume(
+  id: number,
+  payload: SaveResumePayload,
+): Promise<Resume> {
+  return put<Resume>(`/resumes/${id}`, payload);
 }
+
+/** 删除简历 */
+export async function deleteResume(id: number): Promise<void> {
+  return request<void>(`/resumes/${id}`, { method: 'DELETE' });
+}
+
+/** 设为当前简历 */
+export async function setCurrentResume(id: number): Promise<Resume> {
+  return post<Resume>(`/resumes/${id}/set-current`);
+}
+
+// ─── @deprecated wrappers（K8-5-48-D 清理） ──────────────────────────────────
+
+/** @deprecated use getResumeById */
+export const getResumeDetail = getResumeById;
+
+/** @deprecated use getResumes */
+export const getResumeVersions = getResumes;

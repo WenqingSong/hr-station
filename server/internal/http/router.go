@@ -56,13 +56,18 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("/api/auth/logout", deps.AuthMiddleware(http.HandlerFunc(deps.AuthHandler.Logout)))
 
 	// Resume routes (all require auth)
-	mux.Handle("/api/resumes", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Create)))
+	// K8-5-48-F: /api/resumes dispatches GET (list) / POST (create) via ResumesDispatcher
+	mux.Handle("/api/resumes", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.ResumesDispatcher)))
+	// K8-5-48-F: Fixed paths registered before wildcard /api/resumes/
 	mux.Handle("/api/resumes/current", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Current)))
 	mux.Handle("/api/resumes/detail", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Detail)))
 	mux.Handle("/api/resumes/versions", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Versions)))
 	mux.Handle("/api/resumes/versions/compare", deps.AuthMiddleware(http.HandlerFunc(deps.VersionCompareHandler.Compare)))
+	mux.Handle("/api/resumes/compare", deps.AuthMiddleware(http.HandlerFunc(deps.VersionCompareHandler.Compare))) // K8-5-48-D
 	mux.Handle("/api/resumes/versions/", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.VersionDetail)))
 	mux.Handle("/api/resumes/optimize", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeOptimizationHandler.Optimize)))
+	// K8-5-48-F: Wildcard for /api/resumes/{id} and /api/resumes/{id}/set-current
+	mux.Handle("/api/resumes/", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.ResumeByIDDispatcher)))
 
 	// Job routes — public list / facets / detail, protected recommend / match
 	// NOTE: more specific patterns must be registered before the wildcard /api/jobs/

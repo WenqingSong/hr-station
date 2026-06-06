@@ -164,7 +164,7 @@ func main() {
 	// Initialize resume optimization module with both runners (tier selected per request)
 	resumeOptimizationRepo := repository.NewResumeOptimizationRepository(mysqlDB.DB)
 	resumeOptimizationMockAgent := agent.NewResumeOptimizationMockAgent()
-	resumeOptimizationService := service.NewResumeOptimizationService(resumeOptimizationRepo, resumeOptimizationMockAgent, fastRunner, qualityRunner, llmEnabled)
+	resumeOptimizationService := service.NewResumeOptimizationService(resumeRepo, jobRepo, resumeOptimizationRepo, resumeOptimizationMockAgent, fastRunner, qualityRunner, llmEnabled)
 	resumeOptimizationHandler := httpserver.NewResumeOptimizationHandler(resumeOptimizationService)
 
 	// Initialize CORS middleware with config

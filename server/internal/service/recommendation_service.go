@@ -333,12 +333,7 @@ func generateSummary(resume *model.ResumeVersion, jobs []*model.RecommendedJob) 
 		}
 	}
 
-	targetDesc := ""
-	if resume.TargetRole != "" {
-		targetDesc = fmt.Sprintf("基于当前简历版本（目标岗位：%s），", resume.TargetRole)
-	} else {
-		targetDesc = "基于当前简历版本，"
-	}
+	targetDesc := fmt.Sprintf("基于简历「%s」，", resume.Name)
 
 	sourceDesc := "系统优先推荐%s方向岗位。"
 	if hasTencent {

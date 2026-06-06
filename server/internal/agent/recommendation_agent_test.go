@@ -34,16 +34,12 @@ func recTestResume() *model.ResumeVersion {
 	projJSON, _ := json.Marshal([]any{})
 
 	return &model.ResumeVersion{
-		ID:           1,
-		UserID:       100,
-		VersionNo:    2,
-		TargetRole:   "Go 后端开发工程师",
-		TargetCity:   "深圳",
-		SkillsJSON:   skillsJSON,
-		EducationJSON: eduJSON,
+		ID:             1,
+		UserID:         100,
+		SkillsJSON:     skillsJSON,
+		EducationJSON:  eduJSON,
 		ExperienceJSON: expJSON,
-		ProjectJSON:  projJSON,
-		SelfEvaluation: "熟悉 Go 和微服务",
+		ProjectJSON:    projJSON,
 	}
 }
 
@@ -57,7 +53,6 @@ func recTestJobs() []*model.Job {
 			Department:      "技术部",
 			City:           "深圳",
 			Category:       "技术",
-			JobType:        "full_time",
 			Description:    "负责 Go 后端开发",
 			Requirements:   "3年 Go 经验",
 			ExternalSource: "local_mock",
@@ -71,7 +66,6 @@ func recTestJobs() []*model.Job {
 			Department:      "平台部",
 			City:           "北京",
 			Category:       "技术",
-			JobType:        "full_time",
 			Description:    "负责 Java 后端开发",
 			Requirements:   "3年 Java 经验",
 			ExternalSource: "tencent_join",

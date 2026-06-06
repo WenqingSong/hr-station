@@ -57,14 +57,14 @@ func testResumeFromFile(t *testing.T, filename string) *model.ResumeVersion {
 
 	return &model.ResumeVersion{
 		ID:             id,
-		VersionNo:      versionNo,
-		TargetRole:     targetRole,
-		TargetCity:     targetCity,
 		SkillsJSON:     skillsJSON,
 		EducationJSON:  educationJSON,
 		ExperienceJSON: experienceJSON,
 		ProjectJSON:    projectJSON,
 		SelfEvaluation: selfEval,
+		TargetRole:     targetRole,
+		TargetCity:     targetCity,
+		VersionNo:      versionNo,
 	}
 }
 

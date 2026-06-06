@@ -58,3 +58,4 @@ func (r *ResumeCompareRepository) GetLatestByUserID(ctx context.Context, userID 
 
 	return &result, nil
 }
+

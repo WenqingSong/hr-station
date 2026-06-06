@@ -2,41 +2,49 @@ package model
 
 import "time"
 
-// Resume represents a resume in the system.
-// Maps to the `resumes` table in MySQL.
-//
-// V1 fields: id..raw_text (schema_version defaults to 1)
-// V2 fields: schema_version, target_direction, job_type, expected_cities,
-//            school, degree, major, graduation_year,
-//            profile_json, job_intention_json, internship_json,
-//            certificates_json, awards_json, portfolio_json, extra_json
 type Resume struct {
-	ID             uint64
-	UserID         uint64
-	Name           string
-	Phone          string
-	Email          string
+	ID            uint64
+	UserID        uint64
+	Name          string
+	IsCurrent     bool
+	RealName      string
+	Phone         string
+	Email         string
+	City          string
+	ProfessionalSkills string
+	AIApplication      string
+	Homepage           string
+	AdditionalInfo     string
+	RawText       string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+
+	Educations     []ResumeEducation
+	Projects       []ResumeProject
+	Internships    []ResumeInternship
+	LanguageExams  []ResumeLanguageExam
+	Certificates   []ResumeCertificate
+	Awards         []ResumeAward
+	Works          []ResumeWork
+
+	// Shim fields for old agent/service compat (K8-5-48-B)
+	VersionNo      int
 	Location       string
-	TargetCity     string
+	SelfEvaluation string
 	TargetRole     string
+	TargetCity     string
+	TargetDirection string
+	JobType        string
+	ExpectedCities string
+	School         string
+	Degree         string
+	Major          string
+	GraduationYear string
+	SchemaVersion  int
 	EducationJSON  []byte
 	ExperienceJSON []byte
 	ProjectJSON    []byte
 	SkillsJSON     []byte
-	SelfEvaluation string
-	RawText        string
-
-	// V2 fields (K8-5-22-B)
-	SchemaVersion int
-
-	TargetDirection string
-	JobType         string
-	ExpectedCities  string
-	School          string
-	Degree          string
-	Major           string
-	GraduationYear  string
-
 	ProfileJSON      []byte
 	JobIntentionJSON []byte
 	InternshipJSON   []byte
@@ -44,15 +52,81 @@ type Resume struct {
 	AwardsJSON       []byte
 	PortfolioJSON    []byte
 	ExtraJSON        []byte
-
-	CreatedAt time.Time
-	UpdatedAt time.Time
-
-	// VersionNo is NOT a DB column in the `resumes` table (removed in K8-5-51-B).
-	// It is kept here only as a transient field for API response backward compatibility.
-	VersionNo int
 }
 
-// ResumeVersion is an alias for Resume (backward compatibility).
-// Deprecated: use Resume directly.
 type ResumeVersion = Resume
+
+// K8-5-48-F: JSON tags added for relational deserialization
+type ResumeEducation struct {
+	ID uint64 `json:"id,omitempty"`
+	ResumeID uint64 `json:"resume_id,omitempty"`
+	School string `json:"school"`
+	Degree string `json:"degree"`
+	Major string `json:"major"`
+	Department string `json:"department"`
+	StartDate string `json:"start_date"`
+	EndDate string `json:"end_date"`
+	GPA string `json:"gpa"`
+	GPAScale string `json:"gpa_scale"`
+	RankText string `json:"rank_text"`
+	CoreCourses string `json:"core_courses"`
+	ResearchDirection string `json:"research_direction"`
+	Lab string `json:"lab"`
+	PaperSummary string `json:"paper_summary"`
+	SortOrder int `json:"sort_order,omitempty"`
+}
+
+type ResumeProject struct {
+	ID uint64 `json:"id,omitempty"`
+	ResumeID uint64 `json:"resume_id,omitempty"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+	StartDate string `json:"start_date"`
+	EndDate string `json:"end_date"`
+	Description string `json:"description"`
+	SortOrder int `json:"sort_order,omitempty"`
+}
+
+type ResumeInternship struct {
+	ID uint64 `json:"id,omitempty"`
+	ResumeID uint64 `json:"resume_id,omitempty"`
+	Company string `json:"company"`
+	Position string `json:"position"`
+	StartDate string `json:"start_date"`
+	EndDate string `json:"end_date"`
+	Description string `json:"description"`
+	SortOrder int `json:"sort_order,omitempty"`
+}
+
+type ResumeLanguageExam struct {
+	ID uint64 `json:"id,omitempty"`
+	ResumeID uint64 `json:"resume_id,omitempty"`
+	ExamType string `json:"exam_type"`
+	Score string `json:"score"`
+	SortOrder int `json:"sort_order,omitempty"`
+}
+
+type ResumeCertificate struct {
+	ID uint64 `json:"id,omitempty"`
+	ResumeID uint64 `json:"resume_id,omitempty"`
+	Name string `json:"name"`
+	Description string `json:"description"`
+	SortOrder int `json:"sort_order,omitempty"`
+}
+
+type ResumeAward struct {
+	ID uint64 `json:"id,omitempty"`
+	ResumeID uint64 `json:"resume_id,omitempty"`
+	Name string `json:"name"`
+	Description string `json:"description"`
+	SortOrder int `json:"sort_order,omitempty"`
+}
+
+type ResumeWork struct {
+	ID uint64 `json:"id,omitempty"`
+	ResumeID uint64 `json:"resume_id,omitempty"`
+	Name string `json:"name"`
+	URL string `json:"url"`
+	Password string `json:"password"`
+	SortOrder int `json:"sort_order,omitempty"`
+}

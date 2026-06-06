@@ -122,8 +122,6 @@ func (a *ResumeOptimizationAgent) buildPromptValues(input *OptimizeInput) (map[s
 	// Build resume context with optional snapshot
 	resumeContext := map[string]any{
 		"target_section":      input.TargetSection,
-		"target_roles":        input.TargetRoles,
-		"expected_locations":  input.ExpectedLocations,
 		"accept_relocation":   input.AcceptRelocation,
 	}
 

@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from "react-router";
 import {
   ArrowLeft,
   ArrowRight,
-  ChevronDown,
   AlertCircle,
   FileText,
   TrendingUp,
@@ -14,8 +13,8 @@ import {
 } from "lucide-react";
 import { loadResumeComparisonViewModel } from "../../api";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
-import { getResumeVersions } from "../../api/index";
-import type { ResumeVersionListItem } from "../../types";
+import { getResumes } from "../../api/resumes";
+import type { Resume } from "../../types";
 import type { ResumeComparisonViewModel } from "../../adapters";
 import { PageLoading, PageError, PageEmpty } from "../components/PageState";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
@@ -52,9 +51,9 @@ function getStatusBadge(status: string) {
 }
 
 export function ResumeComparisonPage() {
-  const [versions, setVersions] = useState<ResumeVersionListItem[]>([]);
-  const [baseVersion, setBaseVersion] = useState<ResumeVersionListItem | null>(null);
-  const [targetVersion, setTargetVersion] = useState<ResumeVersionListItem | null>(null);
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [baseResume, setBaseResume] = useState<Resume | null>(null);
+  const [targetResume, setTargetResume] = useState<Resume | null>(null);
   const [comparison, setComparison] = useState<ResumeComparisonViewModel | null>(null);
   const [versionsLoading, setVersionsLoading] = useState(true);
   const [versionsError, setVersionsError] = useState(false);
@@ -63,18 +62,17 @@ export function ResumeComparisonPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Load version list
   useEffect(() => {
-    getResumeVersions()
+    getResumes()
       .then((list) => {
-        setVersions(list);
-        // Auto-select: base = earliest (last in array), target = latest (first in array)
+        setResumes(list);
         if (list.length >= 2) {
-          setBaseVersion(list[list.length - 1]);
-          setTargetVersion(list[0]);
+          // base = first (oldest/earliest added), target = last (latest)
+          setBaseResume(list[list.length - 1]);
+          setTargetResume(list[0]);
         } else if (list.length === 1) {
-          setBaseVersion(list[0]);
-          setTargetVersion(list[0]);
+          setBaseResume(list[0]);
+          setTargetResume(list[0]);
         }
       })
       .catch((err) => {
@@ -85,69 +83,52 @@ export function ResumeComparisonPage() {
       .finally(() => setVersionsLoading(false));
   }, []);
 
-  // Run comparison when both versions selected
   useEffect(() => {
-    if (!baseVersion || !targetVersion || baseVersion.version_no === targetVersion.version_no) return;
+    if (!baseResume || !targetResume || baseResume.id === targetResume.id) return;
 
     setCompareLoading(true);
     setCompareError(false);
     loadResumeComparisonViewModel(
-      String(baseVersion.version_no),
-      String(targetVersion.version_no),
-      baseVersion.name || `V${baseVersion.version_no}`,
-      targetVersion.name || `V${targetVersion.version_no}`,
+      baseResume.id,
+      targetResume.id,
+      baseResume.name || `简历 ${baseResume.id}`,
+      targetResume.name || `简历 ${targetResume.id}`,
     )
       .then(setComparison)
       .catch(() => setCompareError(true))
       .finally(() => setCompareLoading(false));
-  }, [baseVersion?.version_no, targetVersion?.version_no]);
+  }, [baseResume?.id, targetResume?.id]);
 
-  // --- Version list loading ---
   if (versionsLoading) {
-    return <PageLoading message="正在加载简历版本…" maxWidth="max-w-[1360px]" />;
+    return <PageLoading message="正在加载简历列表…" maxWidth="max-w-[1360px]" />;
   }
 
-  // --- Version list error ---
   if (versionsError) {
     return (
-      <PageError
-        title="简历版本数据加载失败，请稍后重试。"
-        description=""
-        maxWidth="max-w-[1360px]"
-      >
+      <PageError title="简历列表加载失败，请稍后重试。" description="" maxWidth="max-w-[1360px]">
         <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
       </PageError>
     );
   }
 
-  // --- No versions ---
-  if (versions.length === 0) {
+  if (resumes.length === 0) {
     return (
-      <PageEmpty
-        title="暂无可比较的简历版本"
-        description=""
-        maxWidth="max-w-[1360px]"
-      >
+      <PageEmpty title="暂无可比较的简历" description="" maxWidth="max-w-[1360px]">
         <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
       </PageEmpty>
     );
   }
 
-  // --- Only one version ---
-  if (versions.length === 1) {
+  if (resumes.length === 1) {
     return (
-      <PageEmpty
-        title="仅有一个简历版本，无法进行比较。"
-        description="请先创建更多版本。"
-        maxWidth="max-w-[1360px]"
-      >
+      <PageEmpty title="仅有一份简历，无法进行比较。" description="请先创建更多简历。" maxWidth="max-w-[1360px]">
         <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
       </PageEmpty>
     );
   }
 
-  const baseLabel = baseVersion?.name || `V${baseVersion?.version_no}`;
-  const targetLabel = targetVersion?.name || `V${targetVersion?.version_no}`;
+  const baseLabel = baseResume?.name || `简历 ${baseResume?.id}`;
+  const targetLabel = targetResume?.name || `简历 ${targetResume?.id}`;
 
   return (
     <ContentPageShell>
@@ -158,9 +139,9 @@ export function ResumeComparisonPage() {
             <ArrowLeft className="w-4 h-4 mr-1 transition-transform group-hover:-translate-x-0.5" />
             返回我的简历
           </Link>
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mb-1">历史简历比较</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mb-1">简历版本比较</h1>
           <p className="text-sm text-slate-500">
-            比较不同简历版本的变化，查看版本间差异分析。
+            比较不同简历的变化，查看差异分析。
           </p>
         </div>
 
@@ -170,19 +151,19 @@ export function ResumeComparisonPage() {
             <div className="flex flex-col">
               <span className="text-xs text-slate-500 mb-1">旧版本（基准）</span>
               <Select
-                value={baseVersion ? String(baseVersion.version_no) : undefined}
+                value={baseResume ? String(baseResume.id) : undefined}
                 onValueChange={(v) => {
-                  const ver = versions.find((vv) => vv.version_no === Number(v));
-                  if (ver) setBaseVersion(ver);
+                  const r = resumes.find((rr) => rr.id === Number(v));
+                  if (r) setBaseResume(r);
                 }}
               >
                 <SelectTrigger className="max-w-[200px] bg-slate-50 text-sm font-medium text-slate-700">
                   <SelectValue placeholder="选择版本" />
                 </SelectTrigger>
                 <SelectContent>
-                  {versions.map((v) => (
-                    <SelectItem key={v.version_no} value={String(v.version_no)}>
-                      V{v.version_no} {v.name}
+                  {resumes.map((r) => (
+                    <SelectItem key={r.id} value={String(r.id)}>
+                      {r.name || `简历 ${r.id}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -196,19 +177,19 @@ export function ResumeComparisonPage() {
             <div className="flex flex-col">
               <span className="text-xs text-slate-500 mb-1">新版本（目标）</span>
               <Select
-                value={targetVersion ? String(targetVersion.version_no) : undefined}
+                value={targetResume ? String(targetResume.id) : undefined}
                 onValueChange={(v) => {
-                  const ver = versions.find((vv) => vv.version_no === Number(v));
-                  if (ver) setTargetVersion(ver);
+                  const r = resumes.find((rr) => rr.id === Number(v));
+                  if (r) setTargetResume(r);
                 }}
               >
                 <SelectTrigger className="max-w-[200px] bg-blue-50 text-sm font-medium text-blue-700">
                   <SelectValue placeholder="选择版本" />
                 </SelectTrigger>
                 <SelectContent>
-                  {versions.map((v) => (
-                    <SelectItem key={v.version_no} value={String(v.version_no)}>
-                      V{v.version_no} {v.name}
+                  {resumes.map((r) => (
+                    <SelectItem key={r.id} value={String(r.id)}>
+                      {r.name || `简历 ${r.id}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -221,11 +202,7 @@ export function ResumeComparisonPage() {
         {compareLoading ? (
           <PageLoading message="正在生成版本对比…" maxWidth="max-w-[1360px]" className="py-12" />
         ) : compareError ? (
-          <PageError
-            title="版本对比接口暂时不可用，请稍后重试。"
-            description=""
-            maxWidth="max-w-[1360px]"
-          >
+          <PageError title="版本对比接口暂时不可用，请稍后重试。" description="" maxWidth="max-w-[1360px]">
             <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>
           </PageError>
         ) : !comparison ? (
@@ -241,30 +218,13 @@ export function ResumeComparisonPage() {
               <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm sticky top-20">
                 <h3 className="font-semibold text-slate-900 mb-2">旧版本：{baseLabel}</h3>
                 <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 mb-4">
-                  历史版本
+                  基准版本
                 </span>
-
                 <div className="space-y-4 text-sm">
                   <div>
                     <div className="text-slate-500 text-xs mb-1">基准评分</div>
                     <div className="text-2xl font-bold text-slate-700">{comparison.scoreBefore}</div>
                   </div>
-
-                  {comparison.fieldChanges.length > 0 && (
-                    <div className="pt-2 border-t border-gray-100">
-                      <div className="text-slate-500 text-xs mb-2">版本基本信息</div>
-                      <div className="space-y-1.5 text-xs">
-                        {comparison.fieldChanges
-                          .filter((fc) => fc.field !== "version")
-                          .map((fc, i) => (
-                            <div key={i} className="flex items-start gap-1.5">
-                              <span className="text-slate-400 shrink-0 mt-0.5">•</span>
-                              <span className="text-slate-600">{fc.field}：{fc.before || "—"}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -272,13 +232,11 @@ export function ResumeComparisonPage() {
             {/* Center: Diff Analysis */}
             <div className="lg:col-span-6 space-y-6">
 
-              {/* Score Overview */}
               <section className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
                 <h2 className="text-base font-semibold text-slate-900 mb-4 flex items-center">
                   <FileText className="w-4 h-4 mr-2 text-[#0052D9]" />
                   版本变化总览
                 </h2>
-
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-[#F5F7FA] rounded-xl p-5 border border-gray-100 flex flex-col items-center justify-center text-center">
                     <div className="text-xs text-slate-500 mb-2 font-medium">评分变化</div>
@@ -293,13 +251,11 @@ export function ResumeComparisonPage() {
                       {comparison.scoreChange >= 0 ? "+" : ""}{comparison.scoreChange}
                     </div>
                   </div>
-
                   <div className="bg-[#F5F7FA] rounded-xl p-5 border border-gray-100 flex flex-col items-center justify-center text-center">
                     <div className="text-xs text-slate-500 mb-2 font-medium">字段变化</div>
                     <div className="text-3xl font-bold text-[#0052D9]">{comparison.fieldChanges.length}</div>
                     <div className="text-xs text-slate-400 mt-1">个字段</div>
                   </div>
-
                   <div className="bg-[#F5F7FA] rounded-xl p-5 border border-gray-100 flex flex-col items-center justify-center text-center">
                     <div className="text-xs text-slate-500 mb-2 font-medium">风险状态</div>
                     <div className="text-3xl font-bold text-[#0052D9]">{comparison.riskChanges.length}</div>
@@ -435,7 +391,6 @@ export function ResumeComparisonPage() {
                 </section>
               )}
 
-              {/* Summary + Authenticity Notice */}
               {(comparison.summary || comparison.authenticityNotice) && (
                 <section className="bg-blue-50/50 rounded-xl border border-blue-100 p-6">
                   {comparison.summary && (
@@ -450,7 +405,6 @@ export function ResumeComparisonPage() {
                 </section>
               )}
 
-              {/* Empty state for zero field changes */}
               {comparison.fieldChanges.length === 0 && comparison.keyImprovements.length === 0 && comparison.suggestionCompletion.length === 0 && comparison.riskChanges.length === 0 && (
                 <div className="text-center py-8 text-gray-400 text-sm">
                   两个版本之间未检测到显著差异。
@@ -466,7 +420,6 @@ export function ResumeComparisonPage() {
                 <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-100 mb-4">
                   目标版本
                 </span>
-
                 <div className="space-y-4 text-sm">
                   <div>
                     <div className="text-slate-500 text-xs mb-1">版本评分</div>
@@ -475,7 +428,6 @@ export function ResumeComparisonPage() {
                       较基准 {comparison.scoreChange >= 0 ? "+" : ""}{comparison.scoreChange}
                     </div>
                   </div>
-
                   <div className="pt-2 border-t border-gray-100">
                     <div className="text-slate-500 text-xs mb-1.5">版本信息</div>
                     <div className="flex items-center gap-1.5 text-xs text-slate-600">
@@ -490,8 +442,7 @@ export function ResumeComparisonPage() {
           </div>
         )}
 
-      {/* Bottom bar */}
-      {(baseVersion && targetVersion && comparison) && (
+      {(baseResume && targetResume && comparison) && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
           <div className="max-w-[1360px] mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center text-sm text-slate-500">
@@ -500,7 +451,6 @@ export function ResumeComparisonPage() {
               <ArrowRight className="w-3.5 h-3.5 mx-2 text-slate-400" />
               <span className="font-medium text-blue-600">{targetLabel}</span>
             </div>
-
             <div className="flex items-center gap-3">
               <Link to="/resumes" className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">
                 返回我的简历

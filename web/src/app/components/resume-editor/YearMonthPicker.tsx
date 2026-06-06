@@ -91,7 +91,7 @@ export function YearMonthPicker({
 
       {/* Panel */}
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-[256px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="absolute left-0 top-full z-[9999] mt-1 w-[256px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
           {/* Year nav */}
           <div className="flex items-center justify-between mb-3">
             <button

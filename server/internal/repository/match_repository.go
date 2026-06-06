@@ -58,3 +58,4 @@ func (r *MatchRepository) GetLatestByUserIDAndJobID(ctx context.Context, userID 
 
 	return &analysis, nil
 }
+

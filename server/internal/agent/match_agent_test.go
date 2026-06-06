@@ -40,9 +40,6 @@ func testResume() *model.ResumeVersion {
 	})
 	return &model.ResumeVersion{
 		ID:             1,
-		VersionNo:      1,
-		TargetRole:     "后端开发",
-		TargetCity:     "深圳",
 		SkillsJSON:     skills,
 		EducationJSON:  edu,
 		ExperienceJSON: exp,

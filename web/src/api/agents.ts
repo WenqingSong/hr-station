@@ -1,4 +1,4 @@
-// ─── 三类 Agent API ───────────────────────────────────────────────────────────
+// ─── 三类 Agent API（K8-5-48-D：resume_version_no → resume_id） ─────────────
 
 import { post } from './client';
 import type {
@@ -11,26 +11,24 @@ import type {
 // ─── 请求类型 ──────────────────────────────────────────────────────────────────
 
 export interface RecommendationRequest {
-  resume_version_no?: number;
+  resume_id?: number;
   limit?: number;
-  /** Controls model tier: "fast" (default) or "quality" */
   generation_tier?: "fast" | "quality";
 }
 
 export interface MatchAnalysisRequest {
-  resume_version_no?: number;
-  /** Controls model tier: "fast" (default) or "quality" */
+  resume_id?: number;
   generation_tier?: "fast" | "quality";
 }
 
 export interface ResumeOptimizationRequest {
+  resume_id?: number;
+  job_id?: number;
   resume_text?: string;
   target_job?: { title?: string; jd_text?: string };
   target_section?: string;
   user_intention?: string;
-  /** "core" — use ResumeOptimizationCoreAgent (default: full agent) */
   mode?: "core";
-  /** Controls model tier: "fast" (default) or "quality" */
   generation_tier?: "fast" | "quality";
 }
 
@@ -44,13 +42,12 @@ export type ResumeOptimizationAgentResponse = AgentResponseEnvelope<ResumeOptimi
 
 /**
  * 运行岗位推荐。
- * 调用 POST /api/jobs/recommend（{ resume_version_no, limit }）。失败时错误直接向上传播。
+ * 调用 POST /api/jobs/recommend（{ resume_id, limit }）。失败时错误直接向上传播。
  */
 export async function runRecommendation(
   input?: Partial<RecommendationRequest>,
 ): Promise<RecommendationAgentResponse> {
   const payload: RecommendationRequest = {
-    resume_version_no: 0,
     limit: 5,
     ...input,
   };
@@ -65,14 +62,13 @@ export async function runRecommendation(
 
 /**
  * 运行岗位匹配分析。
- * 调用 POST /api/jobs/{jobId}/match（{ resume_version_no }）。失败时错误直接向上传播。
+ * 调用 POST /api/jobs/{jobId}/match（{ resume_id }）。失败时错误直接向上传播。
  */
 export async function runMatchAnalysis(
   jobId: string,
   input?: Partial<MatchAnalysisRequest>,
 ): Promise<MatchAnalysisAgentResponse> {
   const payload: MatchAnalysisRequest = {
-    resume_version_no: 0,
     ...input,
   };
 
@@ -86,20 +82,14 @@ export async function runMatchAnalysis(
 
 /**
  * 运行简历优化。
- * 调用 POST /api/resumes/optimize（{ resume_text, target_job, target_section?, user_intention? }）。
+ * 调用 POST /api/resumes/optimize（{ resume_id, job_id, mode }）。
  * 失败时错误直接向上传播。
  */
 export async function runResumeOptimization(
   input?: Partial<ResumeOptimizationRequest>,
 ): Promise<ResumeOptimizationAgentResponse> {
-  const payload: ResumeOptimizationRequest = {
-    resume_text: '',
-    target_job: { title: '', jd_text: '' },
-    ...input,
-  };
-
   return post<ResumeOptimizationAgentResponse, ResumeOptimizationRequest>(
     '/resumes/optimize',
-    payload,
+    input || {},
   );
 }

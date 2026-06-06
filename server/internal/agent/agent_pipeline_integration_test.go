@@ -40,9 +40,6 @@ func intTestResume() *model.ResumeVersion {
 	})
 	return &model.ResumeVersion{
 		ID:             1,
-		VersionNo:      1,
-		TargetRole:     "后端开发",
-		TargetCity:     "深圳",
 		SkillsJSON:     skills,
 		EducationJSON:  edu,
 		ExperienceJSON: exp,
@@ -75,7 +72,6 @@ func intTestJobs() []*model.Job {
 			Department:     "技术部",
 			City:           "深圳",
 			Category:       "后端开发",
-			JobType:        "full_time",
 			Description:    "负责后端系统开发",
 			Requirements:   "熟悉Go语言",
 			ExternalSource: "local_mock",

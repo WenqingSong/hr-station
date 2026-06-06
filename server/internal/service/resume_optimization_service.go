@@ -17,7 +17,10 @@ import (
 
 // ResumeOptimizationRequest represents a request for resume optimization.
 type ResumeOptimizationRequest struct {
-	ResumeText     string                                 `json:"resume_text"`
+	// K8-5-48-D: resume_id + job_id are the primary inputs; resume_text is deprecated optional fallback.
+	ResumeID       uint64                                 `json:"resume_id,omitempty"`
+	JobID          uint64                                 `json:"job_id,omitempty"`
+	ResumeText     string                                 `json:"resume_text,omitempty"` // @deprecated use resume_id
 	TargetJob      *model.ResumeOptimizationTargetJob     `json:"target_job,omitempty"`
 	TargetSection  string                                 `json:"target_section,omitempty"`
 	UserIntention  *model.ResumeOptimizationUserIntention `json:"user_intention,omitempty"`
@@ -38,6 +41,8 @@ type ResumeOptimizationResponse struct {
 // It supports LLM Pipeline priority with Mock Agent fallback.
 // Supports generation_tier: "fast" uses fastRunner, "quality" uses qualityRunner.
 type ResumeOptimizationService struct {
+	resumeRepo       *repository.ResumeRepository // K8-5-48-D: fetch resume by resume_id
+	jobRepo          *repository.JobRepository    // K8-5-48-D: fetch job by job_id
 	optimizationRepo *repository.ResumeOptimizationRepository
 	mockAgent        *agent.ResumeOptimizationMockAgent
 	fastRunner       agent.PipelineRunner
@@ -48,6 +53,8 @@ type ResumeOptimizationService struct {
 // NewResumeOptimizationService creates a new ResumeOptimizationService.
 // If both runners are nil or llmEnabled is false, it falls back to Mock Agent only.
 func NewResumeOptimizationService(
+	resumeRepo *repository.ResumeRepository,
+	jobRepo *repository.JobRepository,
 	optimizationRepo *repository.ResumeOptimizationRepository,
 	mockAgent *agent.ResumeOptimizationMockAgent,
 	fastRunner agent.PipelineRunner,
@@ -55,6 +62,8 @@ func NewResumeOptimizationService(
 	llmEnabled bool,
 ) *ResumeOptimizationService {
 	return &ResumeOptimizationService{
+		resumeRepo:       resumeRepo,
+		jobRepo:          jobRepo,
 		optimizationRepo: optimizationRepo,
 		mockAgent:        mockAgent,
 		fastRunner:       fastRunner,
@@ -77,6 +86,28 @@ func (s *ResumeOptimizationService) selectRunner(tier model.GenerationTier) agen
 // first. If the Pipeline returns fallback_required or mapping fails, it falls
 // back to the Mock Agent. When LLM is disabled, it uses the Mock Agent directly.
 func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64, req ResumeOptimizationRequest) (*ResumeOptimizationResponse, error) {
+	// K8-5-48-D: resolve resume text from resume_id if provided
+	if req.ResumeText == "" && req.ResumeID > 0 {
+		resume, err := s.resumeRepo.GetByID(ctx, userID, req.ResumeID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get resume: %w", err)
+		}
+		if resume == nil {
+			return nil, apperror.ErrResumeNotFound
+		}
+		req.ResumeText = resume.RawText
+		// K8-5-48-D: also resolve job from job_id for target_job info
+		if req.JobID > 0 && req.TargetJob == nil {
+			job, jErr := s.jobRepo.FindByID(ctx, req.JobID)
+			if jErr == nil && job != nil {
+				req.TargetJob = &model.ResumeOptimizationTargetJob{
+					Title:  job.Title,
+					JDText: job.Description,
+				}
+			}
+		}
+	}
+
 	if err := validateOptimizeRequest(req); err != nil {
 		return nil, err
 	}
@@ -100,8 +131,6 @@ func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64,
 	}
 
 	if req.UserIntention != nil {
-		input.TargetRoles = req.UserIntention.TargetRoles
-		input.ExpectedLocations = req.UserIntention.ExpectedLocations
 		input.AcceptRelocation = req.UserIntention.AcceptRelocation
 	}
 

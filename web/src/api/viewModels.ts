@@ -1,15 +1,13 @@
-// ─── API → ViewModel 统一 Loader ──────────────────────────────────────────────
+// ─── API → ViewModel 统一 Loader（K8-5-48-C） ────────────────────────────────
 
 import {
   getJobs,
   getJobDetail,
   getSelectedJob,
   getCurrentResume,
-  getResumeDetail,
-  getResumeOptions,
-  getResumeVersions,
+  getResumeById,
+  getResumes,
   compareResumes,
-  get,
 } from './index';
 import {
   runRecommendation,
@@ -19,10 +17,10 @@ import {
 import { isApiClientError } from './errors';
 import type { Resume } from '../types';
 
-/** 判断错误是否为 401 未授权（token 缺失或过期） */
 function isAuthError(err: unknown): boolean {
   return isApiClientError(err) && err.status === 401;
 }
+
 import type {
   RecommendationRequest,
   MatchAnalysisRequest,
@@ -33,8 +31,7 @@ import {
   toJobCardViewModelsFromApi,
   toJobDetailViewModelFromApi,
   toResumeSummaryViewModel,
-  toResumeOptionViewModels,
-  toResumeOptionViewModelsFromVersions,
+  toResumeOptionViewModelsFromResumes,
   toResumeManagementViewModel,
   toResumeComparisonViewModel,
   toRecommendationPageViewModel,
@@ -53,13 +50,11 @@ import {
 
 // ─── Jobs ViewModel Loader ────────────────────────────────────────────────────
 
-/** 加载岗位列表 ViewModel */
 export async function loadJobListViewModels(): Promise<JobCardViewModel[]> {
   const res = await getJobs();
   return toJobCardViewModelsFromApi(res.items);
 }
 
-/** 加载岗位详情 ViewModel */
 export async function loadJobDetailViewModel(
   jobId: string,
 ): Promise<JobDetailViewModel> {
@@ -67,7 +62,6 @@ export async function loadJobDetailViewModel(
   return toJobDetailViewModelFromApi(job);
 }
 
-/** 加载指定岗位详情 ViewModel */
 export async function loadSelectedJobDetailViewModel(jobId: string): Promise<JobDetailViewModel> {
   const job = await getSelectedJob(jobId);
   return toJobDetailViewModelFromApi(job);
@@ -75,73 +69,67 @@ export async function loadSelectedJobDetailViewModel(jobId: string): Promise<Job
 
 // ─── Resumes ViewModel Loader ─────────────────────────────────────────────────
 
-/** 加载当前简历摘要 ViewModel */
 export async function loadCurrentResumeSummaryViewModel(): Promise<ResumeSummaryViewModel> {
   const resume = await getCurrentResume();
   return toResumeSummaryViewModel(resume);
 }
 
-/** 加载简历选项列表 ViewModel（选择简历弹窗） */
 export async function loadResumeOptionViewModels(): Promise<ResumeOptionViewModel[]> {
-  const options = await getResumeOptions();
-  return toResumeOptionViewModels(options);
+  const resumes = await getResumes();
+  return toResumeOptionViewModelsFromResumes(resumes);
 }
 
-/** 从真实 API versions 构建简历选项。
- * 调用 GET /api/resumes/versions。失败时错误直接向上传播。 */
+/** 从真实 API 构建简历选项（K8-5-48-C：使用 getResumes） */
 export async function loadResumeOptionViewModelsFromApi(): Promise<ResumeOptionViewModel[]> {
-  const versions = await getResumeVersions();
-  if (versions.length > 0) {
-    return toResumeOptionViewModelsFromVersions(versions);
+  const resumes = await getResumes();
+  if (resumes.length > 0) {
+    return toResumeOptionViewModelsFromResumes(resumes);
   }
   return [];
 }
 
-/** 加载简历管理页完整 ViewModel（含教育/项目/经历/技能/自评）
- * NOTE: K8-5-34-C — ResumeManagementPage now uses getResumeVersions() directly.
- * This loader is still used by MyResumesPage (edit mode backfill). */
+/** 加载简历管理页完整 ViewModel（K8-5-48-C：使用 current resume） */
 export async function loadResumeManagementPageViewModel(): Promise<ResumeManagementViewModel | null> {
   try {
     const resume = await getCurrentResume();
+    if (!resume) return null;
     return toResumeManagementViewModel(resume);
   } catch (err: unknown) {
-    // 401/token 过期不吞，向上传播给页面做 redirect
     if (isAuthError(err)) throw err;
-    return null; // 无简历或普通加载失败 → 返回 null，页面展示空态
+    return null;
   }
 }
 
 /** 加载简历版本比较 ViewModel */
 export async function loadResumeComparisonViewModel(
-  baseId: string,
-  targetId: string,
+  fromId: number,
+  toId: number,
   baseName: string,
   targetName: string,
 ): Promise<ResumeComparisonViewModel> {
-  const comparison = await compareResumes(baseId, targetId);
+  const comparison = await compareResumes(fromId, toId);
   return toResumeComparisonViewModel(comparison, baseName, targetName);
 }
 
 /** 加载指定简历摘要 ViewModel */
 export async function loadResumeSummaryViewModel(
-  versionNo: number,
+  resumeId: number,
 ): Promise<ResumeSummaryViewModel> {
-  const resume = await getResumeDetail(versionNo);
+  const resume = await getResumeById(resumeId);
   return toResumeSummaryViewModel(resume);
 }
 
-// ─── Resume Version Detail Loader ─────────────────────────────────────────────
+// ─── Resume Version Detail Loader（K8-5-48-C：改为 getResumeById） ──────────
 
 /**
- * 根据 versionNo 获取简历版本详情（10-3-R：匹配页 selected resume version detail 对齐）。
- * 调用 GET /resumes/versions/{versionNo}，返回 Resume | null。
- * 与 getCurrentResume() 不同，该方法返回指定版本的详情，确保页面展示与 Agent 请求一致。
+ * 根据 resumeId 获取简历详情。
+ * 调用 GET /resumes/{id}，返回 Resume | null。
  */
 export async function loadResumeVersionDetail(
-  versionNo: number,
+  resumeId: number,
 ): Promise<Resume | null> {
   try {
-    return await get<Resume>(`/resumes/versions/${versionNo}`);
+    return await getResumeById(resumeId);
   } catch (err: unknown) {
     if (isAuthError(err)) throw err;
     return null;
@@ -150,7 +138,6 @@ export async function loadResumeVersionDetail(
 
 // ─── Agent ViewModel Loader ───────────────────────────────────────────────────
 
-/** 加载岗位推荐页 ViewModel */
 export async function loadRecommendationViewModel(
   input?: Partial<RecommendationRequest>,
 ): Promise<RecommendationPageViewModel> {
@@ -158,7 +145,6 @@ export async function loadRecommendationViewModel(
   return toRecommendationPageViewModel(response.result, response.meta);
 }
 
-/** 加载岗位匹配分析页 ViewModel */
 export async function loadMatchAnalysisViewModel(
   jobId: string,
   input?: Partial<MatchAnalysisRequest>,
@@ -167,7 +153,6 @@ export async function loadMatchAnalysisViewModel(
   return toMatchAnalysisPageViewModel(response.result, response.meta);
 }
 
-/** 加载简历优化页 ViewModel */
 export async function loadResumeOptimizationViewModel(
   input?: Partial<ResumeOptimizationRequest>,
 ): Promise<ResumeOptimizationPageViewModel> {

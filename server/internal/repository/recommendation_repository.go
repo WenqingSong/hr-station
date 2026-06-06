@@ -64,3 +64,8 @@ func toNullJSONFromBytes(data []byte) sql.NullString {
 	}
 	return sql.NullString{String: string(data), Valid: true}
 }
+
+func fromNullJSON(ns sql.NullString) []byte {
+if !ns.Valid || ns.String == "" { return nil }
+return []byte(ns.String)
+}

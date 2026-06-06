@@ -34,33 +34,33 @@ func (h *VersionCompareHandler) Compare(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Parse query parameters
-	fromStr := r.URL.Query().Get("from")
-	toStr := r.URL.Query().Get("to")
+	// Parse query parameters (K8-5-48-D: from_id/to_id)
+	fromStr := r.URL.Query().Get("from_id")
+	toStr := r.URL.Query().Get("to_id")
 
 	if fromStr == "" {
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "from parameter is required")
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "from_id parameter is required")
 		return
 	}
 	if toStr == "" {
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "to parameter is required")
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "to_id parameter is required")
 		return
 	}
 
-	fromVersionNo, err := strconv.Atoi(fromStr)
-	if err != nil || fromVersionNo < 1 {
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid from version number")
+	fromID, err := strconv.ParseUint(fromStr, 10, 64)
+	if err != nil || fromID < 1 {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid from_id")
 		return
 	}
 
-	toVersionNo, err := strconv.Atoi(toStr)
-	if err != nil || toVersionNo < 1 {
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid to version number")
+	toID, err := strconv.ParseUint(toStr, 10, 64)
+	if err != nil || toID < 1 {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid to_id")
 		return
 	}
 
-	if fromVersionNo == toVersionNo {
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "from and to version numbers must be different")
+	if fromID == toID {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "from_id and to_id must be different")
 		return
 	}
 
@@ -72,8 +72,8 @@ func (h *VersionCompareHandler) Compare(w http.ResponseWriter, r *http.Request) 
 	}
 
 	req := service.VersionCompareRequest{
-		FromResumeID:  uint64(fromVersionNo),
-		ToResumeID:    uint64(toVersionNo),
+		FromResumeID:  fromID,
+		ToResumeID:    toID,
 		GenerationTier: tier,
 	}
 

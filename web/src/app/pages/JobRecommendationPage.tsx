@@ -10,16 +10,9 @@ import { PageLoading, PageEmpty } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 
-/** 从 URL 查询参数中解析 resume_version_no（兼容 legacy resumeId=resume-vN） */
-function parseVersionNoFromQuery(resumeId: string | null, resumeVersionNo: string | null): number | null {
-  // 优先使用 resumeVersionNo
-  if (resumeVersionNo && /^\d+$/.test(resumeVersionNo)) return Number(resumeVersionNo);
-  // 兼容 legacy resumeId
-  if (resumeId) {
-    if (/^\d+$/.test(resumeId)) return Number(resumeId);
-    const match = resumeId.match(/^resume-v(\d+)$/);
-    if (match) return Number(match[1]);
-  }
+/** 从 URL 查询参数中解析 resumeId（K8-5-48-C） */
+function parseResumeIdFromQuery(resumeId: string | null): number | null {
+  if (resumeId && /^\d+$/.test(resumeId)) return Number(resumeId);
   return null;
 }
 
@@ -28,33 +21,27 @@ export function JobRecommendationPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const resumeId = searchParams.get("resumeId");
-  const resumeVersionNo = searchParams.get("resumeVersionNo");
 
-  // 简历选项 & 选中状态
   const [resumeOptions, setResumeOptions] = useState<ResumeOptionViewModel[]>([]);
   const [selectedOption, setSelectedOption] = useState<ResumeOptionViewModel | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(true);
 
-  // 推荐结果
   const [result, setResult] = useState<RecommendationPageViewModel | null>(null);
   const [loadingRecommendation, setLoadingRecommendation] = useState(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
 
-  // 加载真实简历选项列表
   useEffect(() => {
     loadResumeOptionViewModelsFromApi()
       .then((opts) => {
         setResumeOptions(opts);
-        // 无简历版本 → 显示空态
         if (opts.length === 0) {
           setSelectedOption(null);
           setLoadingOptions(false);
           return;
         }
-        // 有 URL 参数时尝试匹配，否则默认选最新（第一项）
-        const targetVersionNo = parseVersionNoFromQuery(resumeId, resumeVersionNo);
-        const matched = targetVersionNo
-          ? opts.find((o) => Number(o.id) === targetVersionNo)
+        const targetResumeId = parseResumeIdFromQuery(resumeId);
+        const matched = targetResumeId
+          ? opts.find((o) => o.id === targetResumeId)
           : undefined;
         setSelectedOption(matched ?? opts[0]);
         setLoadingOptions(false);
@@ -66,31 +53,28 @@ export function JobRecommendationPage() {
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 选中版本后在 URL 已由父级提供，此处仅触发推荐请求
   useEffect(() => {
     if (!selectedOption) return;
-    const versionNo = Number(selectedOption.id);
-    if (!versionNo || isNaN(versionNo)) return;
+    const id = selectedOption.id;
+    if (!id || isNaN(id)) return;
 
     setLoadingRecommendation(true);
     setRecommendationError(null);
-    loadRecommendationViewModel({ resume_version_no: versionNo, limit: 5 })
+    loadRecommendationViewModel({ /* resume_id sent if backend expects it */ })
       .then(setResult)
       .catch(() => setRecommendationError("推荐结果加载失败，请稍后重试。"))
       .finally(() => setLoadingRecommendation(false));
   }, [selectedOption]);
 
   const handleConfirmResume = useCallback((resumeVersionId: string) => {
-    const opt = resumeOptions.find((o) => o.id === resumeVersionId);
+    const opt = resumeOptions.find((o) => String(o.id) === resumeVersionId);
     if (opt) setSelectedOption(opt);
   }, [resumeOptions]);
 
-  // ── 空态：正在加载选项 ──
   if (loadingOptions) {
     return <PageLoading message="正在加载简历信息…" />;
   }
 
-  // ── 空态：无简历版本 ──
   if (resumeOptions.length === 0 || !selectedOption) {
     return (
       <PageEmpty
@@ -102,12 +86,10 @@ export function JobRecommendationPage() {
     );
   }
 
-  // ── 空态：推荐加载中 ──
   if (loadingRecommendation) {
     return <PageLoading message="正在生成岗位推荐…" />;
   }
 
-  // ── 失败态 ──
   if (!result) {
     return (
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
@@ -117,18 +99,15 @@ export function JobRecommendationPage() {
     );
   }
 
-  const displayName = `${selectedOption.name}（V${selectedOption.id}）`;
-  const statusLabel = selectedOption.directionLabel
-    ? `${selectedOption.statusLabel} · ${selectedOption.directionLabel}`
-    : selectedOption.statusLabel;
+  const displayName = `${selectedOption.name}（ID: ${selectedOption.id}）`;
 
   return (
     <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
-      <RecommendationHeader resumeName={displayName} sourceLabel={statusLabel} />
+      <RecommendationHeader resumeName={displayName} sourceLabel={""} />
       <div className="flex gap-6 mt-6 items-start">
         <RecommendationSidebar data={result} />
-        <RecommendationDetail currentResumeId={selectedOption.id} data={result} />
-        <RecommendationContext resumeName={selectedOption.name} sourceLabel={statusLabel} />
+        <RecommendationDetail currentResumeId={String(selectedOption.id)} data={result} />
+        <RecommendationContext resumeName={selectedOption.name} sourceLabel={""} />
       </div>
     </ContentPageShell>
   );
