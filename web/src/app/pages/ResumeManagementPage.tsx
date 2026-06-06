@@ -3,11 +3,15 @@ import { Link, useNavigate, useLocation } from "react-router";
 import { PageLoading, PageError } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { FileText, Plus, Search, Sparkles, Wand2, GitCompare, Pencil, Trash2, Eye } from "lucide-react";
-import { getResumes, deleteResume } from "../../api/resumes";
+import { getResumes, deleteResume, setCurrentResume } from "../../api/resumes";
 import { AppConfirmDialog } from "../components/common/AppConfirmDialog";
 import type { Resume } from "../../types";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { isApiClientError } from "../../api/errors";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 5;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,27 +19,41 @@ interface ResumeRow {
   id: number;
   name: string;
   isCurrent: boolean;
+  createdAt: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function toRows(resumes: Resume[]): ResumeRow[] {
-  return resumes
-    .map((r) => ({
-      id: r.id,
-      name: r.name || "",
-      isCurrent: r.is_current || false,
-    }));
+  return resumes.map((r) => ({
+    id: r.id,
+    name: r.name || "",
+    isCurrent: r.is_current || false,
+    createdAt: r.created_at || r.updated_at || "",
+  }));
+}
+
+function formatDate(iso: string): string {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  } catch {
+    return iso.slice(0, 10);
+  }
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function EmptyState() {
   return (
-    <div className="bg-white rounded-2xl ring-1 ring-gray-100 p-12 text-center">
-      <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-      <h2 className="text-lg font-semibold text-gray-700 mb-2">你还没有创建简历</h2>
-      <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
+      <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+      <h2 className="text-lg font-semibold text-slate-700 mb-2">你还没有创建简历</h2>
+      <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">
         添加一份简历后，可以用于岗位投递、匹配分析和简历优化。
       </p>
       <Link
@@ -51,10 +69,12 @@ function EmptyState() {
 
 interface SmartAssistantProps {
   selectedResumeId: number | null;
+  selectedResumeName: string;
   hasResumes: boolean;
+  loading: boolean;
 }
 
-function SmartAssistant({ selectedResumeId, hasResumes }: SmartAssistantProps) {
+function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, loading }: SmartAssistantProps) {
   const disabled = !hasResumes || selectedResumeId === null;
 
   const entries = [
@@ -74,7 +94,7 @@ function SmartAssistant({ selectedResumeId, hasResumes }: SmartAssistantProps) {
     },
     {
       icon: Wand2,
-      label: "优化当前简历",
+      label: "优化选中简历",
       desc: "AI 分析简历薄弱项，给出可执行优化建议",
       href: selectedResumeId ? `/resume-optimization?resumeId=${selectedResumeId}` : "#",
       disabled,
@@ -89,20 +109,30 @@ function SmartAssistant({ selectedResumeId, hasResumes }: SmartAssistantProps) {
   ];
 
   return (
-    <div className="bg-white rounded-2xl ring-1 ring-gray-100 p-5">
-      <h2 className="text-[15px] font-semibold text-gray-800 mb-1">智能求职助手</h2>
-      <p className="text-xs text-gray-400 mb-4 leading-relaxed">
-        选择一份简历后，可使用智能推荐、匹配分析和优化建议。
-      </p>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <h2 className="text-[15px] font-semibold text-slate-800 mb-3">智能求职助手</h2>
+
+      {/* Selected resume indicator */}
+      <div className="mb-4 px-3 py-3 bg-slate-50 rounded-lg border border-slate-100">
+        <p className="text-[11px] text-slate-400 mb-1 font-medium">当前选中简历</p>
+        {loading ? (
+          <p className="text-sm text-slate-400 animate-pulse">正在切换…</p>
+        ) : selectedResumeName ? (
+          <p className="text-sm font-semibold text-slate-800">{selectedResumeName}</p>
+        ) : (
+          <p className="text-sm text-slate-400">点击左侧列表中的简历</p>
+        )}
+      </div>
+
       <div className="space-y-2">
         {entries.map((entry) => (
           <div key={entry.label}>
             {entry.disabled ? (
               <div className="flex items-start gap-3 px-3 py-2.5 rounded-lg opacity-50 cursor-not-allowed">
-                <entry.icon className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                <entry.icon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{entry.label}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{entry.desc}</p>
+                  <p className="text-sm font-medium text-slate-600">{entry.label}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{entry.desc}</p>
                 </div>
               </div>
             ) : (
@@ -112,10 +142,10 @@ function SmartAssistant({ selectedResumeId, hasResumes }: SmartAssistantProps) {
               >
                 <entry.icon className="w-4 h-4 text-[#0052D9] mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
                 <div>
-                  <p className="text-sm font-medium text-gray-800 group-hover:text-[#0052D9] transition-colors">
+                  <p className="text-sm font-medium text-slate-800 group-hover:text-[#0052D9] transition-colors">
                     {entry.label}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">{entry.desc}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{entry.desc}</p>
                 </div>
               </Link>
             )}
@@ -124,6 +154,56 @@ function SmartAssistant({ selectedResumeId, hasResumes }: SmartAssistantProps) {
       </div>
     </div>
   );
+}
+
+// ─── Pagination Bar ───────────────────────────────────────────────────────────
+
+function PaginationBar({
+  page, totalPages, totalCount, onPrev, onNext,
+}: {
+  page: number; totalPages: number; totalCount: number;
+  onPrev: () => void; onNext: () => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/50">
+      <span className="text-xs text-slate-500">共 {totalCount} 份简历</span>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-slate-500">第 {page} / {totalPages} 页</span>
+        <div className="flex gap-1">
+          <button
+            onClick={onPrev}
+            disabled={page <= 1}
+            className="px-2.5 py-1 text-xs rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            上一页
+          </button>
+          <button
+            onClick={onNext}
+            disabled={page >= totalPages}
+            className="px-2.5 py-1 text-xs rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            下一页
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Action Button ────────────────────────────────────────────────────────────
+
+function ActionBtn({ children, onClick, to, className = "" }: {
+  children: React.ReactNode;
+  onClick?: (e: React.MouseEvent) => void;
+  to?: string;
+  className?: string;
+}) {
+  const base = `flex items-center gap-1 text-[13px] text-slate-400 hover:text-[#0052D9] transition-colors cursor-pointer ${className}`;
+  if (to) {
+    return <Link to={to} onClick={onClick} className={base}>{children}</Link>;
+  }
+  return <button onClick={onClick} className={base}>{children}</button>;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -135,16 +215,45 @@ export function ResumeManagementPage() {
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ResumeRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleSelectResume = (id: number) => {
+    if (id === selectedResumeId) return;
+    setSelectedResumeId(id);
+    setAssistantLoading(true);
+    // Silent sync to backend
+    setCurrentResume(id).catch(() => { /* ignore */ });
+    const timer = window.setTimeout(() => setAssistantLoading(false), 200);
+    return () => clearTimeout(timer);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteResume(deleteTarget.id);
+      const list = await getResumes();
+      const updated = sortRows(toRows(list));
+      setRows(updated);
+      if (list.length === 0) { setSelectedResumeId(null); setPage(1); return; }
+      // Keep current page within bounds
+      const maxPage = Math.max(1, Math.ceil(updated.length / PAGE_SIZE));
+      if (page > maxPage) setPage(maxPage);
+    } catch { /* ignore */ }
+    finally { setDeleteLoading(false); setDeleteTarget(null); }
+  };
 
   useEffect(() => {
     getResumes()
       .then((resumes) => {
-        const sorted = toRows(resumes);
+        const sorted = sortRows(toRows(resumes));
         setRows(sorted);
         if (sorted.length > 0) {
-          setSelectedResumeId(sorted[0].id);
+          const cur = sorted.find((r) => r.isCurrent) ?? sorted[0];
+          setSelectedResumeId(cur.id);
         }
       })
       .catch((err: unknown) => {
@@ -158,6 +267,11 @@ export function ResumeManagementPage() {
   }, []);
 
   const hasResumes = useMemo(() => (rows && rows.length > 0) ?? false, [rows]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil((rows?.length ?? 0) / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedRows = (rows ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   if (loading) {
     return (
@@ -191,8 +305,8 @@ export function ResumeManagementPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-[22px] font-semibold text-gray-900">我的简历</h1>
-          <p className="mt-1.5 text-sm text-gray-500">
+          <h1 className="text-[22px] font-semibold text-slate-900">我的简历</h1>
+          <p className="mt-1.5 text-sm text-slate-500">
             管理你的简历内容，用于岗位投递、匹配分析和简历优化。
           </p>
         </div>
@@ -208,71 +322,74 @@ export function ResumeManagementPage() {
       <div className="flex flex-col lg:flex-row gap-6">
 
         <div className="flex-[2] min-w-0">
-          <div className="bg-white rounded-2xl ring-1 ring-gray-100 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-700">简历列表</h2>
-              <span className="text-xs text-gray-400">共 {rows.length} 份简历</span>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-3.5 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-700">简历列表</h2>
+              <span className="text-xs text-slate-400">共 {rows.length} 份简历</span>
             </div>
 
-            <div className="divide-y divide-gray-100">
-              {rows.map((row) => {
+            <div className="divide-y divide-slate-100">
+              {pagedRows.map((row) => {
                 const isSelected = selectedResumeId === row.id;
                 return (
                   <div
                     key={row.id}
-                    onClick={() => setSelectedResumeId(row.id)}
-                    className={`flex items-center justify-between px-5 py-4 cursor-pointer transition-colors group ${
-                      isSelected
-                        ? "bg-blue-50/60 border-l-[3px] border-l-[#0052D9] pl-[17px]"
-                        : "hover:bg-gray-50 border-l-[3px] border-l-transparent pl-[17px]"
+                    onClick={() => handleSelectResume(row.id)}
+                    className={`relative flex items-center gap-4 px-6 py-4 cursor-pointer transition-colors ${
+                      isSelected ? "bg-blue-50/70" : "hover:bg-slate-50"
                     }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`text-sm font-medium truncate ${
-                        isSelected ? "text-[#0052D9]" : "text-gray-900"
-                      }`}>
-                        {row.name}
-                      </span>
-                      {row.isCurrent && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0052D9]/10 text-[#0052D9] font-medium shrink-0">
-                          当前
-                        </span>
-                      )}
-                    </div>
-                    <div className="ml-auto flex items-center gap-4 shrink-0">
-                      <Link
-                        to={`/resumes/detail/${row.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0052D9] transition-colors cursor-pointer"
-                      >
-                        <Eye className="w-3 h-3" />
+                    {isSelected && (
+                      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full bg-[#0052D9]" />
+                    )}
+                    {/* Name column: flex-1, truncate */}
+                    <span className={`flex-1 min-w-0 text-[15px] font-semibold truncate ${
+                      isSelected ? "text-[#0052D9]" : "text-slate-900"
+                    }`}>
+                      {row.name}
+                    </span>
+                    {/* Date column: fixed width */}
+                    <span className="w-[5.5rem] shrink-0 text-xs text-slate-400 text-right tabular-nums">
+                      {formatDate(row.createdAt)}
+                    </span>
+                    {/* Actions column: fixed width, right-aligned */}
+                    <div className="w-[260px] shrink-0 flex items-center justify-end gap-5">
+                      <ActionBtn to={`/resumes/detail/${row.id}`} onClick={(e) => e.stopPropagation()}>
+                        <Eye className="w-3.5 h-3.5" />
                         查看详情
-                      </Link>
-                      <Link
-                        to={`/resumes/edit?id=${row.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0052D9] transition-colors cursor-pointer"
-                      >
-                        <Pencil className="w-3 h-3" />
+                      </ActionBtn>
+                      <ActionBtn to={`/resumes/edit?id=${row.id}`} onClick={(e) => e.stopPropagation()}>
+                        <Pencil className="w-3.5 h-3.5" />
                         编辑
-                      </Link>
-                      <button
+                      </ActionBtn>
+                      <ActionBtn
                         onClick={(e) => { e.stopPropagation(); setDeleteTarget(row); }}
-                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                        className="hover:text-red-500"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                         删除
-                      </button>
+                      </ActionBtn>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            <PaginationBar
+              page={currentPage} totalPages={totalPages} totalCount={rows.length}
+              onPrev={() => setPage(Math.max(1, currentPage - 1))}
+              onNext={() => setPage(Math.min(totalPages, currentPage + 1))}
+            />
           </div>
         </div>
 
         <div className="flex-1 min-w-0 lg:max-w-[320px]">
-          <SmartAssistant selectedResumeId={selectedResumeId} hasResumes={hasResumes} />
+          <SmartAssistant
+            selectedResumeId={selectedResumeId}
+            selectedResumeName={rows?.find((r) => r.id === selectedResumeId)?.name ?? ""}
+            hasResumes={hasResumes}
+            loading={assistantLoading}
+          />
         </div>
 
       </div>
@@ -286,19 +403,19 @@ export function ResumeManagementPage() {
         cancelText="取消"
         variant="danger"
         loading={deleteLoading}
-        onConfirm={async () => {
-          if (!deleteTarget) return;
-          setDeleteLoading(true);
-          try {
-            await deleteResume(deleteTarget.id);
-            const list = await getResumes();
-            setRows(toRows(list));
-            if (list.length === 0) setSelectedResumeId(null);
-          } catch { /* ignore */ }
-          finally { setDeleteLoading(false); setDeleteTarget(null); }
-        }}
+        onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
     </>
   );
+}
+
+// ─── Sort helper ──────────────────────────────────────────────────────────────
+
+function sortRows(rs: ResumeRow[]): ResumeRow[] {
+  return [...rs].sort((a, b) => {
+    const bTime = new Date(b.createdAt || 0).getTime();
+    const aTime = new Date(a.createdAt || 0).getTime();
+    return bTime - aTime;
+  });
 }
