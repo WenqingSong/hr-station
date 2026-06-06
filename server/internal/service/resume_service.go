@@ -3,11 +3,15 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/repository"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 // ── K8-5-48-F: Relational request / response types ───────────────────────────
@@ -302,6 +306,9 @@ func (s *ResumeService) CreateRelational(ctx context.Context, userID uint64, req
 		Works:              req.Works,
 	}
 	if err := s.resumeRepo.Create(ctx, resume); err != nil {
+		if isDuplicateKeyError(err) {
+			return nil, apperror.ErrResumeNameDuplicate
+		}
 		return nil, fmt.Errorf("failed to create resume: %w", err)
 	}
 	return toRelationalResponse(resume), nil
@@ -331,14 +338,51 @@ func (s *ResumeService) UpdateRelational(ctx context.Context, userID, id uint64,
 		Works:              req.Works,
 	}
 	if err := s.resumeRepo.Update(ctx, resume); err != nil {
+		if isDuplicateKeyError(err) {
+			return nil, apperror.ErrResumeNameDuplicate
+		}
 		return nil, fmt.Errorf("failed to update resume: %w", err)
 	}
 	return toRelationalResponse(resume), nil
 }
 
+func isDuplicateKeyError(err error) bool {
+	var me *mysql.MySQLError
+	if errors.As(err, &me) && me.Number == 1062 {
+		return true
+	}
+	return false
+}
+
 // Delete deletes a resume (returns wasCurrent flag).
 func (s *ResumeService) Delete(ctx context.Context, userID, id uint64) (bool, error) {
 	return s.resumeRepo.Delete(ctx, userID, id)
+}
+
+// ResumeNameCheckResult represents the result of a name check.
+type ResumeNameCheckResult struct {
+	Available bool   `json:"available"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// CheckResumeName checks if a resume name is available for the given user.
+// excludeID can be 0 for new resumes or the id of the resume being edited.
+func (s *ResumeService) CheckResumeName(ctx context.Context, userID uint64, name string, excludeID uint64) (*ResumeNameCheckResult, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return &ResumeNameCheckResult{Available: false, Reason: "简历名称不能为空"}, nil
+	}
+	if len(trimmed) > 100 {
+		return &ResumeNameCheckResult{Available: false, Reason: "简历名称不能超过100个字符"}, nil
+	}
+	exists, err := s.resumeRepo.ExistsByName(ctx, userID, trimmed, excludeID)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return &ResumeNameCheckResult{Available: false, Reason: "该简历名称已存在，请换一个名称"}, nil
+	}
+	return &ResumeNameCheckResult{Available: true, Reason: ""}, nil
 }
 
 // SetCurrentRelational sets a resume as current for the user.

@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { PageLoading, PageError } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
-import { FileText, Plus, Search, Sparkles, Wand2, GitCompare, Pencil } from "lucide-react";
-import { getResumes } from "../../api/resumes";
+import { FileText, Plus, Search, Sparkles, Wand2, GitCompare, Pencil, Trash2 } from "lucide-react";
+import { getResumes, deleteResume } from "../../api/resumes";
+import { AppConfirmDialog } from "../components/common/AppConfirmDialog";
 import type { Resume } from "../../types";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { isApiClientError } from "../../api/errors";
@@ -132,6 +133,8 @@ export function ResumeManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ResumeRow | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -183,6 +186,7 @@ export function ResumeManagementPage() {
   }
 
   return (
+    <>
     <ContentPageShell maxWidthClassName="max-w-[1040px]">
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -243,6 +247,13 @@ export function ResumeManagementPage() {
                       <Pencil className="w-3 h-3" />
                       编辑
                     </Link>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(row); }}
+                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors ml-2 shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      删除
+                    </button>
                   </div>
                 );
               })}
@@ -257,5 +268,27 @@ export function ResumeManagementPage() {
       </div>
 
     </ContentPageShell>
+      <AppConfirmDialog
+        open={deleteTarget !== null}
+        title="删除这份简历？"
+        description={deleteTarget?.isCurrent ? "这份简历当前正在使用。删除后将无法恢复，系统会从剩余简历中选择最新的一份。" : "删除后无法恢复。"}
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        loading={deleteLoading}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          setDeleteLoading(true);
+          try {
+            await deleteResume(deleteTarget.id);
+            const list = await getResumes();
+            setRows(toRows(list));
+            if (list.length === 0) setSelectedResumeId(null);
+          } catch { /* ignore */ }
+          finally { setDeleteLoading(false); setDeleteTarget(null); }
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
   );
 }

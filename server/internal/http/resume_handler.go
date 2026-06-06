@@ -22,6 +22,37 @@ func NewResumeHandler(resumeService *service.ResumeService) *ResumeHandler {
 	return &ResumeHandler{resumeService: resumeService}
 }
 
+// ── K8-5-49-B: Name check handler ──────────────────────────────────────────
+
+func (h *ResumeHandler) CheckName(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
+		return
+	}
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+		return
+	}
+	name := r.URL.Query().Get("name")
+	excludeStr := r.URL.Query().Get("exclude_id")
+	var excludeID uint64
+	if excludeStr != "" {
+		var err error
+		excludeID, err = strconv.ParseUint(excludeStr, 10, 64)
+		if err != nil {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid exclude_id")
+			return
+		}
+	}
+	result, err := h.resumeService.CheckResumeName(r.Context(), userID, name, excludeID)
+	if err != nil {
+		handleResumeError(w, err)
+		return
+	}
+	response.OK(w, result)
+}
+
 // ── K8-5-48-F: Relational dispatcher for /api/resumes (GET list / POST create) ──
 
 func (h *ResumeHandler) ResumesDispatcher(w http.ResponseWriter, r *http.Request) {

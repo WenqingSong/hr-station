@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, Sparkles } from "lucide-react";
 import { loadResumeManagementPageViewModel } from "../../api";
-import { createResume, updateResume, getCurrentResume, getResumes, getResumeById } from "../../api/resumes";
+import { createResume, updateResume, getCurrentResume, getResumes, getResumeById, checkResumeName } from "../../api/resumes";
 import type { ResumeManagementViewModel } from "../../adapters";
 import { toResumeManagementViewModel } from "../../adapters";
 import type { ResumeEducation, ResumeInternship, ResumeProject, ResumeLanguageExam, ResumeCertificate, ResumeAward, ResumeWork, SaveResumePayload } from "../../types";
@@ -79,6 +79,37 @@ export function MyResumesPage() {
 
   const handleRetryLoad = useCallback(() => setRetryCount((c) => c + 1), []);
   const [resumeName, setResumeName] = useState("");
+
+  // K8-5-49-B: name check state
+  type NameCheckStatus = "idle" | "checking" | "available" | "duplicate" | "invalid" | "error";
+  const [nameCheckStatus, setNameCheckStatus] = useState<NameCheckStatus>("idle");
+  const [nameCheckMessage, setNameCheckMessage] = useState("");
+
+  async function handleNameBlur() {
+    const trimmed = resumeName.trim();
+    if (!trimmed) {
+      setNameCheckStatus("invalid");
+      setNameCheckMessage("简历名称不能为空");
+      return;
+    }
+    setNameCheckStatus("checking");
+    setNameCheckMessage("正在检查...");
+    try {
+      const result = await checkResumeName(trimmed, editingResumeId ?? undefined);
+      if (result.available) {
+        setNameCheckStatus("available");
+        setNameCheckMessage("名称可用，保存后将用于岗位推荐、匹配分析和简历优化建议。");
+      } else {
+        setNameCheckStatus("duplicate");
+        setNameCheckMessage(result.reason || "该简历名称已存在");
+      }
+    } catch {
+      setNameCheckStatus("error");
+      setNameCheckMessage("暂时无法校验名称，请稍后重试。");
+    }
+  }
+
+  const saveDisabled = saving || nameCheckStatus === "checking" || nameCheckStatus === "duplicate" || nameCheckStatus === "invalid" || nameCheckStatus === "error";
   const [personalName, setPersonalName] = useState(""); const [phone, setPhone] = useState("");
   const [email, setEmail] = useState(""); const [currentCity, setCurrentCity] = useState("");
   const [educations, setEducations] = useState<Education[]>([]);
@@ -124,9 +155,23 @@ export function MyResumesPage() {
   }, [formVm, mode]);
 
   async function handleSave() {
+    const trimmed = resumeName.trim();
+    if (!trimmed) { setSaveErrorMsg("简历名称不能为空"); return; }
+    // Re-check name if not already verified
+    if (nameCheckStatus !== "available") {
+      try {
+        const result = await checkResumeName(trimmed, editingResumeId ?? undefined);
+        if (!result.available) {
+          setNameCheckStatus("duplicate");
+          setNameCheckMessage(result.reason || "该简历名称已存在");
+          return;
+        }
+        setNameCheckStatus("available");
+      } catch { return; }
+    }
     setSaveSuccessMsg(""); setSaveErrorMsg(""); setSaving(true);
     const payload: SaveResumePayload = {
-      name: resumeName || personalName || "未命名简历", is_current: true,
+      name: trimmed, is_current: true,
       real_name: personalName || "", phone: phone || "", email: email || "", city: currentCity || "",
       professional_skills: skillsDraft.developmentLanguages || "", ai_application: skillsDraft.aiApplication || "",
       homepage: portfolioDraft.homepage || "", additional_info: extraInfoDraft.additionalInfo || "",
@@ -142,6 +187,7 @@ export function MyResumesPage() {
       if (mode === "add" || !editingResumeId) { await createResume(payload); } else { await updateResume(editingResumeId, payload); }
       await Promise.allSettled([getCurrentResume(), getResumes()]);
       setSaveSuccessMsg(mode === "add" ? "简历已创建成功。" : "修改已保存。");
+      setTimeout(() => navigate("/resumes", { replace: true }), 800);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("401")) setSaveErrorMsg("登录状态已失效，请重新登录后再保存。"); else setSaveErrorMsg("保存失败，请稍后重试。");
@@ -186,7 +232,7 @@ export function MyResumesPage() {
   const sectionAutoOpenKey = `${editingResumeId ?? "_new"}:${resumeName || "_empty"}`;
 
   return (
-    <ResumeEditorShell title={mode === "add" ? "创建简历" : "编辑简历"} subtitle="完善你的经历和技能，让 Offerr鹅 更准确地完成岗位推荐、匹配分析和简历优化。" saveCard={<ResumeEditorSaveCard mode={mode} saving={saving} successMessage={saveSuccessMsg} errorMessage={saveErrorMsg} onSave={handleSave} />}>
+    <ResumeEditorShell title={mode === "add" ? "创建简历" : "编辑简历"} subtitle="完善你的经历和技能，让 Offerr鹅 更准确地完成岗位推荐、匹配分析和简历优化。" saveCard={<ResumeEditorSaveCard mode={mode} saving={saving} successMessage={saveSuccessMsg} errorMessage={saveErrorMsg} onSave={handleSave} disabled={saveDisabled} />}>
       <Link to="/resumes" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors -mt-2 mb-1"><ChevronLeft className="w-3 h-3" />返回我的简历</Link>
       <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
         <Sparkles className="w-3.5 h-3.5 text-[#0052D9] flex-shrink-0" />
@@ -196,8 +242,15 @@ export function MyResumesPage() {
 
       <ResumeBasicsSection>
         <div className="space-y-5">
-          <div><label className="mb-1.5 block text-sm font-medium text-slate-700">简历名称 <span className="text-red-500">*</span></label><Input value={resumeName} onChange={(e) => setResumeName(e.target.value)} placeholder="用于区分不同简历版本" /></div>
-          <div><div className="flex items-start gap-2 rounded-xl bg-blue-50/60 border border-blue-100/40 px-4 py-3"><Sparkles className="w-4 h-4 text-[#0052D9] mt-0.5" /><p className="text-[13px] text-slate-600 leading-relaxed">保存后，最新版本将自动用于岗位推荐、岗位匹配分析和简历优化建议。</p></div></div>
+          <div><label className="mb-1.5 block text-sm font-medium text-slate-700">简历名称 <span className="text-red-500">*</span></label><Input value={resumeName} onChange={(e) => { setResumeName(e.target.value); setNameCheckStatus("idle"); setNameCheckMessage(""); }} onBlur={handleNameBlur} placeholder="用于区分不同简历版本" /></div>
+          <div className="flex items-start gap-2 rounded-xl px-4 py-3 border text-[13px] leading-relaxed
+            {nameCheckStatus === 'available' ? 'bg-green-50/60 border-green-100/40 text-green-700' :
+             nameCheckStatus === 'duplicate' || nameCheckStatus === 'invalid' || nameCheckStatus === 'error' ? 'bg-red-50/60 border-red-100/40 text-red-600' :
+             nameCheckStatus === 'checking' ? 'bg-blue-50/60 border-blue-100/40 text-blue-600' :
+             'bg-blue-50/60 border-blue-100/40 text-slate-600'}">
+            <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <p>{nameCheckMessage || (nameCheckStatus === "idle" ? "输入简历名称后自动检查是否可用" : "")}</p>
+          </div>
         </div>
       </ResumeBasicsSection>
 

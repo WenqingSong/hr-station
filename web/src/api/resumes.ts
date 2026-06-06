@@ -71,6 +71,19 @@ export async function setCurrentResume(id: number): Promise<Resume> {
   return post<Resume>(`/resumes/${id}/set-current`);
 }
 
+// ─── Name check（K8-5-49-B） ────────────────────────────────────────────────
+
+export interface ResumeNameCheckResult {
+  available: boolean;
+  reason?: string;
+}
+
+export async function checkResumeName(name: string, excludeId?: number): Promise<ResumeNameCheckResult> {
+  let url = `/resumes/check-name?name=${encodeURIComponent(name)}`;
+  if (excludeId && excludeId > 0) url += `&exclude_id=${excludeId}`;
+  return get<ResumeNameCheckResult>(url);
+}
+
 // ─── @deprecated wrappers（K8-5-48-D 清理） ──────────────────────────────────
 
 /** @deprecated use getResumeById */

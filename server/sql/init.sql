@@ -92,6 +92,7 @@ CREATE TABLE `resumes` (
   PRIMARY KEY (`id`),
   KEY `idx_resumes_user_current` (`user_id`, `is_current`, `updated_at`),
   KEY `idx_resumes_user_updated`  (`user_id`, `updated_at`),
+  UNIQUE KEY `uk_resumes_user_name` (`user_id`, `name`),
   CONSTRAINT `fk_resumes_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='简历主表';
 

@@ -81,6 +81,7 @@ const (
 	CodeResumeNotAvailable    = 42002
 	CodeResumeFromVersionNotFound = 42003
 	CodeResumeToVersionNotFound   = 42004
+	CodeResumeNameDuplicate       = 42005
 )
 
 // Jobs / Agent module codes (430xx)
@@ -112,6 +113,7 @@ var (
 	ErrResumeNotAvailable      = New(CodeResumeNotAvailable, "resume not found", http.StatusNotFound)
 	ErrResumeFromVerNotFound   = New(CodeResumeFromVersionNotFound, "from version not found", http.StatusNotFound)
 	ErrResumeToVerNotFound     = New(CodeResumeToVersionNotFound, "to version not found", http.StatusNotFound)
+	ErrResumeNameDuplicate     = New(CodeResumeNameDuplicate, "该简历名称已存在", http.StatusConflict)
 )
 
 // Job errors

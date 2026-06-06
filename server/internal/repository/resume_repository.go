@@ -455,6 +455,19 @@ func buildRawText(r *model.Resume) string {
 	return b.String()
 }
 
+// ExistsByName checks if another resume with the same name exists for the user.
+// excludeID can be 0 to exclude nothing (for creation).
+func (r *ResumeRepository) ExistsByName(ctx context.Context, userID uint64, name string, excludeID uint64) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx,
+		"SELECT COUNT(1) FROM resumes WHERE user_id=? AND name=? AND (?=0 OR id<>?)",
+		userID, name, excludeID, excludeID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("check name exists: %w", err)
+	}
+	return count > 0, nil
+}
+
 // ── Compat wrappers for old service code (K8-5-48-B shim) ──
 
 func (r *ResumeRepository) FindByID(ctx context.Context, id uint64) (*model.ResumeVersion, error) {

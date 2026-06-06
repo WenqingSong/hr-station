@@ -59,6 +59,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 	// K8-5-48-F: /api/resumes dispatches GET (list) / POST (create) via ResumesDispatcher
 	mux.Handle("/api/resumes", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.ResumesDispatcher)))
 	// K8-5-48-F: Fixed paths registered before wildcard /api/resumes/
+	mux.Handle("/api/resumes/check-name", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.CheckName))) // K8-5-49-B
 	mux.Handle("/api/resumes/current", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Current)))
 	mux.Handle("/api/resumes/detail", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Detail)))
 	mux.Handle("/api/resumes/versions", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Versions)))
