@@ -33,7 +33,7 @@ func (s *ResumeProfileService) SetProfileAgent(pa *agent.ProfileAgent) {
 // EnsureProfile ensures a profile exists for the given resume and type.
 // Returns the profile, a status string, and error.
 func (s *ResumeProfileService) EnsureProfile(ctx context.Context, userID, resumeID uint64, profileType string) (*model.ResumeProfile, string, error) {
-	resume, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, resumeID)
+	resume, err := s.resumeRepo.GetByID(ctx, userID, resumeID)
 	if err != nil {
 		return nil, "", fmt.Errorf("ensure profile: %w", err)
 	}
@@ -61,11 +61,12 @@ func (s *ResumeProfileService) EnsureProfile(ctx context.Context, userID, resume
 		return profile, model.ProfileStatusPending, nil
 
 	case model.ProfileStatusReady:
-		// Check if stale
+		// Check if stale: profile must have recorded resume_updated_at that matches current
 		if profile.ResumeUpdatedAt != nil && !resume.UpdatedAt.IsZero() &&
 			profile.ResumeUpdatedAt.Equal(resume.UpdatedAt) {
 			return profile, model.ProfileStatusReady, nil
 		}
+		// K9-1-L: nil resume_updated_at means old profile → regenerate; mismatch means stale
 		_ = s.profileRepo.MarkStaleByResumeID(ctx, resumeID)
 		if profileType == model.ProfileTypeFast {
 			p, err := s.generateFast(ctx, userID, resumeID, resume)
@@ -97,11 +98,11 @@ func (s *ResumeProfileService) EnsureProfile(ctx context.Context, userID, resume
 
 // GenerateFastProfile generates a fast rule-based profile.
 func (s *ResumeProfileService) GenerateFastProfile(ctx context.Context, userID, resumeID uint64) (*model.ResumeProfile, error) {
-	resume, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, resumeID)
+	resume, err := s.resumeRepo.GetByID(ctx, userID, resumeID)
 	if err != nil {
 		return nil, fmt.Errorf("generate fast: %w", err)
 	}
-	return s.generateFast(ctx, userID, resumeID, resume)
+	return s.generateFast(ctx, userID, resumeID, (*model.ResumeVersion)(resume))
 }
 
 func (s *ResumeProfileService) generateFast(ctx context.Context, userID, resumeID uint64, resume *model.Resume) (*model.ResumeProfile, error) {
@@ -118,7 +119,7 @@ func (s *ResumeProfileService) generateFast(ctx context.Context, userID, resumeI
 	}
 	tags := extractTags(text)
 
-	dominant := dominantProfile(tags)
+	dominant := dominantProfileV3(resume)
 	primaryTags := buildPrimaryTags(tags, dominant)
 	profileSummary := buildProfileSummary(dominant, tags)
 	riskTags := extractRiskTags(tags, dominant)
@@ -188,7 +189,7 @@ func (s *ResumeProfileService) generateQualityAsync(ctx context.Context, userID,
 		return
 	}
 
-	resume, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, resumeID)
+	resume, err := s.resumeRepo.GetByID(ctx, userID, resumeID)
 	if err != nil {
 		_ = s.profileRepo.UpdateFailed(ctx, resumeID, model.ProfileTypeQuality, err.Error())
 		return
@@ -227,7 +228,7 @@ func (s *ResumeProfileService) generateQualityAsync(ctx context.Context, userID,
 			text = buildTextFromResume(resume)
 		}
 		tags = extractTags(text)
-		dominant = dominantProfile(tags)
+		dominant = dominantProfileV3(resume)
 		primaryTags = buildPrimaryTags(tags, dominant)
 		summary = buildProfileSummary(dominant, tags)
 		riskTags = extractRiskTags(tags, dominant)
@@ -631,3 +632,29 @@ func buildTextFromResume(resume *model.Resume) string {
 	b.WriteString(resume.AdditionalInfo)
 	return b.String()
 }
+
+
+func dominantProfileV3(resume *model.Resume) string {
+    eduT := strings.ToLower(eduText(resume))
+    projT := strings.ToLower(projText(resume))
+    internT := strings.ToLower(internText(resume))
+    skillsT := strings.ToLower(resume.ProfessionalSkills + " " + resume.AIApplication)
+    allT := strings.ToLower(resume.RawText)
+    if allT == "" { allT = strings.ToLower(buildTextFromResume(resume)) }
+    a := cm(eduT+projT+internT, "推荐系统","搜索推荐","ctr","点击率预估","排序模型","消融实验","表示学习","自然语言处理","nlp","pytorch","ndcg","recall","auc","深度学习","数据挖掘")
+    be := cm(projT+internT+skillsT, "gin","spring boot","jwt","接口开发","后端开发","服务端","权限校验","缓存","限流","部署","前后端联调","数据库表结构","登录鉴权","rabbitmq","swagger")
+    prod := cm(allT, "产品需求分析","用户访谈","竞品分析","prd","原型设计","axure","figma","墨刀","用户体验","业务流程","产品经理","产品运营")
+    biz := cm(allT, "商务","采购","供应链","解决方案","合同","供应商","社会调研","公共政策")
+    if a>=2 && a>be && a>prod { return "algorithm_research" }
+	log.Printf("[Profile] V3 scores a=%d be=%d prod=%d biz=%d resume=%d", a, be, prod, biz, resume.ID)
+    if be>=3 && be>a && be>prod { return "backend_engineering" }
+    if prod>=3 && prod>=a && prod>=be { return "product_operation" }
+    if biz>=2 && biz>a && biz>be { return "business_solution" }
+    return "career_exploration"
+}
+
+func cm(text string, phrases ...string) int { c:=0; for _,p:=range phrases { if strings.Contains(text, p) {c++} }; return c }
+
+func eduText(r *model.Resume) string { var p []string; for _,e:=range r.Educations { p=append(p,e.ResearchDirection+" "+e.PaperSummary+" "+e.CoreCourses) }; return strings.Join(p," ") }
+func projText(r *model.Resume) string { var p []string; for _,x:=range r.Projects { p=append(p,x.Name+" "+x.Role+" "+x.Description) }; return strings.Join(p," ") }
+func internText(r *model.Resume) string { var p []string; for _,x:=range r.Internships { p=append(p,x.Company+" "+x.Position+" "+x.Description) }; return strings.Join(p," ") }
