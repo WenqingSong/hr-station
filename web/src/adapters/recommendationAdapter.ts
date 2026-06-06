@@ -17,6 +17,8 @@ export type RecommendationSource =
 
 export type RecommendationLevel = "high" | "medium" | "low";
 
+export type RecommendationPriorityTone = "strong" | "high" | "try" | "backup" | "not_recommended";
+
 export interface RecommendedJobViewModel {
   rank: number;
   jobId: number;
@@ -28,6 +30,11 @@ export interface RecommendedJobViewModel {
   score: number;
   scoreLabel: string;
   level: RecommendationLevel;
+  // K9-1-I: priority-based labels
+  label: string;
+  priority: string;
+  priorityText: string;
+  priorityTone: RecommendationPriorityTone;
   oneSentenceReason: string;
   matchHighlights: string[];
   riskPoints: string[];
@@ -55,6 +62,13 @@ export interface RecommendationPageViewModel {
 
   sourceLabel: string;
   meta?: AgentMetaViewModel;
+
+  // K9-1-I: profile status fields
+  profileStatus: string;
+  profileType: string;
+  profileSource: string;
+  profileDominantProfile: string;
+  profileMessage: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -101,6 +115,9 @@ function toRecommendedJobViewModel(
   const score = typeof job.recommendation_score === "number" ? job.recommendation_score : 0;
   const source = getSource(job.generated_by);
   const isQuality = job.generated_by === "mock_quality" || job.generated_by === "llm_agent";
+  // K9-1-I: priority-based labels
+  const priority = job.recommendation_priority || defaultPriority(score);
+  const label = job.recommendation_label || defaultLabel(priority);
   return {
     rank,
     jobId: job.job_id,
@@ -112,6 +129,10 @@ function toRecommendedJobViewModel(
     score,
     scoreLabel: getScoreLabel(score),
     level: getLevel(score),
+    label,
+    priority,
+    priorityText: priorityText(priority),
+    priorityTone: priority as RecommendationPriorityTone,
     oneSentenceReason: job.recommendation_reason || "该岗位与当前简历存在一定匹配度，可进一步查看岗位要求。",
     matchHighlights: (job.match_highlights && job.match_highlights.length > 0) ? job.match_highlights : ["岗位方向与简历背景存在基础匹配"],
     riskPoints: (job.risk_points && job.risk_points.length > 0) ? job.risk_points : ["建议进一步补充与该岗位相关的项目细节"],
@@ -121,9 +142,33 @@ function toRecommendedJobViewModel(
   };
 }
 
+function defaultPriority(score: number): string {
+  if (score >= 90) return "strong";
+  if (score >= 80) return "high";
+  if (score >= 70) return "try";
+  if (score >= 60) return "backup";
+  return "not_recommended";
+}
+
+function defaultLabel(priority: string): string {
+  return priorityText(priority);
+}
+
+function priorityText(priority: string): string {
+  switch (priority) {
+    case "strong": return "强匹配，优先投递";
+    case "high": return "高匹配，重点关注";
+    case "try": return "可尝试，需要补强";
+    case "backup": return "备选参考，不建议优先";
+    case "not_recommended": return "不推荐";
+    default: return priority;
+  }
+}
+
 export function toRecommendationPageViewModel(
   result: RecommendationResult,
   meta?: AgentResponseMeta,
+  profileExtras?: { profileStatus?: string; profileType?: string; profileSource?: string; profileDominantProfile?: string; profileMessage?: string },
 ): RecommendationPageViewModel {
   const jobs = Array.isArray(result.recommended_jobs) ? result.recommended_jobs : [];
   const recommendedJobs = jobs.map((job, i) => toRecommendedJobViewModel(job, i + 1));
@@ -142,5 +187,10 @@ export function toRecommendationPageViewModel(
     nextActions: Array.isArray(result.next_actions) ? result.next_actions : [],
     sourceLabel: getSourceLabel(firstSource, isQuality),
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
+    profileStatus: profileExtras?.profileStatus ?? "ready",
+    profileType: profileExtras?.profileType ?? "fast",
+    profileSource: profileExtras?.profileSource ?? "rule",
+    profileDominantProfile: profileExtras?.profileDominantProfile ?? "",
+    profileMessage: profileExtras?.profileMessage ?? "",
   };
 }

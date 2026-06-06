@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"log"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -14,12 +15,13 @@ import (
 
 // ResumeHandler handles resume HTTP requests.
 type ResumeHandler struct {
-	resumeService *service.ResumeService
+	resumeService        *service.ResumeService
+	resumeProfileService *service.ResumeProfileService
 }
 
 // NewResumeHandler creates a new ResumeHandler.
-func NewResumeHandler(resumeService *service.ResumeService) *ResumeHandler {
-	return &ResumeHandler{resumeService: resumeService}
+func NewResumeHandler(resumeService *service.ResumeService, profileService *service.ResumeProfileService) *ResumeHandler {
+	return &ResumeHandler{resumeService: resumeService, resumeProfileService: profileService}
 }
 
 // ── K8-5-49-B: Name check handler ──────────────────────────────────────────
@@ -69,17 +71,39 @@ func (h *ResumeHandler) ResumesDispatcher(w http.ResponseWriter, r *http.Request
 // ── K8-5-48-F: /api/resumes/{id} sub-dispatcher ─────────────────────────────
 
 func (h *ResumeHandler) ResumeByIDDispatcher(w http.ResponseWriter, r *http.Request) {
-	// Parse resume ID from path: /api/resumes/{id} or /api/resumes/{id}/set-current
 	path := strings.TrimPrefix(r.URL.Path, "/api/resumes/")
 	if path == "" {
 		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "resume id is required")
 		return
 	}
 
+	// K9-1-H4-B: sub-routes for profile
+	parts := strings.SplitN(path, "/", 3)
+	idStr := parts[0]
+
+	if len(parts) == 3 && parts[1] == "profile" && parts[2] == "status" {
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil || id == 0 {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume id")
+			return
+		}
+		h.ProfileStatus(w, r)
+		return
+	}
+	if len(parts) == 3 && parts[1] == "profile" && parts[2] == "regenerate" {
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil || id == 0 {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume id")
+			return
+		}
+		h.ProfileRegenerate(w, r)
+		return
+	}
+
 	// Check for /api/resumes/{id}/set-current
 	if strings.HasSuffix(path, "/set-current") {
-		idStr := strings.TrimSuffix(path, "/set-current")
-		id, err := strconv.ParseUint(idStr, 10, 64)
+		i := strings.TrimSuffix(path, "/set-current")
+		id, err := strconv.ParseUint(i, 10, 64)
 		if err != nil || id == 0 {
 			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume id")
 			return
@@ -204,6 +228,73 @@ func (h *ResumeHandler) DeleteRelational(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	response.OK(w, map[string]string{"status": "deleted"})
+}
+
+// ── K9-1-H4-B: Profile status & regenerate handlers ─────────────────────────
+
+func (h *ResumeHandler) ProfileStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
+		return
+	}
+	resumeID := extractProfileResumeID(r)
+	if resumeID == 0 {
+		return
+	}
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+		return
+	}
+	resp, err := h.resumeProfileService.GetProfileStatus(r.Context(), userID, resumeID)
+	if err != nil {
+		handleResumeError(w, err)
+		return
+	}
+	response.OK(w, resp)
+}
+
+func (h *ResumeHandler) ProfileRegenerate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
+		return
+	}
+	resumeID := extractProfileResumeID(r)
+	if resumeID == 0 {
+		return
+	}
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+		return
+	}
+	var req struct {
+		ProfileType string `json:"profile_type"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid request body")
+		return
+	}
+	if err := h.resumeProfileService.RegenerateProfile(r.Context(), userID, resumeID, req.ProfileType); err != nil {
+		log.Printf("[ResumeHandler] ProfileRegenerate resume=%d err=%v", resumeID, err)
+		handleResumeError(w, err)
+		return
+	}
+	response.OK(w, map[string]interface{}{
+		"resume_id":    resumeID,
+		"profile_type": req.ProfileType,
+		"status":       "pending",
+	})
+}
+
+func extractProfileResumeID(r *http.Request) uint64 {
+	path := strings.TrimPrefix(r.URL.Path, "/api/resumes/")
+	parts := strings.SplitN(path, "/", 2)
+	id, err := strconv.ParseUint(parts[0], 10, 64)
+	if err != nil || id == 0 {
+		return 0
+	}
+	return id
 }
 
 // ── @deprecated: old V1/V2 handlers (kept for backward compat) ──────────────

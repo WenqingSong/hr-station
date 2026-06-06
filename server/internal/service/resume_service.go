@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	apperror "offer-catcher/server/internal/errors"
@@ -237,12 +238,18 @@ type VersionListResponse struct {
 
 // ResumeService handles resume business logic.
 type ResumeService struct {
-	resumeRepo *repository.ResumeRepository
+	resumeRepo  *repository.ResumeRepository
+	profileSvc  *ResumeProfileService
 }
 
 // NewResumeService creates a new ResumeService.
 func NewResumeService(resumeRepo *repository.ResumeRepository) *ResumeService {
 	return &ResumeService{resumeRepo: resumeRepo}
+}
+
+// SetProfileService injects the profile service for auto-generation.
+func (s *ResumeService) SetProfileService(svc *ResumeProfileService) {
+	s.profileSvc = svc
 }
 
 // ── K8-5-48-F: Relational CRUD methods ──────────────────────────────────────
@@ -312,6 +319,10 @@ func (s *ResumeService) CreateRelational(ctx context.Context, userID uint64, req
 		}
 		return nil, fmt.Errorf("failed to create resume: %w", err)
 	}
+
+	// K9-1-H4-B: trigger profile generation after create
+	s.triggerProfileGen(resume.UserID, resume.ID)
+
 	return toRelationalResponse(resume), nil
 }
 
@@ -344,7 +355,28 @@ func (s *ResumeService) UpdateRelational(ctx context.Context, userID, id uint64,
 		}
 		return nil, fmt.Errorf("failed to update resume: %w", err)
 	}
+
+	// K9-1-H4-B: mark stale and regenerate
+	if s.profileSvc != nil {
+		_ = s.profileSvc.MarkStaleOnResumeUpdate(ctx, id)
+	}
+	s.triggerProfileGen(userID, id)
+
 	return toRelationalResponse(resume), nil
+}
+
+// triggerProfileGen triggers fast profile generation and async quality generation.
+func (s *ResumeService) triggerProfileGen(userID, resumeID uint64) {
+	if s.profileSvc == nil {
+		return
+	}
+	go func() {
+		ctx := context.Background()
+		if _, _, err := s.profileSvc.EnsureProfile(ctx, userID, resumeID, "fast"); err != nil {
+			log.Printf("[ResumeService] fast profile gen failed resume=%d: %v", resumeID, err)
+		}
+		s.profileSvc.GenerateQualityProfileAsync(ctx, userID, resumeID)
+	}()
 }
 
 func isDuplicateKeyError(err error) bool {

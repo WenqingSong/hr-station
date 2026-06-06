@@ -74,7 +74,12 @@ func main() {
 	// Initialize resume module
 	resumeRepo := repository.NewResumeRepository(mysqlDB.DB)
 	resumeService := service.NewResumeService(resumeRepo)
-	resumeHandler := httpserver.NewResumeHandler(resumeService)
+
+	// Initialize resume profile module (K9-1-H4-B)
+	resumeProfileRepo := repository.NewResumeProfileRepository(mysqlDB.DB)
+	resumeProfileService := service.NewResumeProfileService(resumeRepo, resumeProfileRepo)
+	resumeService.SetProfileService(resumeProfileService)
+	resumeHandler := httpserver.NewResumeHandler(resumeService, resumeProfileService)
 
 	// Initialize job module
 	jobRepo := repository.NewJobRepository(mysqlDB.DB)
@@ -148,11 +153,20 @@ func main() {
 		log.Println("[offer-catcher-server] LLM disabled, using Mock Agent only")
 	}
 
+	// K9-1-H5: wire ProfileAgent for LLM-based quality profile extraction
+	if llmEnabled && qualityRunner != nil {
+		profileAgent := agent.NewProfileAgent(qualityRunner)
+		resumeProfileService.SetProfileAgent(profileAgent)
+		log.Println("[offer-catcher-server] ProfileAgent wired for LLM quality profile extraction")
+	} else {
+		log.Println("[offer-catcher-server] ProfileAgent disabled (LLM off), quality profiles use rule fallback")
+	}
+
 	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, fastRunner, qualityRunner, llmEnabled)
 	matchHandler := httpserver.NewMatchHandler(matchService)
 
 	// Initialize recommendation service with both runners (tier selected per request)
-	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, qualityRunner, llmEnabled)
+	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, qualityRunner, llmEnabled, resumeProfileService)
 	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
 
 	// Initialize version compare module with both runners (tier selected per request)

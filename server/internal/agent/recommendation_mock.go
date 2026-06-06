@@ -747,6 +747,88 @@ func (a *RecommendationMockAgent) RecommendQuality(_ context.Context, resume *mo
 	return buildResultsV2(&cp, ranked, 5), nil
 }
 
+// K9-1-H4-C: recommend using stored profile tags (consumes resume_profiles)
+func (a *RecommendationMockAgent) RecommendWithStoredProfile(resume *model.ResumeVersion, jobs []*model.Job, dominantProfile string, candidateTags, riskTags []StoredTag) ([]model.RecommendedJob, error) {
+	cp := buildProfileFromStored(resume, dominantProfile, candidateTags, riskTags)
+	ranked := scoreAllJobs(&cp, jobs, false)
+	return buildResultsV2(&cp, ranked, 5), nil
+}
+
+func (a *RecommendationMockAgent) RecommendQualityWithStoredProfile(resume *model.ResumeVersion, jobs []*model.Job, dominantProfile string, candidateTags, riskTags []StoredTag) ([]model.RecommendedJob, error) {
+	cp := buildProfileFromStored(resume, dominantProfile, candidateTags, riskTags)
+	ranked := scoreAllJobs(&cp, jobs, true)
+	judge := judgeRecommendationV2(&cp, ranked)
+	if !judge.Pass && judge.Severity == "major" && judge.FixStrategy == "rerank" {
+		ranked = scoreAllJobs(&cp, jobs, true)
+	}
+	return buildResultsV2(&cp, ranked, 5), nil
+}
+
+// StoredTag is the flattened tag format from resume_profiles JSON.
+type StoredTag struct {
+	Tag        string `json:"tag"`
+	Group      string `json:"group,omitempty"`
+	Confidence int    `json:"confidence"`
+	Evidence   string `json:"evidence,omitempty"`
+}
+
+func buildProfileFromStored(resume *model.ResumeVersion, dominant string, candTags, riskTags []StoredTag) candidateTagProfile {
+	cp := candidateTagProfile{
+		tags:            make(tagSet),
+		dominantProfile: dominant,
+		allText:         strings.ToLower(resume.RawText),
+	}
+	if cp.allText == "" {
+		cp.allText = strings.ToLower(resume.ProfessionalSkills + " " + resume.AdditionalInfo)
+	}
+	for _, t := range candTags {
+		if t.Confidence < 1 {
+			t.Confidence = 1
+		}
+		cp.tags.set(t.Tag, t.Confidence)
+	}
+	for _, t := range riskTags {
+		cp.tags.set(t.Tag, t.Confidence)
+	}
+	// Fill required text fields
+	cp.skillsText = strings.ToLower(resume.ProfessionalSkills)
+	cp.eduText = strings.ToLower(educationsText(resume))
+	cp.projText = strings.ToLower(projectsText(resume))
+	cp.internText = strings.ToLower(internshipsText(resume))
+	cp.schoolLevel = 1
+	cp.degreeLevel = 1
+	// Override with profile-determined dominant
+	if dominant == "algorithm_research" {
+		cp.tags.set("algorithm", maxOf(cp.tags.get("algorithm"), 2))
+		cp.tags.set("research_ability", maxOf(cp.tags.get("research_ability"), 2))
+	}
+	return cp
+}
+
+func educationsText(r *model.ResumeVersion) string {
+	var parts []string
+	for _, e := range r.Educations {
+		parts = append(parts, e.School+" "+e.Degree+" "+e.Major+" "+e.ResearchDirection)
+	}
+	return strings.Join(parts, " ")
+}
+
+func projectsText(r *model.ResumeVersion) string {
+	var parts []string
+	for _, p := range r.Projects {
+		parts = append(parts, p.Name+" "+p.Description)
+	}
+	return strings.Join(parts, " ")
+}
+
+func internshipsText(r *model.ResumeVersion) string {
+	var parts []string
+	for _, i := range r.Internships {
+		parts = append(parts, i.Company+" "+i.Position+" "+i.Description)
+	}
+	return strings.Join(parts, " ")
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 // Helpers
 // ══════════════════════════════════════════════════════════════════════════

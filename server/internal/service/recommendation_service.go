@@ -32,6 +32,13 @@ type RecommendationResponse struct {
 	Meta            model.AgentResponseMeta       `json:"meta"`
 	PipelineMode    string                        `json:"pipeline_mode,omitempty"`
 	JudgeResult     *model.RecommendationJudgeResult `json:"judge_result,omitempty"`
+
+	// K9-1-H4-C: profile status fields
+	ProfileStatus          string `json:"profile_status,omitempty"`
+	ProfileType            string `json:"profile_type,omitempty"`
+	ProfileSource          string `json:"profile_source,omitempty"`
+	ProfileDominantProfile string `json:"profile_dominant_profile,omitempty"`
+	ProfileMessage         string `json:"profile_message,omitempty"`
 }
 
 // RecommendationBusinessResult wraps the business result for recommendation.
@@ -40,8 +47,6 @@ type RecommendationBusinessResult struct {
 }
 
 // RecommendationService handles job recommendation business logic.
-// It supports LLM Pipeline priority with Mock Agent fallback.
-// Supports generation_tier: "fast" uses fastRunner, "quality" uses qualityRunner.
 type RecommendationService struct {
 	resumeRepo         *repository.ResumeRepository
 	jobRepo            *repository.JobRepository
@@ -50,10 +55,10 @@ type RecommendationService struct {
 	fastRunner         agent.PipelineRunner
 	qualityRunner      agent.PipelineRunner
 	llmEnabled         bool
+	profileSvc         *ResumeProfileService
 }
 
 // NewRecommendationService creates a new RecommendationService.
-// If both runners are nil or llmEnabled is false, it falls back to Mock Agent only.
 func NewRecommendationService(
 	resumeRepo *repository.ResumeRepository,
 	jobRepo *repository.JobRepository,
@@ -62,6 +67,7 @@ func NewRecommendationService(
 	fastRunner agent.PipelineRunner,
 	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
+	profileSvc *ResumeProfileService,
 ) *RecommendationService {
 	return &RecommendationService{
 		resumeRepo:         resumeRepo,
@@ -71,6 +77,7 @@ func NewRecommendationService(
 		fastRunner:         fastRunner,
 		qualityRunner:      qualityRunner,
 		llmEnabled:         llmEnabled,
+		profileSvc:         profileSvc,
 	}
 }
 
@@ -84,11 +91,7 @@ func (s *RecommendationService) selectRunner(tier model.GenerationTier) agent.Pi
 }
 
 // Recommend generates job recommendations for the given user based on their resume.
-// When LLM is enabled and Pipeline Runner is available, it uses the LLM Pipeline
-// first. If the Pipeline returns fallback_required or mapping fails, it falls
-// back to the Mock Agent. When LLM is disabled, it uses the Mock Agent directly.
 func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, req RecommendationRequest) (*RecommendationResponse, error) {
-	// Apply defaults
 	if req.Limit <= 0 {
 		req.Limit = 5
 	}
@@ -96,17 +99,63 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 		req.Limit = 5
 	}
 
-	// Select runner based on generation_tier
-	runner := s.selectRunner(req.GenerationTier)
-	log.Printf("[RecommendationService] generation_tier=%s", string(req.GenerationTier))
+	// K9-1-H4-C: determine profile type from generation_tier
+	profileType := "fast"
+	if req.GenerationTier == model.GenerationTierQuality {
+		profileType = "quality"
+	}
 
-	// Get resume version
+	// K9-1-H4-C: ensure profile is ready before recommending
+	profileStatus := "ready"
+	var profileDominant string
+	var profileSource string
+	if s.profileSvc != nil && req.ResumeID > 0 {
+		profile, st, err := s.profileSvc.EnsureProfile(ctx, userID, req.ResumeID, profileType)
+		if err != nil {
+			log.Printf("[RecommendationService] ensure profile failed resume=%d err=%v", req.ResumeID, err)
+			profileStatus = "failed"
+		} else if profile != nil && st == model.ProfileStatusReady {
+			profileStatus = "ready"
+			profileDominant = profile.DominantProfile
+			profileSource = profile.Source
+		} else {
+			profileStatus = st
+		}
+	} else if s.profileSvc == nil {
+		profileStatus = "legacy"
+	}
+
+	// When profile is not ready, return early with status
+	if profileStatus != "ready" && profileStatus != "legacy" {
+		msg := "正在生成简历画像，请稍后重试"
+		if profileStatus == "failed" {
+			msg = "简历画像生成失败，可重新生成画像"
+		} else if profileStatus == "stale" {
+			msg = "简历画像需要更新，请稍后重试"
+		}
+		log.Printf("[RecommendationService] profile not ready status=%s resume=%d", profileStatus, req.ResumeID)
+		return &RecommendationResponse{
+			ResumeID:               req.ResumeID,
+			Result:                 &RecommendationBusinessResult{RecommendedJobs: []*model.RecommendedJob{}},
+			RecommendedJobs:        []*model.RecommendedJob{},
+			Summary:                msg,
+			ProfileStatus:          profileStatus,
+			ProfileType:            profileType,
+			ProfileMessage:         msg,
+			CreatedAt:              time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		}, nil
+	}
+
+	return s.recommendCore(ctx, userID, req, profileType, profileDominant, profileSource)
+}
+
+func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64, req RecommendationRequest, profileType, profileDominant, profileSource string) (*RecommendationResponse, error) {
+	runner := s.selectRunner(req.GenerationTier)
 	resume, err := s.getResume(ctx, userID, req)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get all jobs as candidates (local_mock + tencent_join, prioritizing full_jd and featured)
 	jobs, err := s.jobRepo.ListRecommendCandidates(ctx, 50)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list jobs: %w", err)
@@ -115,23 +164,26 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 		return nil, apperror.ErrJobNotFound
 	}
 
-	// Try LLM Pipeline if enabled
+	// Try LLM Pipeline
 	if s.llmEnabled && runner != nil {
 		resp, fallbackErr := s.recommendWithLLM(ctx, userID, resume, jobs, req.Limit, runner)
 		if fallbackErr == nil {
+			s.fillProfileFields(resp, profileType, profileDominant, profileSource)
 			return resp, nil
 		}
-
-		// Log the fallback reason
 		log.Printf("[RecommendationService] LLM pipeline fallback: %v", fallbackErr)
-
-		// Fall back to Mock Agent
-		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, false)
+		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, false, profileType, profileDominant, profileSource)
 	}
 
-	// LLM disabled — use Mock Agent directly
 	qualityMode := req.GenerationTier == model.GenerationTierQuality
-	return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, nil, qualityMode)
+	return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, nil, qualityMode, profileType, profileDominant, profileSource)
+}
+
+func (s *RecommendationService) fillProfileFields(resp *RecommendationResponse, profileType, dominant, source string) {
+	resp.ProfileStatus = "ready"
+	resp.ProfileType = profileType
+	resp.ProfileDominantProfile = dominant
+	resp.ProfileSource = source
 }
 
 // getResume retrieves the resume version based on the request.
@@ -236,14 +288,34 @@ func (s *RecommendationService) recommendWithLLM(ctx context.Context, userID uin
 }
 
 // recommendWithMock calls the Mock Agent and builds the response.
-func (s *RecommendationService) recommendWithMock(ctx context.Context, userID uint64, resume *model.ResumeVersion, jobs []*model.Job, limit int, fbErr *agent.RecFallbackError, qualityMode bool) (*RecommendationResponse, error) {
+func (s *RecommendationService) recommendWithMock(ctx context.Context, userID uint64, resume *model.ResumeVersion, jobs []*model.Job, limit int, fbErr *agent.RecFallbackError, qualityMode bool, profileType, profileDominant, profileSource string) (*RecommendationResponse, error) {
 	var recommendedJobs []model.RecommendedJob
 	var err error
 
-	if qualityMode {
-		recommendedJobs, err = s.mockAgent.RecommendQuality(ctx, resume, jobs)
-	} else {
-		recommendedJobs, err = s.mockAgent.Recommend(ctx, resume, jobs)
+	// K9-1-H4-C: use stored profile tags if available
+	usedProfile := false
+	if s.profileSvc != nil && resume.ID > 0 && profileDominant != "" {
+		profile, findErr := s.profileSvc.GetProfileStatus(ctx, userID, resume.ID)
+		if findErr == nil && profile.FastStatus == "ready" {
+			candTags := convertProfileTags(profile.PrimaryTags)
+			if len(candTags) > 0 {
+				log.Printf("[RecommendationService] using stored profile dominant=%s tags=%d", profileDominant, len(candTags))
+				if qualityMode {
+					recommendedJobs, err = s.mockAgent.RecommendQualityWithStoredProfile(resume, jobs, profileDominant, candTags, nil)
+				} else {
+					recommendedJobs, err = s.mockAgent.RecommendWithStoredProfile(resume, jobs, profileDominant, candTags, nil)
+				}
+				usedProfile = true
+			}
+		}
+	}
+
+	if !usedProfile {
+		if qualityMode {
+			recommendedJobs, err = s.mockAgent.RecommendQuality(context.Background(), resume, jobs)
+		} else {
+			recommendedJobs, err = s.mockAgent.Recommend(context.Background(), resume, jobs)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate recommendations: %w", err)
@@ -325,10 +397,10 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 	}
 
 	if err := s.recommendationRepo.Create(ctx, recSnapshot); err != nil {
-		// Log but don't fail the response if snapshot save fails
 		_ = err
 	}
 
+	s.fillProfileFields(resp, profileType, profileDominant, profileSource)
 	return resp, nil
 }
 
@@ -368,6 +440,14 @@ func stringsJoin(ss []string, sep string) string {
 	result := ss[0]
 	for i := 1; i < len(ss); i++ {
 		result += sep + ss[i]
+	}
+	return result
+}
+
+func convertProfileTags(tags []model.ProfileTag) []agent.StoredTag {
+	result := make([]agent.StoredTag, len(tags))
+	for i, t := range tags {
+		result[i] = agent.StoredTag{Tag: t.Tag, Group: t.Group, Confidence: t.Confidence, Evidence: t.Evidence}
 	}
 	return result
 }

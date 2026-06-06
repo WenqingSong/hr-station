@@ -142,7 +142,15 @@ export async function loadRecommendationViewModel(
   input?: Partial<RecommendationRequest>,
 ): Promise<RecommendationPageViewModel> {
   const response = await runRecommendation(input);
-  return toRecommendationPageViewModel(response.result, response.meta);
+  // K9-1-I: extract profile fields from response data
+  const profileExtras = {
+    profileStatus: (response as any).profile_status,
+    profileType: (response as any).profile_type,
+    profileSource: (response as any).profile_source,
+    profileDominantProfile: (response as any).profile_dominant_profile,
+    profileMessage: (response as any).profile_message,
+  };
+  return toRecommendationPageViewModel(response.result, response.meta, profileExtras);
 }
 
 export async function loadMatchAnalysisViewModel(
