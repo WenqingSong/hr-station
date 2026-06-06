@@ -24,7 +24,7 @@ export function RecommendationSidebar({ data }: RecommendationSidebarProps) {
     }
   };
 
-  if (!data || !data.recommendedJobs.length) {
+  if (!data || !data.recommendedJobs?.length) {
     return (
       <div className="w-[380px] shrink-0 bg-white border border-gray-200 rounded-lg p-6 text-center">
         <p className="text-gray-400 text-sm">暂无推荐岗位数据</p>
@@ -75,7 +75,7 @@ export function RecommendationSidebar({ data }: RecommendationSidebarProps) {
             </div>
 
             <div className="flex flex-wrap gap-1.5 mb-3">
-              {job.matchKeywords.map((kw, i) => (
+              {(job.matchKeywords ?? []).map((kw, i) => (
                 <Badge key={i} variant="secondary" className="text-[10px] font-normal px-1.5 py-0 bg-white border border-gray-100 text-gray-600">
                   {kw}
                 </Badge>
@@ -89,7 +89,7 @@ export function RecommendationSidebar({ data }: RecommendationSidebarProps) {
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100/50">
               <div className="flex items-center text-[11px] text-amber-600 bg-amber-50/50 px-1.5 py-0.5 rounded">
                 <AlertCircle className="w-3 h-3 mr-1 text-amber-500" />
-                {job.riskTags[0] || job.reason}
+                {(job.riskTags ?? [])[0] || job.reason}
               </div>
               <span className={cn(
                 "text-[12px] flex items-center font-medium transition-colors",
