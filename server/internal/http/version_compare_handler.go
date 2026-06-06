@@ -72,8 +72,8 @@ func (h *VersionCompareHandler) Compare(w http.ResponseWriter, r *http.Request) 
 	}
 
 	req := service.VersionCompareRequest{
-		FromVersionNo:  fromVersionNo,
-		ToVersionNo:    toVersionNo,
+		FromResumeID:  uint64(fromVersionNo),
+		ToResumeID:    uint64(toVersionNo),
 		GenerationTier: tier,
 	}
 

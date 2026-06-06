@@ -51,14 +51,12 @@ export interface ResumeEducation {
 
 // ─── V2 模块类型（K8-5-22-D） ─────────────────────────────────────────────────
 
-/** V2 基础信息 — 模块 1 */
+/** V2 基础信息 — 模块 1 (K8-5-44-C: 精简，移除与教育经历重复的字段) */
 export interface ResumeProfileV2 {
   name?: string;
-  school?: string;
-  degree?: string;
-  major?: string;
-  graduation_year?: string;
   current_city?: string;
+  phone?: string;
+  email?: string;
 }
 
 /** V2 求职意向 — 模块 2 */
@@ -91,84 +89,57 @@ export interface ResumeEducationV2 {
   paper_summary?: string;
 }
 
-/** V2 实习经历 — 模块 4 */
+/** V2 实习经历 — 模块 4 (K8-5-44-C: 精简) */
 export interface ResumeInternshipV2 {
   company?: string;
-  role?: string;
+  position?: string;
   start_date?: string;
   end_date?: string;
-  work_content?: string;
-  tech_stack?: string[];
-  achievements?: string[];
-  metrics?: string;
+  description?: string;
 }
 
-/** V2 项目经历 — 模块 5 */
+/** V2 项目经历 — 模块 5 (K8-5-44-C: 精简) */
 export interface ResumeProjectV2 {
   name?: string;
   role?: string;
-  type?: string;
   start_date?: string;
   end_date?: string;
-  tech_stack?: string[];
   description?: string;
-  responsibilities?: string;
-  achievements?: string[];
-  link?: string;
 }
 
-/** V2 技能 — 模块 5 (K8-5-25-D: Tencent-style) */
+/** V2 技能 — 模块 6 (K8-5-44-C: 精简为 2 字段) */
 export interface ResumeSkillsV2 {
-  // Old 10-category fields (kept for backward compat)
-  programming_languages?: string[];
-  backend_frameworks?: string[];
-  frontend_technologies?: string[];
-  databases?: string[];
-  middleware?: string[];
-  cloud_platforms?: string[];
-  dev_tools?: string[];
-  ai_tools?: string[];
-  ai_application_scenarios?: string[];
-  other_keywords?: string[];
-  // New K8-5-25-D fields
-  language_exam?: { type?: string; score?: string };
-  development_languages?: string[];
+  professional_skills?: string[];
   ai_application?: string;
 }
 
-/** V2 证书与语言 — 模块 7 */
+/** V2 证书与语言 — 模块 7 (K8-5-44-C: 精简) */
 export interface ResumeCertificateV2 {
   name?: string;
-  type?: string;
-  level?: string;
-  score?: string;
-  issued_at?: string;
-}
-
-/** V2 获奖与竞赛 — 模块 8 */
-export interface ResumeAwardV2 {
-  name?: string;
-  type?: string;
-  level?: string;
-  awarded_at?: string;
   description?: string;
 }
 
-/** V2 作品链接 — 模块 9 */
+/** V2 获奖与竞赛 — 模块 8 (K8-5-44-C: 精简) */
+export interface ResumeAwardV2 {
+  name?: string;
+  description?: string;
+}
+
+/** V2 作品链接 — 模块 9 (K8-5-44-C: 精简为 works+homepage) */
+export interface ResumeWorkV2 {
+  name?: string;
+  url?: string;
+  password?: string;
+}
 export interface ResumePortfolioV2 {
-  github?: string;
-  gitee?: string;
-  cnb?: string;
-  blog?: string;
-  demo_links?: string[];
-  portfolio_links?: string[];
+  works?: ResumeWorkV2[];
   homepage?: string;
 }
 
-/** V2 补充信息 — 模块 10 */
+/** V2 补充信息 — 模块 10 (K8-5-44-C: 删除 self_evaluation) */
 export interface ResumeExtraInfoV2 {
-  self_evaluation?: string;
   additional_info?: string;
+}
 }
 
 /** 简历完整记录（兼容 V1 + V2） */

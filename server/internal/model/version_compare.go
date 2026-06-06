@@ -2,28 +2,32 @@ package model
 
 import "time"
 
-// VersionCompareResult represents a saved version comparison snapshot.
-// Maps to the `version_compare_results` table in MySQL.
-type VersionCompareResult struct {
+// ResumeCompareResult represents a saved resume comparison snapshot.
+// Maps to the `resume_compare_results` table in MySQL.
+type ResumeCompareResult struct {
 	ID            uint64
 	UserID        uint64
-	FromVersionID uint64
-	ToVersionID   uint64
+	FromResumeID  uint64
+	ToResumeID    uint64
 	ResultJSON    []byte
 	CreatedAt     time.Time
 }
 
-// FieldChange represents a change in a specific resume field between versions.
+// VersionCompareResult is an alias (backward compatibility).
+// Deprecated: use ResumeCompareResult.
+type VersionCompareResult = ResumeCompareResult
+
+// FieldChange represents a change in a specific resume field between resumes.
 type FieldChange struct {
 	Field      string `json:"field"`
 	Before     string `json:"before"`
 	After      string `json:"after"`
 	ChangeType string `json:"change_type"`
 	Impact     string `json:"impact"`
-	ModuleName string `json:"module_name,omitempty"` // K8-5-22-I-R: V2 module name like skills/projects/certificates
+	ModuleName string `json:"module_name,omitempty"`
 }
 
-// RiskChange represents a change in risk level between versions.
+// RiskChange represents a change in risk level between resumes.
 type RiskChange struct {
 	Risk   string `json:"risk"`
 	Before string `json:"before"`
@@ -38,30 +42,28 @@ type SuggestionCompletion struct {
 	Evidence   string `json:"evidence"`
 }
 
-// VersionCompareAnalysis represents the structured version comparison output.
+// VersionCompareAnalysis represents the structured resume comparison output.
 type VersionCompareAnalysis struct {
-	FromVersionNo      int                    `json:"from_version_no"`
-	ToVersionNo        int                    `json:"to_version_no"`
-	ScoreBefore        int                    `json:"score_before"`
-	ScoreAfter         int                    `json:"score_after"`
-	ScoreChange        int                    `json:"score_change"`
-	FieldChanges       []FieldChange          `json:"field_changes"`
-	RiskChanges        []RiskChange           `json:"risk_changes"`
+	FromResumeID        uint64                 `json:"from_resume_id"`
+	ToResumeID          uint64                 `json:"to_resume_id"`
+	ScoreBefore         int                    `json:"score_before"`
+	ScoreAfter          int                    `json:"score_after"`
+	ScoreChange         int                    `json:"score_change"`
+	FieldChanges        []FieldChange          `json:"field_changes"`
+	RiskChanges         []RiskChange           `json:"risk_changes"`
 	SuggestionCompletion []SuggestionCompletion `json:"suggestion_completion"`
-	KeyImprovements    []string               `json:"key_improvements"`
-	RemainingRisks     []string               `json:"remaining_risks"`
-	Summary            string                 `json:"summary"`
-	AuthenticityNotice string                 `json:"authenticity_notice"`
-	// LLM-enriched fields (from VersionCompareLLMAgent)
-	OverallChange  string              `json:"overall_change,omitempty"`
-	Recommendation string              `json:"recommendation,omitempty"`
-	NextActions    []string            `json:"next_actions,omitempty"`
-	ImprovedItems  []CompareChangeItem `json:"improved_items,omitempty"`
-	WeakenedItems  []CompareChangeItem `json:"weakened_items,omitempty"`
-	MissingItems   []string            `json:"missing_items,omitempty"`
-	// Agent metadata
-	GeneratedBy string `json:"generated_by,omitempty"`
-	AgentStatus string `json:"agent_status,omitempty"`
+	KeyImprovements     []string               `json:"key_improvements"`
+	RemainingRisks      []string               `json:"remaining_risks"`
+	Summary             string                 `json:"summary"`
+	AuthenticityNotice  string                 `json:"authenticity_notice"`
+	OverallChange       string                 `json:"overall_change,omitempty"`
+	Recommendation      string                 `json:"recommendation,omitempty"`
+	NextActions         []string               `json:"next_actions,omitempty"`
+	ImprovedItems       []CompareChangeItem    `json:"improved_items,omitempty"`
+	WeakenedItems       []CompareChangeItem    `json:"weakened_items,omitempty"`
+	MissingItems        []string               `json:"missing_items,omitempty"`
+	GeneratedBy         string                 `json:"generated_by,omitempty"`
+	AgentStatus         string                 `json:"agent_status,omitempty"`
 }
 
 // CompareChangeItem represents a change in an improved or weakened item.

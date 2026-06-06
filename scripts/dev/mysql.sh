@@ -24,9 +24,10 @@ MYSQL_ROOT_PASSWORD=$(get_env_value "MYSQL_ROOT_PASSWORD" "password")
 
 # SQL 文件路径
 INIT_SQL="${PROJECT_ROOT}/server/sql/init.sql"
+RESUME_VERSIONS_SQL="${PROJECT_ROOT}/server/sql/resume_versions.sql"
 
-# 核心表列表
-CORE_TABLES="users resume_versions jobs recommendation_results match_analyses version_compare_results"
+# 核心表列表（K8-5-51-B: resume_versions → resumes, version_compare_results → resume_compare_results）
+CORE_TABLES="users resumes jobs recommendation_results match_analyses resume_compare_results"
 
 # 检查 MySQL 容器是否运行
 check_mysql_container() {
@@ -110,7 +111,16 @@ case "$ACTION" in
 
         log_info "开始导入 server/sql/init.sql..."
         docker exec -i offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" < "$INIT_SQL"
-        log_info "SQL 导入完成"
+        log_info "init.sql 导入完成（15 张表 + 基础 seed）"
+
+        if [ -f "$RESUME_VERSIONS_SQL" ]; then
+            log_info "开始导入 server/sql/resume_versions.sql（9 份示范简历）..."
+            docker exec -i offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" < "$RESUME_VERSIONS_SQL"
+            log_info "resume_versions.sql 导入完成"
+        else
+            log_error "server/sql/resume_versions.sql 不存在，示范简历导入失败"
+            exit 1
+        fi
         ;;
 
     reset)
@@ -130,8 +140,17 @@ case "$ACTION" in
             exit 1
         fi
 
-        log_warn "将重新导入 init.sql，已有数据将被 DROP 后重建"
+        log_warn "将重新导入 init.sql + resume_versions.sql，已有数据将被 DROP 后重建"
         docker exec -i offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" < "$INIT_SQL"
+        log_info "init.sql 重置完成（15 张表 + 基础 seed）"
+
+        if [ -f "$RESUME_VERSIONS_SQL" ]; then
+            docker exec -i offer-catcher-mysql mysql -uroot -p"${MYSQL_ROOT_PASSWORD}" "$DB_NAME" < "$RESUME_VERSIONS_SQL"
+            log_info "resume_versions.sql 导入完成（9 份示范简历）"
+        else
+            log_error "server/sql/resume_versions.sql 不存在"
+            exit 1
+        fi
         log_info "数据库重置完成"
         ;;
 

@@ -79,7 +79,7 @@ fi
 step_header "检查数据库表"
 tables_ok=false
 if [ "$mysql_ready" = true ]; then
-    core_tables="users resume_versions jobs recommendation_results match_analyses version_compare_results"
+    core_tables="users resumes jobs recommendation_results match_analyses resume_compare_results"
     missing_tables=()
 
     for table in $core_tables; do

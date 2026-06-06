@@ -156,7 +156,7 @@ func main() {
 	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
 
 	// Initialize version compare module with both runners (tier selected per request)
-	versionCompareRepo := repository.NewVersionCompareRepository(mysqlDB.DB)
+	versionCompareRepo := repository.NewResumeCompareRepository(mysqlDB.DB)
 	versionCompareMockAgent := agent.NewVersionCompareMockAgent()
 	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent, fastRunner, qualityRunner, llmEnabled)
 	versionCompareHandler := httpserver.NewVersionCompareHandler(versionCompareService)

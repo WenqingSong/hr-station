@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation, useSearchParams } from "react-router";
 import { logout } from "../../api/auth";
 import { useAuth } from "../../stores/authStore";
 import { AuthDialog } from "./auth/AuthDialog";
+import { normalizeRedirect } from "../../utils/redirect";
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -56,11 +57,11 @@ export function Navbar() {
 
   const handleAuthSuccess = () => {
     // AuthDialog 已调用 useAuth().setAuthenticated() 更新全局状态
-    // 此处仅处理 redirect 跳转
+    // K8-5-46-B：redirect 安全校验
     if (redirectAfterLoginRef.current) {
-      const target = redirectAfterLoginRef.current;
+      const target = normalizeRedirect(redirectAfterLoginRef.current, "/jobs");
       redirectAfterLoginRef.current = null;
-      navigate(target);
+      navigate(target, { replace: true });
     }
   };
 

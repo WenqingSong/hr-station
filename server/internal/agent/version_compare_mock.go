@@ -43,8 +43,8 @@ func (a *VersionCompareMockAgent) Compare(from *model.ResumeVersion, to *model.R
 	notice := "版本对比仅用于呈现表达变化，请只补充真实经历，不要虚构项目或能力。"
 
 	return &model.VersionCompareAnalysis{
-		FromVersionNo:        from.VersionNo,
-		ToVersionNo:          to.VersionNo,
+		FromResumeID:        from.ID,
+		ToResumeID:          to.ID,
 		ScoreBefore:          scoreBefore,
 		ScoreAfter:           scoreAfter,
 		ScoreChange:          scoreChange,
@@ -526,11 +526,11 @@ func generateSummary(from *model.ResumeVersion, to *model.ResumeVersion, scoreBe
 	parts := []string{}
 
 	if scoreAfter > scoreBefore {
-		parts = append(parts, fmt.Sprintf("V%d 相比 V%d 在简历完整度上有所提升", to.VersionNo, from.VersionNo))
+		parts = append(parts, fmt.Sprintf("V%d 相比 V%d 在简历完整度上有所提升", to.ID, from.ID))
 	} else if scoreAfter == scoreBefore {
-		parts = append(parts, fmt.Sprintf("V%d 与 V%d 在简历完整度上基本一致", to.VersionNo, from.VersionNo))
+		parts = append(parts, fmt.Sprintf("V%d 与 V%d 在简历完整度上基本一致", to.ID, from.ID))
 	} else {
-		parts = append(parts, fmt.Sprintf("V%d 相比 V%d 在简历完整度上有所下降", to.VersionNo, from.VersionNo))
+		parts = append(parts, fmt.Sprintf("V%d 相比 V%d 在简历完整度上有所下降", to.ID, from.ID))
 	}
 
 	fromSkills := parseJSONStringArray(from.SkillsJSON)

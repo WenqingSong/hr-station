@@ -21,8 +21,8 @@ func NewRecommendationRepository(db *sql.DB) *RecommendationRepository {
 // Create inserts a new recommendation result and returns the auto-generated ID.
 func (r *RecommendationRepository) Create(ctx context.Context, result *model.RecommendationResult) error {
 	res, err := r.db.ExecContext(ctx,
-		"INSERT INTO recommendation_results (user_id, resume_version_id, result_json) VALUES (?, ?, ?)",
-		result.UserID, result.ResumeVersionID, toNullJSONFromBytes(result.ResultJSON),
+		"INSERT INTO recommendation_results (user_id, resume_id, result_json) VALUES (?, ?, ?)",
+		result.UserID, result.ResumeID, toNullJSONFromBytes(result.ResultJSON),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create recommendation result: %w", err)
@@ -38,15 +38,14 @@ func (r *RecommendationRepository) Create(ctx context.Context, result *model.Rec
 }
 
 // GetLatestByUserID returns the most recent recommendation result for the given user.
-// Returns nil if no result exists.
 func (r *RecommendationRepository) GetLatestByUserID(ctx context.Context, userID uint64) (*model.RecommendationResult, error) {
 	var result model.RecommendationResult
 	var resultJSON sql.NullString
 
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, user_id, resume_version_id, result_json, created_at FROM recommendation_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+		"SELECT id, user_id, resume_id, result_json, created_at FROM recommendation_results WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
 		userID,
-	).Scan(&result.ID, &result.UserID, &result.ResumeVersionID, &resultJSON, &result.CreatedAt)
+	).Scan(&result.ID, &result.UserID, &result.ResumeID, &resultJSON, &result.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -59,7 +58,6 @@ func (r *RecommendationRepository) GetLatestByUserID(ctx context.Context, userID
 	return &result, nil
 }
 
-// toNullJSONFromBytes converts a []byte to sql.NullString for JSON database writes.
 func toNullJSONFromBytes(data []byte) sql.NullString {
 	if len(data) == 0 {
 		return sql.NullString{Valid: false}

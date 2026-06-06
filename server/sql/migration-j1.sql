@@ -56,3 +56,4 @@ CREATE TABLE IF NOT EXISTS job_skills (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位技能表';
 
 SET FOREIGN_KEY_CHECKS = 1;
+-- DEPRECATED: 2026-06-06 - K8-5-51-B. This file is no longer executed. All content integrated into init.sql.

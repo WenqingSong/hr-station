@@ -12,6 +12,7 @@ import { ResumeManagementPage } from "./pages/ResumeManagementPage";
 import { ResumeComparisonPage } from "./pages/ResumeComparisonPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
 function RootLayout() {
   return (
@@ -55,7 +56,7 @@ export const router = createBrowserRouter([
       { path: "my-resumes/new", element: <Navigate to="/resumes/new" replace /> },
       { path: "my-resumes/compare", element: <Navigate to="/resumes/compare" replace /> },
       { path: "resume-comparison", element: <Navigate to="/resumes/compare" replace /> },
-      { path: "*", element: <Navigate to="/" replace /> },
+      { path: "*", Component: NotFoundPage },
     ],
   },
 ]);

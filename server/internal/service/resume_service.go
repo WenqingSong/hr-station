@@ -47,11 +47,10 @@ type CreateResumeRequest struct {
 	ExtraInfo       json.RawMessage `json:"extra_info"`       // V2 补充信息
 }
 
-// ResumeVersionResponse represents a resume version in API responses.
+// ResumeVersionResponse represents a resume in API responses.
 type ResumeVersionResponse struct {
 	// V1 fields
 	ID             uint64          `json:"id"`
-	VersionNo      int             `json:"version_no"`
 	Name           string          `json:"name"`
 	Phone          string          `json:"phone"`
 	Email          string          `json:"email"`
@@ -82,12 +81,14 @@ type ResumeVersionResponse struct {
 	Awards          json.RawMessage `json:"awards"`
 	PortfolioLinks  json.RawMessage `json:"portfolio_links"`
 	ExtraInfo       json.RawMessage `json:"extra_info"`
+
+	// Backward-compat: version_no is no longer a DB column, returned as 0
+	VersionNo int `json:"version_no"`
 }
 
-// VersionListItem represents a simplified version entry in the version list.
+// VersionListItem represents a simplified entry in the resume list.
 type VersionListItem struct {
 	ID         uint64 `json:"id"`
-	VersionNo  int    `json:"version_no"`
 	Name       string `json:"name"`
 	TargetCity string `json:"target_city"`
 	TargetRole string `json:"target_role"`
@@ -99,6 +100,9 @@ type VersionListItem struct {
 	ExpectedCities  string `json:"expected_cities"`
 	School          string `json:"school"`
 	Degree          string `json:"degree"`
+
+	// Backward-compat for frontend
+	VersionNo int `json:"version_no"`
 }
 
 // VersionListResponse represents the response for listing versions.
@@ -117,17 +121,11 @@ func NewResumeService(resumeRepo *repository.ResumeRepository) *ResumeService {
 	return &ResumeService{resumeRepo: resumeRepo}
 }
 
-// CreateVersion creates a new resume version for the given user.
-// Each call creates a new version; historical versions are read-only.
+// CreateVersion creates a new resume for the given user.
+// Each call creates a separate resume record; historical resumes are read-only.
 // V1: schema_version missing or 1 → uses V1 request fields.
 // V2: schema_version=2 → uses V2 module fields with V1 summary backfill.
 func (s *ResumeService) CreateVersion(ctx context.Context, userID uint64, req CreateResumeRequest) (*ResumeVersionResponse, error) {
-	// Get next version number
-	versionNo, err := s.resumeRepo.GetNextVersionNo(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get next version number: %w", err)
-	}
-
 	// Normalize V1 JSON fields: default to empty arrays if not provided
 	educationJSON := normalizeJSONArray(req.Education)
 	experienceJSON := normalizeJSONArray(req.Experience)
@@ -142,7 +140,6 @@ func (s *ResumeService) CreateVersion(ctx context.Context, userID uint64, req Cr
 
 	resume := &model.ResumeVersion{
 		UserID:         userID,
-		VersionNo:      versionNo,
 		Name:           req.Name,
 		Phone:          req.Phone,
 		Email:          req.Email,
@@ -163,8 +160,8 @@ func (s *ResumeService) CreateVersion(ctx context.Context, userID uint64, req Cr
 		s.backfillV1FromV2(resume, &req)
 	}
 
-	if err := s.resumeRepo.CreateVersion(ctx, resume); err != nil {
-		return nil, fmt.Errorf("failed to create resume version: %w", err)
+	if err := s.resumeRepo.Create(ctx, resume); err != nil {
+		return nil, fmt.Errorf("failed to create resume: %w", err)
 	}
 
 	// Reload to get database-generated fields (created_at)
@@ -289,18 +286,17 @@ func (s *ResumeService) GetCurrent(ctx context.Context, userID uint64) (*ResumeV
 	return toResumeVersionResponse(resume), nil
 }
 
-// ListVersions returns all resume versions for the given user.
+// ListVersions returns all resumes for the given user (backward-compat: was "version list").
 func (s *ResumeService) ListVersions(ctx context.Context, userID uint64) (*VersionListResponse, error) {
-	versions, err := s.resumeRepo.ListVersionsByUserID(ctx, userID)
+	versions, err := s.resumeRepo.ListByUserID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list resume versions: %w", err)
+		return nil, fmt.Errorf("failed to list resumes: %w", err)
 	}
 
 	items := make([]VersionListItem, 0, len(versions))
 	for _, v := range versions {
 		items = append(items, VersionListItem{
 			ID:              v.ID,
-			VersionNo:       v.VersionNo,
 			Name:            v.Name,
 			TargetCity:      v.TargetCity,
 			TargetRole:      v.TargetRole,
@@ -319,15 +315,17 @@ func (s *ResumeService) ListVersions(ctx context.Context, userID uint64) (*Versi
 	}, nil
 }
 
-// GetByVersionNo returns a specific resume version by version number.
+// GetByVersionNo returns a specific resume by ID (backward-compat: was "by version number").
 func (s *ResumeService) GetByVersionNo(ctx context.Context, userID uint64, versionNo int) (*ResumeVersionResponse, error) {
-	if versionNo < 1 {
-		return nil, apperror.New(apperror.CodeInvalidParam, "invalid version number", 400)
+	// versionNo is now interpreted as resume ID
+	id := uint64(versionNo)
+	if id < 1 {
+		return nil, apperror.New(apperror.CodeInvalidParam, "invalid resume id", 400)
 	}
 
-	resume, err := s.resumeRepo.GetByUserIDAndVersionNo(ctx, userID, versionNo)
+	resume, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get resume version: %w", err)
+		return nil, fmt.Errorf("failed to get resume: %w", err)
 	}
 	if resume == nil {
 		return nil, apperror.ErrResumeNotFound
@@ -348,11 +346,10 @@ func normalizeJSONArray(raw json.RawMessage) []byte {
 	return raw
 }
 
-// toResumeVersionResponse converts a model.ResumeVersion to a ResumeVersionResponse.
+// toResumeVersionResponse converts a model.Resume to a ResumeVersionResponse.
 func toResumeVersionResponse(r *model.ResumeVersion) *ResumeVersionResponse {
 	return &ResumeVersionResponse{
 		ID:             r.ID,
-		VersionNo:      r.VersionNo,
 		Name:           r.Name,
 		Phone:          r.Phone,
 		Email:          r.Email,
@@ -383,6 +380,7 @@ func toResumeVersionResponse(r *model.ResumeVersion) *ResumeVersionResponse {
 		Awards:          normalizeResponseJSON(r.AwardsJSON),
 		PortfolioLinks:  normalizeResponseJSON(r.PortfolioJSON),
 		ExtraInfo:       normalizeResponseJSON(r.ExtraJSON),
+		VersionNo:       0,
 	}
 }
 

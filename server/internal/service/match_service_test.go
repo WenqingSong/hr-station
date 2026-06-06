@@ -590,8 +590,8 @@ func TestMatchService_LLMFieldMapping_Complete(t *testing.T) {
 	if result.JobID != svcTestJob().ID {
 		t.Errorf("expected job_id=%d, got: %d", svcTestJob().ID, result.JobID)
 	}
-	if result.ResumeVersionID != svcTestResume().ID {
-		t.Errorf("expected resume_version_id=%d, got: %d", svcTestResume().ID, result.ResumeVersionID)
+	if result.ResumeID != svcTestResume().ID {
+		t.Errorf("expected resume_id=%d, got: %d", svcTestResume().ID, result.ResumeID)
 	}
 }
 

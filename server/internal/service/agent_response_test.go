@@ -66,8 +66,8 @@ func TestRecommendationResponseContainsResultAndMeta(t *testing.T) {
 	}
 
 	resp := &RecommendationResponse{
-		ResumeVersionID: 2,
-		ResumeVersionNo: 2,
+		ResumeID: 2,
+		
 		GeneratedBy:     "mock_agent",
 		RecommendedJobs: jobs,
 		Result:          &RecommendationBusinessResult{RecommendedJobs: jobs},
@@ -267,8 +267,8 @@ func TestRecommendationOldAndNewRecommendedJobsConsistency(t *testing.T) {
 	}
 
 	resp := &RecommendationResponse{
-		ResumeVersionID: 2,
-		ResumeVersionNo: 2,
+		ResumeID: 2,
+		
 		GeneratedBy:     "mock_agent",
 		RecommendedJobs: jobs,
 		Result:          &RecommendationBusinessResult{RecommendedJobs: jobs},

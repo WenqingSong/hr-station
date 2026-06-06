@@ -15,7 +15,7 @@ import (
 
 // MatchRequest represents a request for job match analysis.
 type MatchRequest struct {
-	ResumeVersionNo int                `json:"resume_version_no"`
+	ResumeID uint64 `json:"resume_id"`
 	GenerationTier  model.GenerationTier `json:"generation_tier,omitempty"`
 }
 
@@ -119,8 +119,8 @@ func (s *MatchService) getResume(ctx context.Context, userID uint64, req MatchRe
 	var resume *model.ResumeVersion
 	var err error
 
-	if req.ResumeVersionNo > 0 {
-		resume, err = s.resumeRepo.GetByUserIDAndVersionNo(ctx, userID, req.ResumeVersionNo)
+	if req.ResumeID > 0 {
+		resume, err = s.resumeRepo.FindByUserIDAndID(ctx, userID, req.ResumeID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get resume version: %w", err)
 		}
@@ -180,7 +180,7 @@ func (s *MatchService) analyzeWithLLM(ctx context.Context, resume *model.ResumeV
 	if marshalErr == nil {
 		analysis := &model.MatchAnalysis{
 			UserID:          resume.UserID,
-			ResumeVersionID: resume.ID,
+			ResumeID: resume.ID,
 			JobID:           job.ID,
 			Score:           result.MatchScore,
 			ResultJSON:      resultJSON,
@@ -251,7 +251,7 @@ func (s *MatchService) analyzeWithMock(
 
 	analysis := &model.MatchAnalysis{
 		UserID:          userID,
-		ResumeVersionID: resume.ID,
+		ResumeID: resume.ID,
 		JobID:           job.ID,
 		Score:           result.MatchScore,
 		ResultJSON:      resultJSON,

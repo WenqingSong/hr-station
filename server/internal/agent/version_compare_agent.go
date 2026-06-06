@@ -113,8 +113,8 @@ func mapParsedToCompareResult(parsed map[string]any, from, to *model.ResumeVersi
 	}
 
 	result := &model.VersionCompareAnalysis{
-		FromVersionNo: from.VersionNo,
-		ToVersionNo:   to.VersionNo,
+		FromResumeID: from.ID,
+		ToResumeID:   to.ID,
 		Summary:       getString(parsed, "compare_summary", ""),
 		OverallChange: getString(parsed, "overall_change", "neutral"),
 		Recommendation: getString(parsed, "recommendation", ""),

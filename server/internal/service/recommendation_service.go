@@ -15,7 +15,7 @@ import (
 
 // RecommendationRequest represents a request for job recommendations.
 type RecommendationRequest struct {
-	ResumeVersionNo int                `json:"resume_version_no"`
+	ResumeID uint64 `json:"resume_id"`
 	Limit           int                `json:"limit"`
 	GenerationTier  model.GenerationTier `json:"generation_tier,omitempty"`
 }
@@ -23,7 +23,7 @@ type RecommendationRequest struct {
 // RecommendationResponse represents the response for job recommendations.
 type RecommendationResponse struct {
 	ResumeVersionID uint64                        `json:"resume_version_id"`
-	ResumeVersionNo int                           `json:"resume_version_no"`
+	ResumeID uint64 `json:"resume_id"`
 	GeneratedBy     string                        `json:"generated_by"`     // deprecated: use meta.generated_by
 	RecommendedJobs []*model.RecommendedJob       `json:"recommended_jobs"` // deprecated: use result.recommended_jobs
 	Result          *RecommendationBusinessResult `json:"result"`
@@ -136,8 +136,8 @@ func (s *RecommendationService) getResume(ctx context.Context, userID uint64, re
 	var resume *model.ResumeVersion
 	var err error
 
-	if req.ResumeVersionNo > 0 {
-		resume, err = s.resumeRepo.GetByUserIDAndVersionNo(ctx, userID, req.ResumeVersionNo)
+	if req.ResumeID > 0 {
+		resume, err = s.resumeRepo.FindByUserIDAndID(ctx, userID, req.ResumeID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get resume version: %w", err)
 		}
@@ -206,8 +206,7 @@ func (s *RecommendationService) recommendWithLLM(ctx context.Context, userID uin
 	recResult := &RecommendationBusinessResult{RecommendedJobs: jobPtrs}
 
 	resp := &RecommendationResponse{
-		ResumeVersionID: resume.ID,
-		ResumeVersionNo: resume.VersionNo,
+		ResumeID: resume.ID,
 		GeneratedBy:     "llm_agent",
 		RecommendedJobs: jobPtrs,
 		Result:          recResult,
@@ -221,7 +220,7 @@ func (s *RecommendationService) recommendWithLLM(ctx context.Context, userID uin
 	if marshalErr == nil {
 		recResult := &model.RecommendationResult{
 			UserID:          userID,
-			ResumeVersionID: resume.ID,
+			ResumeID: resume.ID,
 			ResultJSON:      resultJSON,
 		}
 		if createErr := s.recommendationRepo.Create(ctx, recResult); createErr != nil {
@@ -286,8 +285,7 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 	recResult := &RecommendationBusinessResult{RecommendedJobs: jobPtrs}
 
 	resp := &RecommendationResponse{
-		ResumeVersionID: resume.ID,
-		ResumeVersionNo: resume.VersionNo,
+		ResumeID: resume.ID,
 		GeneratedBy:     "mock_agent",
 		RecommendedJobs: jobPtrs,
 		Result:          recResult,
@@ -304,7 +302,7 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 
 	recSnapshot := &model.RecommendationResult{
 		UserID:          userID,
-		ResumeVersionID: resume.ID,
+		ResumeID: resume.ID,
 		ResultJSON:      resultJSON,
 	}
 

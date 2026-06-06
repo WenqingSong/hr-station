@@ -39,3 +39,4 @@ ALTER TABLE `resume_versions` ADD COLUMN `extra_json`         JSON NULL COMMENT 
 -- `target_city`, `target_role`
 -- `education_json`, `experience_json`, `project_json`, `skills_json`
 -- `self_evaluation`, `raw_text`, `created_at`
+-- DEPRECATED: 2026-06-06 - K8-5-51-B. This file is no longer executed. All content integrated into init.sql.

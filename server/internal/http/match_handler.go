@@ -50,9 +50,9 @@ func (h *MatchHandler) Analyze(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Validate resume_version_no
-	if req.ResumeVersionNo < 0 {
-		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume_version_no")
+	// Validate resume_id
+	if req.ResumeID < 0 {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume_id")
 		return
 	}
 

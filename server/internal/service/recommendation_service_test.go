@@ -716,7 +716,6 @@ func TestRecService_Response_Structure(t *testing.T) {
 	// Verify response structure can be serialized
 	resp := &RecommendationResponse{
 		ResumeVersionID: 1,
-		ResumeVersionNo: 2,
 		GeneratedBy:     "mock_agent",
 		RecommendedJobs: make([]*model.RecommendedJob, len(results)),
 		Summary:         "test summary",

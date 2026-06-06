@@ -15,8 +15,8 @@ import (
 
 // VersionCompareRequest represents a request for version comparison.
 type VersionCompareRequest struct {
-	FromVersionNo  int
-	ToVersionNo    int
+	FromResumeID  uint64
+	ToResumeID    uint64
 	GenerationTier model.GenerationTier
 }
 
@@ -32,7 +32,7 @@ type VersionCompareResponse struct {
 // Supports generation_tier: "fast" uses fastRunner, "quality" uses qualityRunner.
 type VersionCompareService struct {
 	resumeRepo    *repository.ResumeRepository
-	compareRepo   *repository.VersionCompareRepository
+	compareRepo   *repository.ResumeCompareRepository
 	mockAgent     *agent.VersionCompareMockAgent
 	fastRunner    agent.PipelineRunner
 	qualityRunner agent.PipelineRunner
@@ -42,7 +42,7 @@ type VersionCompareService struct {
 // NewVersionCompareService creates a new VersionCompareService.
 func NewVersionCompareService(
 	resumeRepo *repository.ResumeRepository,
-	compareRepo *repository.VersionCompareRepository,
+	compareRepo *repository.ResumeCompareRepository,
 	mockAgent *agent.VersionCompareMockAgent,
 	fastRunner agent.PipelineRunner,
 	qualityRunner agent.PipelineRunner,
@@ -73,18 +73,18 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 	log.Printf("[VersionCompareService] generation_tier=%s", string(req.GenerationTier))
 
 	// Validate from/to
-	if req.FromVersionNo <= 0 {
+	if req.FromResumeID <= 0 {
 		return nil, apperror.New(apperror.CodeInvalidParam, "invalid from version number", 400)
 	}
-	if req.ToVersionNo <= 0 {
+	if req.ToResumeID <= 0 {
 		return nil, apperror.New(apperror.CodeInvalidParam, "invalid to version number", 400)
 	}
-	if req.FromVersionNo == req.ToVersionNo {
+	if req.FromResumeID == req.ToResumeID {
 		return nil, apperror.New(apperror.CodeInvalidParam, "from and to version numbers must be different", 400)
 	}
 
 	// Get from version
-	fromVersion, err := s.resumeRepo.GetByUserIDAndVersionNo(ctx, userID, req.FromVersionNo)
+	fromVersion, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, req.FromResumeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get from version: %w", err)
 	}
@@ -93,7 +93,7 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 	}
 
 	// Get to version
-	toVersion, err := s.resumeRepo.GetByUserIDAndVersionNo(ctx, userID, req.ToVersionNo)
+	toVersion, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, req.ToResumeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get to version: %w", err)
 	}
@@ -142,8 +142,8 @@ func (s *VersionCompareService) compareWithMock(ctx context.Context, userID uint
 
 	compareResult := &model.VersionCompareResult{
 		UserID:        userID,
-		FromVersionID: fromVer.ID,
-		ToVersionID:   toVer.ID,
+		FromResumeID: fromVer.ID,
+		ToResumeID:   toVer.ID,
 		ResultJSON:    resultJSON,
 	}
 

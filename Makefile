@@ -71,7 +71,7 @@ help: ## 查看所有可用命令
 	@echo "  make infra-logs    查看 Docker Compose 日志"
 	@echo ""
 	@echo "数据库:"
-	@echo "  make db-import     导入 server/sql/init.sql"
+	@echo "  make db-import     导入 server/sql/init.sql（唯一初始化入口）"
 	@echo "  make db-reset      ⚠️ 危险：重新导入初始化 SQL，需要 CONFIRM=yes"
 	@echo "  make db-shell      进入 MySQL shell"
 	@echo "  make db-check      检查核心表是否存在、记录数是否正常"
