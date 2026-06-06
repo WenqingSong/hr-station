@@ -274,11 +274,7 @@ export function ResumeManagementPage() {
   const pagedRows = (rows ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   if (loading) {
-    return (
-      <ContentPageShell maxWidthClassName="max-w-[1040px]">
-        <PageLoading message="正在加载简历列表…" />
-      </ContentPageShell>
-    );
+    return <PageLoading message="正在加载简历列表…" />;
   }
 
   if (error) {

@@ -200,7 +200,7 @@ export function ResumeComparisonPage() {
 
         {/* Comparison Content */}
         {compareLoading ? (
-          <PageLoading message="正在生成版本对比…" maxWidth="max-w-[1360px]" className="py-12" />
+          <PageLoading message="正在生成版本对比…" maxWidth="max-w-[1360px]" />
         ) : compareError ? (
           <PageError title="版本对比接口暂时不可用，请稍后重试。" description="" maxWidth="max-w-[1360px]">
             <Link to="/resumes" className="text-[#0052D9] text-sm hover:underline">返回我的简历</Link>

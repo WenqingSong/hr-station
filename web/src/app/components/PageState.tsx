@@ -20,9 +20,11 @@ export function PageLoading({
   className = "",
 }: PageLoadingProps) {
   return (
-    <div className={`${maxWidth} mx-auto px-6 py-16 text-center ${className}`}>
-      <Loader2 className="w-6 h-6 text-[#0052D9] mx-auto mb-3 animate-spin" />
-      <p className="text-sm text-gray-400">{message}</p>
+    <div className={`min-h-[calc(100vh-80px)] flex items-center justify-center ${maxWidth} mx-auto px-6 ${className}`}>
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="w-6 h-6 text-[#0052D9] animate-spin" />
+        <p className="text-sm text-gray-400">{message}</p>
+      </div>
     </div>
   );
 }
