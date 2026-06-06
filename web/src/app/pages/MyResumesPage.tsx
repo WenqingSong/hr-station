@@ -16,6 +16,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { ResumeEditorShell, ResumeEditorSaveCard, ResumeBasicsSection, BasicInfoSection, EducationSection, ProjectSection, SkillsSection, InternshipSection, CertificatesSection, PortfolioExtraSection } from "../components/resume-editor";
+import { AppConfirmDialog } from "../components/common/AppConfirmDialog";
 
 interface Project { id: number; name: string; desc: string; role: string; startDate: string; endDate: string; }
 interface Education { id: number; school: string; major: string; degree: string; startDate: string; endDate: string; department: string; gpa: string; gpaScale: string; rank: string; coreCourses: string; researchDirection: string; lab: string; paperSummary: string; }
@@ -44,6 +45,7 @@ export function MyResumesPage() {
   const idParam = searchParams.get("id");
   const hasInvalidId = idParam !== null && !isValidResumeId(idParam);
   const editingResumeId = idParam && /^\d+$/.test(idParam) ? Number(idParam) : null;
+  const isCreateMode = !editingResumeId;
   const mode: "edit" | "add" = location.pathname.includes("/new") ? "add" : "edit";
 
   useEffect(() => { if (hasInvalidId) { navigate("/resumes", { replace: true }); } }, [hasInvalidId, navigate]);
@@ -78,6 +80,42 @@ export function MyResumesPage() {
   }, [mode, retryCount, editingResumeId]);
 
   const handleRetryLoad = useCallback(() => setRetryCount((c) => c + 1), []);
+
+  // ── Form reset for create mode ─────────────────────────────────────────────
+  function resetFormForCreate() {
+    setResumeName("");
+    setPersonalName("");
+    setPhone("");
+    setEmail("");
+    setCurrentCity("");
+    setEducations([]);
+    setInternships([]);
+    setProjects([]);
+    setSkillsDraft({ developmentLanguages: "", aiApplication: "" });
+    setLanguageExamDrafts([]);
+    setCertificateDrafts([]);
+    setAwardDrafts([]);
+    setPortfolioDraft({ works: [{ id: 1, name: "", link: "", password: "" }], homepage: "" });
+    setExtraInfoDraft({ additionalInfo: "" });
+    setNameCheckStatus("idle");
+    setNameCheckMessage("");
+    setSaveSuccessMsg("");
+    setSaveErrorMsg("");
+  }
+
+  // Reset form whenever we enter create mode (no editingResumeId)
+  useEffect(() => {
+    if (isCreateMode) resetFormForCreate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingResumeId]);
+
+  // ── Form alert dialog state ────────────────────────────────────────────────
+  const [formAlert, setFormAlert] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    variant?: "default" | "danger";
+  }>({ open: false, title: "", description: "", variant: "default" });
   const [resumeName, setResumeName] = useState("");
 
   // K8-5-49-B: name check state
@@ -109,7 +147,8 @@ export function MyResumesPage() {
     }
   }
 
-  const saveDisabled = saving || nameCheckStatus === "checking" || nameCheckStatus === "duplicate" || nameCheckStatus === "invalid" || nameCheckStatus === "error";
+  // Save button disabled only when actively saving or still checking name
+  const saveDisabled = saving || nameCheckStatus === "checking";
   const [personalName, setPersonalName] = useState(""); const [phone, setPhone] = useState("");
   const [email, setEmail] = useState(""); const [currentCity, setCurrentCity] = useState("");
   const [educations, setEducations] = useState<Education[]>([]);
@@ -155,23 +194,67 @@ export function MyResumesPage() {
   }, [formVm, mode]);
 
   async function handleSave() {
-    const trimmed = resumeName.trim();
-    if (!trimmed) { setSaveErrorMsg("简历名称不能为空"); return; }
-    // Re-check name if not already verified
+    const trimmedName = resumeName.trim();
+    const trimmedRealName = personalName.trim();
+
+    // ── Required field checks ──────────────────────────────────────────────
+    if (!trimmedName && !trimmedRealName) {
+      setFormAlert({ open: true, title: "请填写必填信息", description: "请先填写简历名称和姓名，填写后才能保存。", variant: "danger" });
+      return;
+    }
+    if (!trimmedName) {
+      setFormAlert({ open: true, title: "请填写简历名称", description: "简历名称用于区分不同简历，填写后才能保存。", variant: "danger" });
+      return;
+    }
+    if (!trimmedRealName) {
+      setFormAlert({ open: true, title: "请填写姓名", description: "姓名是基础信息中的必填项，填写后才能保存简历。", variant: "danger" });
+      return;
+    }
+
+    // ── Name check status gates ───────────────────────────────────────────
+    if (nameCheckStatus === "checking") {
+      setFormAlert({ open: true, title: "正在检查简历名称", description: "请等待名称校验完成后再保存。", variant: "default" });
+      return;
+    }
+    if (nameCheckStatus === "duplicate") {
+      setFormAlert({ open: true, title: "简历名称已存在", description: "当前账号下已经有同名简历，请换一个名称后再保存。", variant: "danger" });
+      return;
+    }
+    if (nameCheckStatus === "invalid") {
+      setFormAlert({ open: true, title: "简历名称无效", description: "简历名称不能为空，请填写一个有效的名称。", variant: "danger" });
+      return;
+    }
+    if (nameCheckStatus === "error") {
+      setFormAlert({ open: true, title: "暂时无法校验名称", description: "请稍后重试，确认简历名称可用后再保存。", variant: "default" });
+      return;
+    }
+
+    // ── Pre-save name re-check if status is idle ───────────────────────────
     if (nameCheckStatus !== "available") {
+      setNameCheckStatus("checking");
+      setNameCheckMessage("正在检查...");
       try {
-        const result = await checkResumeName(trimmed, editingResumeId ?? undefined);
+        const result = await checkResumeName(trimmedName, editingResumeId ?? undefined);
         if (!result.available) {
           setNameCheckStatus("duplicate");
           setNameCheckMessage(result.reason || "该简历名称已存在");
+          setFormAlert({ open: true, title: "简历名称已存在", description: "当前账号下已经有同名简历，请换一个名称后再保存。", variant: "danger" });
           return;
         }
         setNameCheckStatus("available");
-      } catch { return; }
+        setNameCheckMessage("名称可用，保存后将用于岗位推荐、匹配分析和简历优化建议。");
+      } catch {
+        setNameCheckStatus("error");
+        setNameCheckMessage("暂时无法校验名称，请稍后重试。");
+        setFormAlert({ open: true, title: "暂时无法校验名称", description: "请稍后重试，确认简历名称可用后再保存。", variant: "default" });
+        return;
+      }
     }
+
+    // ── Proceed with save ──────────────────────────────────────────────────
     setSaveSuccessMsg(""); setSaveErrorMsg(""); setSaving(true);
     const payload: SaveResumePayload = {
-      name: trimmed, is_current: true,
+      name: trimmedName, is_current: true,
       real_name: personalName || "", phone: phone || "", email: email || "", city: currentCity || "",
       professional_skills: skillsDraft.developmentLanguages || "", ai_application: skillsDraft.aiApplication || "",
       homepage: portfolioDraft.homepage || "", additional_info: extraInfoDraft.additionalInfo || "",
@@ -189,8 +272,19 @@ export function MyResumesPage() {
       setSaveSuccessMsg(mode === "add" ? "简历已创建成功。" : "修改已保存。");
       setTimeout(() => navigate("/resumes", { replace: true }), 800);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("401")) setSaveErrorMsg("登录状态已失效，请重新登录后再保存。"); else setSaveErrorMsg("保存失败，请稍后重试。");
+      if (isApiClientError(err)) {
+        if (err.status === 401) {
+          setSaveErrorMsg("登录状态已失效，请重新登录后再保存。");
+        } else if (err.status === 409) {
+          setNameCheckStatus("duplicate");
+          setNameCheckMessage("该简历名称已存在");
+          setFormAlert({ open: true, title: "简历名称已存在", description: "当前账号下已经有同名简历，请换一个名称后再保存。", variant: "danger" });
+        } else {
+          setSaveErrorMsg("保存失败，请稍后重试。");
+        }
+      } else {
+        setSaveErrorMsg("保存失败，请稍后重试。");
+      }
     } finally { setSaving(false); }
   }
 
@@ -232,6 +326,7 @@ export function MyResumesPage() {
   const sectionAutoOpenKey = `${editingResumeId ?? "_new"}:${resumeName || "_empty"}`;
 
   return (
+    <>
     <ResumeEditorShell title={mode === "add" ? "创建简历" : "编辑简历"} subtitle="完善你的经历和技能，让 Offerr鹅 更准确地完成岗位推荐、匹配分析和简历优化。" saveCard={<ResumeEditorSaveCard mode={mode} saving={saving} successMessage={saveSuccessMsg} errorMessage={saveErrorMsg} onSave={handleSave} disabled={saveDisabled} />}>
       <Link to="/resumes" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors -mt-2 mb-1"><ChevronLeft className="w-3 h-3" />返回我的简历</Link>
       <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
@@ -244,10 +339,11 @@ export function MyResumesPage() {
         <div className="space-y-5">
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">简历名称 <span className="text-red-500">*</span></label><Input value={resumeName} onChange={(e) => { setResumeName(e.target.value); setNameCheckStatus("idle"); setNameCheckMessage(""); }} onBlur={handleNameBlur} placeholder="用于区分不同简历版本" /></div>
           <div className="flex items-start gap-2 rounded-xl px-4 py-3 border text-[13px] leading-relaxed
-            {nameCheckStatus === 'available' ? 'bg-green-50/60 border-green-100/40 text-green-700' :
-             nameCheckStatus === 'duplicate' || nameCheckStatus === 'invalid' || nameCheckStatus === 'error' ? 'bg-red-50/60 border-red-100/40 text-red-600' :
-             nameCheckStatus === 'checking' ? 'bg-blue-50/60 border-blue-100/40 text-blue-600' :
-             'bg-blue-50/60 border-blue-100/40 text-slate-600'}">
+            {nameCheckStatus === 'available' ? 'bg-green-50 border-green-100 text-green-700' :
+             nameCheckStatus === 'duplicate' || nameCheckStatus === 'invalid' ? 'bg-red-50 border-red-200 text-red-600' :
+             nameCheckStatus === 'error' ? 'bg-red-50 border-red-100 text-red-500' :
+             nameCheckStatus === 'checking' ? 'bg-blue-50 border-blue-100 text-blue-600' :
+             'bg-slate-50 border-slate-100 text-slate-500'}">
             <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <p>{nameCheckMessage || (nameCheckStatus === "idle" ? "输入简历名称后自动检查是否可用" : "")}</p>
           </div>
@@ -266,7 +362,7 @@ export function MyResumesPage() {
         <p className="mt-5 text-[12px] text-slate-400 leading-relaxed border-t border-gray-100 pt-4">基础信息用于简历展示和基础画像。手机号 / 邮箱不会用于分析匹配。</p>
       </BasicInfoSection>
 
-      <EducationSection onAdd={addEducation}>
+      <EducationSection defaultOpen={!isCreateMode} onAdd={addEducation}>
         {educations.length === 0 ? (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><p className="text-sm text-slate-500 mb-1">暂无教育经历</p><p className="text-xs text-slate-400 mb-3">可以先添加你的学校、专业和学历信息。</p><button onClick={addEducation} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加教育经历</button></div>) : (
           <div className="space-y-4">{educations.map((edu, idx) => (
             <div key={edu.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "education" && recentlyAdded.key === String(edu.id) ? "resume-item-enter" : ""}`}>
@@ -297,7 +393,7 @@ export function MyResumesPage() {
           ))}</div>)}
       </EducationSection>
 
-      <ProjectSection>
+      <ProjectSection defaultOpen={!isCreateMode}>
         {projects.length === 0 ? (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><p className="text-sm text-slate-500 mb-1">暂无项目经历</p><p className="text-xs text-slate-400 mb-3">可以补充课程项目、比赛项目或个人项目。</p><button onClick={addProject} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加项目经历</button></div>) : (
           <div className="space-y-4">{projects.map((proj, idx) => (
             <div key={proj.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "project" && recentlyAdded.key === String(proj.id) ? "resume-item-enter" : ""}`}>
@@ -310,7 +406,7 @@ export function MyResumesPage() {
           ))}</div>)}
       </ProjectSection>
 
-      <SkillsSection>
+      <SkillsSection defaultOpen={!isCreateMode}>
         <div className="border-t border-gray-200 pt-5 mt-5 space-y-4">
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">专业技能 / 工具能力</label><Input className="h-10" value={skillsDraft.developmentLanguages} onChange={(e) => updateSkillsDraft("developmentLanguages", e.target.value)} placeholder="技术岗可填 Go / Java / SQL" /><p className="mt-1.5 text-xs text-slate-400">可填写开发语言、设计工具、数据分析方法、办公软件等。</p></div>
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">AI 应用技能 <span className="text-xs font-normal text-amber-600">推荐</span></label><Textarea className="min-h-[88px] resize-none" rows={3} value={skillsDraft.aiApplication} onChange={(e) => updateSkillsDraft("aiApplication", e.target.value)} placeholder="例如：使用 CodeBuddy 辅助需求拆解、代码生成、Bug 定位、接口文档、测试用例和项目复盘。" /></div>
@@ -360,5 +456,16 @@ export function MyResumesPage() {
         <div className="mt-2 flex items-center justify-between"><span className="text-[12px] text-slate-400">建议包含：技术方向、项目经验、学习能力、目标岗位。</span><span className="text-[12px] text-slate-400">当前约 {extraInfoDraft.additionalInfo.length} 字</span></div>
       </PortfolioExtraSection>
     </ResumeEditorShell>
+    <AppConfirmDialog
+      open={formAlert.open}
+      title={formAlert.title}
+      description={formAlert.description}
+      confirmText="我知道了"
+      variant={formAlert.variant}
+      hideCancel
+      onConfirm={() => setFormAlert((prev) => ({ ...prev, open: false }))}
+      onCancel={() => setFormAlert((prev) => ({ ...prev, open: false }))}
+    />
+    </>
   );
 }

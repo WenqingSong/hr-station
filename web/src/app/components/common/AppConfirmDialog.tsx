@@ -10,13 +10,14 @@ interface AppConfirmDialogProps {
   cancelText?: string;
   variant?: "default" | "danger";
   loading?: boolean;
+  hideCancel?: boolean;
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }
 
 export function AppConfirmDialog({
   open, title, description, confirmText = "确认", cancelText = "取消",
-  variant = "default", loading = false, onConfirm, onCancel,
+  variant = "default", loading = false, hideCancel = false, onConfirm, onCancel,
 }: AppConfirmDialogProps) {
   if (!open) return null;
 
@@ -31,14 +32,16 @@ export function AppConfirmDialog({
           <div className="text-sm text-slate-500 leading-relaxed mb-5">{description}</div>
         )}
         <div className="flex items-center justify-end gap-3">
-          <button
-            type="button"
-            disabled={loading}
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50"
-          >
-            {cancelText}
-          </button>
+          {!hideCancel && (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={onCancel}
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50"
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             type="button"
             disabled={loading}

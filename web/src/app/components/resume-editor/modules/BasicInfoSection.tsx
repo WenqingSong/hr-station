@@ -30,6 +30,7 @@ export function BasicInfoSection({
       description="用于生成简历摘要和岗位匹配时的基础背景判断。"
       badge="必填"
       defaultOpen={true}
+      collapsible={false}
       required
       {...rest}
     >

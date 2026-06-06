@@ -88,7 +88,7 @@ export function JobDetailAIDecision() {
           <h3 className="font-semibold text-gray-900 text-[13px] mb-2">{resumeVm?.name || ""}</h3>
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{resumeVm?.directionLabel || ""}</Badge>
-            {resumeVm?.skillTags.slice(0, 4).map((skill) => (
+            {(resumeVm?.skillTags ?? []).slice(0, 4).map((skill) => (
               <Badge key={skill} variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{skill}</Badge>
             ))}
           </div>

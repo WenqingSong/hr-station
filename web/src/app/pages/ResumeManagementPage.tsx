@@ -239,21 +239,23 @@ export function ResumeManagementPage() {
                         </span>
                       )}
                     </div>
-                    <Link
-                      to={`/resumes/edit?id=${row.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0052D9] transition-colors ml-3 shrink-0"
-                    >
-                      <Pencil className="w-3 h-3" />
-                      编辑
-                    </Link>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(row); }}
-                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors ml-2 shrink-0"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      删除
-                    </button>
+                    <div className="ml-auto flex items-center gap-4 shrink-0">
+                      <Link
+                        to={`/resumes/edit?id=${row.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0052D9] transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        编辑
+                      </Link>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(row); }}
+                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        删除
+                      </button>
+                    </div>
                   </div>
                 );
               })}
