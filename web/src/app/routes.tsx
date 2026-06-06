@@ -10,6 +10,7 @@ import { ResumeOptimizationPage } from "./pages/ResumeOptimizationPage";
 import { MyResumesPage } from "./pages/MyResumesPage";
 import { ResumeManagementPage } from "./pages/ResumeManagementPage";
 import { ResumeComparisonPage } from "./pages/ResumeComparisonPage";
+import { ResumeDetailPage } from "./pages/ResumeDetailPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
       { path: "resumes/edit", element: <RequireAuth><MyResumesPage /></RequireAuth> },
       { path: "resumes/new", element: <RequireAuth><MyResumesPage /></RequireAuth> },
       { path: "resumes/compare", element: <RequireAuth><ResumeComparisonPage /></RequireAuth> },
+      { path: "resumes/detail/:id", element: <RequireAuth><ResumeDetailPage /></RequireAuth> },
       // ── Auth 页面（8-2 新增） ──
       { path: "login", Component: LoginPage },
       { path: "register", Component: RegisterPage },

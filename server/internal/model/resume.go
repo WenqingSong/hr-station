@@ -71,6 +71,7 @@ type ResumeEducation struct {
 	RankText string `json:"rank_text"`
 	CoreCourses string `json:"core_courses"`
 	ResearchDirection string `json:"research_direction"`
+	Advisor string `json:"advisor"`
 	Lab string `json:"lab"`
 	PaperSummary string `json:"paper_summary"`
 	SortOrder int `json:"sort_order,omitempty"`

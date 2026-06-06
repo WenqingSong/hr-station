@@ -16,6 +16,7 @@ export interface ResumeEducation {
   rank_text: string;
   core_courses: string;
   research_direction: string;
+  advisor: string;
   lab: string;
   paper_summary: string;
   sort_order?: number;

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { PageLoading, PageError } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
-import { FileText, Plus, Search, Sparkles, Wand2, GitCompare, Pencil, Trash2 } from "lucide-react";
+import { FileText, Plus, Search, Sparkles, Wand2, GitCompare, Pencil, Trash2, Eye } from "lucide-react";
 import { getResumes, deleteResume } from "../../api/resumes";
 import { AppConfirmDialog } from "../components/common/AppConfirmDialog";
 import type { Resume } from "../../types";
@@ -240,6 +240,14 @@ export function ResumeManagementPage() {
                       )}
                     </div>
                     <div className="ml-auto flex items-center gap-4 shrink-0">
+                      <Link
+                        to={`/resumes/detail/${row.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#0052D9] transition-colors cursor-pointer"
+                      >
+                        <Eye className="w-3 h-3" />
+                        查看详情
+                      </Link>
                       <Link
                         to={`/resumes/edit?id=${row.id}`}
                         onClick={(e) => e.stopPropagation()}

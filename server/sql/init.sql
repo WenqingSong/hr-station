@@ -104,7 +104,7 @@ CREATE TABLE `resume_educations` (
   `start_date` VARCHAR(20) NOT NULL DEFAULT '', `end_date` VARCHAR(20) NOT NULL DEFAULT '',
   `gpa` VARCHAR(20) NOT NULL DEFAULT '', `gpa_scale` VARCHAR(20) NOT NULL DEFAULT '',
   `rank_text` VARCHAR(50) NOT NULL DEFAULT '', `core_courses` TEXT NULL,
-  `research_direction` VARCHAR(255) NOT NULL DEFAULT '', `lab` VARCHAR(255) NOT NULL DEFAULT '',
+  `research_direction` VARCHAR(255) NOT NULL DEFAULT '', `advisor` VARCHAR(100) NOT NULL DEFAULT '' COMMENT '导师', `lab` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '实验室',
   `paper_summary` TEXT NULL, `sort_order` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`), KEY `idx_re_resume` (`resume_id`,`sort_order`),
   CONSTRAINT `fk_re_resume` FOREIGN KEY (`resume_id`) REFERENCES `resumes`(`id`) ON DELETE CASCADE

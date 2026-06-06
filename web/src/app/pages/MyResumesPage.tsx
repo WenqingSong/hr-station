@@ -17,7 +17,7 @@ import { ResumeEditorShell, ResumeEditorSaveCard, ResumeBasicsSection, BasicInfo
 import { AppConfirmDialog } from "../components/common/AppConfirmDialog";
 
 interface Project { id: number; name: string; desc: string; role: string; startDate: string; endDate: string; }
-interface Education { id: number; school: string; major: string; degree: string; startDate: string; endDate: string; department: string; gpa: string; gpaScale: string; rank: string; coreCourses: string; researchDirection: string; lab: string; paperSummary: string; }
+interface Education { id: number; school: string; major: string; degree: string; startDate: string; endDate: string; department: string; gpa: string; gpaScale: string; rank: string; coreCourses: string; researchDirection: string; advisor: string; lab: string; paperSummary: string; }
 interface Internship { id: number; company: string; position: string; startDate: string; endDate: string; content: string; }
 interface SkillsDraft { developmentLanguages: string; aiApplication: string; }
 interface LanguageExamDraft { name: string; score: string; }
@@ -177,7 +177,7 @@ export function MyResumesPage() {
     const eduList: Education[] = (formVm.educations || []).map((e: ResumeEducation, i: number) => ({
       id: i + 1, school: e.school || "", major: e.major || "", degree: e.degree || "本科", startDate: e.start_date || "", endDate: e.end_date || "",
       department: e.department || "", gpa: e.gpa || "", gpaScale: e.gpa_scale || "", rank: e.rank_text || "", coreCourses: e.core_courses || "",
-      researchDirection: e.research_direction || "", lab: e.lab || "", paperSummary: e.paper_summary || "",
+      researchDirection: e.research_direction || "", advisor: e.advisor || "", lab: e.lab || "", paperSummary: e.paper_summary || "",
     }));
     setEducations(eduList.length > 0 ? eduList : []);
     const intList: Internship[] = (formVm.internships || []).map((it: ResumeInternship, i: number) => ({
@@ -262,7 +262,7 @@ export function MyResumesPage() {
       real_name: personalName || "", phone: phone || "", email: email || "", city: currentCity || "",
       professional_skills: skillsDraft.developmentLanguages || "", ai_application: skillsDraft.aiApplication || "",
       homepage: portfolioDraft.homepage || "", additional_info: extraInfoDraft.additionalInfo || "",
-      educations: educations.map((e) => ({ school: e.school || "", degree: e.degree || "", major: e.major || "", department: e.department || "", start_date: e.startDate || "", end_date: e.endDate || "", gpa: e.gpa || "", gpa_scale: e.gpaScale || "", rank_text: e.rank || "", core_courses: e.coreCourses || "", research_direction: e.researchDirection || "", lab: e.lab || "", paper_summary: e.paperSummary || "" })),
+      educations: educations.map((e) => ({ school: e.school || "", degree: e.degree || "", major: e.major || "", department: e.department || "", start_date: e.startDate || "", end_date: e.endDate || "", gpa: e.gpa || "", gpa_scale: e.gpaScale || "", rank_text: e.rank || "", core_courses: e.coreCourses || "", research_direction: e.researchDirection || "", advisor: e.advisor || "", lab: e.lab || "", paper_summary: e.paperSummary || "" })),
       projects: projects.map((p) => ({ name: p.name || "", role: p.role || "", start_date: p.startDate || "", end_date: p.endDate || "", description: p.desc || "" })),
       internships: internships.map((i) => ({ company: i.company || "", position: i.position || "", start_date: i.startDate || "", end_date: i.endDate || "", description: i.content || "" })),
       language_exams: languageExamDrafts.filter((le) => le.name.trim()).map((le) => ({ exam_type: le.name.trim(), score: le.score.trim() })),
@@ -315,7 +315,7 @@ export function MyResumesPage() {
   function addAward() { const newId = Math.max(0, ...awardDrafts.map((a) => a.id)) + 1; setRecentlyAdded({ type: "award", key: String(newId) }); setAwardDrafts((as) => [...as, { id: newId, name: "", description: "" }]); }
   function updateAward(id: number, field: keyof AwardDraft, value: string) { setAwardDrafts((as) => as.map((a) => (a.id === id ? { ...a, [field]: value } : a))); }
   function removeAward(id: number) { setAwardDrafts((as) => as.filter((a) => a.id !== id)); }
-  function addEducation() { const newId = Math.max(0, ...educations.map((e) => e.id)) + 1; setRecentlyAdded({ type: "education", key: String(newId) }); setEducations((es) => [...es, { id: newId, school: "", major: "", degree: "本科", startDate: "", endDate: "", department: "", gpa: "", gpaScale: "", rank: "", coreCourses: "", researchDirection: "", lab: "", paperSummary: "" }]); }
+  function addEducation() { const newId = Math.max(0, ...educations.map((e) => e.id)) + 1; setRecentlyAdded({ type: "education", key: String(newId) }); setEducations((es) => [...es, { id: newId, school: "", major: "", degree: "本科", startDate: "", endDate: "", department: "", gpa: "", gpaScale: "", rank: "", coreCourses: "", researchDirection: "", advisor: "", lab: "", paperSummary: "" }]); }
   function updateEdu(id: number, field: keyof Education, value: string) { setEducations((es) => es.map((e) => (e.id === id ? { ...e, [field]: value } : e))); }
   function addInternship() { const newId = Math.max(0, ...internships.map((i) => i.id)) + 1; setRecentlyAdded({ type: "internship", key: String(newId) }); setInternships((is) => [...is, { id: newId, company: "", position: "", startDate: "", endDate: "", content: "" }]); }
   function updateIntern(id: number, field: keyof Internship, value: string) { setInternships((is) => is.map((i) => (i.id === id ? { ...i, [field]: value } : i))); }
@@ -329,7 +329,7 @@ export function MyResumesPage() {
   const hasPortfolioExtraContent = portfolioDraft.works.some((w) => w.name.trim() || w.link.trim()) || !!portfolioDraft.homepage.trim() || !!extraInfoDraft.additionalInfo.trim();
   // K8-5-49-E-B: 有内容才默认展开，避免空模块全部展开
   const hasEducationContent = educations.some((edu) =>
-    edu.school || edu.major || edu.degree !== "本科" || edu.department || edu.startDate || edu.endDate || edu.gpa || edu.gpaScale || edu.rank || edu.coreCourses || edu.researchDirection || edu.lab || edu.paperSummary
+    edu.school || edu.major || edu.degree !== "本科" || edu.department || edu.startDate || edu.endDate || edu.gpa || edu.gpaScale || edu.rank || edu.coreCourses || edu.researchDirection || edu.advisor || edu.lab || edu.paperSummary
   );
   const hasProjectContent = projects.some((proj) =>
     proj.name || proj.role || proj.desc || proj.startDate || proj.endDate
@@ -397,12 +397,15 @@ export function MyResumesPage() {
               <div className="border-t border-gray-200 pt-4">
                 <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                   <div><label className="mb-1.5 block text-sm font-medium text-slate-700">研究方向</label><Input className="h-10" value={edu.researchDirection} onChange={(e) => updateEdu(edu.id, "researchDirection", e.target.value)} placeholder="如：分布式系统" /></div>
-                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">导师 / 实验室</label><Input className="h-10" value={edu.lab} onChange={(e) => updateEdu(edu.id, "lab", e.target.value)} placeholder="如：XX实验室" /></div>
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">导师</label><Input className="h-10" value={edu.advisor} onChange={(e) => updateEdu(edu.id, "advisor", e.target.value)} placeholder="如：张教授" /></div>
+                  <div><label className="mb-1.5 block text-sm font-medium text-slate-700">实验室</label><Input className="h-10" value={edu.lab} onChange={(e) => updateEdu(edu.id, "lab", e.target.value)} placeholder="如：智能信息处理实验室" /></div>
                 </div>
                 <div className="mt-4"><label className="mb-1.5 block text-sm font-medium text-slate-700">论文 / 学术成果</label><Textarea className="min-h-[72px] resize-none" rows={2} value={edu.paperSummary} onChange={(e) => updateEdu(edu.id, "paperSummary", e.target.value)} placeholder="简要描述发表的论文或参与的科研项目" /></div>
               </div>
             </div>
-          ))}</div>)}
+          ))}
+            <button type="button" onClick={addEducation} className="mt-3 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加教育经历</button>
+          </div>)}
       </EducationSection>
 
       <ProjectSection defaultOpen={isEditingExistingResume && hasProjectContent}>
@@ -415,7 +418,9 @@ export function MyResumesPage() {
               <div><label className="mb-1.5 block text-sm font-medium text-slate-700">在项目中担任的角色</label><Input className="h-10" value={proj.role} onChange={(e) => updateProject(proj.id, "role", e.target.value)} placeholder="如：接口设计、数据库设计" /></div>
               <div><label className="mb-1.5 block text-sm font-medium text-slate-700">描述</label><Textarea className="min-h-[120px] resize-none" rows={4} value={proj.desc} onChange={(e) => updateProject(proj.id, "desc", e.target.value)} placeholder="描述项目背景、你负责的部分、使用的技术栈和主要成果" /></div>
             </div>
-          ))}</div>)}
+          ))}
+            <button type="button" onClick={addProject} className="mt-3 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加项目经历</button>
+          </div>)}
       </ProjectSection>
 
       <SkillsSection defaultOpen={isEditingExistingResume && hasSkillsContent}>
@@ -435,7 +440,9 @@ export function MyResumesPage() {
               <div><label className="mb-1.5 block text-sm font-medium text-slate-700">时间</label><div className="flex items-center gap-2"><YearMonthPicker value={intern.startDate} onChange={(v) => updateIntern(intern.id, "startDate", v)} placeholder="开始时间" /><span className="text-slate-400">—</span><YearMonthPicker value={intern.endDate} onChange={(v) => updateIntern(intern.id, "endDate", v)} placeholder="结束时间" /></div></div>
               <div><label className="mb-1.5 block text-sm font-medium text-slate-700">描述</label><Textarea className="min-h-[120px] resize-none" rows={4} value={intern.content} onChange={(e) => updateIntern(intern.id, "content", e.target.value)} placeholder="描述工作内容、使用的技术栈和主要成果" /></div>
             </div>
-          ))}</div>)}
+          ))}
+            <button type="button" onClick={addInternship} className="mt-3 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加实习经历</button>
+          </div>)}
       </InternshipSection>
 
       <CertificatesSection onAdd={addCertificate} defaultOpen={isEditingExistingResume && hasCertificateAwardContent} autoOpenKey={sectionAutoOpenKey}>

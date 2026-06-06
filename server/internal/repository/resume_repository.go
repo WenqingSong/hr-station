@@ -224,10 +224,10 @@ func (r *ResumeRepository) CountByUserID(ctx context.Context, userID uint64) (in
 func (r *ResumeRepository) insertChildren(tx *sql.Tx, resume *model.Resume) error {
 	for i, e := range resume.Educations {
 		_, err := tx.ExecContext(context.TODO(),
-			`INSERT INTO resume_educations(resume_id,school,degree,major,department,start_date,end_date,gpa,gpa_scale,rank_text,core_courses,research_direction,lab,paper_summary,sort_order)
-			 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			`INSERT INTO resume_educations(resume_id,school,degree,major,department,start_date,end_date,gpa,gpa_scale,rank_text,core_courses,research_direction,advisor,lab,paper_summary,sort_order)
+			 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			resume.ID, e.School, e.Degree, e.Major, e.Department, e.StartDate, e.EndDate,
-			e.GPA, e.GPAScale, e.RankText, toNull(e.CoreCourses), e.ResearchDirection, e.Lab, toNull(e.PaperSummary), i)
+			e.GPA, e.GPAScale, e.RankText, toNull(e.CoreCourses), e.ResearchDirection, e.Advisor, e.Lab, toNull(e.PaperSummary), i)
 		if err != nil {
 			return fmt.Errorf("insert education: %w", err)
 		}
@@ -284,7 +284,7 @@ func (r *ResumeRepository) insertChildren(tx *sql.Tx, resume *model.Resume) erro
 }
 
 func (r *ResumeRepository) getEducations(ctx context.Context, resumeID uint64) ([]model.ResumeEducation, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id,resume_id,school,degree,major,department,start_date,end_date,gpa,gpa_scale,rank_text,COALESCE(core_courses,''),research_direction,lab,COALESCE(paper_summary,''),sort_order FROM resume_educations WHERE resume_id=? ORDER BY sort_order,id`, resumeID)
+	rows, err := r.db.QueryContext(ctx, `SELECT id,resume_id,school,degree,major,department,start_date,end_date,gpa,gpa_scale,rank_text,COALESCE(core_courses,''),research_direction,advisor,lab,COALESCE(paper_summary,''),sort_order FROM resume_educations WHERE resume_id=? ORDER BY sort_order,id`, resumeID)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func (r *ResumeRepository) getEducations(ctx context.Context, resumeID uint64) (
 	var result []model.ResumeEducation
 	for rows.Next() {
 		var e model.ResumeEducation
-		if err := rows.Scan(&e.ID, &e.ResumeID, &e.School, &e.Degree, &e.Major, &e.Department, &e.StartDate, &e.EndDate, &e.GPA, &e.GPAScale, &e.RankText, &e.CoreCourses, &e.ResearchDirection, &e.Lab, &e.PaperSummary, &e.SortOrder); err != nil {
+		if err := rows.Scan(&e.ID, &e.ResumeID, &e.School, &e.Degree, &e.Major, &e.Department, &e.StartDate, &e.EndDate, &e.GPA, &e.GPAScale, &e.RankText, &e.CoreCourses, &e.ResearchDirection, &e.Advisor, &e.Lab, &e.PaperSummary, &e.SortOrder); err != nil {
 			return nil, err
 		}
 		result = append(result, e)

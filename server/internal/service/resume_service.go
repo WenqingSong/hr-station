@@ -77,6 +77,7 @@ type ResumeEducationResponse struct {
 	RankText    string `json:"rank_text"`
 	CoreCourses string `json:"core_courses"`
 	ResearchDir string `json:"research_direction"`
+	Advisor     string `json:"advisor"`
 	Lab         string `json:"lab"`
 	PaperSummary string `json:"paper_summary"`
 	SortOrder   int    `json:"sort_order,omitempty"`
@@ -425,7 +426,7 @@ func toRelationalResponse(r *model.Resume) *ResumeResponse {
 			Major: e.Major, Department: e.Department, StartDate: e.StartDate,
 			EndDate: e.EndDate, GPA: e.GPA, GPAScale: e.GPAScale,
 			RankText: e.RankText, CoreCourses: e.CoreCourses,
-			ResearchDir: e.ResearchDirection, Lab: e.Lab, PaperSummary: e.PaperSummary,
+			ResearchDir: e.ResearchDirection, Advisor: e.Advisor, Lab: e.Lab, PaperSummary: e.PaperSummary,
 			SortOrder: e.SortOrder,
 		})
 	}
