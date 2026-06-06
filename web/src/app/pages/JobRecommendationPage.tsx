@@ -83,7 +83,14 @@ export function JobRecommendationPage() {
         setResumeOptions(opts);
         if (opts.length === 0) { setSelectedOption(null); setLoadingOptions(false); return; }
         const target = parseResumeIdFromQuery(resumeId);
-        setSelectedOption(target ? opts.find((o) => o.id === target) ?? opts[0] : opts[0]);
+        if (target) {
+          const found = opts.find((o) => o.id === target);
+          setSelectedOption(found ?? opts[0]);
+        } else {
+          // K9-1-R-B: no URL param → prefer is_current, then first
+          const cur = opts.find((o) => o.isCurrent);
+          setSelectedOption(cur ?? opts[0]);
+        }
         setLoadingOptions(false);
       })
       .catch((err) => {

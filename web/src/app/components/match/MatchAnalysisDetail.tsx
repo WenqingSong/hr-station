@@ -194,7 +194,7 @@ export function MatchAnalysisDetail({ currentJobId = "", currentResumeId = "", d
             <Button 
               variant="outline" 
               className="px-6 border-transparent text-[#0052D9] hover:bg-blue-50 h-11"
-              onClick={() => navigate("/recommend")}
+              onClick={() => navigate(`/recommend?resumeId=${encodeURIComponent(currentResumeId)}`)}
             >
               查看推荐岗位
             </Button>
