@@ -520,6 +520,13 @@ func (s *ResumeOptimizationService) GetLatestOptimizationV2(ctx context.Context,
 	if err != nil { return nil, fmt.Errorf("failed to verify resume: %w", err) }
 	if resume == nil { return nil, apperror.ErrResumeNotFound }
 
+	// Verify job exists for target_job mode
+	if mode == "target_job" && jobID > 0 {
+		j, jErr := s.jobRepo.FindByID(ctx, jobID)
+		if jErr != nil { return nil, fmt.Errorf("failed to verify job: %w", jErr) }
+		if j == nil { return nil, apperror.ErrJobNotFound }
+	}
+
 	latest, err := s.optimizationRepo.FindLatestByMode(ctx, userID, resumeID, mode, targetDir, jobID)
 	if err != nil { return nil, fmt.Errorf("failed to get latest optimization: %w", err) }
 	if latest == nil { return &model.OptimizationLatestResult{HasResult: false}, nil }

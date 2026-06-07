@@ -122,10 +122,10 @@ export async function getLatestMatchAnalysis(jobId: string, resumeId: number): P
   return get<MatchLatestResponse>(`/jobs/${encodeURIComponent(jobId)}/match/latest?resume_id=${resumeId}`);
 }
 
-// ─── 简历优化 ──────────────────────────────────────────────────────────────────
+// ─── 简历优化（旧版，保留向后兼容） ─────────────────────────────────────────────
 
 /**
- * 运行简历优化。
+ * 运行简历优化（旧版）。
  * 调用 POST /api/resumes/optimize（{ resume_id, job_id, mode }）。
  * 失败时错误直接向上传播。
  */
@@ -135,5 +135,39 @@ export async function runResumeOptimization(
   return post<ResumeOptimizationAgentResponse, ResumeOptimizationRequest>(
     '/resumes/optimize',
     input || {},
+  );
+}
+
+// ─── K9-3: 新版简历优化 API ──────────────────────────────────────────────────
+
+import type { OptimizationMode, GenerationTier, OptimizationLatestResponse, OptimizationResultV2 } from '../types';
+
+/** K9-3-E: Get latest optimization */
+export async function getLatestResumeOptimization(
+  resumeId: number,
+  params: { optimization_mode?: OptimizationMode; target_direction?: string; job_id?: number },
+): Promise<OptimizationLatestResponse> {
+  const q = new URLSearchParams();
+  if (params.optimization_mode) q.set('optimization_mode', params.optimization_mode);
+  if (params.target_direction) q.set('target_direction', params.target_direction);
+  if (params.job_id) q.set('job_id', String(params.job_id));
+  return get<OptimizationLatestResponse>(`/resumes/${resumeId}/optimization/latest?${q.toString()}`);
+}
+
+/** K9-3-E: Generate new optimization */
+export interface GenerateOptimizationRequest {
+  optimization_mode: OptimizationMode;
+  target_direction?: string;
+  job_id?: number;
+  generation_tier: GenerationTier;
+}
+
+export async function generateResumeOptimization(
+  resumeId: number,
+  input: GenerateOptimizationRequest,
+): Promise<OptimizationResultV2> {
+  return post<OptimizationResultV2, GenerateOptimizationRequest>(
+    `/resumes/${resumeId}/optimization`,
+    input,
   );
 }

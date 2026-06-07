@@ -1,60 +1,60 @@
-# K9-3-B: Resume Optimization Frontend Design
+# K9-3-B: 简历优化页面状态机与 Fast/Deep 展示分层设计
 
-## 1. Page State Machine
+Date: 2026-06-07 | Author: AI Agent | Phase: K9-3-E Design
 
+## 1. 页面状态机
+
+```text
+loading_latest → GET /api/resumes/{id}/optimization/latest
+  ├── has_result=true, tier=fast → fast_done
+  ├── has_result=true, tier=quality → deep_done
+  └── has_result=false → fast_loading → POST fast → fast_done
+
+fast_done:
+  → click Deep → deep_loading → POST quality → deep_done
+  → error → deep_error (保留 current result)
 ```
-loading_latest → GET /latest
-  → has_result=true + tier=fast → fast_done
-  → has_result=true + tier=quality → deep_done
-  → has_result=false → fast_loading → POST fast → fast_done
 
-Click Deep:
-  deep_loading → POST quality → deep_done
+## 2. URL 参数解析
+
+```text
+resumeId → resume_id
+jobId → job_id (optional)
+targetDirection → target_direction (optional)
+
+derive:
+  has jobId → target_job
+  has targetDirection → target_direction
+  else → general
 ```
 
-Phases: loading_latest, fast_loading, fast_done, fast_error, deep_loading, deep_done, deep_error
+## 3. Fast 简化展示
 
-## 2. Entry URLs
+- optimization_score + optimization_level (score badge)
+- one_sentence_summary
+- quick_fix_items ≤ 5 条 (section: issue → action)
+- risk_points ≤ 2 条
+- delivery_focus
+- "生成深度优化" upsell
 
-| URL | Mode |
-|-----|------|
-| /resume-optimization?resumeId=X | general |
-| /resume-optimization?resumeId=X&targetDirection=backend_engineering | target_direction |
-| /resume-optimization?resumeId=X&jobId=Y | target_job |
+## 4. Deep 完整展示
 
-## 3. Fast Display (Simplified)
+- optimization_score + optimization_level
+- one_sentence_summary
+- quick_fix_items, structure_fix_items, content_fix_items, keyword_fix_items, evidence_fix_items (分节展示)
+- risk_points (全部)
+- **rewrite_examples** (视觉重点：before/after 并排 + section + reason)
+- delivery_focus
+- long_term_improvements
 
-**Left/Summary**: optimization_level + score, one_sentence_summary, 3-5 quick_fix_items, 1-2 risk_points, delivery_focus
+## 5. AgentStepLoadingOverlay
 
-**Right**: Resume info + "Generate Deep Optimization" button
+- Deep loading 时 overlay 居中显示
+- 4 步骤：profile → analyze → gaps → suggestions
+- status="loading" 自动推进
 
-Fast does NOT show: structure/content/keyword/evidence fix items, rewrite examples, long-term items
+## 6. 右侧信息区
 
-## 4. Deep Display (Complete)
-
-Sections: Optimization conclusion → Structure fixes → Content fixes → Keyword fixes → Evidence fixes → Risk points → **Rewrite examples (visual focus)** → Delivery focus → Long-term improvements
-
-Right: Resume info + "Regenerate Deep Optimization" button
-
-## 5. Header Labels
-
-| Phase | Label |
-|-------|-------|
-| fast_done | 快速优化 · 规则分析 |
-| deep_done (mock) | 深度优化 · 规则兜底 |
-| deep_done (llm) | 深度优化 · AI生成 |
-| deep_error | 深度优化生成失败 · 已保留当前结果 |
-
-No "mock_agent"/"演示数据"/"推荐失败" in display
-
-## 6. AgentStepLoadingOverlay
-
-4 steps: 读取简历画像 → 分析目标方向 → 定位优化缺口 → 生成改写建议
-
-Replaces AIThinkingLoading
-
-## 7. Rewrite Examples Visual Design
-
-Each rewrite example card: section label, "Before" (strikethrough/amber), "After" (green highlight), "Reason" (italic/small)
-
-This is the core visual differentiation from Fast mode.
+- 当前简历名称 + 画像标签
+- 优化模式 + 目标方向/岗位
+- Deep 按钮（根据 phase 状态变化）

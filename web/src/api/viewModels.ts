@@ -14,8 +14,17 @@ import {
   runMatchAnalysis,
   runResumeOptimization,
   getLatestRecommendation,
+  getLatestResumeOptimization,
+  generateResumeOptimization,
 } from './index';
-import type { LatestRecommendationResponse } from './agents';
+import type { LatestRecommendationResponse, GenerateOptimizationRequest } from './agents';
+import type {
+  OptimizationResultV2,
+  OptimizationLatestResponse,
+  OptimizationFixItem,
+  OptimizationRewriteExample,
+  OptimizationLongTermItem,
+} from '../types';
 import { isApiClientError } from './errors';
 import type { Resume } from '../types';
 
@@ -252,4 +261,106 @@ export async function loadResumeOptimizationViewModel(
 ): Promise<ResumeOptimizationPageViewModel> {
   const response = await runResumeOptimization(input);
   return toResumeOptimizationPageViewModel(response.result, response.meta);
+}
+
+// ─── K9-3-E: V2 Optimization ViewModel Loaders ────────────────────────────────
+
+export interface OptimizationV2ViewModel {
+  optimizationId?: number;
+  resumeId?: number;
+  jobId?: number;
+  optimizationMode: string;
+  targetDirection?: string;
+  generationTier: string;
+  generatedBy: string;
+  status: string;
+  profileType: string;
+  profileDominantProfile: string;
+  optimizationScore: number;
+  optimizationLevel: string;
+  oneSentenceSummary: string;
+  quickFixItems: { section: string; issue: string; action: string }[];
+  structureFixItems: { section: string; issue: string; action: string }[];
+  contentFixItems: { section: string; issue: string; action: string }[];
+  keywordFixItems: { section: string; issue: string; action: string }[];
+  evidenceFixItems: { section: string; issue: string; action: string }[];
+  riskPoints: string[];
+  rewriteExamples: { section: string; before: string; after: string; reason: string }[];
+  deliveryFocus: string;
+  longTermImprovements: { direction: string; note: string }[];
+}
+
+export interface LatestOptimizationV2ViewModel {
+  hasResult: boolean;
+  optimizationId?: number;
+  resumeId?: number;
+  jobId?: number;
+  optimizationMode?: string;
+  targetDirection?: string;
+  generationTier?: string;
+  generatedBy?: string;
+  status?: string;
+  profileType?: string;
+  profileDominantProfile?: string;
+  createdAt?: string;
+  result?: OptimizationV2ViewModel;
+}
+
+function mapOptV2(raw: OptimizationResultV2): OptimizationV2ViewModel {
+  return {
+    optimizationId: raw.optimization_id,
+    resumeId: raw.resume_id,
+    jobId: raw.job_id,
+    optimizationMode: raw.optimization_mode ?? "general",
+    targetDirection: raw.target_direction ?? "",
+    generationTier: raw.generation_tier ?? "fast",
+    generatedBy: raw.generated_by ?? "",
+    status: raw.status ?? "ready",
+    profileType: raw.profile_type ?? "",
+    profileDominantProfile: raw.profile_dominant_profile ?? "",
+    optimizationScore: raw.optimization_score ?? 0,
+    optimizationLevel: raw.optimization_level ?? "",
+    oneSentenceSummary: raw.one_sentence_summary ?? "",
+    quickFixItems: Array.isArray(raw.quick_fix_items) ? raw.quick_fix_items : [],
+    structureFixItems: Array.isArray(raw.structure_fix_items) ? raw.structure_fix_items : [],
+    contentFixItems: Array.isArray(raw.content_fix_items) ? raw.content_fix_items : [],
+    keywordFixItems: Array.isArray(raw.keyword_fix_items) ? raw.keyword_fix_items : [],
+    evidenceFixItems: Array.isArray(raw.evidence_fix_items) ? raw.evidence_fix_items : [],
+    riskPoints: Array.isArray(raw.risk_points) ? raw.risk_points : [],
+    rewriteExamples: Array.isArray(raw.rewrite_examples) ? raw.rewrite_examples : [],
+    deliveryFocus: raw.delivery_focus ?? "",
+    longTermImprovements: Array.isArray(raw.long_term_improvements) ? raw.long_term_improvements : [],
+  };
+}
+
+export async function loadLatestOptimizationV2ViewModel(
+  resumeId: number,
+  params: { optimization_mode?: string; target_direction?: string; job_id?: number },
+): Promise<LatestOptimizationV2ViewModel> {
+  const raw: OptimizationLatestResponse = await getLatestResumeOptimization(resumeId, params);
+  if (!raw.has_result) return { hasResult: false };
+  const result = raw.result ? mapOptV2(raw.result) : undefined;
+  return {
+    hasResult: true,
+    optimizationId: raw.optimization_id,
+    resumeId: raw.resume_id,
+    jobId: raw.job_id,
+    optimizationMode: raw.optimization_mode,
+    targetDirection: raw.target_direction,
+    generationTier: raw.generation_tier,
+    generatedBy: raw.generated_by,
+    status: raw.status,
+    profileType: raw.profile_type,
+    profileDominantProfile: raw.profile_dominant_profile,
+    createdAt: raw.created_at,
+    result,
+  };
+}
+
+export async function loadGenerateOptimizationV2ViewModel(
+  resumeId: number,
+  input: GenerateOptimizationRequest,
+): Promise<OptimizationV2ViewModel> {
+  const raw = await generateResumeOptimization(resumeId, input);
+  return mapOptV2(raw);
 }

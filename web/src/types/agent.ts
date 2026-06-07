@@ -88,6 +88,74 @@ export type EvidenceStrength = 'strong' | 'medium' | 'weak' | 'none' | string;
 /** 优先级 */
 export type PriorityLevel = 'high' | 'medium' | 'low' | string;
 
+// ─── K9-3 新版优化类型 ───────────────────────────────────────────────────────────
+
+export type OptimizationMode = "general" | "target_direction" | "target_job";
+export type GenerationTier = "fast" | "quality";
+
+export interface OptimizationFixItem {
+  section: string;
+  issue: string;
+  action: string;
+}
+
+export interface OptimizationRewriteExample {
+  section: string;
+  before: string;
+  after: string;
+  reason: string;
+}
+
+export interface OptimizationLongTermItem {
+  direction: string;
+  note: string;
+}
+
+/** K9-3 V2: New optimization result format */
+export interface OptimizationResultV2 {
+  optimization_id?: number;
+  resume_id?: number;
+  job_id?: number;
+  optimization_mode?: OptimizationMode;
+  target_direction?: string;
+  generation_tier?: GenerationTier;
+  generated_by?: string;
+  status?: string;
+  profile_type?: string;
+  profile_dominant_profile?: string;
+
+  optimization_score: number;
+  optimization_level: string;
+  one_sentence_summary: string;
+
+  quick_fix_items: OptimizationFixItem[];
+  structure_fix_items: OptimizationFixItem[];
+  content_fix_items: OptimizationFixItem[];
+  keyword_fix_items: OptimizationFixItem[];
+  evidence_fix_items: OptimizationFixItem[];
+  risk_points: string[];
+  rewrite_examples: OptimizationRewriteExample[];
+  delivery_focus: string;
+  long_term_improvements: OptimizationLongTermItem[];
+}
+
+/** K9-3 Latest response envelope */
+export interface OptimizationLatestResponse {
+  has_result: boolean;
+  optimization_id?: number;
+  resume_id?: number;
+  job_id?: number;
+  optimization_mode?: OptimizationMode;
+  target_direction?: string;
+  generation_tier?: GenerationTier;
+  generated_by?: string;
+  status?: string;
+  profile_type?: string;
+  profile_dominant_profile?: string;
+  created_at?: string;
+  result?: OptimizationResultV2;
+}
+
 // ─── 共享业务类型 ───────────────────────────────────────────────────────────────
 
 /** Top 快速修复任务 */
