@@ -130,7 +130,7 @@ func (a *ResumeOptimizationMockAgentV2) OptimizeV2(
 		}
 	}
 
-	// Fast trim
+	// Fast trim — keep it light
 	if tier == "fast" {
 		quickFixes = quickFixes[:min(4, len(quickFixes))]
 		risks = risks[:min(2, len(risks))]
@@ -138,6 +138,15 @@ func (a *ResumeOptimizationMockAgentV2) OptimizeV2(
 		if len(examples) > 1 { examples = examples[:1] }
 		if len(longTerm) > 1 { longTerm = longTerm[:1] }
 		if len(focus) > 80 { focus = focus[:80] + "..." }
+	} else {
+		// K9-3-C-Fix: quality must have >= 2 rewrite examples
+		if len(examples) < 2 {
+			examples = append(examples, buildExtraRewriteExamples(cp, resume, job)...)
+		}
+		// also expand other sections
+		keyword = append(keyword, buildExtraKeywordFixes(cp)...)
+		evidence = append(evidence, buildExtraEvidenceFixes(cp, resume)...)
+		longTerm = append(longTerm, buildExtraLongTerm(cp)...)
 	}
 
 	result := &model.OptimizationResultV2{
@@ -330,5 +339,89 @@ func buildLongTerm(cp optProfile, mode string) []model.OptimizationLongTermItem 
 		}
 	default:
 		return []model.OptimizationLongTermItem{{Direction: "职业方向", Note: "建议先明确目标方向，再针对该方向积累对应项目和实习"}}
+	}
+}
+
+// ─── K9-3-C-Fix: Extra builders for quality differentiation ──────
+
+func buildExtraRewriteExamples(cp optProfile, resume *model.ResumeVersion, job *model.Job) []model.OptimizationRewriteExample {
+	switch cp.dominant {
+	case "algorithm_research":
+		return []model.OptimizationRewriteExample{
+			{Section: "技能栏", Before: "熟悉机器学习、深度学习。",
+				After: "熟练使用PyTorch/TensorFlow，掌握Transformer、GNN、强化学习等前沿模型架构；在推荐系统/NLP方向有模型训练、离线评估与消融分析经验。",
+				Reason: "突出具体框架、模型和方向，而不是泛泛写熟悉。"},
+			{Section: "教育经历", Before: "研究方向：推荐系统",
+				After: "研究方向：多目标推荐排序模型 | 核心成果：离线AUC提升3.2%，在线CTR提升1.8%",
+				Reason: "量化学术成果，补充技术价值和业务效果。"},
+		}
+	case "backend_engineering":
+		return []model.OptimizationRewriteExample{
+			{Section: "项目经历", Before: "使用Redis做缓存，提高查询性能。",
+				After: "基于Redis实现多级缓存策略，将课程详情接口响应耗时从120ms降至15ms，支撑日均50万+ QPS查询。",
+				Reason: "从功能描述改为性能量化，体现技术深度和业务价值。"},
+			{Section: "技能栏", Before: "熟悉MySQL、Redis、Docker。",
+				After: "MySQL：索引优化、分库分表、慢查询治理 | Redis：缓存策略、分布式锁、限流 | Docker：多服务编排、CI/CD流水线",
+				Reason: "展开技术栈细节，让面试官看到深度而非表面了解。"},
+		}
+	case "product_operation":
+		return []model.OptimizationRewriteExample{
+			{Section: "实习经历", Before: "负责XX产品日常运营工作。",
+				After: "主导XX产品用户增长活动：通过A/B测试优化注册流程转化率（+12%），策划3场裂变活动（新增2.3万用户），搭建用户分层运营体系（次月留存率提升8%）。",
+				Reason: "从职责描述改为成果驱动，体现数据sense和项目推进能力。"},
+		}
+	case "business_solution":
+		return []model.OptimizationRewriteExample{
+			{Section: "实习经历", Before: "协助完成客户需求分析和方案撰写。",
+				After: "独立完成2家头部客户需求调研，输出行业对比分析与定制化解决方案，推动签约金额超500万。",
+				Reason: "从协助改为独立负责，量化签约成果，体现商务闭环能力。"},
+		}
+	default:
+		return nil
+	}
+}
+
+func buildExtraKeywordFixes(cp optProfile) []model.OptimizationFixItem {
+	switch cp.dominant {
+	case "algorithm_research":
+		return []model.OptimizationFixItem{
+			{Section: "关键词", Issue: "模型细节缺失", Action: "补充使用的模型架构名(BERT/ResNet/Transformer)和训练框架"},
+			{Section: "关键词", Issue: "业务场景空白", Action: "在描述中体现出模型解决的业务问题而非纯技术任务"},
+		}
+	case "backend_engineering":
+		return []model.OptimizationFixItem{
+			{Section: "关键词", Issue: "中间件经验", Action: "补充消息队列(Kafka/RabbitMQ)、搜索引擎(ES)等中间件使用经验"},
+			{Section: "关键词", Issue: "监控运维", Action: "补充Prometheus/Grafana监控和日志采集经验"},
+		}
+	case "product_operation":
+		return []model.OptimizationFixItem{
+			{Section: "关键词", Issue: "数据工具", Action: "补充SQL/Excel/Tableau等数据分析工具使用经验"},
+		}
+	default:
+		return nil
+	}
+}
+
+func buildExtraEvidenceFixes(cp optProfile, resume *model.ResumeVersion) []model.OptimizationFixItem {
+	return []model.OptimizationFixItem{
+		{Section: "证据", Issue: "对比维度", Action: "每条优化改动补充before/after对比，让数据变化可感知"},
+		{Section: "证据", Issue: "技术文档", Action: "如果有技术博客、开源项目、技术分享，可作为简历附件链接"},
+	}
+}
+
+func buildExtraLongTerm(cp optProfile) []model.OptimizationLongTermItem {
+	switch cp.dominant {
+	case "algorithm_research":
+		return []model.OptimizationLongTermItem{
+			{Direction: "工程能力", Note: "建议补充模型部署和工程化落地经验，提升完整算法交付能力"},
+		}
+	case "backend_engineering":
+		return []model.OptimizationLongTermItem{
+			{Direction: "系统设计", Note: "建议积累高并发系统架构设计经验，可以阅读DDIA等经典书籍"},
+		}
+	default:
+		return []model.OptimizationLongTermItem{
+			{Direction: "行业认知", Note: "建议持续关注目标行业动态，参加行业分享和社区活动"},
+		}
 	}
 }
