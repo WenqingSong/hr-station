@@ -102,29 +102,42 @@ func (a *ResumeOptimizationMockAgentV2) OptimizeV2(
 	focus := buildDeliveryFocus(cp, mode, targetDir, job)
 	longTerm := buildLongTerm(cp, mode)
 
-	// target_job: try to reuse match_analyses
+	// target_job: try to reuse match_analyses with K9-3-C-Fix2 compatibility layer
 	if mode == "target_job" && a.matchLatestFn != nil {
 		ma := a.matchLatestFn(ctx, userID, resumeID, jobID)
 		if ma != nil && len(ma.ResultJSON) > 0 {
-			var r map[string]interface{}
-			if json.Unmarshal(ma.ResultJSON, &r) == nil {
-				// merge gap_points as risks
-				if gaps, ok := r["gap_points"].([]interface{}); ok {
-					for _, g := range gaps {
-						if s, ok := g.(string); ok && len(risks) < 5 {
-							risks = append(risks, "[JD差距] "+s)
-						}
+			mc := extractMatchContext(ma.ResultJSON)
+			if mc.HasMatch {
+				// Merge gap_points into risks
+				for _, g := range mc.GapPoints {
+					if len(risks) < 6 { risks = append(risks, "[JD差距] "+g) }
+				}
+				// Merge improvement_suggestions into content_fix_items
+				for _, s := range mc.ImprovementSuggestions {
+					if len(content) < 5 {
+						content = append(content, model.OptimizationFixItem{Section: "来自匹配分析", Issue: s, Action: "建议在简历中体现"})
 					}
 				}
-				// merge improvement_suggestions as content fixes
-				if sugs, ok := r["improvement_suggestions"].([]interface{}); ok {
-					for _, s := range sugs {
-						if str, ok := s.(string); ok && len(content) < 4 {
-							content = append(content, model.OptimizationFixItem{
-								Section: "内容建议", Issue: str, Action: "建议在简历中体现",
-							})
-						}
+				// Merge resume_evidence into evidence_fix_items
+				for _, e := range mc.ResumeEvidence {
+					if len(evidence) < 5 {
+						evidence = append(evidence, model.OptimizationFixItem{Section: "匹配证据", Issue: "简历中的证据：" + e, Action: "在简历中强化此证据的表述"})
 					}
+				}
+				// Merge match risk_points
+				for _, r := range mc.RiskPoints {
+					if len(risks) < 6 { risks = append(risks, "[匹配分析] "+r) }
+				}
+				// Blend delivery_strategy
+				if mc.DeliveryStrategy != "" && len(focus) < 200 {
+					focus = focus + " | 匹配分析建议：" + mc.DeliveryStrategy
+				}
+				// Add match-specific rewrite example
+				if len(mc.GapPoints) > 0 && len(examples) < 4 {
+					examples = append(examples, model.OptimizationRewriteExample{
+						Section: "来自匹配分析", Before: "匹配分析发现差距：" + mc.GapPoints[0],
+						After: "建议按照匹配分析的改进建议调整对应表述", Reason: "匹配分析明确了该岗位最关键的能力缺口",
+					})
 				}
 			}
 		}
@@ -424,4 +437,70 @@ func buildExtraLongTerm(cp optProfile) []model.OptimizationLongTermItem {
 			{Direction: "行业认知", Note: "建议持续关注目标行业动态，参加行业分享和社区活动"},
 		}
 	}
+}
+
+// ─── K9-3-C-Fix2: Match context compatibility layer ──────────────
+
+type OptimizationMatchContext struct {
+	HasMatch               bool
+	MatchAnalysisID         uint64
+	GapPoints               []string
+	RiskPoints              []string
+	ImprovementSuggestions  []string
+	JobRequirements         []string
+	ResumeEvidence          []string
+	DeliveryStrategy        string
+}
+
+// extractMatchContext parses match_analyses result_json with field compatibility.
+func extractMatchContext(resultJSON []byte) OptimizationMatchContext {
+	var raw map[string]interface{}
+	if json.Unmarshal(resultJSON, &raw) != nil {
+		return OptimizationMatchContext{}
+	}
+	mc := OptimizationMatchContext{}
+	// gap_points — new + old compat
+	mc.GapPoints = extractStringArray(raw, "gap_points", "gaps", "weaknesses")
+	// risk_points — new + old compat
+	mc.RiskPoints = extractStringArray(raw, "risk_points", "risks", "risk_items")
+	// improvement_suggestions — new + old compat
+	mc.ImprovementSuggestions = extractStringArray(raw, "improvement_suggestions", "optimization_suggestions", "suggestions", "improvement_items")
+	// job_requirements
+	mc.JobRequirements = extractStringArray(raw, "job_requirements")
+	// resume_evidence — new + old compat
+	mc.ResumeEvidence = extractStringArray(raw, "resume_evidence", "match_highlights", "evidence")
+	// delivery_strategy — new + old compat
+	mc.DeliveryStrategy = extractStringField(raw, "delivery_strategy", "suggested_action", "delivery_focus")
+
+	if len(mc.GapPoints) > 0 || len(mc.RiskPoints) > 0 || len(mc.ImprovementSuggestions) > 0 {
+		mc.HasMatch = true
+	}
+	return mc
+}
+
+func extractStringArray(raw map[string]interface{}, keys ...string) []string {
+	for _, k := range keys {
+		v, ok := raw[k]
+		if !ok { continue }
+		switch arr := v.(type) {
+		case []interface{}:
+			var res []string
+			for _, item := range arr {
+				if s, ok := item.(string); ok { res = append(res, s) }
+			}
+			if len(res) > 0 { return res }
+		case string:
+			if arr != "" { return []string{arr} }
+		}
+	}
+	return nil
+}
+
+func extractStringField(raw map[string]interface{}, keys ...string) string {
+	for _, k := range keys {
+		v, ok := raw[k]
+		if !ok { continue }
+		if s, ok := v.(string); ok && s != "" { return s }
+	}
+	return ""
 }

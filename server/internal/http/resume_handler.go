@@ -16,14 +16,20 @@ import (
 
 // ResumeHandler handles resume HTTP requests.
 type ResumeHandler struct {
-	resumeService        *service.ResumeService
-	resumeProfileService *service.ResumeProfileService
-	optimizationV2Handler http.HandlerFunc
+	resumeService             *service.ResumeService
+	resumeProfileService      *service.ResumeProfileService
+	optimizationV2Handler      http.HandlerFunc
+	optimizationLatestHandler  http.HandlerFunc
 }
 
 // SetOptimizationV2Handler sets the handler for /api/resumes/{id}/optimization
 func (h *ResumeHandler) SetOptimizationV2Handler(fn http.HandlerFunc) {
 	h.optimizationV2Handler = fn
+}
+
+// SetOptimizationLatestHandler sets the handler for /api/resumes/{id}/optimization/latest
+func (h *ResumeHandler) SetOptimizationLatestHandler(fn http.HandlerFunc) {
+	h.optimizationLatestHandler = fn
 }
 
 // NewResumeHandler creates a new ResumeHandler.
@@ -120,6 +126,18 @@ func (h *ResumeHandler) ResumeByIDDispatcher(w http.ResponseWriter, r *http.Requ
 	}
 
 	// K9-3-C: /api/resumes/{id}/optimization
+	if strings.HasSuffix(path, "/optimization/latest") {
+		idStr := strings.TrimSuffix(path, "/optimization/latest")
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil || id == 0 {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume id")
+			return
+		}
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, resumeIDContextKey, id)
+		h.optimizationLatestHandler(w, r.WithContext(ctx))
+		return
+	}
 	if strings.HasSuffix(path, "/optimization") {
 		idStr := strings.TrimSuffix(path, "/optimization")
 		id, err := strconv.ParseUint(idStr, 10, 64)

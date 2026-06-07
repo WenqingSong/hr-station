@@ -142,3 +142,20 @@ type OptimizationResultV2 struct {
 	DeliveryFocus           string                      `json:"delivery_focus"`
 	LongTermImprovements    []OptimizationLongTermItem  `json:"long_term_improvements"`
 }
+
+// OptimizationLatestResult is the DTO for GET /api/resumes/{id}/optimization/latest.
+type OptimizationLatestResult struct {
+	HasResult             bool        `json:"has_result"`
+	OptimizationID        uint64      `json:"optimization_id,omitempty"`
+	ResumeID              uint64      `json:"resume_id,omitempty"`
+	JobID                 uint64      `json:"job_id,omitempty"`
+	OptimizationMode      string      `json:"optimization_mode,omitempty"`
+	TargetDirection       string      `json:"target_direction,omitempty"`
+	GenerationTier        string      `json:"generation_tier,omitempty"`
+	GeneratedBy           string      `json:"generated_by,omitempty"`
+	Status                string      `json:"status,omitempty"`
+	ProfileType           string      `json:"profile_type,omitempty"`
+	ProfileDominantProfile string      `json:"profile_dominant_profile,omitempty"`
+	CreatedAt             string      `json:"created_at,omitempty"`
+	Result                interface{} `json:"result,omitempty"`
+}

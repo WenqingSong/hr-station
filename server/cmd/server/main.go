@@ -188,6 +188,7 @@ func main() {
 	resumeOptimizationService := service.NewResumeOptimizationService(resumeRepo, jobRepo, resumeOptimizationRepo, resumeOptimizationMockAgentV2, fastRunner, qualityRunner, llmEnabled)
 	resumeOptimizationHandler := httpserver.NewResumeOptimizationHandler(resumeOptimizationService)
 	resumeHandler.SetOptimizationV2Handler(http.HandlerFunc(resumeOptimizationHandler.OptimizeV2))
+	resumeHandler.SetOptimizationLatestHandler(http.HandlerFunc(resumeOptimizationHandler.LatestV2))
 
 	// Initialize CORS middleware with config
 	middleware.InitCORS(cfg.CORS)

@@ -501,3 +501,49 @@ func (s *ResumeOptimizationService) OptimizeV2(ctx context.Context, userID, resu
 
 	return result, nil
 }
+
+// GetLatestOptimizationV2 returns the latest ready optimization for user+resume+mode.
+func (s *ResumeOptimizationService) GetLatestOptimizationV2(ctx context.Context, userID, resumeID uint64, mode string, targetDir string, jobID uint64) (*model.OptimizationLatestResult, error) {
+	if resumeID <= 0 { return nil, apperror.ErrInvalidParam }
+	if mode == "" { mode = "general" }
+	if mode != "general" && mode != "target_direction" && mode != "target_job" {
+		return nil, apperror.New(apperror.CodeInvalidParam, "optimization_mode must be general/target_direction/target_job", 400)
+	}
+	if mode == "target_direction" && targetDir == "" {
+		return nil, apperror.New(apperror.CodeInvalidParam, "target_direction is required", 400)
+	}
+	if mode == "target_job" && jobID == 0 {
+		return nil, apperror.New(apperror.CodeInvalidParam, "job_id is required", 400)
+	}
+	// Verify resume belongs to user
+	resume, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, resumeID)
+	if err != nil { return nil, fmt.Errorf("failed to verify resume: %w", err) }
+	if resume == nil { return nil, apperror.ErrResumeNotFound }
+
+	latest, err := s.optimizationRepo.FindLatestByMode(ctx, userID, resumeID, mode, targetDir, jobID)
+	if err != nil { return nil, fmt.Errorf("failed to get latest optimization: %w", err) }
+	if latest == nil { return &model.OptimizationLatestResult{HasResult: false}, nil }
+
+	var resultData interface{}
+	if len(latest.ResultJSON) > 0 {
+		if err := json.Unmarshal(latest.ResultJSON, &resultData); err != nil {
+			return nil, fmt.Errorf("failed to parse saved result: %w", err)
+		}
+	}
+
+	return &model.OptimizationLatestResult{
+		HasResult:             true,
+		OptimizationID:        latest.ID,
+		ResumeID:              latest.ResumeID,
+		JobID:                 latest.JobID,
+		OptimizationMode:      mode,
+		TargetDirection:       latest.TargetDirection,
+		GenerationTier:        latest.GenerationTier,
+		GeneratedBy:           latest.GeneratedBy,
+		Status:                latest.Status,
+		ProfileType:           latest.ProfileType,
+		ProfileDominantProfile: latest.ProfileDominantProfile,
+		CreatedAt:             latest.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Result:                resultData,
+	}, nil
+}
