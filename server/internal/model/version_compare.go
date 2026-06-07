@@ -71,3 +71,86 @@ type CompareChangeItem struct {
 	Field  string `json:"field"`
 	Change string `json:"change"`
 }
+
+// ── K9-4-C: V2 Compare Types ──────────────────────────────────────────────
+
+// CompareRequestV2 is the request for POST /api/resumes/compare.
+type CompareRequestV2 struct {
+	FromResumeID   uint64 `json:"from_resume_id"`
+	ToResumeID     uint64 `json:"to_resume_id"`
+	ComparisonMode string `json:"comparison_mode,omitempty"` // general / target_direction / target_job
+	GenerationTier string `json:"generation_tier,omitempty"` // fast / quality
+	TargetDirection string `json:"target_direction,omitempty"`
+	JobID           uint64 `json:"job_id,omitempty"`
+}
+
+// CompareResponseV2 is the response from POST /api/resumes/compare.
+type CompareResponseV2 struct {
+	CompareID       uint64 `json:"compare_id"`
+	FromResumeID    uint64 `json:"from_resume_id"`
+	ToResumeID      uint64 `json:"to_resume_id"`
+	ComparisonMode  string `json:"comparison_mode"`
+	TargetDirection string `json:"target_direction,omitempty"`
+	JobID           *uint64 `json:"job_id"`
+	GenerationTier  string `json:"generation_tier"`
+	GeneratedBy     string `json:"generated_by"`
+	Status          string `json:"status"`
+
+	FromProfileType            string `json:"from_profile_type,omitempty"`
+	FromProfileDominantProfile string `json:"from_profile_dominant_profile,omitempty"`
+	ToProfileType              string `json:"to_profile_type,omitempty"`
+	ToProfileDominantProfile   string `json:"to_profile_dominant_profile,omitempty"`
+
+	CompareScore     int      `json:"compare_score"`
+	CompareLevel     string   `json:"compare_level"`
+	WinnerResumeID   uint64   `json:"winner_resume_id"`
+	WinnerLabel      string   `json:"winner_label"`
+	OneSentenceSummary string `json:"one_sentence_summary"`
+
+	FromResumeSummary string `json:"from_resume_summary,omitempty"`
+	ToResumeSummary   string `json:"to_resume_summary,omitempty"`
+
+	KeyDifferences          []string              `json:"key_differences"`
+	FromStrengths           []string              `json:"from_strengths"`
+	ToStrengths             []string              `json:"to_strengths"`
+	FromRisks               []string              `json:"from_risks"`
+	ToRisks                 []string              `json:"to_risks"`
+	KeepFromItems           []string              `json:"keep_from_items"`
+	KeepToItems             []string              `json:"keep_to_items"`
+	MergeSuggestions        []string              `json:"merge_suggestions"`
+	RewriteExamples         []RewriteCompareExample `json:"rewrite_examples"`
+	NextVersionSuggestions  []string              `json:"next_version_suggestions"`
+	DeliveryAdvice          string                `json:"delivery_advice"`
+
+	CreatedAt string `json:"created_at"`
+}
+
+// RewriteCompareExample is a before/after rewrite example for compare.
+type RewriteCompareExample struct {
+	Section        string `json:"section"`
+	FromVersion    string `json:"from_version"`
+	ToVersion      string `json:"to_version"`
+	SuggestedNext  string `json:"suggested_next"`
+	Reason         string `json:"reason"`
+}
+
+// ResumeCompareResultV2 is the DB model with full metadata for persistence.
+type ResumeCompareResultV2 struct {
+	ID                         uint64
+	UserID                     uint64
+	FromResumeID               uint64
+	ToResumeID                 uint64
+	ComparisonMode             string
+	GenerationTier             string
+	GeneratedBy                string
+	Status                     string
+	TargetDirection            string
+	JobID                      *uint64
+	FromProfileType            string
+	FromProfileDominantProfile string
+	ToProfileType              string
+	ToProfileDominantProfile   string
+	ResultJSON                 []byte
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
+}

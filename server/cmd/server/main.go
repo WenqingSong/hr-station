@@ -174,7 +174,8 @@ func main() {
 	// Initialize version compare module with both runners (tier selected per request)
 	versionCompareRepo := repository.NewResumeCompareRepository(mysqlDB.DB)
 	versionCompareMockAgent := agent.NewVersionCompareMockAgent()
-	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, versionCompareMockAgent, fastRunner, qualityRunner, llmEnabled)
+	versionCompareMockAgent.SetProfileProvider(resumeProfileService)
+	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, jobRepo, versionCompareMockAgent, fastRunner, qualityRunner, llmEnabled, resumeProfileService)
 	versionCompareHandler := httpserver.NewVersionCompareHandler(versionCompareService)
 
 	// Initialize resume optimization module with both runners (tier selected per request)

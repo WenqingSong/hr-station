@@ -1,9 +1,11 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"offer-catcher/server/internal/model"
 )
@@ -17,7 +19,19 @@ type VersionComparer interface {
 
 // VersionCompareMockAgent generates mock version comparison using simple rule-based analysis.
 // It does NOT call any real LLM or read LLM_API_KEY.
-type VersionCompareMockAgent struct{}
+type VersionCompareMockAgent struct {
+	// ProfileProvider optionally provides profile dominant info.
+	ProfileProvider interface {
+		GetProfileStatus(ctx context.Context, userID, resumeID uint64) (*model.ResumeProfileStatusResponse, error)
+	}
+}
+
+// SetProfileProvider injects a profile provider for profile-aware comparison.
+func (a *VersionCompareMockAgent) SetProfileProvider(p interface {
+	GetProfileStatus(ctx context.Context, userID, resumeID uint64) (*model.ResumeProfileStatusResponse, error)
+}) {
+	a.ProfileProvider = p
+}
 
 // Compile-time check: VersionCompareMockAgent satisfies VersionComparer.
 var _ VersionComparer = (*VersionCompareMockAgent)(nil)
@@ -643,12 +657,350 @@ func hasBackendEvidence(resume *model.ResumeVersion) bool {
 	return false
 }
 
+// ── K9-4-C: V2 Compare (profile-aware, Fast/Quality) ──────────────────────
+
+// CompareV2 generates a profile-aware resume comparison for the V2 API.
+// qualityMode=true → full merge_suggestions + rewrite_examples + next_version_suggestions.
+func (a *VersionCompareMockAgent) CompareV2(from, to *model.ResumeVersion, mode string, targetDirection string, jobID uint64, qualityMode bool, fromProfile, toProfile string) *model.CompareResponseV2 {
+	now := time.Now().Format("2006-01-02T15:04:05Z07:00")
+	genBy := "mock_agent"
+	tier := "fast"
+	if qualityMode {
+		genBy = "mock_quality"
+		tier = "quality"
+	}
+
+	fromProf := fromProfile
+	if fromProf == "" {
+		fromProf = detectProfileFromResume(from)
+	}
+	toProf := toProfile
+	if toProf == "" {
+		toProf = detectProfileFromResume(to)
+	}
+
+	score := calcCompareScore(from, to, fromProf, toProf, mode, targetDirection, jobID)
+	level, winner, winnerLabel := judgeWinner(fromProf, toProf, score, mode, targetDirection)
+
+	resp := &model.CompareResponseV2{
+		CompareID:        0, // set by service after DB save
+		FromResumeID:     from.ID,
+		ToResumeID:       to.ID,
+		ComparisonMode:   mode,
+		TargetDirection:  targetDirection,
+		GenerationTier:   tier,
+		GeneratedBy:      genBy,
+		Status:           "ready",
+		FromProfileType:            tier,
+		FromProfileDominantProfile: fromProf,
+		ToProfileType:              tier,
+		ToProfileDominantProfile:   toProf,
+
+		CompareScore:       score,
+		CompareLevel:       level,
+		WinnerResumeID:     winner,
+		WinnerLabel:        winnerLabel,
+		OneSentenceSummary: genOneSentence(fromProf, toProf, winner),
+
+		KeyDifferences:    genKeyDiffs(from, to, fromProf, toProf),
+		FromStrengths:     genProfileStrengths(fromProf, 2),
+		ToStrengths:       genProfileStrengths(toProf, 2),
+		FromRisks:         genProfileRisks(fromProf, 1),
+		ToRisks:           genProfileRisks(toProf, 1),
+		DeliveryAdvice:    genDeliveryAdvice(winner, toProf),
+		CreatedAt:         now,
+	}
+
+	if qualityMode {
+		resp.FromResumeSummary = genResumeSummary(from, fromProf)
+		resp.ToResumeSummary = genResumeSummary(to, toProf)
+		resp.FromStrengths = genProfileStrengths(fromProf, 4)
+		resp.ToStrengths = genProfileStrengths(toProf, 4)
+		resp.FromRisks = genProfileRisks(fromProf, 3)
+		resp.ToRisks = genProfileRisks(toProf, 3)
+		resp.KeyDifferences = genKeyDiffs(from, to, fromProf, toProf)
+		resp.KeepFromItems = genKeepItems(from, fromProf, "from")
+		resp.KeepToItems = genKeepItems(to, toProf, "to")
+		resp.MergeSuggestions = genMergeSuggestions(fromProf, toProf)
+		resp.RewriteExamples = genRewriteExamples(from, to, fromProf, toProf)
+		resp.NextVersionSuggestions = genNextVerSuggestions(fromProf, toProf, mode, targetDirection)
+		resp.DeliveryAdvice = genDeliveryAdviceFull(winner, toProf, mode, targetDirection)
+	}
+
+	// Ensure minimums for Quality
+	if qualityMode {
+		if len(resp.RewriteExamples) < 2 {
+			resp.RewriteExamples = genFallbackRewriteExamples(fromProf, toProf)
+		}
+		if len(resp.MergeSuggestions) < 2 {
+			resp.MergeSuggestions = genFallbackMerge(fromProf, toProf)
+		}
+		if len(resp.NextVersionSuggestions) < 2 {
+			resp.NextVersionSuggestions = genFallbackNextVer(toProf)
+		}
+	}
+
+	return resp
+}
+
+func detectProfileFromResume(r *model.ResumeVersion) string {
+	text := r.RawText
+	if text == "" { text = r.ProfessionalSkills + " " + r.AIApplication }
+	lower := strings.ToLower(text)
+	a := countKW(lower, "算法", "pytorch", "tensorflow", "深度学习", "推荐系统", "nlp", "多模态")
+	be := countKW(lower, "go ", "java", "后端", "mysql", "redis", "docker", "后台", "接口")
+	prod := countKW(lower, "产品", "需求分析", "用户研究", "prd", "运营")
+	biz := countKW(lower, "商务", "采购", "供应链", "解决方案", "合同")
+	if a > be && a > prod { return "algorithm_research" }
+	if be > a && be > prod { return "backend_engineering" }
+	if prod > a && prod > be { return "product_operation" }
+	if biz > 0 && biz > a && biz > be { return "business_solution" }
+	return "career_exploration"
+}
+
+func countKW(text string, keywords ...string) int {
+	c := 0
+	for _, kw := range keywords {
+		if strings.Contains(text, kw) { c++ }
+	}
+	return c
+}
+
+func calcCompareScore(from, to *model.ResumeVersion, fromProf, toProf string, mode, targetDir string, jobID uint64) int {
+	score := 70 // base
+	// Same direction → closer scores
+	if fromProf == toProf {
+		score += 8
+	} else {
+		score += 3
+	}
+	// target_direction mode: profile matches target
+	if mode == "target_direction" && targetDir != "" {
+		if toProf == targetDir { score += 10 }
+		if fromProf == targetDir { score += 5 }
+	}
+	// Content depth bonus on "to" resume
+	if len(to.RawText) > len(from.RawText) { score += 5 }
+	if len(to.ProfessionalSkills) > len(from.ProfessionalSkills) { score += 3 }
+	if score > 95 { score = 95 }
+	if score < 60 { score = 60 }
+	return score
+}
+
+func judgeWinner(fromProf, toProf string, score int, mode, targetDir string) (level string, winner uint64, label string) {
+	winnerID := uint64(2) // default to "to" resume
+	lvl := "目标版本更适合当前场景"
+	lbl := "目标版本在整体质量上更优"
+
+	if mode == "target_direction" && targetDir != "" {
+		if toProf == targetDir && fromProf != targetDir {
+			return "目标版本明显更适合", 2, "目标版本的方向更匹配目标方向"
+		}
+		if fromProf == targetDir && toProf != targetDir {
+			return "原版本方向更匹配", 1, "原版本的方向更匹配目标方向"
+		}
+	}
+
+	if fromProf == toProf {
+		if score > 75 {
+			return "两版方向一致，目标版本略优", winnerID, "两版方向一致，目标版本在细节上略优"
+		}
+		return "两版方向一致，差异较小", winnerID, "两版内容差异较小，均可使用"
+	}
+
+	if toProf == "backend_engineering" || toProf == "algorithm_research" || toProf == "product_operation" {
+		return lvl, winnerID, lbl
+	}
+
+	return lvl, winnerID, lbl
+}
+
+var profileStrengthMap = map[string][]string{
+	"algorithm_research":  {"算法与模型经验丰富", "实验评估能力较强", "研究方向明确", "机器学习/深度学习基础扎实"},
+	"backend_engineering": {"后端开发技术栈完整", "工程化能力强", "具备系统设计思维", "有实际服务端项目经验"},
+	"product_operation":   {"需求分析与产品思维", "用户研究/竞品分析能力", "项目推动与跨部门协作", "数据驱动决策意识"},
+	"business_solution":   {"商务沟通与方案表达", "客户需求理解能力强", "行业分析与咨询思维", "文档能力与协调推进"},
+	"career_exploration":  {"多方向探索有基础信号", "学习能力较强", "有进一步聚焦潜力"},
+}
+
+func genProfileStrengths(profile string, limit int) []string {
+	if s, ok := profileStrengthMap[profile]; ok {
+		if len(s) > limit { return s[:limit] }
+		return s
+	}
+	return []string{"具备一定基础", "有成长潜力"}
+}
+
+var profileRiskMap = map[string][]string{
+	"algorithm_research":  {"缺少工程化落地经验", "后端系统设计经验不足", "缺少大规模服务部署经历"},
+	"backend_engineering": {"缺少算法/数据方向深度", "缺少研究型项目经历", "高并发场景经验可补充"},
+	"product_operation":   {"缺少技术背景深度", "缺少量化运营指标", "产品上线案例可补充"},
+	"business_solution":   {"缺少具体行业深耕经验", "缺少技术方案落地案例", "独立项目闭环经验可补充"},
+	"career_exploration":  {"方向不够聚焦", "缺少深度项目证据", "建议先明确职业方向"},
+}
+
+func genProfileRisks(profile string, limit int) []string {
+	if s, ok := profileRiskMap[profile]; ok {
+		if len(s) > limit { return s[:limit] }
+		return s
+	}
+	return []string{"建议进一步丰富简历内容"}
+}
+
+func genOneSentence(fromProf, toProf string, winner uint64) string {
+	if fromProf == toProf {
+		return "两版简历方向一致，建议使用目标版本继续打磨。"
+	}
+	if winner == 2 {
+		return fmt.Sprintf("目标版本（%s）相比原版本（%s）更适合投递。", cmpProfileLabel(toProf), cmpProfileLabel(fromProf))
+	}
+	return fmt.Sprintf("原版本（%s）相比目标版本（%s）更适合投递。", cmpProfileLabel(fromProf), cmpProfileLabel(toProf))
+}
+
+func cmpProfileLabel(p string) string {
+	switch p {
+	case "algorithm_research": return "算法研究方向"
+	case "backend_engineering": return "后端工程方向"
+	case "product_operation": return "产品运营方向"
+	case "business_solution": return "商务解决方案方向"
+	default: return "职业探索方向"
+	}
+}
+
+func genKeyDiffs(from, to *model.ResumeVersion, fromProf, toProf string) []string {
+	diffs := []string{}
+	if fromProf != toProf {
+		diffs = append(diffs, fmt.Sprintf("画像方向：%s → %s", cmpProfileLabel(fromProf), cmpProfileLabel(toProf)))
+	}
+	if len(to.ProfessionalSkills) > len(from.ProfessionalSkills) {
+		diffs = append(diffs, "技能描述更加丰富具体")
+	}
+	if len(to.RawText) > len(from.RawText) {
+		diffs = append(diffs, "简历内容更加充实")
+	}
+	if len(to.SelfEvaluation) > len(from.SelfEvaluation) {
+		diffs = append(diffs, "自我评价更完善")
+	}
+	if len(diffs) == 0 {
+		diffs = append(diffs, "两版简历表达差异较小")
+	}
+	return diffs
+}
+
+func genDeliveryAdvice(winner uint64, toProf string) string {
+	if winner == 2 {
+		return fmt.Sprintf("建议使用目标版本（%s方向）投递。", cmpProfileLabel(toProf))
+	}
+	return fmt.Sprintf("建议保留原版本并参考目标版本的部分改进。")
+}
+
+func genDeliveryAdviceFull(winner uint64, toProf, mode, targetDir string) string {
+	advice := genDeliveryAdvice(winner, toProf)
+	if mode == "target_direction" && targetDir != "" {
+		advice += " 本对比基于目标方向「" + targetDir + "」，建议针对性修改后投递。"
+	}
+	return advice
+}
+
+func genResumeSummary(r *model.ResumeVersion, prof string) string {
+	skills := r.ProfessionalSkills
+	if len(skills) > 80 { skills = skills[:80] + "…" }
+	return fmt.Sprintf("方向：%s。技能侧重：%s。简历内容总量约 %d 字。", cmpProfileLabel(prof), skills, len(r.RawText))
+}
+
+func genKeepItems(r *model.ResumeVersion, prof string, which string) []string {
+	items := []string{}
+	if len(r.ProfessionalSkills) > 20 {
+		items = append(items, fmt.Sprintf("保留%s版本的核心技能描述", which))
+	}
+	if len(r.SelfEvaluation) > 20 {
+		items = append(items, fmt.Sprintf("保留%s版本的自我评价亮点", which))
+	}
+	if len(r.AIApplication) > 10 {
+		items = append(items, fmt.Sprintf("保留%s版本的AI应用方向描述", which))
+	}
+	if len(items) < 2 {
+		items = append(items, fmt.Sprintf("保留%s版本的整体结构框架", which))
+	}
+	return items
+}
+
+func genMergeSuggestions(fromProf, toProf string) []string {
+	suggestions := []string{
+		"合并两版简历中的优势模块，保留更清晰的技能描述",
+	}
+	if fromProf != toProf {
+		suggestions = append(suggestions, fmt.Sprintf("注意统一方向表达：当前两版画像分别为「%s」和「%s」，建议聚焦一个方向", cmpProfileLabel(fromProf), cmpProfileLabel(toProf)))
+	}
+	suggestions = append(suggestions, "将目标版本的改进内容整合到原版本的结构框架中")
+	return suggestions
+}
+
+func genRewriteExamples(from, to *model.ResumeVersion, fromProf, toProf string) []model.RewriteCompareExample {
+	examples := []model.RewriteCompareExample{
+		{
+			Section:       "技能描述",
+			FromVersion:   truncateStr(from.ProfessionalSkills, 60),
+			ToVersion:     truncateStr(to.ProfessionalSkills, 60),
+			SuggestedNext: "建议下一版保留 to 版本的技能关键词密度，并补充实际使用场景。",
+			Reason:        "to 版本技能描述更丰富，但缺少使用场景佐证。",
+		},
+	}
+	if fromProf != toProf {
+		examples = append(examples, model.RewriteCompareExample{
+			Section:       "职业方向",
+			FromVersion:   fmt.Sprintf("侧重 %s", cmpProfileLabel(fromProf)),
+			ToVersion:     fmt.Sprintf("侧重 %s", cmpProfileLabel(toProf)),
+			SuggestedNext: fmt.Sprintf("建议统一为 %s 方向，避免简历信号混乱。", cmpProfileLabel(toProf)),
+			Reason:        "两版方向不一致会导致投递时定位模糊。",
+		})
+	}
+	return examples
+}
+
+func genNextVerSuggestions(fromProf, toProf, mode, targetDir string) []string {
+	suggestions := []string{
+		fmt.Sprintf("以 %s 方向为主体，整合两版优点", cmpProfileLabel(toProf)),
+	}
+	if mode == "target_direction" {
+		suggestions = append(suggestions, fmt.Sprintf("围绕「%s」方向重新审视技能关键词和项目顺序", targetDir))
+	}
+	suggestions = append(suggestions, "补充量化成果和 STAR 法则描述")
+	return suggestions
+}
+
+func genFallbackRewriteExamples(fromProf, toProf string) []model.RewriteCompareExample {
+	return []model.RewriteCompareExample{
+		{Section: "技能", FromVersion: "原版本技能描述", ToVersion: "目标版本技能描述更丰富", SuggestedNext: "建议整合目标版本的技能关键词", Reason: "提升简历关键词匹配度"},
+		{Section: "表达", FromVersion: "原版本表述偏概括", ToVersion: "目标版本表述更具体", SuggestedNext: "建议统一为具体、量化的表达方式", Reason: "具体表达更能通过ATS筛选"},
+	}
+}
+
+func genFallbackMerge(fromProf, toProf string) []string {
+	return []string{
+		"将目标版本的优势模块合并到原版本框架中",
+		"统一技能和方向表达，避免信号混乱",
+	}
+}
+
+func genFallbackNextVer(prof string) []string {
+	return []string{
+		fmt.Sprintf("聚焦 %s 方向，强化核心技能表达", cmpProfileLabel(prof)),
+		"补充量化成果和项目细节",
+	}
+}
+
+func truncateStr(s string, maxLen int) string {
+	if len(s) <= maxLen { return s }
+	return s[:maxLen] + "…"
+}
+
+// ── Original helpers (restored) ────────────────────────────────────────────
+
 func countMissing(skillSet map[string]bool, keywords []string) int {
 	count := 0
 	for _, kw := range keywords {
-		if !skillSet[kw] {
-			count++
-		}
+		if !skillSet[kw] { count++ }
 	}
 	return count
 }
@@ -656,38 +1008,28 @@ func countMissing(skillSet map[string]bool, keywords []string) int {
 func hasQuantifiableData(resume *model.ResumeVersion) bool {
 	quantKeywords := []string{"qps", "tps", "响应", "性能", "并发", "接口数", "表设计", "优化", "提升", "降低", "%"}
 	texts := []string{resume.SelfEvaluation, resume.RawText}
-
 	if len(resume.ProjectJSON) > 0 {
 		var projects []map[string]interface{}
 		if json.Unmarshal(resume.ProjectJSON, &projects) == nil {
 			for _, p := range projects {
-				if desc, ok := p["description"].(string); ok {
-					texts = append(texts, desc)
-				}
+				if desc, ok := p["description"].(string); ok { texts = append(texts, desc) }
 			}
 		}
 	}
-
 	if len(resume.ExperienceJSON) > 0 {
 		var experiences []map[string]interface{}
 		if json.Unmarshal(resume.ExperienceJSON, &experiences) == nil {
 			for _, e := range experiences {
-				if desc, ok := e["description"].(string); ok {
-					texts = append(texts, desc)
-				}
+				if desc, ok := e["description"].(string); ok { texts = append(texts, desc) }
 			}
 		}
 	}
-
 	for _, text := range texts {
 		textLower := strings.ToLower(text)
 		for _, kw := range quantKeywords {
-			if strings.Contains(textLower, kw) {
-				return true
-			}
+			if strings.Contains(textLower, kw) { return true }
 		}
 	}
-
 	return false
 }
 
@@ -695,37 +1037,28 @@ func hasKeywordInResume(resume *model.ResumeVersion, keywords []string) bool {
 	texts := []string{resume.SelfEvaluation, resume.RawText}
 	skills := parseJSONStringArray(resume.SkillsJSON)
 	texts = append(texts, skills...)
-
 	if len(resume.ProjectJSON) > 0 {
 		var projects []map[string]interface{}
 		if json.Unmarshal(resume.ProjectJSON, &projects) == nil {
 			for _, p := range projects {
-				if desc, ok := p["description"].(string); ok {
-					texts = append(texts, desc)
-				}
+				if desc, ok := p["description"].(string); ok { texts = append(texts, desc) }
 			}
 		}
 	}
-
 	if len(resume.ExperienceJSON) > 0 {
 		var experiences []map[string]interface{}
 		if json.Unmarshal(resume.ExperienceJSON, &experiences) == nil {
 			for _, e := range experiences {
-				if desc, ok := e["description"].(string); ok {
-					texts = append(texts, desc)
-				}
+				if desc, ok := e["description"].(string); ok { texts = append(texts, desc) }
 			}
 		}
 	}
-
 	for _, text := range texts {
 		textLower := strings.ToLower(text)
 		for _, kw := range keywords {
-			if strings.Contains(textLower, kw) {
-				return true
-			}
+			if strings.Contains(textLower, kw) { return true }
 		}
 	}
-
 	return false
 }
+

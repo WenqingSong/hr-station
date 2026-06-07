@@ -59,3 +59,39 @@ func (r *ResumeCompareRepository) GetLatestByUserID(ctx context.Context, userID 
 	return &result, nil
 }
 
+// CreateV2 inserts a new resume compare result with full metadata.
+func (r *ResumeCompareRepository) CreateV2(ctx context.Context, result *model.ResumeCompareResultV2) error {
+	res, err := r.db.ExecContext(ctx,
+		`INSERT INTO resume_compare_results
+		 (user_id, from_resume_id, to_resume_id, comparison_mode, generation_tier, generated_by, status,
+		  target_direction, job_id, from_profile_type, from_profile_dominant_profile,
+		  to_profile_type, to_profile_dominant_profile, result_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		result.UserID, result.FromResumeID, result.ToResumeID,
+		result.ComparisonMode, result.GenerationTier, result.GeneratedBy, result.Status,
+		toNullStr(result.TargetDirection), toNullUI64(result.JobID),
+		toNullStr(result.FromProfileType), toNullStr(result.FromProfileDominantProfile),
+		toNullStr(result.ToProfileType), toNullStr(result.ToProfileDominantProfile),
+		toNullJSONFromBytes(result.ResultJSON),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create resume compare result: %w", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get last insert id: %w", err)
+	}
+	result.ID = uint64(id)
+	return nil
+}
+
+func toNullStr(s string) sql.NullString {
+	if s == "" { return sql.NullString{Valid: false} }
+	return sql.NullString{String: s, Valid: true}
+}
+
+func toNullUI64(v *uint64) sql.NullInt64 {
+	if v == nil { return sql.NullInt64{Valid: false} }
+	return sql.NullInt64{Int64: int64(*v), Valid: true}
+}
+
