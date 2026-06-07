@@ -154,3 +154,25 @@ type ResumeCompareResultV2 struct {
 	CreatedAt                  time.Time
 	UpdatedAt                  time.Time
 }
+
+// ── K9-4-D: Latest types ──────────────────────────────────────────────────
+
+// CompareLatestResponseV2 is the DTO for GET /api/resumes/compare/latest.
+type CompareLatestResponseV2 struct {
+	HasResult                  bool        `json:"has_result"`
+	CompareID                  uint64      `json:"compare_id,omitempty"`
+	FromResumeID               uint64      `json:"from_resume_id,omitempty"`
+	ToResumeID                 uint64      `json:"to_resume_id,omitempty"`
+	ComparisonMode             string      `json:"comparison_mode,omitempty"`
+	TargetDirection            string      `json:"target_direction,omitempty"`
+	JobID                      *uint64     `json:"job_id,omitempty"`
+	GenerationTier             string      `json:"generation_tier,omitempty"`
+	GeneratedBy                string      `json:"generated_by,omitempty"`
+	Status                     string      `json:"status,omitempty"`
+	FromProfileType            string      `json:"from_profile_type,omitempty"`
+	FromProfileDominantProfile string      `json:"from_profile_dominant_profile,omitempty"`
+	ToProfileType              string      `json:"to_profile_type,omitempty"`
+	ToProfileDominantProfile   string      `json:"to_profile_dominant_profile,omitempty"`
+	CreatedAt                  string      `json:"created_at,omitempty"`
+	Result                     interface{} `json:"result,omitempty"`
+}

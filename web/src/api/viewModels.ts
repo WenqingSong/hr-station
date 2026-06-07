@@ -122,6 +122,130 @@ export async function loadResumeComparisonViewModel(
   return toResumeComparisonViewModel(comparison, baseName, targetName);
 }
 
+// ─── K9-4-E: Compare V2 ViewModel Loader ─────────────────────────────────
+
+import { getLatestResumeCompare, generateResumeCompare } from './agents';
+import type { LatestCompareResponse } from './agents';
+
+export type CompareV2ViewModel = {
+  compareId: number;
+  fromResumeId: number;
+  toResumeId: number;
+  comparisonMode: string;
+  targetDirection: string;
+  jobId: number | null;
+  generationTier: string;
+  generatedBy: string;
+  status: string;
+  fromProfileType: string;
+  fromProfileDominantProfile: string;
+  toProfileType: string;
+  toProfileDominantProfile: string;
+  compareScore: number;
+  compareLevel: string;
+  winnerResumeId: number;
+  winnerLabel: string;
+  oneSentenceSummary: string;
+  fromResumeSummary: string;
+  toResumeSummary: string;
+  keyDifferences: string[];
+  fromStrengths: string[];
+  toStrengths: string[];
+  fromRisks: string[];
+  toRisks: string[];
+  keepFromItems: string[];
+  keepToItems: string[];
+  mergeSuggestions: string[];
+  rewriteExamples: { section: string; fromVersion: string; toVersion: string; suggestedNext: string; reason: string }[];
+  nextVersionSuggestions: string[];
+  deliveryAdvice: string;
+};
+
+export type LatestCompareV2ViewModel = {
+  hasResult: boolean;
+  compareId?: number;
+  generationTier?: string;
+  generatedBy?: string;
+  status?: string;
+  result?: CompareV2ViewModel;
+};
+
+function mapCompareV2(raw: any): CompareV2ViewModel {
+  return {
+    compareId: raw.compare_id ?? 0,
+    fromResumeId: raw.from_resume_id ?? 0,
+    toResumeId: raw.to_resume_id ?? 0,
+    comparisonMode: raw.comparison_mode ?? 'general',
+    targetDirection: raw.target_direction ?? '',
+    jobId: raw.job_id ?? null,
+    generationTier: raw.generation_tier ?? 'fast',
+    generatedBy: raw.generated_by ?? '',
+    status: raw.status ?? 'ready',
+    fromProfileType: raw.from_profile_type ?? '',
+    fromProfileDominantProfile: raw.from_profile_dominant_profile ?? '',
+    toProfileType: raw.to_profile_type ?? '',
+    toProfileDominantProfile: raw.to_profile_dominant_profile ?? '',
+    compareScore: raw.compare_score ?? 0,
+    compareLevel: raw.compare_level ?? '',
+    winnerResumeId: raw.winner_resume_id ?? 0,
+    winnerLabel: raw.winner_label ?? '',
+    oneSentenceSummary: raw.one_sentence_summary ?? '',
+    fromResumeSummary: raw.from_resume_summary ?? '',
+    toResumeSummary: raw.to_resume_summary ?? '',
+    keyDifferences: Array.isArray(raw.key_differences) ? raw.key_differences : [],
+    fromStrengths: Array.isArray(raw.from_strengths) ? raw.from_strengths : [],
+    toStrengths: Array.isArray(raw.to_strengths) ? raw.to_strengths : [],
+    fromRisks: Array.isArray(raw.from_risks) ? raw.from_risks : [],
+    toRisks: Array.isArray(raw.to_risks) ? raw.to_risks : [],
+    keepFromItems: Array.isArray(raw.keep_from_items) ? raw.keep_from_items : [],
+    keepToItems: Array.isArray(raw.keep_to_items) ? raw.keep_to_items : [],
+    mergeSuggestions: Array.isArray(raw.merge_suggestions) ? raw.merge_suggestions : [],
+    rewriteExamples: Array.isArray(raw.rewrite_examples) ? raw.rewrite_examples.map((e: any) => ({
+      section: e.section ?? '', fromVersion: e.from_version ?? '',
+      toVersion: e.to_version ?? '', suggestedNext: e.suggested_next ?? '', reason: e.reason ?? '',
+    })) : [],
+    nextVersionSuggestions: Array.isArray(raw.next_version_suggestions) ? raw.next_version_suggestions : [],
+    deliveryAdvice: raw.delivery_advice ?? '',
+  };
+}
+
+export async function loadLatestCompareV2ViewModel(params: {
+  fromResumeId: number; toResumeId: number; comparisonMode?: string;
+  targetDirection?: string; jobId?: number;
+}): Promise<LatestCompareV2ViewModel> {
+  const raw: LatestCompareResponse = await getLatestResumeCompare({
+    from_resume_id: params.fromResumeId,
+    to_resume_id: params.toResumeId,
+    comparison_mode: params.comparisonMode || 'general',
+    target_direction: params.targetDirection,
+    job_id: params.jobId,
+  });
+  if (!raw.has_result) return { hasResult: false };
+  return {
+    hasResult: true,
+    compareId: raw.compare_id,
+    generationTier: raw.generation_tier,
+    generatedBy: raw.generated_by,
+    status: raw.status,
+    result: raw.result ? mapCompareV2(raw.result) : undefined,
+  };
+}
+
+export async function loadCompareV2ViewModel(input: {
+  fromResumeId: number; toResumeId: number; comparisonMode?: string;
+  generationTier?: string; targetDirection?: string; jobId?: number;
+}): Promise<CompareV2ViewModel> {
+  const raw = await generateResumeCompare({
+    from_resume_id: input.fromResumeId,
+    to_resume_id: input.toResumeId,
+    comparison_mode: input.comparisonMode || 'general',
+    generation_tier: input.generationTier || 'fast',
+    target_direction: input.targetDirection,
+    job_id: input.jobId,
+  });
+  return mapCompareV2(raw);
+}
+
 /** 加载指定简历摘要 ViewModel */
 export async function loadResumeSummaryViewModel(
   resumeId: number,

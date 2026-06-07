@@ -110,6 +110,68 @@ func (h *VersionCompareHandler) CompareV2(w http.ResponseWriter, r *http.Request
 	response.OK(w, resp)
 }
 
+// LatestV2 handles GET /api/resumes/compare/latest (K9-4-D).
+func (h *VersionCompareHandler) LatestV2(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+		return
+	}
+
+	fromStr := r.URL.Query().Get("from_resume_id")
+	toStr := r.URL.Query().Get("to_resume_id")
+	mode := r.URL.Query().Get("comparison_mode")
+	targetDir := r.URL.Query().Get("target_direction")
+	jobStr := r.URL.Query().Get("job_id")
+
+	if fromStr == "" {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "from_resume_id is required")
+		return
+	}
+	if toStr == "" {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "to_resume_id is required")
+		return
+	}
+	fromID, err := strconv.ParseUint(fromStr, 10, 64)
+	if err != nil || fromID < 1 {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid from_resume_id")
+		return
+	}
+	toID, err := strconv.ParseUint(toStr, 10, 64)
+	if err != nil || toID < 1 {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid to_resume_id")
+		return
+	}
+	if mode == "" { mode = "general" }
+	if mode != "general" && mode != "target_direction" && mode != "target_job" {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid comparison_mode")
+		return
+	}
+	if mode == "target_direction" && targetDir == "" {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "target_direction is required")
+		return
+	}
+	var jobID uint64
+	if mode == "target_job" {
+		if jobStr == "" {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "job_id is required")
+			return
+		}
+		jobID, err = strconv.ParseUint(jobStr, 10, 64)
+		if err != nil || jobID < 1 {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid job_id")
+			return
+		}
+	}
+
+	resp, err := h.versionCompareService.GetLatestCompareV2(r.Context(), userID, fromID, toID, mode, targetDir, jobID)
+	if err != nil {
+		handleVersionCompareError(w, err)
+		return
+	}
+	response.OK(w, resp)
+}
+
 func handleVersionCompareError(w http.ResponseWriter, err error) {
 	if ae := apperror.AsAppError(err); ae != nil {
 		response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)

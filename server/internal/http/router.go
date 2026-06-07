@@ -65,6 +65,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("/api/resumes/detail", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Detail)))
 	mux.Handle("/api/resumes/versions", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.Versions)))
 	mux.Handle("/api/resumes/versions/compare", deps.AuthMiddleware(http.HandlerFunc(deps.VersionCompareHandler.Compare)))
+	mux.Handle("/api/resumes/compare/latest", deps.AuthMiddleware(http.HandlerFunc(deps.VersionCompareHandler.LatestV2))) // K9-4-D
 	mux.Handle("/api/resumes/compare", deps.AuthMiddleware(http.HandlerFunc(deps.VersionCompareHandler.Compare))) // K8-5-48-D
 	mux.Handle("/api/resumes/versions/", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.VersionDetail)))
 	mux.Handle("/api/resumes/optimize", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeOptimizationHandler.Optimize)))

@@ -33,6 +33,11 @@ function toRows(resumes: Resume[]): ResumeRow[] {
   }));
 }
 
+function getOtherResumeId(resumes: Resume[], excludeId: number): number {
+  const other = resumes.find(r => r.id !== excludeId);
+  return other ? other.id : excludeId;
+}
+
 function formatDate(iso: string): string {
   if (!iso) return "";
   try {
@@ -103,8 +108,8 @@ function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, load
       icon: GitCompare,
       label: "查看版本对比",
       desc: "对比不同简历版本的变化与提升",
-      href: "/resumes/compare",
-      disabled: !hasResumes,
+      href: selectedResumeId ? `/resumes/compare?fromResumeId=${selectedResumeId}&toResumeId=${getOtherResumeId(resumes, selectedResumeId)}` : "#",
+      disabled: !hasResumes || resumes.length < 2,
     },
   ];
 

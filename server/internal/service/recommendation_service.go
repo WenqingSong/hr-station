@@ -108,19 +108,31 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 		profileType = "quality"
 	}
 
-	// K9-1-H4-C: ensure profile is ready before recommending
+	// K9-1-Regression-C: quality profile not ready → fallback to fast profile
 	profileStatus := "ready"
 	var profileDominant string
 	var profileSource string
 	if s.profileSvc != nil && req.ResumeID > 0 {
 		profile, st, err := s.profileSvc.EnsureProfile(ctx, userID, req.ResumeID, profileType)
 		if err != nil {
-			log.Printf("[RecommendationService] ensure profile failed resume=%d err=%v", req.ResumeID, err)
-			profileStatus = "failed"
+			log.Printf("[RecommendationService] ensure profile failed resume=%d tier=%s err=%v", req.ResumeID, profileType, err)
 		} else if profile != nil && st == model.ProfileStatusReady {
-			profileStatus = "ready"
 			profileDominant = profile.DominantProfile
 			profileSource = profile.Source
+			profileStatus = "ready"
+		} else if req.GenerationTier == model.GenerationTierQuality {
+			// quality profile not ready → fallback to fast profile
+			log.Printf("[RecommendationService] quality profile status=%s resume=%d, falling back to fast profile", st, req.ResumeID)
+			fastProfile, fastSt, fastErr := s.profileSvc.EnsureProfile(ctx, userID, req.ResumeID, "fast")
+			if fastErr != nil || fastProfile == nil || fastSt != model.ProfileStatusReady {
+				log.Printf("[RecommendationService] fast profile fallback also failed resume=%d st=%s err=%v", req.ResumeID, fastSt, fastErr)
+				profileStatus = st
+			} else {
+				profileDominant = fastProfile.DominantProfile
+				profileSource = fastProfile.Source
+				profileStatus = "ready"
+				profileType = "fast" // using fast profile for quality generation
+			}
 		} else {
 			profileStatus = st
 		}

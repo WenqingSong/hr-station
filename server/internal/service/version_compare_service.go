@@ -269,3 +269,76 @@ func (s *VersionCompareService) CompareV2(ctx context.Context, userID uint64, re
 
 	return result, nil
 }
+
+// ── K9-4-D: GetLatestCompareV2 ─────────────────────────────────────────────
+
+// GetLatestCompareV2 returns the latest ready compare result for the given criteria.
+func (s *VersionCompareService) GetLatestCompareV2(ctx context.Context, userID, fromResumeID, toResumeID uint64, mode, targetDirection string, jobID uint64) (*model.CompareLatestResponseV2, error) {
+	if fromResumeID <= 0 || toResumeID <= 0 {
+		return nil, apperror.New(apperror.CodeInvalidParam, "from_resume_id and to_resume_id are required", 400)
+	}
+	if fromResumeID == toResumeID {
+		return nil, apperror.New(apperror.CodeInvalidParam, "from_resume_id and to_resume_id must be different", 400)
+	}
+	if mode == "" { mode = "general" }
+	if mode != "general" && mode != "target_direction" && mode != "target_job" {
+		return nil, apperror.New(apperror.CodeInvalidParam, "invalid comparison_mode", 400)
+	}
+	if mode == "target_direction" && targetDirection == "" {
+		return nil, apperror.New(apperror.CodeInvalidParam, "target_direction is required", 400)
+	}
+	if mode == "target_job" && jobID == 0 {
+		return nil, apperror.New(apperror.CodeInvalidParam, "job_id is required", 400)
+	}
+	// Validate job exists for target_job mode
+	if mode == "target_job" && s.jobRepo != nil {
+		job, err := s.jobRepo.FindByID(ctx, jobID)
+		if err != nil || job == nil {
+			return nil, apperror.New(apperror.CodeInvalidParam, "job not found", 404)
+		}
+	}
+
+	// Verify resumes belong to user
+	fromVer, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, fromResumeID)
+	if err != nil || fromVer == nil {
+		return nil, apperror.ErrResumeNotFound
+	}
+	toVer, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, toResumeID)
+	if err != nil || toVer == nil {
+		return nil, apperror.ErrResumeToVerNotFound
+	}
+
+	latest, err := s.compareRepo.FindLatestV2(ctx, userID, fromResumeID, toResumeID, mode, targetDirection, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find latest compare: %w", err)
+	}
+	if latest == nil {
+		return &model.CompareLatestResponseV2{HasResult: false}, nil
+	}
+
+	var resultData interface{}
+	if len(latest.ResultJSON) > 0 {
+		if err := json.Unmarshal(latest.ResultJSON, &resultData); err != nil {
+			return nil, fmt.Errorf("failed to parse saved compare result: %w", err)
+		}
+	}
+
+	return &model.CompareLatestResponseV2{
+		HasResult:                  true,
+		CompareID:                  latest.ID,
+		FromResumeID:               latest.FromResumeID,
+		ToResumeID:                 latest.ToResumeID,
+		ComparisonMode:             latest.ComparisonMode,
+		TargetDirection:            latest.TargetDirection,
+		JobID:                      latest.JobID,
+		GenerationTier:             latest.GenerationTier,
+		GeneratedBy:                latest.GeneratedBy,
+		Status:                     latest.Status,
+		FromProfileType:            latest.FromProfileType,
+		FromProfileDominantProfile: latest.FromProfileDominantProfile,
+		ToProfileType:              latest.ToProfileType,
+		ToProfileDominantProfile:   latest.ToProfileDominantProfile,
+		CreatedAt:                  latest.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Result:                     resultData,
+	}, nil
+}

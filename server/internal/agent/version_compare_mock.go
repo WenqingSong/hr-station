@@ -709,6 +709,15 @@ func (a *VersionCompareMockAgent) CompareV2(from, to *model.ResumeVersion, mode 
 		ToRisks:           genProfileRisks(toProf, 1),
 		DeliveryAdvice:    genDeliveryAdvice(winner, toProf),
 		CreatedAt:         now,
+
+		// Default empty arrays (avoid JSON null)
+		FromResumeSummary:      "",
+		ToResumeSummary:        "",
+		KeepFromItems:          []string{},
+		KeepToItems:            []string{},
+		MergeSuggestions:       []string{},
+		RewriteExamples:        []model.RewriteCompareExample{},
+		NextVersionSuggestions: []string{},
 	}
 
 	if qualityMode {

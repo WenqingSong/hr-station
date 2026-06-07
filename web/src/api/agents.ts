@@ -171,3 +171,53 @@ export async function generateResumeOptimization(
     input,
   );
 }
+
+// ─── K9-4: Resume Compare ──────────────────────────────────────────────────
+
+export interface LatestCompareResponse {
+  has_result: boolean;
+  compare_id?: number;
+  from_resume_id?: number;
+  to_resume_id?: number;
+  comparison_mode?: string;
+  target_direction?: string;
+  job_id?: number;
+  generation_tier?: string;
+  generated_by?: string;
+  status?: string;
+  from_profile_type?: string;
+  from_profile_dominant_profile?: string;
+  to_profile_type?: string;
+  to_profile_dominant_profile?: string;
+  created_at?: string;
+  result?: any;
+}
+
+export async function getLatestResumeCompare(params: {
+  from_resume_id: number;
+  to_resume_id: number;
+  comparison_mode?: string;
+  target_direction?: string;
+  job_id?: number;
+}): Promise<LatestCompareResponse> {
+  const q = new URLSearchParams();
+  q.set('from_resume_id', String(params.from_resume_id));
+  q.set('to_resume_id', String(params.to_resume_id));
+  q.set('comparison_mode', params.comparison_mode || 'general');
+  if (params.target_direction) q.set('target_direction', params.target_direction);
+  if (params.job_id) q.set('job_id', String(params.job_id));
+  return get<LatestCompareResponse>(`/resumes/compare/latest?${q.toString()}`);
+}
+
+export interface GenerateCompareRequest {
+  from_resume_id: number;
+  to_resume_id: number;
+  comparison_mode?: string;
+  generation_tier?: string;
+  target_direction?: string;
+  job_id?: number;
+}
+
+export async function generateResumeCompare(input: GenerateCompareRequest): Promise<any> {
+  return post<any, GenerateCompareRequest>('/resumes/compare', input);
+}
