@@ -5,6 +5,7 @@ import { loadRecommendationViewModel, loadResumeOptionViewModelsFromApi } from "
 import type { RecommendationPageViewModel, ResumeOptionViewModel, RecommendedJobViewModel, RecommendationPriorityTone } from "../../adapters";
 import { PageLoading, PageEmpty } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
+import { AgentStepLoadingOverlay, type AgentLoadingStep } from "../components/common/AgentStepLoadingOverlay";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { Badge } from "../components/ui/Badge";
 
@@ -59,6 +60,15 @@ export function JobRecommendationPage() {
   const [deepErrorMessage, setDeepErrorMessage] = useState("");
 
   const [selJobId, setSelJobId] = useState<number | null>(null);
+  const [deepOverlayStatus, setDeepOverlayStatus] = useState<"loading" | "success" | "error">("loading");
+
+  // K9-1-S: Step definitions
+  const deepSteps: AgentLoadingStep[] = [
+    { key: "resume-profile", label: "读取简历画像标签" },
+    { key: "job-tags", label: "匹配岗位标签矩阵" },
+    { key: "reasoning", label: "生成推荐理由和风险点" },
+    { key: "judge", label: "审查推荐结果一致性" },
+  ];
 
   // Polling refs
   const fastPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -147,7 +157,7 @@ export function JobRecommendationPage() {
   // ── Deep recommendation with polling ────────────────────────────────────
   async function handleDeepRecommendation() {
     if (!selectedOption || !fastResult) return;
-    setPhase("deep_loading"); setDeepErrorMessage(""); qualityAttemptsRef.current = 0;
+    setPhase("deep_loading"); setDeepErrorMessage(""); setDeepOverlayStatus("loading"); qualityAttemptsRef.current = 0;
 
     const pollQuality = async () => {
       try {
@@ -156,24 +166,25 @@ export function JobRecommendationPage() {
         });
         const status = vm.profileStatus;
         if (status === "ready") {
-          setDeepResult(vm); setPhase("deep_done");
+          setDeepOverlayStatus("success");
+          setDeepResult(vm);
           if (vm.recommendedJobs.length > 0) setSelJobId(vm.recommendedJobs[0].jobId);
           return;
         }
         if (status === "failed") {
-          setPhase("deep_error");
+          setDeepOverlayStatus("error"); setPhase("deep_error");
           setDeepErrorMessage(vm.profileMessage || "深度画像生成失败，已保留快速推荐结果。");
           return;
         }
         qualityAttemptsRef.current++;
         if (qualityAttemptsRef.current >= MAX_QUALITY_POLL) {
-          setPhase("deep_error");
+          setDeepOverlayStatus("error"); setPhase("deep_error");
           setDeepErrorMessage("深度画像生成时间较长，可稍后重试。");
           return;
         }
         qualityPollRef.current = setTimeout(pollQuality, 2000);
       } catch {
-        setPhase("deep_error");
+        setDeepOverlayStatus("error"); setPhase("deep_error");
         setDeepErrorMessage("深度分析暂时生成失败，快速推荐结果仍可参考。");
       }
     };
@@ -229,11 +240,10 @@ export function JobRecommendationPage() {
   const displayName = selectedOption.name;
   const sourceLabel = activeResult.sourceLabel;
   const nowStr = new Date().toLocaleString("zh-CN");
-  const modeLabel = phase === "deep_done" ? "深度推荐" : "快速推荐";
 
   return (
     <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
-      {/* Header */}
+      {/* Header (K9-1-T-D: consolidated status bar) */}
       <div className="mb-6">
         <h1 className="text-[22px] font-semibold text-gray-900 flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[#0052D9]" />
@@ -243,9 +253,7 @@ export function JobRecommendationPage() {
           基于简历 <span className="font-medium text-gray-700">{displayName}</span>（ID:{selectedOption.id}），从岗位池中推荐 Top 5 岗位。
         </p>
         <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1.5"><Sparkles className="w-3 h-3 text-amber-400" /> {modeLabel}</span>
-          <span className="text-gray-300">|</span>
-          <span>{sourceLabel}</span>
+          <span className="flex items-center gap-1.5 text-[#0052D9] font-medium">{sourceLabel}</span>
           <span className="text-gray-300">|</span>
           <span>生成时间：{nowStr}</span>
           {activeResult.profileDominantProfile && (
@@ -263,6 +271,9 @@ export function JobRecommendationPage() {
           {jobs.map((job) => {
             const isSel = selectedJob && job.jobId === selectedJob.jobId;
             const badgeVar = priorityBadgeVariant(job.priorityTone);
+            const coreReason = job.whyRankedHere || job.oneSentenceReason;
+            const evidence = job.resumeEvidence.slice(0, 2);
+            const mainRisk = job.jobSpecificRisks[0];
             return (
               <div
                 key={job.jobId}
@@ -272,7 +283,7 @@ export function JobRecommendationPage() {
                 }`}
               >
                 {isSel && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#0052D9] rounded-l-lg" />}
-                {/* Priority badge */}
+                {/* Priority badge + score */}
                 <div className="flex items-center gap-2 mb-1">
                   <Badge variant={badgeVar} className="text-[11px] font-medium px-2">
                     {job.priorityText}
@@ -288,21 +299,28 @@ export function JobRecommendationPage() {
                   <span>{job.category}</span><span className="text-gray-300">·</span>
                   <span>{job.department}</span>
                 </div>
-                <p className="text-[12px] text-gray-600 line-clamp-2 leading-relaxed">{job.oneSentenceReason}</p>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {job.matchHighlights.slice(0, 2).map((h, i) => (
-                    <Badge key={i} variant="outline" className="text-[10px] font-normal px-1.5 py-0 bg-white text-gray-500">{h}</Badge>
-                  ))}
-                  {job.riskPoints.length > 0 && (
-                    <span className="text-[10px] text-amber-600 ml-1">{job.riskPoints.length}项风险</span>
-                  )}
-                </div>
+                {/* Core reason: why_ranked_here */}
+                {coreReason && (
+                  <p className="text-[12px] text-gray-600 line-clamp-2 leading-relaxed mb-2">{coreReason}</p>
+                )}
+                {/* Evidence tags */}
+                {evidence.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-1.5">
+                    {evidence.map((e, i) => (
+                      <Badge key={i} variant="outline" className="text-[10px] font-normal px-1.5 py-0 bg-blue-50/30 text-blue-700 border-blue-100">{e}</Badge>
+                    ))}
+                  </div>
+                )}
+                {/* Main risk */}
+                {mainRisk && (
+                  <p className="text-[10px] text-amber-600 line-clamp-1">{mainRisk}</p>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* ── Center: Detail ──────────────────────────────────────────── */}
+        {/* ── Center: Detail (K9-1-T-D: expanded with per-job explanation) ── */}
         <div className="flex-1 min-w-0 max-w-[680px] bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
           {selectedJob && (
             <>
@@ -316,42 +334,85 @@ export function JobRecommendationPage() {
                 </div>
                 <div className="bg-white rounded-md p-3 border border-blue-50">
                   <span className="text-xs font-semibold text-gray-900">一句话总结：</span>
-                  <span className="text-sm text-gray-700">{selectedJob.oneSentenceReason}</span>
+                  <span className="text-sm text-gray-700">{selectedJob.whyRankedHere || selectedJob.oneSentenceReason}</span>
                 </div>
               </div>
 
               <div className="p-5 space-y-5">
-                <section>
-                  <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
-                    <span className="w-1 h-3.5 bg-[#0052D9] rounded-full" /> 匹配亮点
-                  </h3>
-                  <ul className="space-y-1.5">
-                    {selectedJob.matchHighlights.map((h, i) => (
-                      <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2">
-                        <span className="text-green-500 mt-1 shrink-0">●</span> {h}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+                {/* K9-1-T-D: Why this job */}
+                {selectedJob.jobSpecificReason && (
+                  <section>
+                    <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
+                      <span className="w-1 h-3.5 bg-[#0052D9] rounded-full" /> 为什么推荐这个岗位
+                    </h3>
+                    <p className="text-[13px] text-gray-700 leading-relaxed">{selectedJob.jobSpecificReason}</p>
+                  </section>
+                )}
 
-                <section>
-                  <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
-                    <span className="w-1 h-3.5 bg-amber-400 rounded-full" /> 主要风险与提醒
-                  </h3>
-                  <div className="bg-amber-50/30 border border-amber-100/50 rounded-md p-3">
+                {/* K9-1-T-D: Resume evidence */}
+                {selectedJob.resumeEvidence.length > 0 && (
+                  <section>
+                    <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
+                      <span className="w-1 h-3.5 bg-green-500 rounded-full" /> 简历匹配证据
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedJob.resumeEvidence.map((e, i) => (
+                        <Badge key={i} variant="outline" className="text-[11px] font-normal px-2 py-0.5 bg-green-50/50 text-green-800 border-green-200">{e}</Badge>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Match highlights */}
+                {selectedJob.matchHighlights.length > 0 && (
+                  <section>
+                    <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
+                      <span className="w-1 h-3.5 bg-blue-400 rounded-full" /> 匹配亮点
+                    </h3>
                     <ul className="space-y-1.5">
-                      {selectedJob.riskPoints.map((r, i) => (
-                        <li key={i} className="flex items-center gap-2 text-[13px] text-amber-700">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-400/80 shrink-0" /> {r}
+                      {selectedJob.matchHighlights.map((h, i) => (
+                        <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2">
+                          <span className="text-green-500 mt-1 shrink-0">●</span> {h}
                         </li>
                       ))}
                     </ul>
-                  </div>
-                </section>
+                  </section>
+                )}
 
+                {/* K9-1-T-D: Job-specific risks */}
+                {selectedJob.jobSpecificRisks.length > 0 && (
+                  <section>
+                    <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
+                      <span className="w-1 h-3.5 bg-amber-400 rounded-full" /> 主要风险
+                    </h3>
+                    <div className="bg-amber-50/30 border border-amber-100/50 rounded-md p-3">
+                      <ul className="space-y-1.5">
+                        {selectedJob.jobSpecificRisks.map((r, i) => (
+                          <li key={i} className="flex items-center gap-2 text-[13px] text-amber-700">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400/80 shrink-0" /> {r}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </section>
+                )}
+
+                {/* K9-1-T-D: Suggested improvement */}
+                {selectedJob.suggestedImprovement && (
+                  <section>
+                    <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
+                      <span className="w-1 h-3.5 bg-[#0052D9] rounded-full" /> 补强建议
+                    </h3>
+                    <div className="bg-blue-50/30 border border-blue-100/50 rounded-md p-3">
+                      <p className="text-[13px] text-blue-800 leading-relaxed">{selectedJob.suggestedImprovement}</p>
+                    </div>
+                  </section>
+                )}
+
+                {/* Suggested action */}
                 <section className="bg-gray-50 rounded-md p-4 border border-gray-100">
                   <div className="text-[13px] text-gray-700 leading-relaxed mb-3">
-                    <span className="font-medium text-gray-900">建议动作：</span>
+                    <span className="font-medium text-gray-900">下一步建议：</span>
                     {selectedJob.suggestedAction}
                   </div>
                   <div className="flex gap-3">
@@ -368,7 +429,7 @@ export function JobRecommendationPage() {
           )}
         </div>
 
-        {/* ── Right sidebar ──────────────────────────────────────────── */}
+        {/* ── Right sidebar (K9-1-T-D: streamlined) ───────────────────── */}
         <aside className="w-[300px] shrink-0 flex flex-col gap-4">
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h3 className="text-[13px] font-medium text-gray-500 mb-2">当前简历</h3>
@@ -380,13 +441,8 @@ export function JobRecommendationPage() {
           </div>
 
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-[13px] font-medium text-gray-500 mb-2">推荐来源</h3>
-            <p className="text-xs text-[#0052D9] font-medium">{sourceLabel}</p>
-            <p className="text-[11px] text-gray-400 mt-1">生成时间：{nowStr}</p>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h3 className="text-[13px] font-medium text-gray-500 mb-2">深度推荐</h3>
+            <p className="text-[11px] text-gray-400 mb-3">基于当前简历画像和岗位标签重新生成更细致的推荐解释。</p>
             {phase === "deep_loading" ? (
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> 智能体深度分析中…
@@ -406,32 +462,28 @@ export function JobRecommendationPage() {
               </button>
             )}
           </div>
-
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-[13px] font-medium text-gray-500 mb-2">推荐记录</h3>
-            <p className="text-[11px] text-gray-400 leading-relaxed">推荐记录将在生成后用于后续回看。</p>
-          </div>
         </aside>
       </div>
 
-      {/* ── Deep loading global overlay ─────────────────────────────── */}
-      {phase === "deep_loading" && (
-        <div className="fixed inset-0 z-50 bg-slate-900/20 backdrop-blur-md flex items-center justify-center">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md mx-4 text-center">
-            <Loader2 className="w-10 h-10 animate-spin text-[#0052D9] mx-auto mb-4" />
-            <h2 className="text-lg font-bold text-gray-900 mb-2">智能体正在深度分析岗位匹配</h2>
-            <p className="text-sm text-gray-500 leading-relaxed mb-4">
-              系统正在结合你的候选人标签、岗位标签和匹配证据，生成更高质量的推荐结果。
-            </p>
-            <div className="text-xs text-gray-400 space-y-1">
-              <div className="flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> 读取简历画像标签</div>
-              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-gray-200" /> 匹配岗位标签矩阵</div>
-              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-gray-200" /> 生成推荐理由和风险点</div>
-              <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-gray-200" /> 审查推荐结果一致性</div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── K9-1-S: Agent step loading overlay ──────────────────────── */}
+      <AgentStepLoadingOverlay
+        open={phase === "deep_loading" || deepOverlayStatus === "success"}
+        title="智能体正在深度分析岗位匹配"
+        description="系统正在结合你的候选人标签、岗位标签和匹配证据，生成更高质量的推荐结果。"
+        steps={deepSteps}
+        status={
+          deepOverlayStatus === "success" ? "success" :
+          phase === "deep_error" ? "error" : "loading"
+        }
+        errorText={deepErrorMessage}
+        successDelayMs={400}
+        onClose={() => {
+          if (deepOverlayStatus === "success") {
+            setPhase("deep_done");
+            setDeepOverlayStatus("loading"); // reset for next use
+          }
+        }}
+      />
     </ContentPageShell>
   );
 }

@@ -44,6 +44,13 @@ type RecommendedJob struct {
 
 	MatchEvidence []RecommendationEvidence `json:"match_evidence,omitempty"`
 
+	// ── K9-1-T-C: 逐岗位解释字段 ──
+	WhyRankedHere        string   `json:"why_ranked_here,omitempty"`
+	ResumeEvidence       []string `json:"resume_evidence,omitempty"`
+	JobSpecificReason    string   `json:"job_specific_reason,omitempty"`
+	JobSpecificRisks     []string `json:"job_specific_risks,omitempty"`
+	SuggestedImprovement string   `json:"suggested_improvement,omitempty"`
+
 	GeneratedBy    string `json:"generated_by,omitempty"`
 	AgentStatus    string `json:"agent_status,omitempty"`
 	RepairApplied  bool   `json:"repair_applied,omitempty"`

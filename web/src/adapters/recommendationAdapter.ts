@@ -41,6 +41,13 @@ export interface RecommendedJobViewModel {
   suggestedAction: string;
   source: RecommendationSource;
   sourceLabel: string;
+
+  // K9-1-T-D: per-job explanation fields
+  whyRankedHere: string;
+  resumeEvidence: string[];
+  jobSpecificReason: string;
+  jobSpecificRisks: string[];
+  suggestedImprovement: string;
 }
 
 export interface RecommendationEvidenceRow {
@@ -94,13 +101,17 @@ function getSource(generatedBy?: string): RecommendationSource {
   return "unknown";
 }
 
-function getSourceLabel(source: RecommendationSource, isQuality?: boolean): string {
-  if (isQuality && source === "mock") return "深度推荐 · 演示数据";
+function getSourceLabel(source: RecommendationSource, generatedBy?: string, isQuality?: boolean): string {
+  // K9-1-T-D: product-friendly labels — never show "演示数据"
+  if (generatedBy === "mock_agent") return "快速推荐 · 规则推荐";
+  if (generatedBy === "mock_quality") return "深度推荐 · 规则兜底";
+  if (generatedBy === "llm_agent" || generatedBy?.startsWith("llm")) return "深度推荐 · AI生成";
+  if (generatedBy?.includes("fallback")) return "推荐失败 · 已保留快速结果";
   switch (source) {
-    case "mock": return "快速推荐 · 演示数据";
-    case "fast_llm": return "快速推荐 · AI 生成";
-    case "deep_llm": return "深度推荐 · AI 生成";
-    case "fallback": return "快速推荐 · 兜底结果";
+    case "mock": return isQuality ? "深度推荐 · 规则兜底" : "快速推荐 · 规则推荐";
+    case "fast_llm": return "快速推荐 · AI生成";
+    case "deep_llm": return "深度推荐 · AI生成";
+    case "fallback": return "推荐失败 · 已保留快速结果";
     case "cache": return "历史推荐 · 缓存结果";
     default: return "推荐结果";
   }
@@ -115,9 +126,22 @@ function toRecommendedJobViewModel(
   const score = typeof job.recommendation_score === "number" ? job.recommendation_score : 0;
   const source = getSource(job.generated_by);
   const isQuality = job.generated_by === "mock_quality" || job.generated_by === "llm_agent";
+  const generatedBy = job.generated_by ?? "";
   // K9-1-I: priority-based labels
   const priority = job.recommendation_priority || defaultPriority(score);
   const label = job.recommendation_label || defaultLabel(priority);
+
+  // K9-1-T-D: new explanation fields with safe fallbacks
+  const whyRankedHere = job.why_ranked_here || job.recommendation_reason || "";
+  const resumeEvidence = (Array.isArray(job.resume_evidence) && job.resume_evidence.length > 0)
+    ? job.resume_evidence
+    : [];
+  const jobSpecificReason = job.job_specific_reason || job.recommendation_reason || "";
+  const jobSpecificRisks = (Array.isArray(job.job_specific_risks) && job.job_specific_risks.length > 0)
+    ? job.job_specific_risks
+    : (Array.isArray(job.risk_points) ? job.risk_points : []);
+  const suggestedImprovement = job.suggested_improvement || job.suggested_action || "";
+
   return {
     rank,
     jobId: job.job_id,
@@ -138,7 +162,13 @@ function toRecommendedJobViewModel(
     riskPoints: (job.risk_points && job.risk_points.length > 0) ? job.risk_points : ["建议进一步补充与该岗位相关的项目细节"],
     suggestedAction: job.suggested_action || "建议先查看岗位详情，再进行岗位匹配分析。",
     source,
-    sourceLabel: getSourceLabel(source, isQuality),
+    sourceLabel: getSourceLabel(source, generatedBy, isQuality),
+    // K9-1-T-D: new fields
+    whyRankedHere,
+    resumeEvidence,
+    jobSpecificReason,
+    jobSpecificRisks,
+    suggestedImprovement,
   };
 }
 
@@ -185,7 +215,7 @@ export function toRecommendationPageViewModel(
     evidenceChain: toEvidenceItemViewModels(result.evidence_chain),
     riskItems: Array.isArray(result.risk_items) ? result.risk_items : [],
     nextActions: Array.isArray(result.next_actions) ? result.next_actions : [],
-    sourceLabel: getSourceLabel(firstSource, isQuality),
+    sourceLabel: getSourceLabel(firstSource, firstJob?.generated_by ?? "", isQuality),
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
     profileStatus: profileExtras?.profileStatus ?? "ready",
     profileType: profileExtras?.profileType ?? "fast",

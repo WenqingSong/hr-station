@@ -322,6 +322,210 @@ func extractJobTags(job *model.Job) jobTagProfile {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// Job Domain Detection (K9-1-T-C)
+// ══════════════════════════════════════════════════════════════════════════
+
+type jobDomain string
+
+const (
+	domainAlgorithmMultimodal  jobDomain = "algorithm_multimodal"
+	domainAlgorithmNLP         jobDomain = "algorithm_nlp"
+	domainAlgorithmDataScience jobDomain = "algorithm_data_science"
+	domainAlgorithmCV          jobDomain = "algorithm_cv"
+	domainAlgorithmGraphics    jobDomain = "algorithm_graphics"
+	domainAlgorithmGeneral     jobDomain = "algorithm_general"
+	domainAIApplication        jobDomain = "ai_application"
+	domainBackend              jobDomain = "backend"
+	domainClient               jobDomain = "client"
+	domainFullstack            jobDomain = "fullstack"
+	domainDataEngineering      jobDomain = "data_engineering"
+	domainProduct              jobDomain = "product"
+	domainOperation            jobDomain = "operation"
+	domainBusinessSolution     jobDomain = "business_solution"
+	domainBusinessFunction     jobDomain = "business_function"
+	domainUnknown              jobDomain = "unknown"
+)
+
+func detectJobDomain(jp jobTagProfile) jobDomain {
+	t := strings.ToLower(jp.job.Title + " " + jp.job.Category + " " + jp.job.Department + " " + jp.job.Description)
+
+	// Algorithm sub-domains
+	if jp.tags.has("algorithm_core", 2) {
+		if matchAny(t, "多模态", "multimodal") && !matchAny(t, "多媒体处理") {
+			return domainAlgorithmMultimodal
+		}
+		if matchAny(t, "图形", "cg", "动画", "三维", "3d", "图形学") {
+			return domainAlgorithmGraphics
+		}
+		if matchAny(t, "nlp", "自然语言", "文本", "语义", "对话", "翻译", "语音") {
+			return domainAlgorithmNLP
+		}
+		if matchAny(t, "计算机视觉", "cv", "图像", "视觉", "目标检测", "分割") {
+			if jp.tags.has("multimodal", 2) {
+				return domainAlgorithmMultimodal
+			}
+			return domainAlgorithmCV
+		}
+		if matchAny(t, "数据科学", "数据挖掘", "数据分析", "数据工程") {
+			return domainAlgorithmDataScience
+		}
+		if matchAny(t, "ai应用", "ai平台", "智能应用", "算法应用", "ai工程") {
+			return domainAIApplication
+		}
+		return domainAlgorithmGeneral
+	}
+
+	// Backend sub-domains
+	if jp.tags.has("backend_service", 2) {
+		if matchAny(t, "客户端", "pc客户端", "前端") {
+			return domainClient
+		}
+		if matchAny(t, "全栈", "fullstack") {
+			return domainFullstack
+		}
+		if matchAny(t, "数据工程", "数据平台", "etl", "数据仓库") {
+			return domainDataEngineering
+		}
+		return domainBackend
+	}
+
+	// Product sub-domains
+	if jp.tags.has("product_operation", 2) {
+		if matchAny(t, "运营", "增长", "活动", "用户运营") {
+			return domainOperation
+		}
+		return domainProduct
+	}
+
+	// Solution sub-domains
+	if jp.tags.has("solution_consulting", 2) {
+		if matchAny(t, "秘书") {
+			return domainBusinessFunction
+		}
+		return domainBusinessSolution
+	}
+
+	return domainUnknown
+}
+
+func domainLabel(d jobDomain) string {
+	switch d {
+	case domainAlgorithmMultimodal:
+		return "多模态方向"
+	case domainAlgorithmNLP:
+		return "NLP方向"
+	case domainAlgorithmDataScience:
+		return "数据科学方向"
+	case domainAlgorithmCV:
+		return "计算机视觉方向"
+	case domainAlgorithmGraphics:
+		return "图形学方向"
+	case domainAlgorithmGeneral:
+		return "算法方向"
+	case domainAIApplication:
+		return "AI应用开发"
+	case domainBackend:
+		return "后台开发"
+	case domainClient:
+		return "客户端开发"
+	case domainFullstack:
+		return "全栈开发"
+	case domainDataEngineering:
+		return "数据工程"
+	case domainProduct:
+		return "产品策划"
+	case domainOperation:
+		return "运营方向"
+	case domainBusinessSolution:
+		return "解决方案"
+	case domainBusinessFunction:
+		return "职能方向"
+	default:
+		return "综合方向"
+	}
+}
+
+// precisionBonus computes the direction precision score for a given job.
+func precisionBonus(cp *candidateTagProfile, sj scoredJobV2) int {
+	d := detectJobDomain(sj.jp)
+
+	// Exact domain tag matches yield highest precision
+	switch d {
+	case domainAlgorithmNLP:
+		if cp.tags.has("nlp", 2) {
+			return 8
+		}
+	case domainAlgorithmMultimodal, domainAlgorithmCV:
+		if cp.tags.has("multimodal", 2) {
+			return 8
+		}
+	case domainAlgorithmGeneral:
+		if cp.tags.has("recommendation_system", 2) {
+			return 7
+		}
+	}
+
+	// Cross-domain bonuses
+	switch cp.dominantProfile {
+	case "algorithm_research":
+		switch d {
+		case domainAlgorithmMultimodal:
+			if cp.tags.has("recommendation_system", 2) {
+				return 7 // recommendation research is closest proxy for multimodal
+			}
+			return 5
+		case domainAlgorithmNLP:
+			return 8
+		case domainAlgorithmDataScience:
+			if cp.tags.has("data_analysis_ability", 2) {
+				return 6
+			}
+			return 3
+		case domainAlgorithmCV:
+			return 5
+		case domainAlgorithmGeneral:
+			return 4
+		case domainAIApplication:
+			if cp.tags.has("engineering_ability", 2) {
+				return 5
+			}
+			return 3
+		case domainAlgorithmGraphics:
+			return 1
+		}
+	case "backend_engineering":
+		switch d {
+		case domainBackend:
+			return 6
+		case domainFullstack:
+			return 4
+		case domainDataEngineering:
+			return 3
+		case domainAIApplication:
+			return 2
+		case domainClient:
+			return 2
+		}
+	case "product_operation":
+		switch d {
+		case domainProduct:
+			return 6
+		case domainOperation:
+			return 5
+		}
+	case "business_solution":
+		switch d {
+		case domainBusinessSolution:
+			return 6
+		case domainBusinessFunction:
+			return 4
+		}
+	}
+
+	return 0
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // Tag Matrix Scoring
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -456,6 +660,10 @@ func riskLevel(dirFit string, tFit string, tagScore int) string {
 // ══════════════════════════════════════════════════════════════════════════
 
 func recommendationLabelV2(score int, dirFit, tFit, risk string, profile string, jTags tagSet) (string, string) {
+	return recommendationLabelV3(score, dirFit, tFit, risk, profile, jTags, 0)
+}
+
+func recommendationLabelV3(score int, dirFit, tFit, risk string, profile string, jTags tagSet, precision int) (string, string) {
 	isAlgo := jTags.has("algorithm_core", 2) || jTags.has("data_science", 2) || jTags.has("nlp", 2) || jTags.has("multimodal", 2)
 	isBackend := jTags.has("backend_service", 2)
 	isSolution := jTags.has("solution_consulting", 2)
@@ -494,13 +702,21 @@ func recommendationLabelV2(score int, dirFit, tFit, risk string, profile string,
 		return "备选参考，不建议优先", "backup"
 	}
 
-	if score >= 90 && dirFit == "strong" && tFit == "strong" && risk != "high" {
+	// K9-1-T-C: precision-aware strong
+	// strong requires precision >= 5
+	if score >= 90 && dirFit == "strong" && tFit == "strong" && risk != "high" && precision >= 5 {
 		return "强匹配，优先投递", "strong"
 	}
-	if score >= 80 && dirFit != "weak" && tFit != "weak" && risk != "high" {
+	// K9-1-T-C: risk hard downgrade — medium risk cannot be strong
+	if score >= 88 && dirFit == "strong" && tFit == "strong" && risk == "low" && precision >= 3 {
+		// Close to strong but either precision < 5 or score < 90 → high
+	} else if score >= 90 && risk == "medium" {
+		// Downgrade: medium risk cannot be strong even with high score
+	}
+	if score >= 82 && dirFit != "weak" && tFit != "weak" && risk != "high" {
 		return "高匹配，重点关注", "high"
 	}
-	if score >= 70 && dirFit != "conflict" {
+	if score >= 72 && dirFit != "conflict" {
 		return "可尝试，需要补强", "try"
 	}
 	if score >= 60 {
@@ -520,6 +736,7 @@ type scoredJobV2 struct {
 	dirFit    string
 	tagFit    string
 	riskLevel string
+	precision int // K9-1-T-C: direction precision bonus
 }
 
 func scoreAllJobs(cp *candidateTagProfile, jobs []*model.Job, qualityMode bool) []scoredJobV2 {
@@ -531,26 +748,66 @@ func scoreAllJobs(cp *candidateTagProfile, jobs []*model.Job, qualityMode bool) 
 		tF := tagFit(tmScore)
 		risk := riskLevel(dirF, tF, tmScore)
 
-		score := 55 + tmScore
+		// K9-1-T-C: base 45 + capped matrix ≤34 for score headroom
+		tmCapped := tmScore
+		if tmCapped > 34 {
+			tmCapped = 34
+		}
+		score := 45 + tmCapped
+
+		// K9-1-T-C: minimal evidence bonuses (precision drives differentiation)
 		if cp.tags.has("project_evidence", 2) {
-			score += 6
+			score += 2
 		}
 		if cp.tags.has("internship_evidence", 2) {
-			score += 5
+			score += 1
 		}
 		if cp.tags.has("research_evidence", 2) {
-			score += 5
+			score += 1
 		}
 		if cp.schoolLevel >= 2 {
-			score += 4
-		}
-		if cp.degreeLevel >= 2 {
-			score += 4
+			score += 1
 		}
 
 		if dirF == "weak" && score > 78 {
 			score = 78
 		}
+
+		// Build temp scoredJob for precision calculation
+		tmp := scoredJobV2{job: job, jp: jp, score: score, dirFit: dirF, tagFit: tF, riskLevel: risk}
+		pbonus := precisionBonus(cp, tmp)
+
+		// K9-1-T-C: risk penalty — penalize when specific domain evidence is missing
+		d := detectJobDomain(jp)
+		riskPenalty := 0
+		if cp.dominantProfile == "algorithm_research" {
+			switch d {
+			case domainAlgorithmMultimodal:
+				if !cp.tags.has("multimodal", 2) {
+					riskPenalty += 3
+				}
+			case domainAlgorithmNLP:
+				if !cp.tags.has("nlp", 2) {
+					riskPenalty += 3
+				}
+			case domainAlgorithmCV:
+				if !cp.tags.has("multimodal", 2) && !cp.tags.has("computer_vision", 1) {
+					riskPenalty += 2
+				}
+			case domainAlgorithmGraphics:
+				riskPenalty += 3 // low relevance for non-Graphics candidates
+			case domainAlgorithmDataScience:
+				if !cp.tags.has("data_analysis_ability", 2) && !cp.tags.has("data", 1) {
+					riskPenalty += 2
+				}
+			case domainAIApplication:
+				if !cp.tags.has("engineering_ability", 2) && !cp.tags.has("backend_service", 1) {
+					riskPenalty += 2
+				}
+			}
+		}
+
+		score = score + pbonus - riskPenalty
 
 		// K9-1-M: profile-aware score caps
 		isAlgoJob := jp.tags.has("algorithm_core", 2) || jp.tags.has("data_science", 2)
@@ -558,21 +815,41 @@ func scoreAllJobs(cp *candidateTagProfile, jobs []*model.Job, qualityMode bool) 
 
 		switch cp.dominantProfile {
 		case "algorithm_research":
-			if isBackendJob && score > 74 { score = 74 }
+			if isBackendJob && score > 74 {
+				score = 74
+			}
 		case "backend_engineering":
-			if isAlgoJob && score > 74 { score = 74 }
+			if isAlgoJob && score > 74 {
+				score = 74
+			}
 		case "product_operation":
 			if isAlgoJob || isBackendJob {
-				if score > 69 { score = 69 }
+				if score > 69 {
+					score = 69
+				}
 			}
 		case "business_solution":
 			if isAlgoJob || isBackendJob {
-				if score > 69 { score = 69 }
+				if score > 69 {
+					score = 69
+				}
 			}
 		case "career_exploration":
 			if isAlgoJob || isBackendJob {
-				if score > 74 { score = 74 }
+				if score > 74 {
+					score = 74
+				}
 			}
+		}
+
+		// K9-1-T-C: tiered score caps
+		if dirF == "strong" && pbonus < 3 {
+			if score > 90 {
+				score = 90
+			}
+		}
+		if risk == "medium" && score > 88 {
+			score = 88
 		}
 
 		if score > 95 {
@@ -582,26 +859,10 @@ func scoreAllJobs(cp *candidateTagProfile, jobs []*model.Job, qualityMode bool) 
 			score = 55
 		}
 
-		scored = append(scored, scoredJobV2{job: job, jp: jp, score: score, dirFit: dirF, tagFit: tF, riskLevel: risk})
+		scored = append(scored, scoredJobV2{job: job, jp: jp, score: score, dirFit: dirF, tagFit: tF, riskLevel: risk, precision: pbonus})
 	}
 
-	sort.Slice(scored, func(i, j int) bool {
-		if scored[i].score != scored[j].score {
-			return scored[i].score > scored[j].score
-		}
-		return scored[i].score > scored[j].score
-	})
-
-	// Spread top positions
-	for i := range scored {
-		if i < 5 {
-			scored[i].score += (5 - i)
-		}
-		if scored[i].score > 95 {
-			scored[i].score = 95
-		}
-	}
-	// K9-1-M: profile-aware tie-break
+	// K9-1-T-C: sort by score, then by dominance profile preference
 	sort.Slice(scored, func(i, j int) bool {
 		if scored[i].score != scored[j].score {
 			return scored[i].score > scored[j].score
@@ -612,13 +873,22 @@ func scoreAllJobs(cp *candidateTagProfile, jobs []*model.Job, qualityMode bool) 
 		ajBack := scored[j].jp.tags.has("backend_service", 2)
 		switch cp.dominantProfile {
 		case "algorithm_research":
-			if aiAlgo && !ajAlgo { return true }
-			if !aiAlgo && ajAlgo { return false }
+			if aiAlgo && !ajAlgo {
+				return true
+			}
+			if !aiAlgo && ajAlgo {
+				return false
+			}
 		case "backend_engineering":
-			if aiBack && !ajBack { return true }
-			if !aiBack && ajBack { return false }
+			if aiBack && !ajBack {
+				return true
+			}
+			if !aiBack && ajBack {
+				return false
+			}
 		}
-		return scored[i].score > scored[j].score
+		// Fallback: prefer higher precision
+		return scored[i].precision > scored[j].precision
 	})
 
 	return scored
@@ -763,19 +1033,456 @@ func buildEvidenceV2(cp *candidateTagProfile, sj scoredJobV2) []model.Recommenda
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// K9-1-T-C: V3 Content Generators (per-job differentiated)
+// ══════════════════════════════════════════════════════════════════════════
+
+func buildWhyRankedHereV3(rank int, cp *candidateTagProfile, sj scoredJobV2, allRanked []scoredJobV2) string {
+	domain := domainLabel(detectJobDomain(sj.jp))
+
+	if rank == 1 {
+		total := len(allRanked)
+		if sj.precision >= 6 {
+			return fmt.Sprintf("该岗位在%s与你的简历证据匹配度最高，在%d个候选岗位中排名第1。", domain, total)
+		}
+		return fmt.Sprintf("该岗位在%s与你的核心方向高度匹配，综合评分排名第1。", domain)
+	}
+
+	prev := allRanked[rank-2]
+	prevDomain := domainLabel(detectJobDomain(prev.jp))
+	scoreGap := prev.score - sj.score
+
+	if sj.precision < prev.precision && scoreGap > 0 {
+		return fmt.Sprintf("该岗位%s与你的方向关联度略低于Top%d（%s），因细分证据差异排在第%d。", domain, rank-1, prevDomain, rank)
+	}
+	if scoreGap > 3 {
+		return fmt.Sprintf("该岗位%s在方向匹配强度上与Top%d存在%d分差距，排在第%d。", domain, rank-1, scoreGap, rank)
+	}
+	if sj.dirFit == "weak" {
+		return fmt.Sprintf("该岗位方向与你的主要技能方向存在偏差，作为备选排在第%d。", rank)
+	}
+	return fmt.Sprintf("该岗位%s与你的背景有一定关联，但匹配证据强度低于前列岗位，排在第%d。", domain, rank)
+}
+
+func buildResumeEvidenceV3(cp *candidateTagProfile, sj scoredJobV2) []string {
+	var ev []string
+	d := detectJobDomain(sj.jp)
+
+	// Extract project names from candidate profile
+	projNames := extractProjectNames(cp)
+	internPositions := extractInternPositions(cp)
+	eduDirection := extractEduDirection(cp)
+
+	switch cp.dominantProfile {
+	case "algorithm_research":
+		// Add research direction evidence if available
+		if eduDirection != "" {
+			ev = append(ev, fmt.Sprintf("%s方向研究", eduDirection))
+		}
+		// Add project evidence
+		if len(projNames) > 0 {
+			ev = append(ev, fmt.Sprintf("%s项目经验", projNames[0]))
+			if len(projNames) > 1 {
+				ev = append(ev, fmt.Sprintf("%s项目经验", projNames[1]))
+			}
+		}
+		if len(internPositions) > 0 && len(ev) < 3 {
+			ev = append(ev, fmt.Sprintf("%s实习经历", internPositions[0]))
+		}
+		// Domain-specific tags
+		if cp.tags.has("modeling_ability", 2) && len(ev) < 3 {
+			ev = append(ev, "深度学习模型训练经验")
+		}
+		if cp.tags.has("experiment_ability", 2) && len(ev) < 3 {
+			ev = append(ev, "实验评估与消融分析能力")
+		}
+
+	case "backend_engineering":
+		if len(projNames) > 0 {
+			ev = append(ev, fmt.Sprintf("%s项目经验", projNames[0]))
+		}
+		if len(internPositions) > 0 {
+			ev = append(ev, fmt.Sprintf("%s实习经历", internPositions[0]))
+		}
+		if cp.tags.has("engineering_ability", 2) && len(ev) < 3 {
+			ev = append(ev, "工程开发与系统设计能力")
+		}
+
+	case "product_operation":
+		if len(internPositions) > 0 {
+			ev = append(ev, fmt.Sprintf("%s实习经历", internPositions[0]))
+		}
+		if len(projNames) > 0 && len(ev) < 3 {
+			ev = append(ev, fmt.Sprintf("%s项目经验", projNames[0]))
+		}
+		if cp.tags.has("product_sense", 2) && len(ev) < 3 {
+			ev = append(ev, "产品分析与用户研究能力")
+		}
+
+	case "business_solution":
+		if len(internPositions) > 0 {
+			ev = append(ev, fmt.Sprintf("%s实习经历", internPositions[0]))
+		}
+		if cp.tags.has("business_understanding", 2) && len(ev) < 3 {
+			ev = append(ev, "商务沟通与需求理解能力")
+		}
+	}
+
+	// Fallback: use candidate tags for evidence
+	if len(ev) == 0 {
+		ev = skillBasedEvidence(cp, d)
+	}
+	if len(ev) == 0 {
+		ev = append(ev, "简历背景与岗位方向具有相关性")
+	}
+
+	return ev[:min(3, len(ev))]
+}
+
+func extractProjectNames(cp *candidateTagProfile) []string {
+	var names []string
+	for _, line := range splitNonEmpty(strings.Split(cp.projText, " ")) {
+		if len(line) > 2 && !isCommonWord(line) {
+			names = append(names, line)
+			if len(names) >= 2 {
+				break
+			}
+		}
+	}
+	return names
+}
+
+func extractInternPositions(cp *candidateTagProfile) []string {
+	var pos []string
+	for _, line := range splitNonEmpty(strings.Split(cp.internText, " ")) {
+		if len(line) > 2 && !isCommonWord(line) {
+			pos = append(pos, line)
+			if len(pos) >= 1 {
+				break
+			}
+		}
+	}
+	return pos
+}
+
+func extractEduDirection(cp *candidateTagProfile) string {
+	if cp.tags.has("recommendation_system", 2) {
+		return "推荐系统"
+	}
+	if cp.tags.has("nlp", 2) {
+		return "自然语言处理"
+	}
+	if cp.tags.has("multimodal", 2) {
+		return "多模态"
+	}
+	return ""
+}
+
+func skillBasedEvidence(cp *candidateTagProfile, d jobDomain) []string {
+	var ev []string
+	switch d {
+	case domainAlgorithmMultimodal, domainAlgorithmCV:
+		if cp.tags.has("modeling_ability", 2) {
+			ev = append(ev, "深度学习建模基础")
+		}
+	case domainAlgorithmNLP:
+		if cp.tags.has("modeling_ability", 2) {
+			ev = append(ev, "序列建模与实验能力")
+		}
+	case domainBackend:
+		if cp.tags.has("engineering_ability", 2) {
+			ev = append(ev, "工程化开发能力")
+		}
+	}
+	return ev
+}
+
+func splitNonEmpty(parts []string) []string {
+	var result []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+func isCommonWord(s string) bool {
+	common := []string{"the", "a", "an", "and", "or", "of", "in", "to", "is", "with", "for", "on", "as", "at", "by", "de", "la", "le", "el", "en"}
+	for _, w := range common {
+		if strings.EqualFold(s, w) {
+			return true
+		}
+	}
+	return false
+}
+
+func buildJobSpecificReasonV3(cp *candidateTagProfile, sj scoredJobV2) string {
+	d := detectJobDomain(sj.jp)
+	domain := domainLabel(d)
+	category := sj.job.Category
+	if category == "" {
+		category = domain
+	}
+
+	switch cp.dominantProfile {
+	case "algorithm_research":
+		switch d {
+		case domainAlgorithmMultimodal:
+			return fmt.Sprintf("%s岗位需要模型实验和跨模态理解能力，你的推荐系统实验和深度学习基础具备迁移价值，但简历中还缺少图文或视频理解项目。", domain)
+		case domainAlgorithmNLP:
+			return fmt.Sprintf("%s岗位与推荐系统在模型训练和数据实验上有共通方法论，但你目前缺少NLP专项项目（如文本分类、命名实体识别、预训练语言模型微调）。", domain)
+		case domainAlgorithmDataScience:
+			return fmt.Sprintf("%s岗位需要较强的数据工程和业务分析能力，你的简历在模型实验方面扎实，但在ETL、数据管道和业务指标分析方面的证据不足。", domain)
+		case domainAlgorithmCV:
+			return fmt.Sprintf("%s岗位需要对视觉任务有深入理解，你的深度学习基础可部分迁移，但缺少计算机视觉专项项目经验。", domain)
+		case domainAlgorithmGraphics:
+			return fmt.Sprintf("%s岗位需要图形学和渲染知识，你的深度学习和实验能力可迁移到图形/视觉方向，但简历中缺少相关证据。", domain)
+		case domainAIApplication:
+			return fmt.Sprintf("%s岗位需要将算法落地为工程应用，你的算法基础和工程能力有迁移价值，但缺少AI服务化和工程化部署经验。", domain)
+		case domainAlgorithmGeneral:
+			return fmt.Sprintf("%s岗位与你的算法研究方向有较强关联，推荐系统实验和模型评估经验可以迁移。", domain)
+		default:
+			return fmt.Sprintf("你的算法研究背景与%s岗位存在一定关联，建议查看岗位要求进一步评估。", category)
+		}
+
+	case "backend_engineering":
+		switch d {
+		case domainBackend:
+			return fmt.Sprintf("%s岗位与你的后端开发能力高度匹配，接口设计、数据库和分布式系统经验可直接复用。", domain)
+		case domainFullstack:
+			return fmt.Sprintf("%s岗位需要前后端综合能力，你的后端工程基础有迁移价值，但前端或全栈项目经验可能需要补充。", domain)
+		case domainDataEngineering:
+			return fmt.Sprintf("%s岗位需要数据平台和管道建设能力，你的工程基础可迁移，但大数据平台（Spark/Hive）经验可能需要补强。", domain)
+		case domainAIApplication:
+			return fmt.Sprintf("%s岗位需要工程化落地AI能力，你的后端基础可支撑AI服务化，但模型调用和推理优化经验需要补充。", domain)
+		case domainClient:
+			return fmt.Sprintf("%s岗位侧重客户端开发，与你的后端主线有差异，需要评估技术栈匹配度。", domain)
+		default:
+			return fmt.Sprintf("你的后台工程背景与%s岗位有一定关联，建议查看技术要求进一步评估。", category)
+		}
+
+	case "product_operation":
+		switch d {
+		case domainProduct:
+			return fmt.Sprintf("%s岗位需要需求分析和产品设计能力，与你的产品背景匹配。", domain)
+		case domainOperation:
+			return fmt.Sprintf("%s岗位需要用户运营和数据驱动增长能力，与你的运营经验有一定关联。", domain)
+		default:
+			return fmt.Sprintf("你的产品背景与%s岗位存在部分交集，建议查看岗位要求。", category)
+		}
+
+	case "business_solution":
+		switch d {
+		case domainBusinessSolution:
+			return fmt.Sprintf("%s岗位需要客户需求和方案设计能力，与你的商务分析背景匹配。", domain)
+		case domainBusinessFunction:
+			return fmt.Sprintf("%s岗位需要综合协调和文档处理能力，与你的职能经验有契合点。", domain)
+		default:
+			return fmt.Sprintf("你的商务背景与%s岗位有一定关联。", category)
+		}
+
+	case "career_exploration":
+		if sj.dirFit == "weak" {
+			return fmt.Sprintf("%s岗位方向与你的简历背景存在较大差距，建议优先探索与你背景更匹配的方向。", category)
+		}
+		return fmt.Sprintf("你的简历背景与%s岗位存在部分交集，可以作为职业探索方向了解。", category)
+	}
+
+	return fmt.Sprintf("你的背景与该%s岗位存在部分交集，建议查看详细要求进一步评估。", category)
+}
+
+func buildJobSpecificRisksV3(cp *candidateTagProfile, sj scoredJobV2) []string {
+	var risks []string
+	d := detectJobDomain(sj.jp)
+
+	switch cp.dominantProfile {
+	case "algorithm_research":
+		switch d {
+		case domainAlgorithmMultimodal:
+			risks = append(risks, "缺少明确多模态项目经历")
+			risks = append(risks, "图像/视频理解相关证据不足")
+		case domainAlgorithmNLP:
+			risks = append(risks, "缺少NLP专项项目或论文")
+			risks = append(risks, "未涉及Transformer/预训练语言模型应用")
+		case domainAlgorithmDataScience:
+			risks = append(risks, "缺少数据工程和pipeline项目")
+			risks = append(risks, "缺少业务分析和A/B测试经验")
+		case domainAlgorithmCV:
+			risks = append(risks, "缺少计算机视觉专项项目经历")
+			risks = append(risks, "图像分类/目标检测/分割等任务经验不足")
+		case domainAlgorithmGraphics:
+			risks = append(risks, "缺少渲染、图形学相关经历")
+			risks = append(risks, "OpenGL/Unity/3D建模等技能证据不足")
+		case domainAIApplication:
+			risks = append(risks, "后端工程化、接口服务、线上部署证据不足")
+			risks = append(risks, "缺少AI模型服务化和推理优化经验")
+		default:
+			if sj.dirFit == "weak" {
+				risks = append(risks, fmt.Sprintf("岗位核心方向与你的主要技能方向不完全一致"))
+			}
+		}
+
+	case "backend_engineering":
+		switch d {
+		case domainClient:
+			risks = append(risks, "缺少客户端开发经验证据")
+			risks = append(risks, "C++/桌面框架/图形界面项目经历不足")
+		case domainDataEngineering:
+			risks = append(risks, "缺少大数据平台（Spark/Hive/Hadoop）实操经验")
+		case domainAIApplication:
+			risks = append(risks, "缺少AI模型调用和推理部署经验")
+		}
+		if sj.dirFit == "weak" {
+			risks = append(risks, "岗位方向与你的后端主线存在偏差")
+		}
+
+	case "product_operation":
+		if sj.dirFit == "weak" {
+			risks = append(risks, "该岗位偏技术方向，与你的产品主线差距较大")
+		}
+
+	case "business_solution":
+		if sj.dirFit == "weak" {
+			risks = append(risks, "该岗位方向与你的商务背景存在差距")
+		}
+	}
+
+	if len(risks) == 0 {
+		if sj.dirFit == "weak" {
+			risks = append(risks, "岗位方向与你的背景存在较大差异")
+		}
+	}
+	if len(risks) == 0 {
+		risks = append(risks, "建议查看岗位详细要求以确认匹配度")
+	}
+	return risks
+}
+
+func buildSuggestedImprovementV3(cp *candidateTagProfile, sj scoredJobV2) string {
+	d := detectJobDomain(sj.jp)
+
+	switch cp.dominantProfile {
+	case "algorithm_research":
+		switch d {
+		case domainAlgorithmMultimodal:
+			return "建议在简历中补充图文检索、视频理解或多模态模型实验经历，并说明数据集、模型结构和评估指标。"
+		case domainAlgorithmNLP:
+			return "建议增加至少1个NLP方向项目（如文本分类/情感分析/问答系统），展示对Transformer架构的实际使用经验。"
+		case domainAlgorithmDataScience:
+			return "建议增加数据清洗/ETL项目，或展示在业务场景中使用数据驱动决策的经历。"
+		case domainAlgorithmCV:
+			return "建议补充图像分类或目标检测项目，展示OpenCV/PyTorch视觉模型训练经验。"
+		case domainAlgorithmGraphics:
+			return "建议补充图形学或视觉相关项目，如3D渲染、图像处理或视觉特效。"
+		case domainAIApplication:
+			return "建议补充AI服务化项目：模型接口封装、Docker部署、性能优化和监控。"
+		default:
+			return "建议继续深化算法方向项目，补充更多模型实验与评估证据。"
+		}
+
+	case "backend_engineering":
+		switch d {
+		case domainClient:
+			return "如对该方向有兴趣，建议补充C++客户端或跨平台开发项目经验。"
+		case domainDataEngineering:
+			return "建议补充Spark/Hive数据处理项目，展示大规模数据管道建设能力。"
+		case domainAIApplication:
+			return "建议补充AI模型部署和在线推理服务相关项目经验。"
+		default:
+			return "建议继续强化后端工程项目，补充分布式系统或高并发实践经验。"
+		}
+
+	case "product_operation":
+		return "建议补充产品数据分析、用户调研或A/B测试相关经验。"
+
+	case "business_solution":
+		return "建议补充行业分析、客户需求沟通或方案策划相关经验。"
+
+	case "career_exploration":
+		return "建议先明确职业方向，再针对目标岗位补充相关项目或实习经历。"
+	}
+
+	return "建议查看岗位详细要求，针对性地补充相关技能和项目经历。"
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Label Calibration (K9-1-T-C)
+// ══════════════════════════════════════════════════════════════════════════
+
+type labeledJob struct {
+	job             *model.RecommendedJob
+	priority        string
+	label           string
+	rank            int
+	precision       int
+	specificRiskLen int
+}
+
+func calibrateLabels(lbls []labeledJob) {
+	strongCount := 0
+	for i := range lbls {
+		lj := &lbls[i]
+
+		if lj.priority == "strong" {
+			// Rule 1: strong cap at 2
+			if strongCount >= 2 {
+				lj.priority = "high"
+				lj.label = "高匹配，重点关注"
+				continue
+			}
+			// Rule 2: rank > 3 cannot be strong
+			if lj.rank > 3 {
+				lj.priority = "high"
+				lj.label = "高匹配，重点关注"
+				continue
+			}
+			// Rule 3: precision < 5 cannot be strong
+			if lj.precision < 5 {
+				lj.priority = "high"
+				lj.label = "高匹配，重点关注"
+				continue
+			}
+			// Rule 4: 2+ specific risks cannot be strong
+			if lj.specificRiskLen >= 2 {
+				lj.priority = "high"
+				lj.label = "高匹配，重点关注"
+				continue
+			}
+			strongCount++
+		}
+	}
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // Build
 // ══════════════════════════════════════════════════════════════════════════
 
 func buildResultsV2(cp *candidateTagProfile, ranked []scoredJobV2, limit int) []model.RecommendedJob {
 	var results []model.RecommendedJob
+	var lbls []labeledJob
+
 	for i := 0; i < min(limit, len(ranked)); i++ {
 		sj := ranked[i]
-		label, priority := recommendationLabelV2(sj.score, sj.dirFit, sj.tagFit, sj.riskLevel, cp.dominantProfile, sj.jp.tags)
+		rank := i + 1
+
+		// K9-1-T-C: use V3 label with precision awareness
+		label, priority := recommendationLabelV3(sj.score, sj.dirFit, sj.tagFit, sj.riskLevel, cp.dominantProfile, sj.jp.tags, sj.precision)
+
+		// Keep V2 builders for existing fields (compatibility)
 		reason := buildReasonV2(cp, sj)
 		highlights := buildHighlightsV2(cp, sj)
-		risks := buildRisksV2(cp, sj)
+		// Use V3 risks for existing RiskPoints too, so card displays differentiate
+		risks := buildJobSpecificRisksV3(cp, sj)
 		action := buildActionV2(cp, sj)
 		ev := buildEvidenceV2(cp, sj)
+
+		// K9-1-T-C: V3 differentiated builders for new fields
+		whyRanked := buildWhyRankedHereV3(rank, cp, sj, ranked[:min(limit, len(ranked))])
+		resumeEv := buildResumeEvidenceV3(cp, sj)
+		jobReason := buildJobSpecificReasonV3(cp, sj)
+		jobRisks := buildJobSpecificRisksV3(cp, sj)
+		improvement := buildSuggestedImprovementV3(cp, sj)
 
 		results = append(results, model.RecommendedJob{
 			JobID:                  sj.job.ID,
@@ -800,8 +1507,30 @@ func buildResultsV2(cp *candidateTagProfile, ranked []scoredJobV2, limit int) []
 			ApplyReadiness:         getReadinessV2(sj.score),
 			OptimizationStopSignal: getStopSignalV2(sj.score),
 			MatchEvidence:          ev,
+			// K9-1-T-C: new per-job explanation fields
+			WhyRankedHere:        whyRanked,
+			ResumeEvidence:       resumeEv,
+			JobSpecificReason:    jobReason,
+			JobSpecificRisks:     jobRisks,
+			SuggestedImprovement: improvement,
+		})
+		lbls = append(lbls, labeledJob{
+			job:             &results[i],
+			priority:        priority,
+			label:           label,
+			rank:            rank,
+			precision:       sj.precision,
+			specificRiskLen: len(jobRisks),
 		})
 	}
+
+	// K9-1-T-C: post-process label calibration (strong ≤ 2, etc.)
+	calibrateLabels(lbls)
+	for i := range lbls {
+		results[i].RecommendationLabel = lbls[i].label
+		results[i].RecommendationPriority = lbls[i].priority
+	}
+
 	return results
 }
 

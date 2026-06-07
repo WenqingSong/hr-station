@@ -128,11 +128,20 @@ export interface RecommendedJobItem {
   risk_points?: string[];
   suggested_action?: string;
 
+  // K9-1-T-D: per-job explanation fields
+  why_ranked_here?: string;
+  resume_evidence?: string[];
+  job_specific_reason?: string;
+  job_specific_risks?: string[];
+  suggested_improvement?: string;
+
   external_source?: string;
   generated_by?: string;
   agent_status?: string;
   priority?: string;
   is_featured?: boolean;
+  recommendation_label?: string;
+  recommendation_priority?: string;
 }
 
 /** 岗位推荐 Agent Result */

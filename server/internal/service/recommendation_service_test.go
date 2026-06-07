@@ -336,7 +336,7 @@ func TestRecService_LLMDisabled_UseMock(t *testing.T) {
 		if j.Title == "" {
 			t.Error("expected non-empty title")
 		}
-		if j.Priority != "strong_recommend" && j.Priority != "recommend" && j.Priority != "try" {
+		if j.Priority != "strong" && j.Priority != "high" && j.Priority != "try" && j.Priority != "backup" && j.Priority != "not_recommended" {
 			t.Errorf("unexpected priority: %s", j.Priority)
 		}
 	}
@@ -509,7 +509,7 @@ func TestRecService_MockResult_FieldsReasonable(t *testing.T) {
 		if j.RecommendationScore < 0 || j.RecommendationScore > 95 {
 			t.Errorf("recommendation_score out of range: %d", j.RecommendationScore)
 		}
-		if j.Priority != "strong_recommend" && j.Priority != "recommend" && j.Priority != "try" {
+		if j.Priority != "strong" && j.Priority != "high" && j.Priority != "try" && j.Priority != "backup" && j.Priority != "not_recommended" {
 			t.Errorf("unexpected priority: %s", j.Priority)
 		}
 		if j.RecommendationReason == "" {
