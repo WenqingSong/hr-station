@@ -94,3 +94,42 @@ type RecommendationJudgeResult struct {
 	FixStrategy string   `json:"fix_strategy"`
 }
 
+// ── K9-1-Regression-D: Feature Cards ──────────────────────────────────────
+
+type ResumeFeatureCard struct {
+	ResumeID            uint64
+	PrimaryDirection    string
+	StrongCapabilities  []string
+	WeakCapabilities    []string
+	NegativePreferences []string
+	HardMissing         []string
+	IsTechnical         bool
+	IsAlgorithm         bool
+	IsBackend           bool
+	IsProduct           bool
+	IsPublicService     bool
+	AvoidInternetGrowth  bool
+}
+
+type JobFeatureCard struct {
+	JobID              uint64
+	Title              string
+	Direction          string
+	IsTechnical        bool
+	IsAlgorithm        bool
+	IsComputerVision   bool
+	IsBackend          bool
+	IsFrontendOrClient bool
+	IsProduct          bool
+	IsResearchOrUser   bool
+	IsPublicServiceLike bool
+	IsGrowthOrSales    bool
+}
+
+type GuardResult struct {
+	Pass         bool
+	MaxScore     int
+	Reasons      []string
+	IsWeakMatch  bool
+}
+

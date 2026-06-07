@@ -311,28 +311,23 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 	var recommendedJobs []model.RecommendedJob
 	var err error
 
-	// K9-1-H4-C: use stored profile tags if available
-	usedProfile := false
-	if s.profileSvc != nil && resume.ID > 0 && profileDominant != "" {
-		profile, findErr := s.profileSvc.GetProfileStatus(ctx, userID, resume.ID)
-		if findErr == nil && profile.FastStatus == "ready" {
-			candTags := convertProfileTags(profile.PrimaryTags)
-			if len(candTags) > 0 {
-				log.Printf("[RecommendationService] using stored profile dominant=%s tags=%d", profileDominant, len(candTags))
-				if qualityMode {
-					recommendedJobs, err = s.mockAgent.RecommendQualityWithStoredProfile(resume, jobs, profileDominant, candTags, nil)
-				} else {
+	// K9-1-Regression-D: quality mode uses Feature Card + Hard Guard pipeline
+	if qualityMode {
+		recommendedJobs = s.mockAgent.RecommendQualityWithFeatureCards(resume, jobs, profileDominant)
+	} else {
+		// Fast mode: use stored profile tags if available
+		usedProfile := false
+		if s.profileSvc != nil && resume.ID > 0 && profileDominant != "" {
+			profile, findErr := s.profileSvc.GetProfileStatus(ctx, userID, resume.ID)
+			if findErr == nil && profile.FastStatus == "ready" {
+				candTags := convertProfileTags(profile.PrimaryTags)
+				if len(candTags) > 0 {
 					recommendedJobs, err = s.mockAgent.RecommendWithStoredProfile(resume, jobs, profileDominant, candTags, nil)
+					usedProfile = true
 				}
-				usedProfile = true
 			}
 		}
-	}
-
-	if !usedProfile {
-		if qualityMode {
-			recommendedJobs, err = s.mockAgent.RecommendQuality(context.Background(), resume, jobs)
-		} else {
+		if !usedProfile {
 			recommendedJobs, err = s.mockAgent.Recommend(context.Background(), resume, jobs)
 		}
 	}

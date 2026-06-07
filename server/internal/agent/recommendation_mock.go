@@ -1720,3 +1720,247 @@ func degreeLabel(l int) string {
 		return "高等教育"
 	}
 }
+
+// ── K9-1-Regression-D: Feature Cards + Hard Guard ─────────────────────────
+
+func buildResumeFeatureCard(r *model.ResumeVersion, profileDominant string) *model.ResumeFeatureCard {
+	// Build comprehensive text from all resume fields
+	text := strings.ToLower(r.RawText)
+	if text == "" {
+		var sb strings.Builder
+		sb.WriteString(strings.ToLower(r.Name + " "))
+		sb.WriteString(strings.ToLower(r.ProfessionalSkills + " "))
+		sb.WriteString(strings.ToLower(r.AIApplication + " "))
+		sb.WriteString(strings.ToLower(r.AdditionalInfo + " "))
+		sb.WriteString(strings.ToLower(r.SelfEvaluation + " "))
+		text = sb.String()
+	}
+	card := &model.ResumeFeatureCard{
+		ResumeID:         r.ID,
+		PrimaryDirection: profileDominant,
+	}
+
+	// Strong technical signals
+	hasPyTorch := strings.Contains(text, "pytorch") || strings.Contains(text, "tensorflow") || strings.Contains(text, "深度学习")
+	hasAlgorithm := hasPyTorch || strings.Contains(text, "算法") || strings.Contains(text, "推荐系统") || strings.Contains(text, "排序模型") || strings.Contains(text, "ctr") || strings.Contains(text, "ndcg") || strings.Contains(text, "auc")
+	hasCV := strings.Contains(text, "计算机视觉") || strings.Contains(text, "图像识别") || strings.Contains(text, "视觉模型") || strings.Contains(text, "卷积")
+	hasBackend := strings.Contains(text, "后端") || strings.Contains(text, "后台开发") || strings.Contains(text, "mysql") || strings.Contains(text, "redis") || strings.Contains(text, "docker") || strings.Contains(text, "接口开发") || strings.Contains(text, "gin") || strings.Contains(text, "spring")
+	hasProduct := strings.Contains(text, "产品经理") || strings.Contains(text, "需求分析") || strings.Contains(text, "prd") || strings.Contains(text, "原型设计") || strings.Contains(text, "axure")
+	hasPublicSvc := strings.Contains(text, "公益") || strings.Contains(text, "公共服务") || strings.Contains(text, "社会调研") || strings.Contains(text, "组织支持") || strings.Contains(text, "教育公益") || strings.Contains(text, "社区服务")
+	hasBiz := strings.Contains(text, "商务分析") || strings.Contains(text, "采购管理") || strings.Contains(text, "供应链") || strings.Contains(text, "客户需求") || strings.Contains(text, "合同")
+
+	card.IsTechnical = hasAlgorithm || hasBackend || hasCV
+	card.IsAlgorithm = hasAlgorithm
+	card.IsBackend = hasBackend
+	card.IsProduct = hasProduct
+	card.IsPublicService = hasPublicSvc && !hasAlgorithm && !hasBackend
+
+	// Strong capabilities
+	if hasPublicSvc && !card.IsTechnical {
+		card.StrongCapabilities = []string{"社会调研", "报告写作", "项目协调"}
+		card.AvoidInternetGrowth = true
+	}
+	if hasAlgorithm {
+		card.StrongCapabilities = append(card.StrongCapabilities, "算法建模", "深度学习", "实验评估")
+	}
+	if hasBackend {
+		card.StrongCapabilities = append(card.StrongCapabilities, "后端开发", "数据库设计", "接口开发")
+	}
+	if hasProduct {
+		card.StrongCapabilities = append(card.StrongCapabilities, "需求分析", "用户研究", "项目推进")
+	}
+	if hasBiz {
+		card.StrongCapabilities = append(card.StrongCapabilities, "商务沟通", "方案表达", "客户需求")
+	}
+
+	// Weak capabilities
+	if !hasAlgorithm && !hasCV {
+		card.WeakCapabilities = append(card.WeakCapabilities, "算法建模")
+	}
+	if !hasBackend {
+		card.WeakCapabilities = append(card.WeakCapabilities, "后端开发")
+	}
+	if !card.IsTechnical && hasPublicSvc {
+		card.HardMissing = []string{"算法", "计算机视觉", "后端开发", "机器学习工程"}
+		card.NegativePreferences = []string{"不适合快节奏商业增长和技术密集型岗位"}
+	}
+
+	return card
+}
+
+func buildJobFeatureCard(job *model.Job) *model.JobFeatureCard {
+	title := strings.ToLower(job.Title)
+	desc := strings.ToLower(job.Description + " " + job.Requirements)
+	card := &model.JobFeatureCard{
+		JobID:   job.ID,
+		Title:   job.Title,
+		Direction: job.Direction,
+	}
+
+	card.IsAlgorithm = strings.Contains(title, "算法") || strings.Contains(title, "nlp") || strings.Contains(title, "自然语言") || strings.Contains(title, "推荐") || strings.Contains(title, "数据科学") || strings.Contains(title, "机器学习") || strings.Contains(title, "高性能计算") || strings.Contains(title, "AI应用")
+	card.IsComputerVision = strings.Contains(title, "计算机视觉") || strings.Contains(title, "视觉") || strings.Contains(title, "图像") || strings.Contains(title, "cv")
+	card.IsBackend = strings.Contains(title, "后台") || strings.Contains(title, "后端") || strings.Contains(title, "开发") || strings.Contains(title, "全栈") || strings.Contains(title, "平台") || strings.Contains(desc, "后端")
+	card.IsFrontendOrClient = strings.Contains(title, "前端") || strings.Contains(title, "客户端") || strings.Contains(title, "移动端")
+	card.IsProduct = strings.Contains(title, "产品") || strings.Contains(title, "用户研究") || strings.Contains(title, "运营") || strings.Contains(title, "项目")
+	card.IsResearchOrUser = strings.Contains(title, "研究") || strings.Contains(title, "调研") || strings.Contains(title, "用户研究") || strings.Contains(title, "行业研究") || strings.Contains(title, "学术")
+	card.IsPublicServiceLike = strings.Contains(title, "公共") || strings.Contains(title, "公益") || strings.Contains(title, "教育") || strings.Contains(title, "组织") || strings.Contains(title, "内容研究") || strings.Contains(title, "项目")
+	card.IsGrowthOrSales = strings.Contains(title, "销售") || strings.Contains(title, "商务") || strings.Contains(title, "采购") || strings.Contains(title, "拓展") || strings.Contains(title, "渠道")
+	card.IsTechnical = card.IsAlgorithm || card.IsBackend || card.IsFrontendOrClient || strings.Contains(title, "数据") || strings.Contains(title, "工程") || strings.Contains(title, "系统") || strings.Contains(title, "技术研究") || strings.Contains(title, "安全技术") || strings.Contains(title, "软件开发")
+
+	return card
+}
+
+func applyHardGuard(resume *model.ResumeFeatureCard, job *model.JobFeatureCard) *model.GuardResult {
+	result := &model.GuardResult{Pass: true, MaxScore: 100}
+
+	// Rule 1: non-technical resume + technical job → max score 65
+	if !resume.IsTechnical && job.IsTechnical {
+		result.MaxScore = minInt(result.MaxScore, 65)
+		result.Reasons = append(result.Reasons, "非技术简历与技术岗方向不匹配")
+	}
+
+	// Rule 2: no algorithm evidence + algorithm job
+	if !resume.IsAlgorithm && job.IsAlgorithm {
+		result.MaxScore = minInt(result.MaxScore, 60)
+		result.Reasons = append(result.Reasons, "简历缺少算法方向证据")
+	}
+
+	// Rule 3: no CV evidence + CV job → strong penalty
+	if job.IsComputerVision && (len(resume.HardMissing) > 0) {
+		result.MaxScore = minInt(result.MaxScore, 55)
+		result.Reasons = append(result.Reasons, "简历无计算机视觉证据，极弱匹配")
+	}
+
+	// Rule 4: no backend evidence + backend job
+	if !resume.IsBackend && job.IsBackend {
+		result.MaxScore = minInt(result.MaxScore, 65)
+		result.Reasons = append(result.Reasons, "简历缺少后端开发证据")
+	}
+
+	// Rule 5: avoid internet growth
+	if resume.AvoidInternetGrowth && job.IsGrowthOrSales {
+		result.MaxScore = minInt(result.MaxScore, 60)
+		result.Reasons = append(result.Reasons, "候选人不倾向快节奏商业增长方向")
+	}
+
+	// Rule 6: public service resume + technical job → hard mismatch
+	if resume.IsPublicService && (job.IsAlgorithm || job.IsComputerVision) {
+		result.MaxScore = minInt(result.MaxScore, 50)
+		result.Reasons = append(result.Reasons, "公共服务背景与算法/CV技术岗严重不匹配")
+	}
+
+	// Rule 7: public service resume → prefer research/organization roles
+	if resume.IsPublicService && (job.IsResearchOrUser || job.IsPublicServiceLike) {
+		result.MaxScore = 90 // boost
+	}
+
+	if result.MaxScore < 60 {
+		result.Pass = false
+	}
+
+	return result
+}
+
+func minInt(a, b int) int {
+	if a < b { return a }
+	return b
+}
+
+// ── Quality Recommender with Feature Cards ────────────────────────────────
+
+// RecommendQualityWithFeatureCards generates deep recommendations using feature cards + hard guard.
+func (a *RecommendationMockAgent) RecommendQualityWithFeatureCards(resume *model.ResumeVersion, jobs []*model.Job, profileDominant string) []model.RecommendedJob {
+	if resume == nil {
+		return nil
+	}
+	resumeCard := buildResumeFeatureCard(resume, profileDominant)
+
+	type scoredJob struct {
+		job   *model.Job
+		score int
+		guard *model.GuardResult
+	}
+
+	var candidates []scoredJob
+	for _, j := range jobs {
+		if j == nil { continue }
+		jobCard := buildJobFeatureCard(j)
+		guard := applyHardGuard(resumeCard, jobCard)
+
+		// Start from modest base, incremented by direction match
+		score := 70 // base: neutral match
+		if resumeCard.IsAlgorithm && jobCard.IsAlgorithm { score += 20 }
+		if resumeCard.IsBackend && jobCard.IsBackend { score += 20 }
+		if resumeCard.IsProduct && jobCard.IsProduct { score += 22 }
+		if resumeCard.IsPublicService && jobCard.IsPublicServiceLike { score += 18 }
+		if resumeCard.IsPublicService && jobCard.IsResearchOrUser { score += 12 }
+		if resumeCard.IsProduct && jobCard.IsResearchOrUser { score += 8 }
+
+		// Guard-imposed cap (don't exceed what guard allows)
+		if score > guard.MaxScore { score = guard.MaxScore }
+		if score > 95 { score = 95 }
+
+		// Hard mismatch caps
+		if resumeCard.IsPublicService && jobCard.IsTechnical && score > 65 { score = 65 }
+		if !resumeCard.IsTechnical && jobCard.IsAlgorithm && score > 60 { score = 60 }
+
+		// Solution jobs: cap for non-business profiles
+		title := strings.ToLower(j.Title)
+		isSolutionJob := strings.Contains(title, "解决方案") || strings.Contains(title, "商务拓展") || strings.Contains(title, "采购")
+		if isSolutionJob && !resumeCard.IsAlgorithm && !resumeCard.IsBackend {
+			if resumeCard.IsProduct && score > 75 { score = 75 }
+			if resumeCard.IsPublicService && score > 78 { score = 78 }
+		}
+
+		candidates = append(candidates, scoredJob{job: j, score: score, guard: guard})
+	}
+
+	// Sort by score desc
+	for i := 0; i < len(candidates); i++ {
+		for j := i + 1; j < len(candidates); j++ {
+			if candidates[j].score > candidates[i].score {
+				candidates[i], candidates[j] = candidates[j], candidates[i]
+			}
+		}
+	}
+
+	// Select Top5
+	n := 5
+	if len(candidates) < n { n = len(candidates) }
+	if n == 0 { return nil }
+
+	var results []model.RecommendedJob
+	for i := 0; i < n; i++ {
+		sc := candidates[i]
+		j := sc.job
+		score := sc.score
+		// Proper label tiers
+		label := "可尝试，需要补强"
+		if score >= 88 { label = "强匹配，优先关注" }
+		if score >= 80 && score < 88 { label = "高匹配，重点关注" }
+		if score >= 70 && score < 80 { label = "可尝试，需要补强" }
+		if score >= 60 && score < 70 { label = "弱相关，可谨慎尝试" }
+		if score < 60 { label = "不建议优先" }
+
+		results = append(results, model.RecommendedJob{
+			JobID:               j.ID,
+			Title:               j.Title,
+			Department:          j.Department,
+			City:                j.City,
+			Category:            j.Category,
+			Priority:            "high",
+			RecommendationScore: score,
+			RecommendationReason: fmt.Sprintf("基于完整特征分析，匹配度 %d 分", score),
+			RecommendationLabel: label,
+			MatchHighlights:     []string{"基于简历完整内容分析"},
+			RiskPoints:          sc.guard.Reasons,
+			SuggestedAction:     "建议查看岗位详情。",
+			AgentStatus:         "mock_success",
+			GeneratedBy:         "mock_quality",
+			WhyRankedHere:       fmt.Sprintf("排在第 %d 位", i+1),
+			JobSpecificReason:   fmt.Sprintf("综合匹配度 %d", score),
+		})
+	}
+
+	return results
+}
