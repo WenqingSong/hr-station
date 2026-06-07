@@ -1866,6 +1866,267 @@ func minInt(a, b int) int {
 	return b
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// Deep Detail Builders — generate meaningful content for each quality job
+// ══════════════════════════════════════════════════════════════════════════
+
+func buildWhyRankedHere(rank int, resume *model.ResumeFeatureCard, job *model.JobFeatureCard, guard *model.GuardResult) string {
+	dir := job.Title
+	if resume.IsAlgorithm && job.IsAlgorithm {
+		return fmt.Sprintf("该岗位方向（%s）与简历中的算法建模、深度学习训练及实验评估经历高度相关，因此进入深度推荐 Top5。", dir)
+	}
+	if resume.IsBackend && job.IsBackend {
+		return fmt.Sprintf("该岗位方向（%s）与简历中的后台开发、数据库设计及接口开发能力高度匹配，因此进入深度推荐 Top5。", dir)
+	}
+	if resume.IsProduct && job.IsProduct {
+		return fmt.Sprintf("该岗位方向（%s）与简历中的需求分析、用户研究及项目推进经验密切关联，因此进入深度推荐 Top5。", dir)
+	}
+	if resume.IsPublicService && job.IsResearchOrUser {
+		return fmt.Sprintf("该岗位方向（%s）与简历中的社会调研、报告写作与项目协调经验存在可迁移关联，因此进入深度推荐 Top5 作为低风险尝试选项。", dir)
+	}
+	if resume.IsPublicService && job.IsPublicServiceLike {
+		return fmt.Sprintf("该岗位方向（%s）与简历中的公共服务、组织协同及材料输出经验有一定契合度，因此进入深度推荐 Top5。", dir)
+	}
+	// R5: public service → solution/business jobs (weak cross-direction)
+	if resume.IsPublicService && !job.IsTechnical {
+		return fmt.Sprintf("该岗位方向（%s）与简历中的调研分析、材料输出及项目支持经验存在弱关联，但因方向差异较大，排在 Top5 靠后位置作为参考。", dir)
+	}
+	// R4: product/exploration → non-product jobs
+	if resume.IsProduct && !job.IsProduct && !job.IsTechnical {
+		return fmt.Sprintf("该岗位方向（%s）与简历中的通用分析及协调能力部分匹配，但因方向不够聚焦，排在 Top5 靠后位置。", dir)
+	}
+	if !resume.IsTechnical && !job.IsTechnical {
+		return fmt.Sprintf("该岗位方向（%s）与简历中的通用能力部分匹配，方向关联性尚可，因此进入深度推荐 Top5 作为潜在探索方向。", dir)
+	}
+	if len(guard.Reasons) > 0 {
+		return fmt.Sprintf("该岗位方向（%s）与简历存在弱关联，但因%s，排名靠后，仍进入 Top5 作为参考。", dir, guard.Reasons[0])
+	}
+	return fmt.Sprintf("该岗位方向（%s）与简历部分能力可迁移，因整体匹配度有限，排在 Top5 靠后位置。", dir)
+}
+
+func buildResumeEvidence(resume *model.ResumeFeatureCard, job *model.JobFeatureCard) []string {
+	var evidence []string
+	caps := resume.StrongCapabilities
+
+	// ── Strong match evidence ──
+	if resume.IsAlgorithm && job.IsAlgorithm {
+		evidence = append(evidence, "简历中包含深度学习模型训练、实验评估及算法研究相关经历")
+		evidence = append(evidence, "简历涵盖多模态/推荐系统/自然语言处理等算法方向的项目实践")
+		if len(caps) >= 1 {
+			evidence = append(evidence, fmt.Sprintf("简历展示出 %s 方向的可信能力信号", caps[0]))
+		}
+	}
+	if resume.IsBackend && job.IsBackend {
+		evidence = append(evidence, "简历中包含后台系统设计与接口开发经历")
+		evidence = append(evidence, "简历涵盖数据库设计、服务部署及工程化实践能力")
+		if len(caps) >= 1 {
+			evidence = append(evidence, fmt.Sprintf("简历展示出 %s 方向的可信能力信号", caps[0]))
+		}
+	}
+	if resume.IsProduct && job.IsProduct {
+		evidence = append(evidence, "简历中包含需求分析、用户调研及产品策划相关经历")
+		evidence = append(evidence, "简历涵盖跨部门项目推进与团队协作能力")
+		if len(caps) >= 1 {
+			evidence = append(evidence, fmt.Sprintf("简历展示出 %s 方向的可信能力信号", caps[0]))
+		}
+	}
+	if resume.IsPublicService && (job.IsResearchOrUser || job.IsPublicServiceLike) {
+		evidence = append(evidence, "简历中包含社会调研、问卷设计与实地访谈经历")
+		evidence = append(evidence, "简历涵盖报告撰写、组织协同与材料输出能力")
+	}
+
+	// ── Cross-direction / weak match evidence ──
+	if !resume.IsTechnical && !job.IsTechnical && len(caps) >= 2 {
+		evidence = append(evidence, fmt.Sprintf("简历在 %s 和 %s 方面具备可迁移通用能力", caps[0], caps[1]))
+	}
+	// Product resume → solution/business jobs: emphasize transferable analysis skills
+	if resume.IsProduct && !job.IsProduct && !job.IsTechnical && len(caps) >= 2 {
+		evidence = append(evidence, fmt.Sprintf("产品背景中的 %s 能力可部分迁移至该岗位的需求梳理与方案设计环节", caps[0]))
+	}
+	// Public Service resume → non-tech jobs: emphasize research/writing skills
+	if resume.IsPublicService && !job.IsTechnical && !job.IsResearchOrUser && !job.IsPublicServiceLike {
+		evidence = append(evidence, "简历中的社会调研方法、问卷设计与报告输出能力对需求分析和材料沉淀有可迁移价值")
+		evidence = append(evidence, "简历中的项目协调与组织协同经验可迁移至该岗位的跨部门沟通环节")
+	}
+
+	// ── Guarantee at least 2 items ──
+	if len(evidence) < 2 {
+		if len(caps) >= 2 {
+			evidence = append(evidence, fmt.Sprintf("简历在 %s 方面具备基础能力信号", caps[1]))
+		} else if len(caps) == 1 {
+			evidence = append(evidence, "简历在通用能力方面有基础信号，可进一步关注具体岗位要求")
+		} else {
+			evidence = append(evidence, "简历在基础沟通协作与项目执行方面有初步信号")
+		}
+	}
+	// Still not enough: add one more generic item
+	if len(evidence) < 2 {
+		evidence = append(evidence, "建议根据目标岗位方向在简历中补充更聚焦的项目经历")
+	}
+
+	if len(evidence) > 4 {
+		evidence = evidence[:4]
+	}
+	return evidence
+}
+
+func buildJobSpecificReason(resume *model.ResumeFeatureCard, job *model.JobFeatureCard, guard *model.GuardResult, score int) string {
+	if resume.IsAlgorithm && job.IsAlgorithm {
+		return fmt.Sprintf("简历背景与 %s 岗位在算法建模、模型评估及实验设计方面有明确对应关系，推荐分数 %d 反映方向高度一致。建议重点准备算法八股文及在线编程环节。", job.Title, score)
+	}
+	if resume.IsBackend && job.IsBackend {
+		return fmt.Sprintf("简历背景与 %s 岗位在后台系统开发、数据库设计及接口工程方面有明确对应关系，推荐分数 %d 反映方向高度一致。建议重点准备系统设计及编码面试。", job.Title, score)
+	}
+	if resume.IsProduct && job.IsProduct {
+		return fmt.Sprintf("简历背景与 %s 岗位在需求分析、用户研究及产品策划方面有较强关联，推荐分数 %d 反映方向匹配度较高。建议梳理过往产品项目的量化成果。", job.Title, score)
+	}
+	if resume.IsPublicService && (job.IsResearchOrUser || job.IsPublicServiceLike) {
+		return fmt.Sprintf("简历背景与 %s 岗位在社会调研、报告输出及项目支持方面存在可迁移关联，推荐分数 %d 反映方向部分匹配。需确认岗位实际职责是否与个人长期规划一致。", job.Title, score)
+	}
+	// R5: public service → non-tech jobs (weak cross-direction)
+	if resume.IsPublicService && !job.IsTechnical {
+		return fmt.Sprintf("简历背景与 %s 岗位方向存在较大差异，在调研分析、材料输出及项目支持方面有弱可迁移关联，推荐分数 %d 反映匹配度有限。建议谨慎评估岗位职责是否符合个人发展方向，不应将此包装为技术或算法能力。", job.Title, score)
+	}
+	// R4: product/exploration → non-product jobs
+	if resume.IsProduct && !job.IsProduct && !job.IsTechnical {
+		return fmt.Sprintf("简历背景与 %s 岗位在通用能力方面存在部分关联，推荐分数 %d 反映方向聚焦不足。建议先确认该方向是否与个人兴趣匹配，再决定是否深入准备。", job.Title, score)
+	}
+	if !resume.IsTechnical && !job.IsTechnical {
+		return fmt.Sprintf("简历背景与 %s 岗位在通用能力方面存在部分关联，推荐分数 %d 反映方向聚焦不足。建议先确认该方向是否与个人发展目标匹配，再决定是否深入投入。", job.Title, score)
+	}
+	return fmt.Sprintf("简历背景与 %s 岗位在部分能力维度存在弱关联，推荐分数 %d 反映匹配度有限。建议慎重评估岗位职责与个人背景差距。", job.Title, score)
+}
+
+func buildJobSpecificRisks(resume *model.ResumeFeatureCard, job *model.JobFeatureCard, guard *model.GuardResult) []string {
+	var risks []string
+	// Guard reasons as first risks
+	for _, r := range guard.Reasons {
+		risks = append(risks, r)
+	}
+	// Add directional risks
+	if resume.IsAlgorithm && job.IsAlgorithm {
+		risks = append(risks, "算法岗位竞争激烈，面试要求较高，需要提前准备编程、数学基础和论文复现能力")
+	}
+	if resume.IsBackend && job.IsBackend {
+		risks = append(risks, "后台开发岗位对系统设计和高并发经验有一定要求，简历中的工程实践深度需要进一步验证")
+	}
+	if resume.IsProduct && job.IsProduct {
+		risks = append(risks, "产品岗位对业务理解和数据驱动决策能力要求较高，建议梳理过往项目的量化成果")
+	}
+	if resume.IsPublicService {
+		if job.IsAlgorithm || job.IsTechnical {
+			risks = append(risks, "简历缺乏核心技术证据，该岗位需要扎实的算法/工程基础，转换成本较高")
+		} else {
+			risks = append(risks, "简历方向聚焦不足，从公共服务到该岗位属于方向迁移，需要确认岗位实际工作是否匹配个人兴趣")
+		}
+	}
+	if !resume.IsTechnical && !job.IsTechnical && !resume.IsPublicService {
+		risks = append(risks, "简历方向还不够聚焦，缺少该岗位核心能力的直接证据，竞争力不足")
+	}
+	if len(risks) < 1 {
+		risks = append(risks, "该岗位与简历方向存在一定差距，建议进一步评估匹配度")
+	}
+	return risks
+}
+
+func buildSuggestedImprovement(resume *model.ResumeFeatureCard, job *model.JobFeatureCard, guard *model.GuardResult) string {
+	if resume.IsAlgorithm && job.IsAlgorithm {
+		return "建议在简历中补充模型评估指标（准确率/召回率/AUC）、数据集规模及消融分析结果；面试前重点准备 LeetCode 及算法八股文。"
+	}
+	if resume.IsBackend && job.IsBackend {
+		return "建议在简历中补充系统 QPS、数据库优化方案及线上问题处理经验；面试前重点准备系统设计及语言基础。"
+	}
+	if resume.IsProduct && job.IsProduct {
+		return "建议在简历中补充产品项目的量化成果（DAU/留存率/转化率）、需求文档及竞品分析案例。"
+	}
+	if resume.IsPublicService && (job.IsResearchOrUser || job.IsPublicServiceLike) {
+		return "建议在简历中补充调研报告样本、访谈样本量及项目落地成果的量化数据；确认岗位职责是否偏调研分析而非商务拓展。"
+	}
+	// R5: public service → non-tech jobs
+	if resume.IsPublicService && !job.IsTechnical {
+		return "建议先明确职业方向，在简历中补充目标行业相关的项目经历或实习；如果目标为调研分析类岗位，建议补充问卷设计、数据分析及报告撰写的量化成果；不应强行包装技术能力。"
+	}
+	if !resume.IsTechnical && !job.IsTechnical {
+		return "建议先明确职业方向，重点补充目标岗位相关的项目经历或实习经验；考虑先从低门槛通用岗位入手积累行业认知。"
+	}
+	return "建议针对目标岗位补充至少 1-2 个相关项目经历，并参照岗位 JD 逐项对齐简历描述。"
+}
+
+func buildMatchHighlights(resume *model.ResumeFeatureCard, job *model.JobFeatureCard) []string {
+	var h []string
+	caps := resume.StrongCapabilities
+	if resume.IsAlgorithm && job.IsAlgorithm {
+		h = append(h, "算法方向高度匹配：简历在多模态/NLP/推荐系统方面有可信项目经历")
+		h = append(h, "实验评估能力强：具备模型训练、评估与消融分析的实践能力")
+	}
+	if resume.IsBackend && job.IsBackend {
+		h = append(h, "后台开发方向高度匹配：简历在服务端开发、数据库设计方面有工程实践")
+		h = append(h, "工程化能力可信：具备接口开发、服务部署及基础架构相关经历")
+	}
+	if resume.IsProduct && job.IsProduct {
+		h = append(h, "产品方向高度匹配：简历在需求分析、用户调研方面有实践经验")
+		h = append(h, "协作与推进能力可信：简历展示出跨团队协作和项目落地能力")
+	}
+	if resume.IsPublicService && (job.IsResearchOrUser || job.IsPublicServiceLike) {
+		h = append(h, "调研分析能力可迁移：简历展示出问卷设计、实地访谈及报告输出能力")
+		h = append(h, "组织协同能力匹配：简历在项目支持、材料沉淀方面有真实经历")
+	}
+	// R4/R5: weak/cross-direction match
+	if resume.IsPublicService && !job.IsTechnical {
+		h = append(h, "调研方法与材料输出可迁移：简历中的访谈、问卷及报告能力可部分迁移至需求分析与方案设计")
+		h = append(h, "项目协调能力：简历在公益项目支持方面的组织协同经验具备通用价值")
+	}
+	if resume.IsProduct && !job.IsProduct && !job.IsTechnical && !resume.IsPublicService {
+		h = append(h, "分析能力可迁移：产品背景中的需求分析与用户调研方法可部分迁移")
+		h = append(h, "协作能力：简历中的跨部门推进经验对项目管理和沟通协调有参考价值")
+	}
+	if len(h) < 2 {
+		if len(caps) >= 2 {
+			h = append(h, fmt.Sprintf("%s能力：简历展示出 %s 方向的相关信号", caps[0], caps[0]))
+			h = append(h, fmt.Sprintf("%s能力：简历在 %s 方面有基础实践经验", caps[1], caps[1]))
+		} else if len(caps) == 1 {
+			h = append(h, fmt.Sprintf("%s能力：简历展示出该方向的基础信号", caps[0]))
+			h = append(h, "通用能力匹配：简历在沟通协作与项目执行方面有基础经验")
+		} else {
+			h = append(h, "通用能力匹配：简历在沟通协作方面有基础信号")
+			h = append(h, "可迁移能力：基础项目经验可部分迁移至该岗位")
+		}
+	}
+	return h[:2]
+}
+
+func buildSuggestedAction(resume *model.ResumeFeatureCard, job *model.JobFeatureCard, score int, label string) string {
+	if score >= 88 {
+		return "建议重点查看岗位详情，使用匹配分析功能进一步评估投递策略，并提前准备针对性简历和面试。"
+	}
+	if score >= 80 {
+		return "建议查看岗位详情并进入匹配分析，确认职责与个人背景的匹配度后再决定投递。"
+	}
+	if score >= 70 {
+		return "建议先确认岗位职责是否与个人职业规划方向一致，再决定是否进入匹配分析。"
+	}
+	if resume.IsPublicService && !job.IsTechnical {
+		return "建议先确认岗位实际工作内容是否偏调研、项目支持或材料沉淀，明确方向后再决定是否深入匹配分析。"
+	}
+	return "建议先确认岗位方向是否与个人长期规划匹配，再决定是否投入时间准备。"
+}
+
+func buildRecommendationReason(resume *model.ResumeFeatureCard, job *model.JobFeatureCard, score int) string {
+	if resume.IsAlgorithm && job.IsAlgorithm {
+		return fmt.Sprintf("基于算法方向特征分析：简历在模型训练、实验评估及深度学习方面有明确信号，与 %s 岗位匹配度 %d 分。", job.Title, score)
+	}
+	if resume.IsBackend && job.IsBackend {
+		return fmt.Sprintf("基于后台开发特征分析：简历在系统设计、数据库及接口工程方面有明确信号，与 %s 岗位匹配度 %d 分。", job.Title, score)
+	}
+	if resume.IsProduct && job.IsProduct {
+		return fmt.Sprintf("基于产品特征分析：简历在需求分析、用户研究及项目推进方面有明确信号，与 %s 岗位匹配度 %d 分。", job.Title, score)
+	}
+	if resume.IsPublicService && !job.IsTechnical {
+		return fmt.Sprintf("基于公共服务背景特征分析：简历在调研分析、报告写作及项目协调方面有可迁移信号，与 %s 岗位弱匹配度 %d 分。", job.Title, score)
+	}
+	return fmt.Sprintf("基于综合特征分析：简历在部分通用维度有可迁移信号，与 %s 岗位匹配度 %d 分。", job.Title, score)
+}
+
 // ── Quality Recommender with Feature Cards ────────────────────────────────
 
 // RecommendQualityWithFeatureCards generates deep recommendations using feature cards + hard guard.
@@ -1879,6 +2140,7 @@ func (a *RecommendationMockAgent) RecommendQualityWithFeatureCards(resume *model
 		job   *model.Job
 		score int
 		guard *model.GuardResult
+		card  *model.JobFeatureCard
 	}
 
 	var candidates []scoredJob
@@ -1912,7 +2174,7 @@ func (a *RecommendationMockAgent) RecommendQualityWithFeatureCards(resume *model
 			if resumeCard.IsPublicService && score > 78 { score = 78 }
 		}
 
-		candidates = append(candidates, scoredJob{job: j, score: score, guard: guard})
+		candidates = append(candidates, scoredJob{job: j, score: score, guard: guard, card: jobCard})
 	}
 
 	// Sort by score desc
@@ -1943,22 +2205,25 @@ func (a *RecommendationMockAgent) RecommendQualityWithFeatureCards(resume *model
 		if score < 60 { label = "不建议优先" }
 
 		results = append(results, model.RecommendedJob{
-			JobID:               j.ID,
-			Title:               j.Title,
-			Department:          j.Department,
-			City:                j.City,
-			Category:            j.Category,
-			Priority:            "high",
-			RecommendationScore: score,
-			RecommendationReason: fmt.Sprintf("基于完整特征分析，匹配度 %d 分", score),
-			RecommendationLabel: label,
-			MatchHighlights:     []string{"基于简历完整内容分析"},
-			RiskPoints:          sc.guard.Reasons,
-			SuggestedAction:     "建议查看岗位详情。",
-			AgentStatus:         "mock_success",
-			GeneratedBy:         "mock_quality",
-			WhyRankedHere:       fmt.Sprintf("排在第 %d 位", i+1),
-			JobSpecificReason:   fmt.Sprintf("综合匹配度 %d", score),
+			JobID:                 j.ID,
+			Title:                 j.Title,
+			Department:            j.Department,
+			City:                  j.City,
+			Category:              j.Category,
+			Priority:              "high",
+			RecommendationScore:   score,
+			RecommendationReason:  buildRecommendationReason(resumeCard, sc.card, score),
+			RecommendationLabel:   label,
+			MatchHighlights:       buildMatchHighlights(resumeCard, sc.card),
+			RiskPoints:            sc.guard.Reasons,
+			SuggestedAction:       buildSuggestedAction(resumeCard, sc.card, score, label),
+			AgentStatus:           "mock_success",
+			GeneratedBy:           "mock_quality",
+			WhyRankedHere:         buildWhyRankedHere(i+1, resumeCard, sc.card, sc.guard),
+			JobSpecificReason:     buildJobSpecificReason(resumeCard, sc.card, sc.guard, score),
+			ResumeEvidence:        buildResumeEvidence(resumeCard, sc.card),
+			JobSpecificRisks:      buildJobSpecificRisks(resumeCard, sc.card, sc.guard),
+			SuggestedImprovement:  buildSuggestedImprovement(resumeCard, sc.card, sc.guard),
 		})
 	}
 
