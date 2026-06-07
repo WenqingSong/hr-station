@@ -41,10 +41,10 @@ type ResumeOptimizationResponse struct {
 // It supports LLM Pipeline priority with Mock Agent fallback.
 // Supports generation_tier: "fast" uses fastRunner, "quality" uses qualityRunner.
 type ResumeOptimizationService struct {
-	resumeRepo       *repository.ResumeRepository // K8-5-48-D: fetch resume by resume_id
-	jobRepo          *repository.JobRepository    // K8-5-48-D: fetch job by job_id
+	resumeRepo       *repository.ResumeRepository
+	jobRepo          *repository.JobRepository
 	optimizationRepo *repository.ResumeOptimizationRepository
-	mockAgent        *agent.ResumeOptimizationMockAgent
+	mockAgent        interface{}
 	fastRunner       agent.PipelineRunner
 	qualityRunner    agent.PipelineRunner
 	llmEnabled       bool
@@ -56,7 +56,7 @@ func NewResumeOptimizationService(
 	resumeRepo *repository.ResumeRepository,
 	jobRepo *repository.JobRepository,
 	optimizationRepo *repository.ResumeOptimizationRepository,
-	mockAgent *agent.ResumeOptimizationMockAgent,
+	mockAgent interface{},
 	fastRunner agent.PipelineRunner,
 	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
@@ -198,7 +198,14 @@ func (s *ResumeOptimizationService) optimizeWithMock(
 	req ResumeOptimizationRequest,
 	fbErr *agent.ResumeOptFallbackError,
 ) (*ResumeOptimizationResponse, error) {
-	result, err := s.mockAgent.Optimize(ctx, input)
+	var result *model.ResumeOptimizationResult
+	var err error
+	switch ma := s.mockAgent.(type) {
+	case agent.ResumeOptimizer:
+		result, err = ma.Optimize(ctx, input)
+	default:
+		return nil, fmt.Errorf("mock agent does not support Optimize")
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate resume optimization: %w", err)
 	}
@@ -409,4 +416,88 @@ func validateOptimizeRequest(req ResumeOptimizationRequest) error {
 	}
 
 	return nil
+}
+
+// ─── K9-3-C: New V2 Optimization API ─────────────────────────────────
+
+type OptimizationV2Request struct {
+	OptimizationMode string              `json:"optimization_mode"`
+	TargetDirection  string              `json:"target_direction,omitempty"`
+	JobID            uint64              `json:"job_id,omitempty"`
+	GenerationTier   model.GenerationTier `json:"generation_tier,omitempty"`
+}
+
+func (s *ResumeOptimizationService) OptimizeV2(ctx context.Context, userID, resumeID uint64, req OptimizationV2Request) (*model.OptimizationResultV2, error) {
+	// Validate
+	mode := req.OptimizationMode
+	if mode == "" { mode = "general" }
+	if mode != "general" && mode != "target_direction" && mode != "target_job" {
+		return nil, apperror.New(apperror.CodeInvalidParam, "optimization_mode must be general/target_direction/target_job", 400)
+	}
+	if mode == "target_direction" && req.TargetDirection == "" {
+		return nil, apperror.New(apperror.CodeInvalidParam, "target_direction is required for target_direction mode", 400)
+	}
+	if mode == "target_job" && req.JobID == 0 {
+		return nil, apperror.New(apperror.CodeInvalidParam, "job_id is required for target_job mode", 400)
+	}
+
+	// Get resume
+	resume, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, resumeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resume: %w", err)
+	}
+	if resume == nil {
+		return nil, apperror.ErrResumeNotFound
+	}
+
+	// Get job if target_job mode
+	var job *model.Job
+	if mode == "target_job" && req.JobID > 0 {
+		j, jErr := s.jobRepo.FindByID(ctx, req.JobID)
+		if jErr != nil || j == nil {
+			return nil, apperror.ErrJobNotFound
+		}
+		job = j
+	}
+
+	genTier := string(req.GenerationTier)
+	if genTier == "" { genTier = "fast" }
+
+	// Get V2 agent
+	v2Agent, ok := s.mockAgent.(*agent.ResumeOptimizationMockAgentV2)
+	if !ok {
+		// Fallback to old result mapper
+		return nil, fmt.Errorf("v2 optimization agent not available")
+	}
+
+	result, err := v2Agent.OptimizeV2(ctx, userID, resumeID, resume, mode, req.TargetDirection, req.JobID, job, genTier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate optimization: %w", err)
+	}
+
+	// Save to DB
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	opt := &model.ResumeOptimizationSnapshot{
+		UserID:                 userID,
+		ResumeID:               resumeID,
+		JobID:                  req.JobID,
+		OptimizationMode:       mode,
+		GenerationTier:         genTier,
+		GeneratedBy:            result.GeneratedBy,
+		Status:                 "ready",
+		ProfileType:            result.ProfileType,
+		ProfileDominantProfile: result.ProfileDominantProfile,
+		TargetDirection:        req.TargetDirection,
+		ResultJSON:             resultJSON,
+	}
+	if createErr := s.optimizationRepo.CreateV2(ctx, opt); createErr != nil {
+		log.Printf("[OptimizeV2] failed to save snapshot: %v", createErr)
+	}
+	result.OptimizationID = opt.ID
+
+	return result, nil
 }

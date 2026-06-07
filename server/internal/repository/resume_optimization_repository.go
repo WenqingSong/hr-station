@@ -37,6 +37,30 @@ func (r *ResumeOptimizationRepository) Create(ctx context.Context, result *model
 	return nil
 }
 
+// CreateV2 inserts with full K9-3-C metadata.
+func (r *ResumeOptimizationRepository) CreateV2(ctx context.Context, result *model.ResumeOptimizationSnapshot) error {
+	res, err := r.db.ExecContext(ctx,
+		`INSERT INTO resume_optimization_results
+		 (user_id, resume_id, job_id, optimization_mode, target_direction,
+		  generation_tier, generated_by, status, profile_type, profile_dominant_profile, result_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		result.UserID, result.ResumeID, result.JobID,
+		result.OptimizationMode, result.TargetDirection,
+		result.GenerationTier, result.GeneratedBy, result.Status,
+		result.ProfileType, result.ProfileDominantProfile,
+		result.ResultJSON,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create v2 optimization result: %w", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get last insert id: %w", err)
+	}
+	result.ID = uint64(id)
+	return nil
+}
+
 // GetLatestByUserID returns the most recent optimization result for a user.
 func (r *ResumeOptimizationRepository) GetLatestByUserID(ctx context.Context, userID uint64) (*model.ResumeOptimizationSnapshot, error) {
 	var s model.ResumeOptimizationSnapshot

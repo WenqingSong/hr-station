@@ -14,6 +14,7 @@ import (
 	"offer-catcher/server/internal/config"
 	"offer-catcher/server/internal/database"
 	"offer-catcher/server/internal/health"
+	"offer-catcher/server/internal/model"
 	httpserver "offer-catcher/server/internal/http"
 	"offer-catcher/server/internal/llm"
 	"offer-catcher/server/internal/middleware"
@@ -178,9 +179,15 @@ func main() {
 
 	// Initialize resume optimization module with both runners (tier selected per request)
 	resumeOptimizationRepo := repository.NewResumeOptimizationRepository(mysqlDB.DB)
-	resumeOptimizationMockAgent := agent.NewResumeOptimizationMockAgent()
-	resumeOptimizationService := service.NewResumeOptimizationService(resumeRepo, jobRepo, resumeOptimizationRepo, resumeOptimizationMockAgent, fastRunner, qualityRunner, llmEnabled)
+	resumeOptimizationMockAgentV2 := agent.NewResumeOptimizationMockAgentV2()
+	resumeOptimizationMockAgentV2.SetProfileProvider(resumeProfileService)
+	resumeOptimizationMockAgentV2.SetMatchLatestProvider(func(ctx context.Context, userID, resumeID, jobID uint64) *model.MatchAnalysis {
+		ma, _ := matchRepo.FindLatestByResumeAndJob(ctx, userID, resumeID, jobID)
+		return ma
+	})
+	resumeOptimizationService := service.NewResumeOptimizationService(resumeRepo, jobRepo, resumeOptimizationRepo, resumeOptimizationMockAgentV2, fastRunner, qualityRunner, llmEnabled)
 	resumeOptimizationHandler := httpserver.NewResumeOptimizationHandler(resumeOptimizationService)
+	resumeHandler.SetOptimizationV2Handler(http.HandlerFunc(resumeOptimizationHandler.OptimizeV2))
 
 	// Initialize CORS middleware with config
 	middleware.InitCORS(cfg.CORS)

@@ -35,6 +35,40 @@ func (h *ResumeOptimizationHandler) Optimize(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// OptimizeV2 handles POST /api/resumes/{resume_id}/optimization (K9-3-C)
+func (h *ResumeOptimizationHandler) OptimizeV2(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
+		return
+	}
+
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+		return
+	}
+
+	resumeID, ok := r.Context().Value(resumeIDContextKey).(uint64)
+	if !ok || resumeID == 0 {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume id")
+		return
+	}
+
+	var req service.OptimizationV2Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid request body")
+		return
+	}
+
+	resp, err := h.resumeOptimizationService.OptimizeV2(r.Context(), userID, resumeID, req)
+	if err != nil {
+		handleResumeOptimizationError(w, err)
+		return
+	}
+
+	response.OK(w, resp)
+}
+
 // getLatest handles GET /api/resumes/optimize — returns the most recent optimization result.
 func (h *ResumeOptimizationHandler) getLatest(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())

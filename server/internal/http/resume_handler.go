@@ -1,8 +1,9 @@
 package httpserver
 
 import (
-	"log"
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +18,12 @@ import (
 type ResumeHandler struct {
 	resumeService        *service.ResumeService
 	resumeProfileService *service.ResumeProfileService
+	optimizationV2Handler http.HandlerFunc
+}
+
+// SetOptimizationV2Handler sets the handler for /api/resumes/{id}/optimization
+func (h *ResumeHandler) SetOptimizationV2Handler(fn http.HandlerFunc) {
+	h.optimizationV2Handler = fn
 }
 
 // NewResumeHandler creates a new ResumeHandler.
@@ -109,6 +116,20 @@ func (h *ResumeHandler) ResumeByIDDispatcher(w http.ResponseWriter, r *http.Requ
 			return
 		}
 		h.SetCurrent(w, r, id)
+		return
+	}
+
+	// K9-3-C: /api/resumes/{id}/optimization
+	if strings.HasSuffix(path, "/optimization") {
+		idStr := strings.TrimSuffix(path, "/optimization")
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil || id == 0 {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume id")
+			return
+		}
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, resumeIDContextKey, id)
+		h.optimizationV2Handler(w, r.WithContext(ctx))
 		return
 	}
 

@@ -20,6 +20,7 @@ import (
 type contextKey string
 
 const jobIDContextKey contextKey = "job_id"
+const resumeIDContextKey contextKey = "resume_id"
 
 // RouterDeps holds all dependencies needed by the router.
 type RouterDeps struct {
@@ -67,6 +68,8 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.Handle("/api/resumes/compare", deps.AuthMiddleware(http.HandlerFunc(deps.VersionCompareHandler.Compare))) // K8-5-48-D
 	mux.Handle("/api/resumes/versions/", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.VersionDetail)))
 	mux.Handle("/api/resumes/optimize", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeOptimizationHandler.Optimize)))
+	// K9-3-C: New V2 optimization — dispatched from resume wildcard
+	// /api/resumes/{id}/optimization is handled by ResumeByIDDispatcher below
 	// K8-5-48-F: Wildcard for /api/resumes/{id} and /api/resumes/{id}/set-current
 	mux.Handle("/api/resumes/", deps.AuthMiddleware(http.HandlerFunc(deps.ResumeHandler.ResumeByIDDispatcher)))
 
