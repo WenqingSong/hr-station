@@ -30,6 +30,9 @@ type RecommendationResponse struct {
 	Summary         string                        `json:"summary"`
 	CreatedAt       string                        `json:"created_at"`
 	Meta            model.AgentResponseMeta       `json:"meta"`
+	// K9-1-U-C: result persistence metadata
+	ResultID       uint64 `json:"result_id,omitempty"`
+	GenerationTier string `json:"generation_tier,omitempty"`
 	PipelineMode    string                        `json:"pipeline_mode,omitempty"`
 	JudgeResult     *model.RecommendationJudgeResult `json:"judge_result,omitempty"`
 
@@ -270,17 +273,21 @@ func (s *RecommendationService) recommendWithLLM(ctx context.Context, userID uin
 		Meta:            meta,
 	}
 
-	// Save recommendation result snapshot (same as mock path)
-	resultJSON, marshalErr := json.Marshal(recommendedJobs)
-	if marshalErr == nil {
-		recResult := &model.RecommendationResult{
-			UserID:          userID,
-			ResumeID: resume.ID,
-			ResultJSON:      resultJSON,
-		}
-		if createErr := s.recommendationRepo.Create(ctx, recResult); createErr != nil {
-			// Log but don't fail the response if snapshot save fails
-			_ = createErr
+	// K9-1-U-C: Save with full metadata
+	if len(recommendedJobs) > 0 {
+		resultJSON, marshalErr := json.Marshal(recommendedJobs)
+		if marshalErr == nil {
+			recResult := &model.RecommendationResult{
+				UserID:         userID,
+				ResumeID:       resume.ID,
+				GenerationTier: "quality",
+				GeneratedBy:    "llm_agent",
+				Status:         "ready",
+				ResultJSON:     resultJSON,
+			}
+			if createErr := s.recommendationRepo.Create(ctx, recResult); createErr != nil {
+				_ = createErr
+			}
 		}
 	}
 
@@ -384,20 +391,34 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 		JudgeResult:     &model.RecommendationJudgeResult{Pass: true, Severity: "pass", Issues: nil, FixStrategy: "none"},
 	}
 
-	// Save recommendation result snapshot
-	resultJSON, err := json.Marshal(recommendedJobs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal recommendation result: %w", err)
-	}
+	// K9-1-U-C: Save recommendation result snapshot with full metadata
+	if len(recommendedJobs) > 0 {
+		resultJSON, err := json.Marshal(recommendedJobs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal recommendation result: %w", err)
+		}
 
-	recSnapshot := &model.RecommendationResult{
-		UserID:          userID,
-		ResumeID: resume.ID,
-		ResultJSON:      resultJSON,
-	}
+		tier := "fast"
+		if qualityMode {
+			tier = "quality"
+		}
+		recSnapshot := &model.RecommendationResult{
+			UserID:                 userID,
+			ResumeID:               resume.ID,
+			GenerationTier:         tier,
+			GeneratedBy:            generatedBy,
+			Status:                 "ready",
+			ProfileType:            profileType,
+			ProfileDominantProfile: profileDominant,
+			ResultJSON:             resultJSON,
+		}
 
-	if err := s.recommendationRepo.Create(ctx, recSnapshot); err != nil {
-		_ = err
+		if createErr := s.recommendationRepo.Create(ctx, recSnapshot); createErr != nil {
+			_ = createErr
+		} else {
+			resp.ResultID = recSnapshot.ID
+			resp.GenerationTier = tier
+		}
 	}
 
 	s.fillProfileFields(resp, profileType, profileDominant, profileSource)
@@ -442,6 +463,51 @@ func stringsJoin(ss []string, sep string) string {
 		result += sep + ss[i]
 	}
 	return result
+}
+
+// GetLatestRecommendation returns the latest ready recommendation result for the given user+resume.
+func (s *RecommendationService) GetLatestRecommendation(ctx context.Context, userID, resumeID uint64) (*model.RecommendationLatestResult, error) {
+	if resumeID <= 0 {
+		return nil, fmt.Errorf("invalid resume_id")
+	}
+	// Verify resume belongs to user
+	resume, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, resumeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify resume: %w", err)
+	}
+	if resume == nil {
+		return nil, apperror.ErrResumeNotFound
+	}
+
+	latest, err := s.recommendationRepo.FindLatestByResumeID(ctx, userID, resumeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest recommendation: %w", err)
+	}
+
+	if latest == nil {
+		return &model.RecommendationLatestResult{HasResult: false}, nil
+	}
+
+	// Parse result_json
+	var resultData interface{}
+	if len(latest.ResultJSON) > 0 {
+		if err := json.Unmarshal(latest.ResultJSON, &resultData); err != nil {
+			return nil, fmt.Errorf("failed to parse saved result: %w", err)
+		}
+	}
+
+	return &model.RecommendationLatestResult{
+		HasResult:              true,
+		ResultID:               latest.ID,
+		ResumeID:               latest.ResumeID,
+		GenerationTier:         latest.GenerationTier,
+		GeneratedBy:            latest.GeneratedBy,
+		Status:                 latest.Status,
+		ProfileType:            latest.ProfileType,
+		ProfileDominantProfile: latest.ProfileDominantProfile,
+		CreatedAt:              latest.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Result:                 resultData,
+	}, nil
 }
 
 func convertProfileTags(tags []model.ProfileTag) []agent.StoredTag {

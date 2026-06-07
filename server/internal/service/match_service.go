@@ -97,6 +97,10 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 	}
 
 	// Try LLM Pipeline if enabled
+	genTier := string(req.GenerationTier)
+	if genTier == "" {
+		genTier = "fast"
+	}
 	if s.llmEnabled && runner != nil {
 		resp, fallbackErr := s.analyzeWithLLM(ctx, resume, job, runner)
 		if fallbackErr == nil {
@@ -107,11 +111,11 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 		log.Printf("[MatchService] LLM pipeline fallback: %v", fallbackErr)
 
 		// Fall back to Mock Agent
-		return s.analyzeWithMock(ctx, userID, resume, job, fallbackErr)
+		return s.analyzeWithMock(ctx, userID, resume, job, fallbackErr, genTier)
 	}
 
 	// LLM disabled — use Mock Agent directly
-	return s.analyzeWithMock(ctx, userID, resume, job, nil)
+	return s.analyzeWithMock(ctx, userID, resume, job, nil, genTier)
 }
 
 // getResume retrieves the resume version based on the request.
@@ -179,11 +183,13 @@ func (s *MatchService) analyzeWithLLM(ctx context.Context, resume *model.ResumeV
 	resultJSON, marshalErr := json.Marshal(result)
 	if marshalErr == nil {
 		analysis := &model.MatchAnalysis{
-			UserID:          resume.UserID,
-			ResumeID: resume.ID,
-			JobID:           job.ID,
-			Score:           result.MatchScore,
-			ResultJSON:      resultJSON,
+			UserID:                 resume.UserID,
+			ResumeID:               resume.ID,
+			JobID:                  job.ID,
+			ProfileType:            result.ProfileType,
+			ProfileDominantProfile: result.ProfileDominantProfile,
+			Score:                  result.MatchScore,
+			ResultJSON:             resultJSON,
 		}
 		if createErr := s.matchRepo.Create(ctx, analysis); createErr != nil {
 			// Log but don't fail the response if snapshot save fails
@@ -203,28 +209,25 @@ func (s *MatchService) analyzeWithMock(
 	resume *model.ResumeVersion,
 	job *model.Job,
 	fbErr *agent.MatchFallbackError,
+	genTier string,
 ) (*MatchResponse, error) {
 	result, err := s.mockAgent.Analyze(ctx, resume, job)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate match analysis: %w", err)
 	}
 
-	// Set metadata for mock result
-	result.GeneratedBy = "mock_agent"
+	genBy := "mock_agent"
+	if genTier == "quality" {
+		genBy = "mock_quality"
+	}
+	result.GeneratedBy = genBy
 	var meta model.AgentResponseMeta
 	if fbErr != nil {
 		result.AgentStatus = "fallback"
 		result.FallbackReason = fbErr.FallbackReason
 		result.ErrorCode = fbErr.ErrorCode
 		result.RepairApplied = false
-		meta = model.DeriveMetaFromResult(
-			model.AgentNameMatchAnalysis,
-			"mock_agent",
-			"fallback",
-			fbErr.FallbackReason,
-			fbErr.ErrorCode,
-			false,
-		)
+		meta = model.DeriveMetaFromResult(model.AgentNameMatchAnalysis, "mock_agent", "fallback", fbErr.FallbackReason, fbErr.ErrorCode, false)
 	} else {
 		result.AgentStatus = model.AgentStatusMockSuccess
 		meta = model.NewAgentResponseMeta(model.AgentNameMatchAnalysis)
@@ -234,35 +237,87 @@ func (s *MatchService) analyzeWithMock(
 	resp := &MatchResponse{
 		GeneratedBy: "mock_agent",
 		Result:      result,
-		AnalysisBasis: &model.AnalysisBasis{
-			JobDescriptionUsed:  job.Description != "",
-			JobRequirementsUsed: job.Requirements != "",
-			DataQuality:         job.DataQuality,
-		},
-		CreatedAt: now.Format("2006-01-02T15:04:05Z07:00"),
-		Meta:      meta,
+		AnalysisBasis: &model.AnalysisBasis{JobDescriptionUsed: job.Description != "", JobRequirementsUsed: job.Requirements != "", DataQuality: job.DataQuality},
+		CreatedAt:    now.Format("2006-01-02T15:04:05Z07:00"),
+		Meta:         meta,
 	}
 
-	// Save match analysis snapshot
+	// K9-2-C: Save with full metadata
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal match result: %w", err)
 	}
 
 	analysis := &model.MatchAnalysis{
-		UserID:          userID,
-		ResumeID: resume.ID,
-		JobID:           job.ID,
-		Score:           result.MatchScore,
-		ResultJSON:      resultJSON,
+		UserID:                 userID,
+		ResumeID:               resume.ID,
+		JobID:                  job.ID,
+		GenerationTier:         genTier,
+		GeneratedBy:            genBy,
+		Status:                 "ready",
+		ProfileType:            result.ProfileType,
+		ProfileDominantProfile: result.ProfileDominantProfile,
+		Score:                  result.MatchScore,
+		ResultJSON:             resultJSON,
 	}
 
 	if err := s.matchRepo.Create(ctx, analysis); err != nil {
-		// Log but don't fail the response if snapshot save fails
 		_ = err
 	}
 
 	resp.AnalysisID = analysis.ID
 
 	return resp, nil
+}
+
+// GetLatestMatchAnalysis returns the latest ready match analysis for the given user+resume+job.
+func (s *MatchService) GetLatestMatchAnalysis(ctx context.Context, userID, resumeID, jobID uint64) (*model.MatchLatestResult, error) {
+	if resumeID <= 0 {
+		return nil, apperror.ErrInvalidParam
+	}
+	if jobID <= 0 {
+		return nil, apperror.ErrInvalidParam
+	}
+	// Verify resume belongs to user
+	resume, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, resumeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify resume: %w", err)
+	}
+	if resume == nil {
+		return nil, apperror.ErrResumeNotFound
+	}
+	// Verify job exists
+	if _, err := s.jobRepo.FindByID(ctx, jobID); err != nil {
+		return nil, apperror.ErrJobNotFound
+	}
+
+	latest, err := s.matchRepo.FindLatestByResumeAndJob(ctx, userID, resumeID, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest match analysis: %w", err)
+	}
+
+	if latest == nil {
+		return &model.MatchLatestResult{HasResult: false}, nil
+	}
+
+	var resultData interface{}
+	if len(latest.ResultJSON) > 0 {
+		if err := json.Unmarshal(latest.ResultJSON, &resultData); err != nil {
+			return nil, fmt.Errorf("failed to parse saved match result: %w", err)
+		}
+	}
+
+	return &model.MatchLatestResult{
+		HasResult:             true,
+		AnalysisID:            latest.ID,
+		ResumeID:              latest.ResumeID,
+		JobID:                 latest.JobID,
+		GenerationTier:        latest.GenerationTier,
+		GeneratedBy:           latest.GeneratedBy,
+		Status:                latest.Status,
+		ProfileType:           latest.ProfileType,
+		ProfileDominantProfile: latest.ProfileDominantProfile,
+		CreatedAt:             latest.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Result:                resultData,
+	}, nil
 }

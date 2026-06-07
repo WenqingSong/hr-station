@@ -3,15 +3,20 @@ package model
 import "time"
 
 // MatchAnalysis represents a saved match analysis snapshot.
-// Maps to the `match_analyses` table in MySQL.
 type MatchAnalysis struct {
-	ID         uint64
-	UserID     uint64
-	ResumeID   uint64
-	JobID      uint64
-	Score      int
-	ResultJSON []byte
-	CreatedAt  time.Time
+	ID                     uint64
+	UserID                 uint64
+	ResumeID               uint64
+	JobID                  uint64
+	GenerationTier         string
+	GeneratedBy            string
+	Status                 string
+	ProfileType            string
+	ProfileDominantProfile string
+	Score                  int
+	ResultJSON             []byte
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
 }
 
 // MatchEvidence represents a single JD-resume evidence chain entry.
@@ -70,11 +75,29 @@ type MatchAnalysisResult struct {
 	OptimizationStopSignal string       `json:"optimization_stop_signal,omitempty"`
 	TopFixItems            []TopFixItem `json:"top_fix_items,omitempty"`
 
+	ProfileType            string `json:"profile_type,omitempty"`
+	ProfileDominantProfile string `json:"profile_dominant_profile,omitempty"`
+
 	GeneratedBy    string `json:"generated_by,omitempty"`
 	AgentStatus    string `json:"agent_status,omitempty"`
 	RepairApplied  bool   `json:"repair_applied,omitempty"`
 	FallbackReason string `json:"fallback_reason,omitempty"`
 	ErrorCode      string `json:"error_code,omitempty"`
+}
+
+// MatchLatestResult is the DTO returned by GET /api/jobs/{id}/match/latest.
+type MatchLatestResult struct {
+	HasResult             bool        `json:"has_result"`
+	AnalysisID            uint64      `json:"analysis_id,omitempty"`
+	ResumeID              uint64      `json:"resume_id,omitempty"`
+	JobID                 uint64      `json:"job_id,omitempty"`
+	GenerationTier        string      `json:"generation_tier,omitempty"`
+	GeneratedBy           string      `json:"generated_by,omitempty"`
+	Status                string      `json:"status,omitempty"`
+	ProfileType           string      `json:"profile_type,omitempty"`
+	ProfileDominantProfile string      `json:"profile_dominant_profile,omitempty"`
+	CreatedAt             string      `json:"created_at,omitempty"`
+	Result                interface{} `json:"result,omitempty"`
 }
 
 // AnalysisBasis describes what data was used to generate the match analysis.

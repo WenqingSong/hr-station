@@ -94,6 +94,7 @@ func main() {
 	// Initialize match module
 	matchRepo := repository.NewMatchRepository(mysqlDB.DB)
 	matchMockAgent := agent.NewMatchMockAgent()
+	matchMockAgent.SetProfileProvider(resumeProfileService)
 
 	// Initialize LLM infrastructure for MatchAnalysisAgent pipeline
 	var fastRunner, qualityRunner *pipeline.Runner

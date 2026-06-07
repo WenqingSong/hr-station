@@ -13,7 +13,9 @@ import {
   runRecommendation,
   runMatchAnalysis,
   runResumeOptimization,
+  getLatestRecommendation,
 } from './index';
+import type { LatestRecommendationResponse } from './agents';
 import { isApiClientError } from './errors';
 import type { Resume } from '../types';
 
@@ -138,6 +140,48 @@ export async function loadResumeVersionDetail(
 
 // ─── Agent ViewModel Loader ───────────────────────────────────────────────────
 
+// ─── K9-1-U-D: Latest Recommendation ViewModel Loader ────────────────────────────
+
+export interface LatestRecommendationViewModel {
+  hasResult: boolean;
+  resultId?: number;
+  resumeId?: number;
+  generationTier?: string;
+  generatedBy?: string;
+  status?: string;
+  profileType?: string;
+  profileDominantProfile?: string;
+  createdAt?: string;
+  result?: RecommendationPageViewModel;
+}
+
+export async function loadLatestRecommendationViewModel(resumeId: number): Promise<LatestRecommendationViewModel> {
+  const raw: LatestRecommendationResponse = await getLatestRecommendation(resumeId);
+  if (!raw.has_result) {
+    return { hasResult: false };
+  }
+  // Reuse existing adapter for result
+  const result = raw.result
+    ? toRecommendationPageViewModel(raw.result, undefined, {
+        profileStatus: raw.status ?? "ready",
+        profileType: raw.profile_type ?? "fast",
+        profileDominantProfile: raw.profile_dominant_profile ?? "",
+      })
+    : undefined;
+  return {
+    hasResult: true,
+    resultId: raw.result_id,
+    resumeId: raw.resume_id,
+    generationTier: raw.generation_tier,
+    generatedBy: raw.generated_by,
+    status: raw.status,
+    profileType: raw.profile_type,
+    profileDominantProfile: raw.profile_dominant_profile,
+    createdAt: raw.created_at,
+    result,
+  };
+}
+
 export async function loadRecommendationViewModel(
   input?: Partial<RecommendationRequest>,
 ): Promise<RecommendationPageViewModel> {
@@ -159,6 +203,48 @@ export async function loadMatchAnalysisViewModel(
 ): Promise<MatchAnalysisPageViewModel> {
   const response = await runMatchAnalysis(jobId, input);
   return toMatchAnalysisPageViewModel(response.result, response.meta);
+}
+
+// ─── K9-2-E: Latest Match ViewModel Loader ─────────────────────────────────────
+
+export interface LatestMatchViewModel {
+  hasResult: boolean;
+  analysisId?: number;
+  resumeId?: number;
+  jobId?: number;
+  generationTier?: string;
+  generatedBy?: string;
+  status?: string;
+  profileType?: string;
+  profileDominantProfile?: string;
+  createdAt?: string;
+  result?: MatchAnalysisPageViewModel;
+}
+
+import { getLatestMatchAnalysis } from './agents';
+import type { MatchLatestResponse } from './agents';
+
+export async function loadLatestMatchViewModel(jobId: string, resumeId: number): Promise<LatestMatchViewModel> {
+  const raw: MatchLatestResponse = await getLatestMatchAnalysis(jobId, resumeId);
+  if (!raw.has_result) {
+    return { hasResult: false };
+  }
+  const result = raw.result
+    ? toMatchAnalysisPageViewModel(raw.result, { generated_by: raw.generated_by || "mock_agent" } as any)
+    : undefined;
+  return {
+    hasResult: true,
+    analysisId: raw.analysis_id,
+    resumeId: raw.resume_id,
+    jobId: raw.job_id,
+    generationTier: raw.generation_tier,
+    generatedBy: raw.generated_by,
+    status: raw.status,
+    profileType: raw.profile_type,
+    profileDominantProfile: raw.profile_dominant_profile,
+    createdAt: raw.created_at,
+    result,
+  };
 }
 
 export async function loadResumeOptimizationViewModel(

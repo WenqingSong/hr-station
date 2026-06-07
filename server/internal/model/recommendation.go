@@ -4,11 +4,31 @@ import "time"
 
 // RecommendationResult represents a saved recommendation snapshot.
 type RecommendationResult struct {
-	ID         uint64
-	UserID     uint64
-	ResumeID   uint64
-	ResultJSON []byte
-	CreatedAt  time.Time
+	ID                     uint64
+	UserID                 uint64
+	ResumeID               uint64
+	GenerationTier         string
+	GeneratedBy            string
+	Status                 string
+	ProfileType            string
+	ProfileDominantProfile string
+	ResultJSON             []byte
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+}
+
+// RecommendationLatestResult is the DTO returned by GET /api/jobs/recommend/latest.
+type RecommendationLatestResult struct {
+	HasResult              bool        `json:"has_result"`
+	ResultID               uint64      `json:"result_id,omitempty"`
+	ResumeID               uint64      `json:"resume_id,omitempty"`
+	GenerationTier         string      `json:"generation_tier,omitempty"`
+	GeneratedBy            string      `json:"generated_by,omitempty"`
+	Status                 string      `json:"status,omitempty"`
+	ProfileType            string      `json:"profile_type,omitempty"`
+	ProfileDominantProfile string      `json:"profile_dominant_profile,omitempty"`
+	CreatedAt              string      `json:"created_at,omitempty"`
+	Result                 interface{} `json:"result,omitempty"`
 }
 
 // RecommendedJob represents a single recommended job in the response.

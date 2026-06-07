@@ -3,6 +3,7 @@ package httpserver
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/middleware"
@@ -73,6 +74,43 @@ func (h *RecommendationHandler) Recommend(w http.ResponseWriter, r *http.Request
 	}
 
 	response.OK(w, resp)
+}
+
+// Latest handles GET /api/jobs/recommend/latest?resume_id=X
+func (h *RecommendationHandler) Latest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
+		return
+	}
+
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+		return
+	}
+
+	resumeIDStr := r.URL.Query().Get("resume_id")
+	if resumeIDStr == "" {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "resume_id is required")
+		return
+	}
+	resumeID, err := strconv.ParseUint(resumeIDStr, 10, 64)
+	if err != nil || resumeID == 0 {
+		response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid resume_id")
+		return
+	}
+
+	latest, err := h.recommendationService.GetLatestRecommendation(r.Context(), userID, resumeID)
+	if err != nil {
+		if ae := apperror.AsAppError(err); ae != nil {
+			response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)
+			return
+		}
+		response.Error(w, apperror.ErrInternal.HTTPStatus, apperror.ErrInternal.Code, apperror.ErrInternal.Message)
+		return
+	}
+
+	response.OK(w, latest)
 }
 
 // handleRecommendationError maps recommendation service errors to HTTP responses using errors.As.

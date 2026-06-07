@@ -1,6 +1,6 @@
 // ─── 三类 Agent API（K8-5-48-D：resume_version_no → resume_id） ─────────────
 
-import { post } from './client';
+import { post, get } from './client';
 import type {
   AgentResponseEnvelope,
   RecommendationResult,
@@ -40,6 +40,28 @@ export type ResumeOptimizationAgentResponse = AgentResponseEnvelope<ResumeOptimi
 
 // ─── 岗位推荐 ──────────────────────────────────────────────────────────────────
 
+/** K9-1-U-D: Latest recommendation response type */
+export interface LatestRecommendationResponse {
+  has_result: boolean;
+  result_id?: number;
+  resume_id?: number;
+  generation_tier?: string;
+  generated_by?: string;
+  status?: string;
+  profile_type?: string;
+  profile_dominant_profile?: string;
+  created_at?: string;
+  result?: RecommendationResult;
+}
+
+/**
+ * 获取最新推荐结果。
+ * GET /api/jobs/recommend/latest?resume_id=X
+ */
+export async function getLatestRecommendation(resumeId: number): Promise<LatestRecommendationResponse> {
+  return get<LatestRecommendationResponse>(`/jobs/recommend/latest?resume_id=${resumeId}`);
+}
+
 /**
  * 运行岗位推荐。
  * 调用 POST /api/jobs/recommend（{ resume_id, limit }）。失败时错误直接向上传播。
@@ -76,6 +98,28 @@ export async function runMatchAnalysis(
     `/jobs/${encodeURIComponent(jobId)}/match`,
     payload,
   );
+}
+
+// ─── K9-2-E: Match Latest ─────────────────────────────────────────────────────
+
+export interface MatchLatestResponse {
+  has_result: boolean;
+  analysis_id?: number;
+  resume_id?: number;
+  job_id?: number;
+  generation_tier?: string;
+  generated_by?: string;
+  status?: string;
+  profile_type?: string;
+  profile_dominant_profile?: string;
+  created_at?: string;
+  result?: MatchAnalysisResult;
+}
+
+export type MatchAnalysisAgentResponse = AgentResponseEnvelope<MatchAnalysisResult>;
+
+export async function getLatestMatchAnalysis(jobId: string, resumeId: number): Promise<MatchLatestResponse> {
+  return get<MatchLatestResponse>(`/jobs/${encodeURIComponent(jobId)}/match/latest?resume_id=${resumeId}`);
 }
 
 // ─── 简历优化 ──────────────────────────────────────────────────────────────────

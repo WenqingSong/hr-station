@@ -75,6 +75,7 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.HandleFunc("/api/jobs", deps.JobHandler.List)                                                              // public
 	mux.HandleFunc("/api/jobs/facets", deps.JobHandler.Facets)                                                     // public
 	mux.Handle("/api/jobs/recommend", deps.AuthMiddleware(http.HandlerFunc(deps.RecommendationHandler.Recommend))) // protected
+	mux.Handle("/api/jobs/recommend/latest", deps.AuthMiddleware(http.HandlerFunc(deps.RecommendationHandler.Latest))) // K9-1-U-C
 	mux.Handle("/api/jobs/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dispatchJobWildcard(w, r, deps)
 	}))
@@ -129,8 +130,40 @@ func dispatchJobWildcard(w http.ResponseWriter, r *http.Request, deps RouterDeps
 		return
 	}
 
+	// Check if path matches /api/jobs/{id}/match/latest (protected)
+	parts := strings.SplitN(path, "/", 3)
+	if len(parts) >= 3 && parts[1] == "match" && parts[2] == "latest" {
+		jobID, err := strconv.ParseUint(parts[0], 10, 64)
+		if err != nil || jobID == 0 {
+			response.Error(w, apperror.ErrInvalidParam.HTTPStatus, apperror.ErrInvalidParam.Code, "invalid job id")
+			return
+		}
+		// Inline auth
+		authHeader := r.Header.Get("Authorization")
+		parts2 := strings.SplitN(authHeader, " ", 2)
+		if len(parts2) != 2 || !strings.EqualFold(parts2[0], "Bearer") {
+			response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+			return
+		}
+		userID, sessionID, err := deps.AuthService.ParseToken(parts2[1])
+		if err != nil {
+			response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+			return
+		}
+		if err := deps.AuthService.ValidateSession(r.Context(), userID, sessionID); err != nil {
+			log.Printf("[auth] session invalid in match latest dispatch: %v", err)
+			response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
+			return
+		}
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, middleware.UserIDContextKey, userID)
+		ctx = context.WithValue(ctx, jobIDContextKey, jobID)
+		deps.MatchHandler.Latest(w, r.WithContext(ctx))
+		return
+	}
+
 	// Check if path matches /api/jobs/{id}/match (protected)
-	parts := strings.SplitN(path, "/", 2)
+	parts = strings.SplitN(path, "/", 2)
 	if len(parts) == 2 && parts[1] == "match" {
 		jobID, err := strconv.ParseUint(parts[0], 10, 64)
 		if err != nil || jobID == 0 {
