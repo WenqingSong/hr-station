@@ -257,8 +257,8 @@ export function JobRecommendationPage() {
               <section className="bg-gray-50 rounded-md p-4 border border-gray-100">
                 <div className="text-[13px] text-gray-700 leading-relaxed mb-3"><span className="font-medium text-gray-900">下一步建议：</span>{selectedJob.suggestedAction}</div>
                 <div className="flex gap-3">
-                  <a href={`/jobs/${selectedJob.jobId}`} className="flex-1 text-center px-3 py-2 bg-[#0052D9] text-white text-xs rounded-lg hover:bg-[#0047BD]">进入岗位详情</a>
-                  <a href={`/match?jobId=${selectedJob.jobId}&resumeId=${selectedOption.id}`} className="flex-1 text-center px-3 py-2 border border-[#0052D9] text-[#0052D9] text-xs rounded-lg hover:bg-blue-50">进行匹配分析</a>
+                  <Link to={`/jobs/${selectedJob.jobId}`} className="flex-1 text-center px-3 py-2 bg-[#0052D9] text-white text-xs rounded-lg hover:bg-[#0047BD]">进入岗位详情</Link>
+                  <Link to={`/match?jobId=${selectedJob.jobId}&resumeId=${selectedOption.id}`} className="flex-1 text-center px-3 py-2 border border-[#0052D9] text-[#0052D9] text-xs rounded-lg hover:bg-blue-50">进行匹配分析</Link>
                 </div>
               </section>
             </div>

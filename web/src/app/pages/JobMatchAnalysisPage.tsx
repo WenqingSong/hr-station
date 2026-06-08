@@ -13,6 +13,7 @@ import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { PageLoading } from "../components/PageState";
 import { AgentStepLoadingOverlay } from "../components/common/AgentStepLoadingOverlay";
+import { MatchAnalysisSkeleton } from "../components/match/MatchAnalysisSkeleton";
 import { Badge } from "../components/ui/Badge";
 import { Loader2, Sparkles, RefreshCw } from "lucide-react";
 
@@ -188,7 +189,7 @@ export function JobMatchAnalysisPage() {
   }
 
   if (loadingJob || loadingOptions) {
-    return <PageLoading message="正在加载岗位和简历信息…" />;
+    return <MatchAnalysisSkeleton message="正在加载岗位和简历信息…" />;
   }
 
   if (resumeOptions.length === 0 || !selectedOption) {
@@ -201,7 +202,7 @@ export function JobMatchAnalysisPage() {
   }
 
   if (loadingResumeDetail) {
-    return <PageLoading message="正在加载简历详情…" />;
+    return <MatchAnalysisSkeleton message="正在加载简历详情…" />;
   }
 
   if (resumeDetailError) {
@@ -214,7 +215,7 @@ export function JobMatchAnalysisPage() {
   }
 
   if (phase === "loading_latest" || phase === "fast_loading") {
-    return <PageLoading message="正在加载匹配分析…" />;
+    return <MatchAnalysisSkeleton message={phase === "fast_loading" ? "正在生成快速匹配分析…" : "正在读取匹配分析结果…"} />;
   }
 
   if (phase === "fast_error" && !activeResult) {

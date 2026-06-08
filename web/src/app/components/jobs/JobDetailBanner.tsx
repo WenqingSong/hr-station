@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import { Badge } from "../ui/Badge";
 import { loadSelectedJobDetailViewModel } from "../../../api";
 import type { JobDetailViewModel } from "../../../adapters";
-import { PageLoading, PageError } from "../PageState";
+import { PageError } from "../PageState";
 
 interface JobDetailBannerProps {
   jobId?: string;
@@ -39,8 +39,35 @@ export function JobDetailBanner({ jobId }: JobDetailBannerProps) {
 
   if (loading) {
     return (
-      <div className="w-full bg-[#0052D9] py-20">
-        <PageLoading title="正在加载岗位信息…" description="Offerr鹅正在读取岗位详情。" />
+      <div className="w-full bg-[#0052D9] relative overflow-hidden text-white">
+        {/* 背景渐变 */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0052D9] via-[#0066FF] to-[#0040A8]" />
+        {/* 装饰光斑 */}
+        <div className="absolute -top-20 -right-20 w-[500px] h-[500px] rounded-full bg-white/5 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full bg-[#00B0F0]/10 blur-3xl pointer-events-none" />
+
+        <div className="mx-auto max-w-[1280px] px-6 pt-20 pb-8 relative z-10 animate-pulse">
+          {/* 返回按钮 */}
+          <div className="flex items-center gap-1.5 mb-5">
+            <ArrowLeft className="w-4 h-4 text-blue-100/60" />
+            <div className="h-4 w-24 bg-white/10 rounded" />
+          </div>
+
+          {/* 岗位标题 */}
+          <div className="h-8 w-3/4 bg-white/15 rounded mb-3" />
+
+          {/* 标签 */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-6 w-12 bg-white/10 rounded-sm" />
+            <div className="h-6 w-16 bg-white/10 rounded-sm" />
+          </div>
+
+          {/* Slogan */}
+          <div className="h-4 w-2/3 bg-white/10 rounded" />
+        </div>
+
+        {/* 底部微光边缘 */}
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       </div>
     );
   }

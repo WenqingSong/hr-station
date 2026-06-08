@@ -72,8 +72,60 @@ export function JobDetailAIDecision() {
       </div>
 
       {loading && (
-        <div className="bg-white ring-1 ring-gray-100 rounded-xl p-4 text-center text-xs text-gray-400">
-          正在加载岗位详情…
+        <div className="flex flex-col gap-3 animate-pulse">
+          {/* Current Job card skeleton */}
+          <div className="bg-white ring-1 ring-gray-100 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="h-3.5 w-3.5 text-gray-300" />
+              <div className="h-3 w-16 bg-gray-100 rounded" />
+            </div>
+            <div className="h-4 w-3/4 bg-gray-100 rounded mb-2" />
+            <div className="flex gap-1.5 mb-2">
+              <div className="h-5 w-12 bg-gray-100 rounded" />
+              <div className="h-5 w-16 bg-gray-100 rounded" />
+            </div>
+            <div className="h-3 w-1/2 bg-gray-100 rounded" />
+          </div>
+
+          {/* Current Resume card skeleton */}
+          <div className="bg-white ring-1 ring-gray-100 rounded-xl p-4">
+            <div className="flex justify-between items-start mb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5 text-gray-300" />
+                <div className="h-3 w-16 bg-gray-100 rounded" />
+              </div>
+              <div className="h-3 w-16 bg-gray-100 rounded" />
+            </div>
+            <div className="h-4 w-24 bg-gray-100 rounded mb-2" />
+            <div className="flex gap-1.5 mb-2">
+              <div className="h-5 w-20 bg-gray-100 rounded" />
+              <div className="h-5 w-14 bg-gray-100 rounded" />
+            </div>
+            <div className="h-3 w-40 bg-gray-100 rounded" />
+          </div>
+
+          {/* Action card skeleton */}
+          <div className="bg-[#F4F8FF]/80 border border-blue-200/60 rounded-xl p-5 text-center mt-1">
+            <div className="h-4 w-40 bg-gray-200 rounded mx-auto mb-2" />
+            <div className="h-3 w-3/4 bg-gray-200 rounded mx-auto mb-4" />
+            <div className="flex flex-col gap-2.5">
+              <div className="h-9 w-full bg-[#0052D9]/30 rounded-lg" />
+              <div className="h-9 w-full bg-gray-200 rounded-lg" />
+            </div>
+          </div>
+
+          {/* Tip card skeleton */}
+          <div className="bg-orange-50/30 border border-orange-100/50 rounded-xl p-4 mt-1">
+            <div className="flex items-center gap-2 mb-2.5">
+              <div className="h-3.5 w-3.5 bg-orange-200 rounded" />
+              <div className="h-3 w-24 bg-orange-200 rounded" />
+            </div>
+            <div className="space-y-1.5">
+              <div className="h-3 w-full bg-orange-100 rounded" />
+              <div className="h-3 w-5/6 bg-orange-100 rounded" />
+              <div className="h-3 w-3/4 bg-orange-100 rounded" />
+            </div>
+          </div>
         </div>
       )}
       {!loading && !resumeVm && (
