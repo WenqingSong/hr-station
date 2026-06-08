@@ -65,6 +65,14 @@ export interface ResumePickerModalProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function formatDateTime(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 const TITLE_ID = "resume-picker-title";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -382,11 +390,11 @@ export function ResumePickerModal({
                           )}
                           {resume.projectCount != null &&
                             resume.projectCount > 0 &&
-                            resume.updatedAt && <span className="w-px h-3 bg-slate-200" />}
-                          {resume.updatedAt && (
+                            formatDateTime(resume.updatedAt) && <span className="w-px h-3 bg-slate-200" />}
+                          {formatDateTime(resume.updatedAt) && (
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {resume.updatedAt}
+                              {formatDateTime(resume.updatedAt)}
                             </span>
                           )}
                         </div>

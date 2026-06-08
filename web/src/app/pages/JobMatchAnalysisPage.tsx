@@ -17,6 +17,16 @@ import { MatchAnalysisSkeleton } from "../components/match/MatchAnalysisSkeleton
 import { Badge } from "../components/ui/Badge";
 import { Loader2, Sparkles, RefreshCw } from "lucide-react";
 
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 // ─── Phase ─────────────────────────────────────────────────────────────
 
 type MatchPhase =
@@ -355,7 +365,7 @@ export function JobMatchAnalysisPage() {
               )}
               <p className="text-[11px] text-gray-400 mt-2">
                 {selectedOption.projectCount > 0 ? `${selectedOption.projectCount} 个项目经历` : ""}
-                {selectedOption.updatedAt ? ` · 更新于 ${selectedOption.updatedAt}` : ""}
+                {formatDateTime(selectedOption.updatedAt) ? ` · 更新于 ${formatDateTime(selectedOption.updatedAt)}` : ""}
               </p>
             </div>
 

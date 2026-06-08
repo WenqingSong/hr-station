@@ -4,6 +4,16 @@ import { Badge } from "../ui/Badge";
 import { toResumeSummaryViewModel } from "../../../adapters";
 import type { Resume } from "../../../types";
 
+// ── Helpers ──
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 interface ResumeOptimizationSidebarRightProps {
   resume?: Resume;
   resumeSource?: string;
@@ -35,7 +45,7 @@ export function ResumeOptimizationSidebarRight({ resume, resumeSource = "当前�
           </div>
         </div>
         <p className="text-[12px] text-gray-400">
-          包含 {resumeVm.projectCount} 个项目经历，最近更新：{resumeVm.updatedAt}
+          包含 {resumeVm.projectCount} 个项目经历，最近更新：{formatDateTime(resumeVm.updatedAt) || "—"}
         </p>
 
         <div className="mt-5 pt-4 border-t border-gray-100">
