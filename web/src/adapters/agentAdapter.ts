@@ -71,14 +71,19 @@ export function toAgentMetaViewModel(meta: AgentResponseMeta): AgentMetaViewMode
 }
 
 export function toTopFixItemViewModel(item: TopFixItem): TopFixItemViewModel {
+  // K9-2-Regression-C: Map backend JSON fields (issue/why_it_matters/action/etc) to ViewModel
+  const title = item.title || item.issue || "";
+  const desc = item.description || item.why_it_matters || "";
+  const impact = item.expected_impact || item.estimated_effort || (item.action || "").slice(0, 40);
+  const priorityVal = item.priority || "P1";
+  const needVerify = item.need_user_verify ?? false;
   return {
-    title: item.title,
-    priorityLabel: priorityToLabel(item.priority),
-    priorityTone: priorityToTone(item.priority),
-    expectedImpact: item.expected_impact,
-    needUserVerify: item.need_user_verify,
-    description: item.description,
-    // K8-5-28-B: pass through resume_module
+    title,
+    priorityLabel: priorityToLabel(priorityVal),
+    priorityTone: priorityToTone(priorityVal),
+    expectedImpact: impact,
+    needUserVerify: needVerify,
+    description: desc,
     resumeModule: item.resume_module,
   };
 }
@@ -89,15 +94,30 @@ export function toTopFixItemViewModels(items: TopFixItem[]): TopFixItemViewModel
 }
 
 export function toEvidenceItemViewModel(item: EvidenceItem): EvidenceItemViewModel {
+  // K9-2-Regression-C: Map backend JSON fields (requirement/resume_point/judgement) to ViewModel
+  const jdReq = item.jd_requirement || item.requirement || "";
+  const resumeEv = item.resume_evidence || item.resume_point || "";
+  const strength = item.evidence_strength || mapJudgementToStrength(item.judgement || "");
+  const risk = item.risk_note || "";
   return {
-    jdRequirement: item.jd_requirement,
-    resumeEvidence: item.resume_evidence,
-    evidenceStrengthLabel: evidenceStrengthToLabel(item.evidence_strength),
-    evidenceStrengthTone: evidenceStrengthToTone(item.evidence_strength),
-    riskNote: item.risk_note,
-    // K8-5-28-B: pass through resume_module
+    jdRequirement: jdReq,
+    resumeEvidence: resumeEv,
+    evidenceStrengthLabel: evidenceStrengthToLabel(strength),
+    evidenceStrengthTone: evidenceStrengthToTone(strength),
+    riskNote: risk,
     resumeModule: item.resume_module,
   };
+}
+
+// Map backend "匹配"/"部分匹配"/"缺口" to evidence strength
+function mapJudgementToStrength(judgement: string): string {
+  switch (judgement) {
+  case "匹配": return "strong";
+  case "部分匹配": return "partial";
+  case "缺口": return "missing";
+  case "待评估": return "insufficient";
+  default: return "insufficient";
+  }
 }
 
 export function toEvidenceItemViewModels(

@@ -24,6 +24,17 @@ export interface MatchAnalysisPageViewModel {
   riskItems: string[];
   nextActions: string[];
   meta?: AgentMetaViewModel;
+
+  // K9-2-Regression-C: Full Deep fields from backend
+  fitPoints?: string[];
+  resumeEvidence?: string[];
+  jobRequirements?: string[];
+  gapPoints?: string[];
+  riskPoints?: string[];
+  interviewTalkingPoints?: string[];
+  deliveryStrategy?: string;
+  improvementSuggestions?: { priority: string; title: string; reason: string; action: string }[];
+  profileDominantProfile?: string;
 }
 
 // ─── 转换函数 ──────────────────────────────────────────────────────────────────
@@ -35,14 +46,24 @@ export function toMatchAnalysisPageViewModel(
   return {
     matchScore: result.match_score,
     matchLevel: result.match_level,
-    summary: result.summary,
-    applyReadiness: result.apply_readiness,
-    optimizationStopSignal: result.optimization_stop_signal,
+    summary: result.summary || "",
+    applyReadiness: typeof result.apply_readiness === 'string' ? result.apply_readiness : "",
+    optimizationStopSignal: typeof result.optimization_stop_signal === 'string' ? result.optimization_stop_signal : "",
     topFixItems: toTopFixItemViewModels(result.top_fix_items),
     evidenceChain: toEvidenceItemViewModels(result.evidence_chain),
-    matchHighlights: result.match_highlights,
-    riskItems: result.risk_items,
-    nextActions: result.next_actions,
+    matchHighlights: result.match_highlights || [],
+    riskItems: result.risk_items || result.risk_points || [],
+    nextActions: result.next_actions || [],
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
+    // K9-2-Regression-C: Deep fields
+    fitPoints: result.fit_points || result.match_highlights || [],
+    resumeEvidence: result.resume_evidence || [],
+    jobRequirements: result.job_requirements || [],
+    gapPoints: result.gap_points || result.match_highlights?.slice(0, 2) || [],
+    riskPoints: result.risk_points || result.risk_items || [],
+    interviewTalkingPoints: result.interview_talking_points || result.interview_questions || [],
+    deliveryStrategy: typeof result.delivery_strategy === 'string' ? result.delivery_strategy : "",
+    improvementSuggestions: result.improvement_suggestions || result.match_highlights?.map((_, i) => ({ priority: i === 0 ? "P0" : "P1", title: _, reason: "", action: _ })) || [],
+    profileDominantProfile: result.profile_dominant_profile || "",
   };
 }

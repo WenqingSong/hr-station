@@ -57,6 +57,22 @@ export interface ResumeOptionViewModel {
   name: string;
   isCurrent: boolean;
   updatedAt?: string;
+  /** 简历方向标签（最高学历 学校·学位·专业） */
+  directionLabel: string;
+  /** 简历标签（技能/语言/证书等） */
+  tags: string[];
+  /** 项目经历数量 */
+  projectCount: number;
+  /** 是否推荐使用该简历 */
+  isRecommended: boolean;
+  /** 是否当前正在使用的简历 */
+  isDefault: boolean;
+  /** 状态标签（如"历史版本"） */
+  statusLabel: string;
+  /** 方向不匹配原因（场景相关，默认为空） */
+  mismatchReason?: string;
+  /** AI 推荐/匹配说明文本 */
+  recommendationLabel: string;
 }
 
 export interface ResumeComparisonViewModel {
@@ -131,6 +147,13 @@ export function toResumeOptionViewModel(
     name: option.name,
     isCurrent: option.is_current || false,
     updatedAt: option.updated_at,
+    directionLabel: '',
+    tags: [],
+    projectCount: 0,
+    isRecommended: option.is_current || false,
+    isDefault: option.is_current || false,
+    statusLabel: option.is_current ? '' : '历史版本',
+    recommendationLabel: '',
   };
 }
 
@@ -143,12 +166,58 @@ export function toResumeOptionViewModels(
 export function toResumeOptionViewModelsFromResumes(
   resumes: Resume[],
 ): ResumeOptionViewModel[] {
-  return resumes.map((r) => ({
-    id: r.id,
-    name: r.name || '',
-    isCurrent: r.is_current || false,
-    updatedAt: r.updated_at,
-  }));
+  return resumes.map((r) => {
+    // 从最高学历推导方向标签
+    const highestEdu = (r.educations && r.educations.length > 0) ? r.educations[0] : null;
+    const directionLabel = highestEdu
+      ? [highestEdu.school, highestEdu.degree, highestEdu.major].filter(Boolean).join(' · ')
+      : '';
+
+    // 构建标签：学历 → 技能关键词 → 语言成绩 → 实习公司 → 证书
+    const tags: string[] = [];
+    if (highestEdu?.degree) {
+      tags.push(highestEdu.degree);
+    }
+    if (r.professional_skills) {
+      const skillTokens = r.professional_skills
+        .split(/[,，、/\n]/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      for (const t of skillTokens) {
+        if (t.length <= 12 && tags.length < 6) tags.push(t);
+      }
+    }
+    const langExams = Array.isArray(r.language_exams) ? r.language_exams : [];
+    for (const le of langExams) {
+      if (le.exam_type && tags.length < 6) tags.push(le.exam_type);
+    }
+    const internships = Array.isArray(r.internships) ? r.internships : [];
+    for (const it of internships) {
+      if (it.company && tags.length < 6) tags.push(it.company);
+    }
+    const certs = Array.isArray(r.certificates) ? r.certificates : [];
+    for (const c of certs) {
+      if (c.name && tags.length < 6) tags.push(c.name);
+    }
+
+    const projectCount = Array.isArray(r.projects) ? r.projects.length : 0;
+    const isCurrent = r.is_current || false;
+    const recommendationLabel = directionLabel || '可参与 AI 分析';
+
+    return {
+      id: r.id,
+      name: r.name || '',
+      isCurrent,
+      updatedAt: r.updated_at,
+      directionLabel,
+      tags,
+      projectCount,
+      isRecommended: isCurrent,
+      isDefault: isCurrent,
+      statusLabel: isCurrent ? '' : '历史版本',
+      recommendationLabel,
+    };
+  });
 }
 
 /** @deprecated use toResumeOptionViewModelsFromResumes */

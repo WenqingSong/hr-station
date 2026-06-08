@@ -167,6 +167,13 @@ export interface TopFixItem {
   description?: string;
   /** K8-5-28-B: resume module (skills/projects/internships/...) */
   resume_module?: string;
+  /** K9-2-Regression-B: backend JSON field names (match_mock.go) */
+  issue?: string;
+  why_it_matters?: string;
+  action?: string;
+  example_reference?: string;
+  self_check_question?: string;
+  estimated_effort?: string;
 }
 
 /** JD 证据链条目 */
@@ -177,6 +184,10 @@ export interface EvidenceItem {
   risk_note?: string;
   /** K8-5-28-B: resume module (skills/projects/certificates/...) */
   resume_module?: string;
+  /** K9-2-Regression-B: backend JSON field names (match_mock.go) */
+  requirement?: string;
+  resume_point?: string;
+  judgement?: string;
 }
 
 // ─── 三类 Agent Result ─────────────────────────────────────────────────────────
@@ -235,7 +246,31 @@ export interface MatchAnalysisResult {
   evidence_chain: EvidenceItem[];
   match_highlights: string[];
   risk_items: string[];
+  risk_points?: string[];
   next_actions: string[];
+
+  // K9-2-Regression-B: Deep fields
+  fit_points?: string[];
+  resume_evidence?: string[];
+  job_requirements?: string[];
+  gap_points?: string[];
+  interview_talking_points?: string[];
+  interview_questions?: string[];
+  delivery_strategy?: string;
+  improvement_suggestions?: MatchSuggestionItem[];
+  screening_result?: string;
+  generated_by?: string;
+  agent_status?: string;
+  profile_type?: string;
+  profile_dominant_profile?: string;
+}
+
+/** 优化建议条目 */
+export interface MatchSuggestionItem {
+  priority: string;
+  title: string;
+  reason: string;
+  action: string;
 }
 
 /** JD 关键词对齐建议 */

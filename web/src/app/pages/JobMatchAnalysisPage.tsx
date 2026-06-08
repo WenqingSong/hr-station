@@ -282,17 +282,17 @@ export function JobMatchAnalysisPage() {
                   </Badge>
                   <span className="text-sm font-semibold text-gray-700">{activeResult.matchScore || 0} 分</span>
                 </div>
-                {activeResult.matchSummary && (
-                  <p className="text-sm text-gray-600">{activeResult.matchSummary}</p>
+                {activeResult.summary && (
+                  <p className="text-sm text-gray-600">{activeResult.summary}</p>
                 )}
               </div>
               <div className="p-5 space-y-4">
                 {/* Core advantages */}
-                {activeResult.matchAdvantages && activeResult.matchAdvantages.length > 0 && (
+                {activeResult.matchHighlights && activeResult.matchHighlights.length > 0 && (
                   <section>
                     <h3 className="font-bold text-sm text-gray-900 mb-2">核心优势</h3>
                     <ul className="space-y-1">
-                      {activeResult.matchAdvantages.slice(0, 2).map((a, i) => (
+                      {activeResult.matchHighlights.slice(0, 2).map((a, i) => (
                         <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2">
                           <span className="text-green-500 mt-1 shrink-0">●</span> {a}
                         </li>
@@ -301,17 +301,24 @@ export function JobMatchAnalysisPage() {
                   </section>
                 )}
                 {/* Main gap */}
-                {activeResult.matchRisks && activeResult.matchRisks.length > 0 && (
+                {activeResult.gapPoints && activeResult.gapPoints.length > 0 && (
                   <section>
                     <h3 className="font-bold text-sm text-amber-600 mb-2">主要短板</h3>
-                    <p className="text-[13px] text-gray-700">{activeResult.matchRisks[0]}</p>
+                    <p className="text-[13px] text-gray-700">{activeResult.gapPoints[0]}</p>
+                  </section>
+                )}
+                {/* Main risk */}
+                {activeResult.riskPoints && activeResult.riskPoints.length > 0 && (
+                  <section>
+                    <h3 className="font-bold text-sm text-amber-600 mb-2">风险提醒</h3>
+                    <p className="text-[13px] text-gray-700">{activeResult.riskPoints[0]}</p>
                   </section>
                 )}
                 {/* Quick suggestion */}
-                {activeResult.matchSuggestions && activeResult.matchSuggestions.length > 0 && (
+                {activeResult.improvementSuggestions && activeResult.improvementSuggestions.length > 0 && (
                   <section>
                     <h3 className="font-bold text-sm text-gray-900 mb-2">快速建议</h3>
-                    <p className="text-[13px] text-gray-700">{activeResult.matchSuggestions[0]}</p>
+                    <p className="text-[13px] text-gray-700">{activeResult.improvementSuggestions[0]?.title || activeResult.improvementSuggestions[0]?.action}</p>
                   </section>
                 )}
                 {/* Upsell to Deep */}

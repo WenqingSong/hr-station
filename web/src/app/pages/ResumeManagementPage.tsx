@@ -77,9 +77,10 @@ interface SmartAssistantProps {
   selectedResumeName: string;
   hasResumes: boolean;
   loading: boolean;
+  resumes: ResumeRow[];
 }
 
-function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, loading }: SmartAssistantProps) {
+function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, loading, resumes }: SmartAssistantProps) {
   const disabled = !hasResumes || selectedResumeId === null;
 
   const entries = [
@@ -390,6 +391,7 @@ export function ResumeManagementPage() {
             selectedResumeName={rows?.find((r) => r.id === selectedResumeId)?.name ?? ""}
             hasResumes={hasResumes}
             loading={assistantLoading}
+            resumes={rows ?? []}
           />
         </div>
 

@@ -33,6 +33,8 @@ export interface JobDetailViewModel extends JobCardViewModel {
   applicationSubtype: string;
   direction: string;
   category: string;
+  /** 核心要求摘要（拆分自 requirements 文本或 mustHave+niceToHave） */
+  requirements: string[];
   responsibilities: string[];
   mustHave: string[];
   niceToHave: string[];
@@ -132,12 +134,26 @@ export function toJobDetailViewModelFromApi(job?: JobApiItem | null): JobDetailV
     bannerSummary: '', slogan: '', summary: '',
     applicationType: '', applicationProject: '', applicationSubtype: '',
     direction: '', category: '',
+    requirements: [],
     responsibilities: [], mustHave: [], niceToHave: [], bonusPoints: [], notes: [],
     organizations: [], locations: [], interviewLocations: [], skills: [],
     externalId: '', sourceName: '',
   };
   if (!job) return empty;
   const cardVm = toJobCardViewModelFromApi(job);
+  // 核心要求摘要：优先从 requirements 文本拆分，回退到 mustHave+niceToHave
+  let requirements: string[];
+  if (typeof job.requirements === 'string' && job.requirements.trim()) {
+    requirements = job.requirements
+      .split(/\n|\\n/)
+      .map(s => s.trim())
+      .filter(Boolean);
+  } else {
+    requirements = [
+      ...(Array.isArray(job.must_have) ? job.must_have : []),
+      ...(Array.isArray(job.nice_to_have) ? job.nice_to_have : []),
+    ];
+  }
   return {
     ...cardVm,
     bannerSummary: job.description ?? '',
@@ -148,6 +164,7 @@ export function toJobDetailViewModelFromApi(job?: JobApiItem | null): JobDetailV
     applicationSubtype: job.application_subtype ?? '',
     direction: job.direction ?? '',
     category: job.category ?? '',
+    requirements,
     responsibilities: job.responsibilities ?? [],
     mustHave: job.must_have ?? [],
     niceToHave: job.nice_to_have ?? [],

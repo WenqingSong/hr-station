@@ -202,7 +202,7 @@ func (s *MatchService) analyzeWithLLM(ctx context.Context, resume *model.ResumeV
 }
 
 // analyzeWithMock calls the Mock Agent and builds the response.
-// If fbErr is non-nil, it means we're in fallback mode from a failed LLM attempt.
+// K9-2-Regression-B: Dispatches to AnalyzeFast or AnalyzeQuality based on genTier.
 func (s *MatchService) analyzeWithMock(
 	ctx context.Context,
 	userID uint64,
@@ -211,7 +211,14 @@ func (s *MatchService) analyzeWithMock(
 	fbErr *agent.MatchFallbackError,
 	genTier string,
 ) (*MatchResponse, error) {
-	result, err := s.mockAgent.Analyze(ctx, resume, job)
+	var result *model.MatchAnalysisResult
+	var err error
+
+	if genTier == "quality" {
+		result, err = s.mockAgent.AnalyzeQuality(ctx, resume, job)
+	} else {
+		result, err = s.mockAgent.AnalyzeFast(ctx, resume, job)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate match analysis: %w", err)
 	}
@@ -235,14 +242,14 @@ func (s *MatchService) analyzeWithMock(
 
 	now := time.Now()
 	resp := &MatchResponse{
-		GeneratedBy: "mock_agent",
+		GeneratedBy: genBy,
 		Result:      result,
 		AnalysisBasis: &model.AnalysisBasis{JobDescriptionUsed: job.Description != "", JobRequirementsUsed: job.Requirements != "", DataQuality: job.DataQuality},
 		CreatedAt:    now.Format("2006-01-02T15:04:05Z07:00"),
 		Meta:         meta,
 	}
 
-	// K9-2-C: Save with full metadata
+	// Save with full metadata
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal match result: %w", err)
