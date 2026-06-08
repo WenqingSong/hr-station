@@ -21,6 +21,12 @@ export interface ResumeSummaryViewModel {
   name: string;
   isCurrent: boolean;
   updatedAt: string;
+  /** K9-2-Entry-B: 画像方向 */
+  directionLabel?: string;
+  /** K9-2-Entry-B: 技能标签（最多6个） */
+  skillTags: string[];
+  /** K9-2-Entry-B: 项目经历数量 */
+  projectCount: number;
 }
 
 /** 简历管理页 ViewModel */
@@ -98,12 +104,25 @@ export interface ResumeComparisonViewModel {
 // ─── 转换函数 ──────────────────────────────────────────────────────────────────
 
 export function toResumeSummaryViewModel(resume?: Resume | null): ResumeSummaryViewModel {
-  if (!resume) return { id: 0, name: '', isCurrent: false, updatedAt: '' };
+  if (!resume) return { id: 0, name: '', isCurrent: false, updatedAt: '', skillTags: [], projectCount: 0 };
+  const highestEdu = (resume.educations && resume.educations.length > 0) ? resume.educations[0] : null;
+  const directionLabel = highestEdu
+    ? [highestEdu.school, highestEdu.degree, highestEdu.major].filter(Boolean).join(' · ')
+    : '';
+  const projectCount = Array.isArray(resume.projects) ? resume.projects.length : 0;
+  // Build skill tags
+  const skillTags: string[] = [];
+  if (resume.professional_skills) {
+    resume.professional_skills.split(/[,，、/\n]/).map(s => s.trim()).filter(Boolean).slice(0, 4).forEach(t => skillTags.push(t));
+  }
   return {
     id: resume.id,
     name: resume.name || '',
     isCurrent: resume.is_current || false,
     updatedAt: resume.updated_at || '',
+    directionLabel,
+    skillTags,
+    projectCount,
   };
 }
 

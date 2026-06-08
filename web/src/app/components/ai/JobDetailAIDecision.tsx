@@ -3,8 +3,8 @@ import { Sparkles, FileText, Target, ArrowRight, ShieldAlert, FileEdit } from "l
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { useNavigate, useParams } from "react-router";
-import { loadCurrentResumeSummaryViewModel, loadJobDetailViewModel } from "../../../api";
-import type { ResumeSummaryViewModel, JobDetailViewModel } from "../../../adapters";
+import { loadCurrentResumeSummaryViewModel, loadJobDetailViewModel, loadResumeOptionViewModelsFromApi } from "../../../api";
+import type { ResumeSummaryViewModel, ResumeOptionViewModel, JobDetailViewModel } from "../../../adapters";
 import { SelectResumeModal } from "../SelectResumeModal";
 
 type ModalAction = "match" | "optimize";
@@ -17,15 +17,40 @@ export function JobDetailAIDecision() {
   const [resumeVm, setResumeVm] = useState<ResumeSummaryViewModel | null>(null);
   const [jobVm, setJobVm] = useState<JobDetailViewModel | null>(null);
   const [loading, setLoading] = useState(true);
+  // K9-2-Entry-B-Fix: track selected resume ID for modal sync
+  const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
 
   useEffect(() => {
     Promise.all([
-      loadCurrentResumeSummaryViewModel().then(setResumeVm).catch(() => {}),
+      loadCurrentResumeSummaryViewModel().then(vm => { setResumeVm(vm); setSelectedResumeId(vm?.id ?? null); }).catch(() => {}),
       loadJobDetailViewModel(jobId).then(setJobVm).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [jobId]);
 
+  /** Update sidebar resume display from a resume ID (fetched from API) */
+  const updateResumeDisplay = (resumeId: string) => {
+    const numId = Number(resumeId);
+    if (isNaN(numId)) return;
+    setSelectedResumeId(numId);
+    loadResumeOptionViewModelsFromApi().then(opts => {
+      const found = opts.find(o => o.id === numId);
+      if (found) {
+        setResumeVm({
+          id: found.id,
+          name: found.name,
+          isCurrent: found.isCurrent,
+          updatedAt: found.updatedAt || "",
+          directionLabel: found.directionLabel,
+          skillTags: found.tags || [],
+          projectCount: found.projectCount,
+        });
+      }
+    }).catch(() => {});
+  };
+
   const handleConfirm = (resumeId: string) => {
+    // Update the sidebar current resume display
+    updateResumeDisplay(resumeId);
     if (modalAction === "match") {
       navigate(`/match?jobId=${encodeURIComponent(jobId)}&resumeId=${encodeURIComponent(resumeId)}`);
     } else if (modalAction === "optimize") {
@@ -80,7 +105,10 @@ export function JobDetailAIDecision() {
             <FileText className="h-3.5 w-3.5" />
             当前简历
           </div>
-          <button className="text-[11px] text-[#0052D9] hover:underline">
+          <button
+            className="text-[11px] text-[#0052D9] hover:underline"
+            onClick={() => setModalAction("match")}
+          >
             切换简历
           </button>
         </div>
@@ -105,14 +133,14 @@ export function JobDetailAIDecision() {
           系统将基于当前岗位 JD 和所选简历，进行分析和优化。
         </p>
         <div className="flex flex-col gap-2.5">
-          <Button 
+          <Button
             className="w-full bg-[#0052D9] hover:bg-[#0040A8] text-white text-[13px]"
             onClick={() => setModalAction("match")}
           >
             分析岗位匹配度
             <ArrowRight className="ml-2 h-3.5 w-3.5" />
           </Button>
-          <Button 
+          <Button
             variant="outline"
             className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 text-[13px]"
             onClick={() => setModalAction("optimize")}
@@ -142,6 +170,7 @@ export function JobDetailAIDecision() {
         onConfirm={handleConfirm}
         scene="match-analysis"
         jobTitle={jobVm?.title || ""}
+        initialSelectedResumeId={selectedResumeId}
       />
       <SelectResumeModal
         isOpen={modalAction === "optimize"}
@@ -149,6 +178,7 @@ export function JobDetailAIDecision() {
         onConfirm={handleConfirm}
         scene="resume-optimization"
         jobTitle={jobVm?.title || ""}
+        initialSelectedResumeId={selectedResumeId}
       />
     </div>
   );
