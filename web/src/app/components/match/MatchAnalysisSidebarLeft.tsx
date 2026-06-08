@@ -7,10 +7,25 @@ import type { JobApiItem } from "../../../api/jobs";
 interface MatchAnalysisSidebarLeftProps {
   job?: JobApiItem;
   jobSource?: string;
+  /** K9-2-Regression-F-B: job requirements for keyword derivation */
+  jobRequirements?: string[];
 }
 
-export function MatchAnalysisSidebarLeft({ job, jobSource = "默认岗位" }: MatchAnalysisSidebarLeftProps) {
+function deriveKeywords(reqs: string[], title: string): string[] {
+  const all = [...reqs.map(r => r.replace(/与.*相关.*$/, "").replace(/能力$/, "").trim()), title];
+  // Deduplicate and limit to 6
+  const seen = new Set<string>();
+  const kw: string[] = [];
+  for (const w of all) {
+    if (!seen.has(w) && w.length > 0 && w.length <= 12) { seen.add(w); kw.push(w); }
+    if (kw.length >= 6) break;
+  }
+  return kw;
+}
+
+export function MatchAnalysisSidebarLeft({ job, jobSource = "默认岗位", jobRequirements }: MatchAnalysisSidebarLeftProps) {
   const jobVm = toJobDetailViewModelFromApi(job);
+  const keywords = deriveKeywords(jobRequirements || jobVm.requirements, jobVm.title);
   return (
     <aside className="w-[320px] shrink-0 flex flex-col gap-4">
       <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
@@ -48,9 +63,15 @@ export function MatchAnalysisSidebarLeft({ job, jobSource = "默认岗位" }: Ma
             <Tags className="w-3.5 h-3.5 text-gray-400" />
             JD 关键词
           </h3>
-          <p className="text-[12px] text-gray-400">
-            关键词提取需要真实 JD 匹配分析结果，当前未获取到。
-          </p>
+          {keywords.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {keywords.map((kw, i) => (
+                <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] rounded font-medium">{kw}</span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[12px] text-gray-400">关键词将在深度分析后自动提取</p>
+          )}
         </div>
       </div>
     </aside>

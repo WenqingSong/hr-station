@@ -188,6 +188,9 @@ export interface EvidenceItem {
   requirement?: string;
   resume_point?: string;
   judgement?: string;
+  /** K9-2-Regression-F-B: backend risk/fix_action */
+  risk?: string;
+  fix_action?: string;
 }
 
 // ─── 三类 Agent Result ─────────────────────────────────────────────────────────

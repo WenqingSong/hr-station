@@ -47,6 +47,8 @@ export interface EvidenceItemViewModel {
   riskNote?: string;
   /** K8-5-28-B */
   resumeModule?: string;
+  /** K9-2-Regression-F-B: fix action from backend */
+  fixAction?: string;
 }
 
 // ─── 转换函数 ──────────────────────────────────────────────────────────────────
@@ -98,7 +100,8 @@ export function toEvidenceItemViewModel(item: EvidenceItem): EvidenceItemViewMod
   const jdReq = item.jd_requirement || item.requirement || "";
   const resumeEv = item.resume_evidence || item.resume_point || "";
   const strength = item.evidence_strength || mapJudgementToStrength(item.judgement || "");
-  const risk = item.risk_note || "";
+  const risk = item.risk_note || item.risk || "";
+  const fixAction = item.fix_action || "";
   return {
     jdRequirement: jdReq,
     resumeEvidence: resumeEv,
@@ -106,6 +109,7 @@ export function toEvidenceItemViewModel(item: EvidenceItem): EvidenceItemViewMod
     evidenceStrengthTone: evidenceStrengthToTone(strength),
     riskNote: risk,
     resumeModule: item.resume_module,
+    fixAction: fixAction,
   };
 }
 

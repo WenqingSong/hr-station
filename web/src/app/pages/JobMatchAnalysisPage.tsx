@@ -268,7 +268,7 @@ export function JobMatchAnalysisPage() {
       {activeResult && (
         <div className="flex gap-6 items-start">
           {/* Left sidebar — job */}
-          <MatchAnalysisSidebarLeft job={job ?? undefined} jobSource="目标岗位" />
+          <MatchAnalysisSidebarLeft job={job ?? undefined} jobSource="目标岗位" jobRequirements={activeResult?.jobRequirements} />
 
           {/* Center detail — Fast vs Deep */}
           {isFast ? (
@@ -334,23 +334,48 @@ export function JobMatchAnalysisPage() {
             <MatchAnalysisDetail currentJobId={jobId} currentResumeId={String(selectedOption.id)} data={activeResult} />
           )}
 
-          {/* Right sidebar — resume + deep button */}
+          {/* Right sidebar — resume details + deep button */}
           <aside className="w-[300px] shrink-0 flex flex-col gap-4">
             <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="text-[13px] font-medium text-gray-500 mb-2">当前简历</h3>
+              <h3 className="text-[13px] font-medium text-gray-500 mb-3">当前简历</h3>
               <p className="text-sm font-bold text-gray-900 mb-1">{selectedOption.name}</p>
-              {activeResult && (
-                <p className="text-[11px] text-[#0052D9] mt-1">
-                  画像：{activeResult.profileDominantProfile || "未知"}
-                </p>
+              {activeResult?.profileDominantProfile && (
+                <p className="text-[11px] text-[#0052D9] mt-1 mb-2">画像方向：{activeResult.profileDominantProfile}</p>
               )}
+              {selectedOption.directionLabel && (
+                <p className="text-[11px] text-gray-500">学校/专业：{selectedOption.directionLabel}</p>
+              )}
+              {selectedOption.tags && selectedOption.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {selectedOption.tags.slice(0, 4).map((t, i) => (
+                    <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] rounded">{t}</span>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-gray-400 mt-2">
+                {selectedOption.projectCount > 0 ? `${selectedOption.projectCount} 个项目经历` : ""}
+                {selectedOption.updatedAt ? ` · 更新于 ${selectedOption.updatedAt}` : ""}
+              </p>
             </div>
+
+            {activeResult?.resumeEvidence && activeResult.resumeEvidence.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h3 className="text-[13px] font-medium text-gray-500 mb-2">相关简历证据</h3>
+                <ul className="space-y-1.5">
+                  {activeResult.resumeEvidence.slice(0, 4).map((ev, i) => (
+                    <li key={i} className="text-[11px] text-gray-600 flex items-start gap-1.5">
+                      <span className="text-green-500 mt-0.5 shrink-0">●</span> {ev}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h3 className="text-[13px] font-medium text-gray-500 mb-2">深度匹配分析</h3>
               <p className="text-[11px] text-gray-400 mb-3">
                 {isFast
-                  ? "基于简历画像、岗位要求和匹配证据生成完整的差距分析、风险与投递策略。"
+                  ? "基于简历画像、岗位JD和匹配证据生成完整分析报告。"
                   : "当前已展示深度匹配分析结果，可重新生成。"}
               </p>
               {phase === "deep_loading" ? (

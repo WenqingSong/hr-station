@@ -25,6 +25,9 @@ type MatchEvidence struct {
 	ResumePoint  string `json:"resume_point"`
 	Judgement    string `json:"judgement"`
 	ResumeModule string `json:"resume_module,omitempty"`
+
+	Risk      string `json:"risk,omitempty"`
+	FixAction string `json:"fix_action,omitempty"`
 }
 
 // MatchSuggestion represents an optimization suggestion with priority.

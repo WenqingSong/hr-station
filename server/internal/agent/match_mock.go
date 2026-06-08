@@ -450,6 +450,23 @@ func buildMatchEvidenceChain(cp matchProfile, resume *model.ResumeVersion, job *
 	if len(chain) > maxN {
 		chain = chain[:maxN]
 	}
+	// K9-2-Regression-F-B: populate Risk/FixAction per judgement
+	for i := range chain {
+		switch chain[i].Judgement {
+		case "匹配":
+			chain[i].Risk = "当前证据较充分，但仍建议补充量化结果或更具体的场景细节"
+			chain[i].FixAction = "在对应项目经历中补充该能力的使用场景、结果指标或业务影响"
+		case "部分匹配":
+			chain[i].Risk = "已有相关经历，但与岗位要求的直接证据仍不够完整"
+			chain[i].FixAction = "在项目经历或技能字段中补充该要求对应的工具使用、问题规模或量化结果"
+		case "缺口":
+			chain[i].Risk = "当前简历缺少该岗位要求的直接证据，可能影响初筛判断"
+			chain[i].FixAction = "补充学习、项目或实践经历中与该要求相关的可验证证据"
+		default:
+			chain[i].Risk = "需要进一步确认简历中是否有对应证据"
+			chain[i].FixAction = "在简历对应模块中补充与该要求直接相关的项目证据、结果指标或技能使用场景"
+		}
+	}
 	return chain
 }
 
@@ -619,10 +636,10 @@ func buildApplyReadiness(score int, guard *model.MatchHardGuardResult, resumeFC 
 
 func buildOptimizationStopSignal(score int, gapPoints []string) string {
 	if score >= 85 && len(gapPoints) <= 1 {
-		return "当前可先投递，建议在简历中补充项目量化结果和岗位关键词后作为重点岗位投递"
+		return "当前可先投递，建议在项目经历中补充量化结果和岗位关键词"
 	}
 	if score >= 70 {
-		return "建议先修复简历中的关键缺口再投递，当前状态下投递通过率可能偏低"
+		return "建议先补充简历中的关键缺口证据再投递，当前状态下通过率可能偏低"
 	}
 	return "建议先针对性补强核心技能和项目经历，不建议在修复前大量投递"
 }
@@ -646,19 +663,17 @@ func buildMatchNextSteps(score int, resumeFC *model.MatchResumeFeatureCard, jobF
 
 func buildDeliveryStrategyV2(score int, job *model.Job, resumeFC *model.MatchResumeFeatureCard, guard *model.MatchHardGuardResult) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("【投递建议】"))
+	sb.WriteString("【投递建议】")
 
 	if score >= 85 {
-		sb.WriteString(fmt.Sprintf("建议优先投递%s类岗位。", job.Category))
-		sb.WriteString("投递前把核心技术栈和项目成果放在简历前半部分。")
+		sb.WriteString(fmt.Sprintf("与当前%s岗位的匹配度较高，建议在项目经历中补充与岗位要求直接相关的量化结果和技能使用场景后投递。", job.Category))
 	} else if score >= 70 {
-		sb.WriteString(fmt.Sprintf("可尝试投递%s类岗位，但建议先补强相关技能。", job.Category))
-		sb.WriteString("投递时强调可迁移能力和学习潜力。")
+		sb.WriteString(fmt.Sprintf("可尝试投递当前岗位，但建议先围绕岗位核心要求补强相关项目证据。投递时强调可迁移能力和学习潜力。"))
 	} else {
 		if guard.Result == "mismatch" {
-			sb.WriteString("不建议当前投递此类岗位。方向差异较大，建议关注与自身背景更匹配的方向。")
+			sb.WriteString("不建议当前投递此岗位。方向差异较大，建议关注与自身背景更匹配的方向。")
 		} else {
-			sb.WriteString(fmt.Sprintf("建议先补强与%s岗位相关的技能和项目经历后再投递。", job.Category))
+			sb.WriteString(fmt.Sprintf("建议先围绕%s岗位的核心要求补强相关技能和项目经历后再投递。", job.Category))
 		}
 	}
 
@@ -667,7 +682,7 @@ func buildDeliveryStrategyV2(score int, job *model.Job, resumeFC *model.MatchRes
 	}
 
 	if resumeFC.IsExploration {
-		sb.WriteString("【特别建议】你的简历方向尚在探索阶段，建议先通过低风险岗位积累经验，明确方向后针对性提升。")
+		sb.WriteString("【特别建议】你的简历方向尚在探索阶段，建议先明确方向并积累对应项目经验后再重点投递。")
 	}
 	return sb.String()
 }
