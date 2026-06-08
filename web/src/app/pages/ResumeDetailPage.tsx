@@ -11,6 +11,7 @@ import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { PageError } from "../components/PageState";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
+import { OptimizationEntryModal } from "../components/OptimizationEntryModal";
 
 // ─── Completeness ─────────────────────────────────────────────────────────────
 
@@ -105,6 +106,7 @@ export function ResumeDetailPage() {
   const [resume, setResume] = useState<Resume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showOptimizationModal, setShowOptimizationModal] = useState(false);
 
   useEffect(() => {
     if (!numId) { setLoading(false); setError("简历 ID 不合法。"); return; }
@@ -181,7 +183,7 @@ export function ResumeDetailPage() {
     : [];
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  return (
+  return (<>
     <ContentPageShell maxWidthClassName="max-w-4xl">
       <div className="space-y-6">
 
@@ -431,11 +433,17 @@ export function ResumeDetailPage() {
             <span className="text-slate-300">·</span>
             <Link to="/jobs" className="text-xs text-[#0052D9] hover:underline">去岗位广场</Link>
             <span className="text-slate-300">·</span>
-            <Link to={`/resume-optimization?resumeId=${resume.id}`} className="text-xs text-[#0052D9] hover:underline">去简历优化</Link>
+            <button onClick={() => setShowOptimizationModal(true)} className="text-xs text-[#0052D9] hover:underline">去简历优化</button>
           </div>
         </div>
 
       </div>
     </ContentPageShell>
+      <OptimizationEntryModal
+        open={showOptimizationModal}
+        onClose={() => setShowOptimizationModal(false)}
+        initialResumeId={numId}
+      />
+    </>
   );
 }

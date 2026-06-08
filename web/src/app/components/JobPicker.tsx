@@ -1,0 +1,196 @@
+import React, { useState, useEffect, useMemo } from "react";
+import { Search, Briefcase, MapPin, Building2, Tag, RefreshCw } from "lucide-react";
+import type { JobApiItem } from "../../api/jobs";
+import { getJobs } from "../../api/jobs";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface JobPickerProps {
+  selectedJobId?: number | null;
+  onSelect: (job: JobApiItem) => void;
+  emptyMessage?: string;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getJobMeta(job: JobApiItem): string {
+  const parts: string[] = [];
+  if (job.city) parts.push(job.city);
+  if (job.direction) parts.push(job.direction);
+  if (job.recruit_type) parts.push(job.recruit_type);
+  return parts.join(" · ");
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function JobPicker({
+  selectedJobId,
+  onSelect,
+  emptyMessage = "没有找到匹配的岗位",
+}: JobPickerProps) {
+  const [jobs, setJobs] = useState<JobApiItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+
+  // ── Load jobs on mount ──
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    getJobs()
+      .then((res) => {
+        setJobs(res.items || []);
+      })
+      .catch(() => setError("岗位列表加载失败"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // ── Client-side filter (debounce by not searching, just filter) ──
+  const filtered = useMemo(() => {
+    if (!query.trim()) return jobs;
+    const q = query.trim().toLowerCase();
+    return jobs.filter(
+      (j) =>
+        j.title.toLowerCase().includes(q) ||
+        (j.direction || "").toLowerCase().includes(q) ||
+        (j.city || "").toLowerCase().includes(q) ||
+        (j.department || "").toLowerCase().includes(q) ||
+        (j.category || "").toLowerCase().includes(q) ||
+        (j.department || "").toLowerCase().includes(q),
+    );
+  }, [jobs, query]);
+
+  // ── States ──
+  if (loading) {
+    return (
+      <div className="py-6 text-center">
+        <RefreshCw className="w-4 h-4 animate-spin text-slate-400 mx-auto mb-2" />
+        <p className="text-[13px] text-slate-400">正在加载岗位列表…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="py-6 text-center">
+        <p className="text-[13px] text-slate-500 mb-1">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-[13px] text-[#0052D9] hover:underline"
+        >
+          重试
+        </button>
+      </div>
+    );
+  }
+
+  if (jobs.length === 0) {
+    return (
+      <div className="py-6 text-center">
+        <p className="text-[13px] text-slate-500 mb-1">暂无可用岗位</p>
+        <p className="text-[12px] text-slate-400">请稍后重试</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col min-h-0">
+      {/* ── Search ── */}
+      <div className="shrink-0 px-1 pb-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="搜索岗位名称、方向、城市、部门…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-[13px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 placeholder:text-slate-400"
+          />
+        </div>
+      </div>
+
+      {/* ── List ── */}
+      <div className="min-h-0 overflow-y-auto space-y-1.5">
+        {filtered.length === 0 ? (
+          <div className="py-8 text-center">
+            <p className="text-[13px] text-slate-500 mb-1">{emptyMessage}</p>
+            {query.trim() && (
+              <button
+                onClick={() => setQuery("")}
+                className="text-[12px] text-[#0052D9] hover:underline"
+              >
+                清空搜索
+              </button>
+            )}
+          </div>
+        ) : (
+          filtered.map((job) => {
+            const isSelected = selectedJobId === job.id;
+            return (
+              <div
+                key={job.id}
+                onClick={() => onSelect(job)}
+                className={`flex items-start gap-3 px-3 py-2.5 border rounded-lg cursor-pointer transition-all ${
+                  isSelected
+                    ? "border-[#0052D9] bg-blue-50/50 shadow-sm"
+                    : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50"
+                }`}
+              >
+                {/* Selection indicator */}
+                <div className="flex-shrink-0 mt-0.5">
+                  <div
+                    className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      isSelected ? "border-[#0052D9]" : "border-slate-300"
+                    }`}
+                  >
+                    {isSelected && <div className="w-2 h-2 rounded-full bg-[#0052D9]" />}
+                  </div>
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[14px] font-semibold text-slate-900 truncate">
+                      {job.title}
+                    </span>
+                    {job.recruit_type && (
+                      <span className="px-1.5 py-0.5 bg-blue-50 text-[#0052D9] text-[10px] rounded font-medium shrink-0">
+                        {job.recruit_type}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-[12px] text-slate-500 flex-wrap">
+                    {job.city && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {job.city}
+                      </span>
+                    )}
+                    {job.direction && (
+                      <span className="flex items-center gap-1">
+                        <Briefcase className="w-3 h-3" />
+                        {job.direction}
+                      </span>
+                    )}
+                    {job.department && (
+                      <span className="flex items-center gap-1">
+                        <Building2 className="w-3 h-3" />
+                        {job.department}
+                      </span>
+                    )}
+                    {job.category && (
+                      <span className="flex items-center gap-1">
+                        <Tag className="w-3 h-3" />
+                        {job.category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}

@@ -5,6 +5,7 @@ import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { FileText, Plus, Search, Sparkles, Wand2, GitCompare, Pencil, Trash2, Eye } from "lucide-react";
 import { getResumes, deleteResume, setCurrentResume } from "../../api/resumes";
 import { AppConfirmDialog } from "../components/common/AppConfirmDialog";
+import { OptimizationEntryModal } from "../components/OptimizationEntryModal";
 import type { Resume } from "../../types";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { isApiClientError } from "../../api/errors";
@@ -78,9 +79,10 @@ interface SmartAssistantProps {
   hasResumes: boolean;
   loading: boolean;
   resumes: ResumeRow[];
+  onOptimize: () => void;
 }
 
-function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, loading, resumes }: SmartAssistantProps) {
+function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, loading, resumes, onOptimize }: SmartAssistantProps) {
   const disabled = !hasResumes || selectedResumeId === null;
 
   const entries = [
@@ -102,7 +104,7 @@ function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, load
       icon: Wand2,
       label: "优化选中简历",
       desc: "AI 分析简历薄弱项，给出可执行优化建议",
-      href: selectedResumeId ? `/resume-optimization?resumeId=${selectedResumeId}` : "#",
+      action: "optimize",
       disabled,
     },
     {
@@ -141,6 +143,19 @@ function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, load
                   <p className="text-xs text-slate-400 mt-0.5">{entry.desc}</p>
                 </div>
               </div>
+            ) : "action" in entry && entry.action === "optimize" ? (
+              <button
+                onClick={onOptimize}
+                className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-blue-50/50 transition-colors group w-full text-left"
+              >
+                <entry.icon className="w-4 h-4 text-[#0052D9] mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
+                <div>
+                  <p className="text-sm font-medium text-slate-800 group-hover:text-[#0052D9] transition-colors">
+                    {entry.label}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">{entry.desc}</p>
+                </div>
+              </button>
             ) : (
               <Link
                 to={entry.href}
@@ -223,6 +238,7 @@ export function ResumeManagementPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [showOptimizationModal, setShowOptimizationModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -392,6 +408,7 @@ export function ResumeManagementPage() {
             hasResumes={hasResumes}
             loading={assistantLoading}
             resumes={rows ?? []}
+            onOptimize={() => setShowOptimizationModal(true)}
           />
         </div>
 
@@ -408,6 +425,11 @@ export function ResumeManagementPage() {
         loading={deleteLoading}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+      <OptimizationEntryModal
+        open={showOptimizationModal}
+        onClose={() => setShowOptimizationModal(false)}
+        initialResumeId={selectedResumeId}
       />
     </>
   );
