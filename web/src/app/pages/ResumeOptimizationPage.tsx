@@ -15,7 +15,19 @@ import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { PageLoading } from "../components/PageState";
 import { AgentStepLoadingOverlay } from "../components/common/AgentStepLoadingOverlay";
 import { OptimizationEntryModal } from "../components/OptimizationEntryModal";
-import { Sparkles, RefreshCw, Loader2, Target, Info, FileEdit, AlertTriangle, ArrowUp, FileText, Briefcase, Search, ExternalLink, Wand2, ChevronDown, ChevronUp, Copy, CheckCheck, Clock, MapPin, Building2, GraduationCap } from "lucide-react";
+import { Sparkles, RefreshCw, Loader2, Target, Info, FileEdit, AlertTriangle, ArrowUp, FileText, Briefcase, Search, ExternalLink, ChevronDown, ChevronUp, Copy, CheckCheck, GraduationCap } from "lucide-react";
+
+// ─── Text Safety ───────────────────────────────────────────────────────
+
+/** Sanitize display text: remove U+FFFD, control chars, normalize whitespace */
+function cleanText(value?: string | null): string {
+  if (!value) return "";
+  return value
+    .replace(/\uFFFD/g, "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 // ─── Phase ─────────────────────────────────────────────────────────────
 
@@ -36,11 +48,8 @@ function getHeaderLabel(phase: OptPhase, tier: string, genBy: string): string {
   if (phase === "loading_latest") return "正在读取优化结果";
   if (phase === "fast_loading") return "正在生成快速优化建议";
   if (phase === "deep_loading") return "智能体正在深度优化";
-  if (phase === "fast_done") return "快速优化 · 规则分析";
-  if (phase === "deep_done") {
-    if (genBy?.includes("llm")) return "深度优化 · AI生成";
-    return "深度优化 · 规则兜底";
-  }
+  if (phase === "fast_done") return "快速优化 · 初步预览";
+  if (phase === "deep_done") return "深度优化已完成";
   if (phase === "deep_error") return "深度优化生成失败 · 已保留当前结果";
   if (phase === "fast_error") return "快速优化生成失败";
   return "";
@@ -373,13 +382,13 @@ export function ResumeOptimizationPage() {
       {/* Agent Overlay for deep loading */}
       <AgentStepLoadingOverlay
         open={phase === "deep_loading"}
-        title="正在深度优化简历"
-        description="Offerr鹅正在分析简历画像、目标方向和优化缺口，生成完整改写建议。"
+        title="正在生成深度优化报告"
+        description="系统正在结合目标岗位 JD、匹配分析结果和当前简历，生成更完整的修改建议。"
         steps={[
-          { key: "profile", label: "读取简历画像" },
-          { key: "analyze", label: "分析目标方向" },
-          { key: "gaps", label: "定位优化缺口" },
-          { key: "suggestions", label: "生成改写建议" },
+          { key: "jd", label: "读取目标岗位 JD 与关键要求" },
+          { key: "evidence", label: "对照当前简历中的项目、技能和经历证据" },
+          { key: "suggestions", label: "生成可执行的修改建议与改写示例" },
+          { key: "strategy", label: "汇总投递重点和后续补强策略" },
         ]}
         status="loading"
       />
@@ -466,7 +475,7 @@ export function ResumeOptimizationPage() {
                    derivedMode === "target_direction" ? "针对目标方向" : "通用优化"}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  <span>{tierLabel}</span>
+                  <span>{phase === "deep_done" ? "深度优化已完成" : tierLabel}</span>
                   {matchScore != null && (
                     <><span className="text-slate-300 mx-1.5">|</span>
                     <span className="text-[#0052D9]">匹配 {matchScore} 分</span></>
@@ -484,11 +493,26 @@ export function ResumeOptimizationPage() {
         </div>
       </div>
 
+      {/* ── Deep status notice ── */}
+      {activeResult && !isFast && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+            <CheckCheck className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-emerald-800 mb-0.5">深度优化报告已完成</p>
+            <p className="text-[12px] text-emerald-700 leading-relaxed">
+              基于目标岗位 JD、匹配分析结果和当前简历生成。可重新生成或查看匹配分析获取更多依据。
+            </p>
+          </div>
+        </div>
+      )}
+
       {activeResult && (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
           {/* ── Center content ── */}
           {isFast ? (
-            <FastView data={activeResult} phase={phase} />
+            <FastView data={activeResult} phase={phase} onDeepOptimization={handleDeepOptimization} />
           ) : (
             <DeepView data={activeResult} phase={phase} />
           )}
@@ -516,6 +540,7 @@ export function ResumeOptimizationPage() {
             matchScore={matchScore}
             matchLevel={matchLevel}
             matchGaps={matchGaps}
+            matchHighlights={matchHighlights}
             matchLoaded={matchLoaded}
             onDeepOptimization={handleDeepOptimization}
             onReselect={handleReselect}
@@ -535,76 +560,120 @@ export function ResumeOptimizationPage() {
 
 // ─── Fast View ──────────────────────────────────────────────────────────
 
-function FastView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPhase }) {
+function FastView({ data, phase, onDeepOptimization }: { data: OptimizationV2ViewModel; phase: OptPhase; onDeepOptimization: () => void }) {
   const levelColor = getLevelColor(data.optimizationLevel);
   const topFixes = (data.quickFixItems ?? []).slice(0, 3);
+  const isLoading = phase === "deep_loading";
+  const hasError = phase === "deep_error";
 
   return (
-    <div className="min-w-0 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-      <div className="bg-[#F4F8FF] p-5 border-b border-blue-100">
-        <h2 className="text-lg font-bold text-gray-900 mb-2">快速优化结论</h2>
-        <div className="flex items-center gap-3 mb-2">
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${levelColor}`}>
-            {data.optimizationLevel || "待评估"}
-          </span>
-          <span className="text-sm font-semibold text-gray-700">{data.optimizationScore || 0} 分</span>
+    <div className="min-w-0 space-y-6">
+      {/* ── Primary CTA: Upgrade to Deep ── */}
+      <div className="bg-gradient-to-br from-[#F0F4FF] to-white border border-blue-200 rounded-xl p-6 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#0052D9]/10 flex items-center justify-center shrink-0">
+            <Sparkles className="w-6 h-6 text-[#0052D9]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-bold text-slate-800 mb-1">
+              {hasError ? "深度优化报告生成失败" : "生成深度优化报告"}
+            </h3>
+            {hasError ? (
+              <p className="text-[13px] text-slate-500 leading-relaxed mb-4">
+                深度优化生成失败，已保留当前快速优化结果。请稍后重试。
+              </p>
+            ) : (
+              <p className="text-[13px] text-slate-500 leading-relaxed mb-4">
+                当前结果是快速预览，适合快速判断修改方向。生成深度优化后，系统会结合目标岗位 JD、匹配分析结果和简历证据，输出：投递前必须修改项、JD 要求与证据缺口、可直接参考的改写示例、关键词与证据补强建议，以及投递重点策略。
+              </p>
+            )}
+            <button
+              onClick={onDeepOptimization}
+              disabled={isLoading}
+              className={`inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold rounded-lg transition-all ${
+                isLoading
+                  ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  : "bg-[#0052D9] text-white hover:bg-[#003DA5] shadow-md hover:shadow-lg"
+              }`}
+            >
+              {isLoading ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> 正在生成深度优化报告…</>
+              ) : hasError ? (
+                <><RefreshCw className="w-4 h-4" /> 重新生成深度优化报告</>
+              ) : (
+                <><Sparkles className="w-4 h-4" /> 生成深度优化报告</>
+              )}
+            </button>
+          </div>
         </div>
-        {data.oneSentenceSummary && (
-          <p className="text-sm text-gray-600 leading-relaxed">{data.oneSentenceSummary}</p>
-        )}
       </div>
 
-      <div className="p-5 space-y-4">
-        {topFixes.length > 0 && (
-          <section>
-            <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
-              <Target className="w-3.5 h-3.5 text-red-500" />
-              投递前先改 {topFixes.length} 件事
-            </h3>
-            <ul className="space-y-2">
-              {topFixes.map((item, i) => (
-                <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2 bg-gray-50 p-2.5 rounded-md border border-gray-100">
-                  <span className="text-[#0052D9] font-medium shrink-0 mt-0.5">{i + 1}.</span>
-                  <div>
-                    <span className="font-medium text-gray-800">{item.issue}</span>
-                    {item.action && <span className="text-gray-500 ml-1">→ {item.action}</span>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+      {/* ── Fast Result Preview ── */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-slate-50 px-4 py-2 border-b border-gray-100 flex items-center gap-2">
+          <span className="text-[11px] font-medium text-slate-500">快速优化结果 · 初步预览</span>
+          {data.optimizationScore > 0 && (
+            <span className="ml-auto text-[11px] text-slate-400">{data.optimizationScore} 分</span>
+          )}
+        </div>
+        <div className="bg-[#F4F8FF] p-5 border-b border-blue-100">
+          <h2 className="text-lg font-bold text-gray-900 mb-2">优化结论</h2>
+          <div className="flex items-center gap-3 mb-2">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${levelColor}`}>
+              {data.optimizationLevel || "待评估"}
+            </span>
+          </div>
+          {data.oneSentenceSummary && (
+            <p className="text-sm text-gray-600 leading-relaxed">{data.oneSentenceSummary}</p>
+          )}
+        </div>
 
-        {data.riskPoints && data.riskPoints.length > 0 && (
-          <section>
-            <h3 className="font-bold text-sm text-amber-600 mb-2 flex items-center gap-1.5">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              主要风险
-            </h3>
-            <ul className="space-y-1">
-              {data.riskPoints.slice(0, 2).map((r, i) => (
-                <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2">
-                  <span className="text-amber-500 mt-1 shrink-0">●</span> {r}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <div className="p-5 space-y-4">
+          {topFixes.length > 0 && (
+            <section>
+              <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5 text-red-500" />
+                投递前先改 {topFixes.length} 件事
+              </h3>
+              <ul className="space-y-2">
+                {topFixes.map((item, i) => (
+                  <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2 bg-gray-50 p-2.5 rounded-md border border-gray-100">
+                    <span className="text-[#0052D9] font-medium shrink-0 mt-0.5">{i + 1}.</span>
+                    <div>
+                      <span className="font-medium text-gray-800">{cleanText(item.issue)}</span>
+                      {item.action && <span className="text-gray-500 ml-1">→ {cleanText(item.action)}</span>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-        {data.deliveryFocus && (
-          <section>
-            <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
-              <ArrowUp className="w-3.5 h-3.5 text-[#0052D9]" />
-              投递重点
-            </h3>
-            <p className="text-[13px] text-gray-700 bg-blue-50/30 p-3 rounded-md border border-blue-100">{data.deliveryFocus}</p>
-          </section>
-        )}
+          {data.riskPoints && data.riskPoints.length > 0 && (
+            <section>
+              <h3 className="font-bold text-sm text-amber-600 mb-2 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                主要风险
+              </h3>
+              <ul className="space-y-1">
+                {data.riskPoints.slice(0, 2).map((r, i) => (
+                  <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2">
+                    <span className="text-amber-500 mt-1 shrink-0">●</span> {cleanText(r)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-        <div className="bg-blue-50/50 border border-blue-100 rounded-md p-3 mt-4">
-          <p className="text-[12px] text-blue-700 leading-relaxed">
-            当前为快速优化结果，适合快速判断最该改的几处。生成深度优化后，系统会结合岗位 JD、简历证据和改写示例给出更完整的建议。
-          </p>
+          {data.deliveryFocus && (
+            <section>
+              <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
+                <ArrowUp className="w-3.5 h-3.5 text-[#0052D9]" />
+                投递重点
+              </h3>
+              <p className="text-[13px] text-gray-700 bg-blue-50/30 p-3 rounded-md border border-blue-100">{cleanText(data.deliveryFocus)}</p>
+            </section>
+          )}
         </div>
       </div>
     </div>
@@ -661,12 +730,12 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
                     P{i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-gray-800">{item.issue}</p>
+                    <p className="text-[13px] font-semibold text-gray-800">{cleanText(item.issue)}</p>
                     {item.section && (
-                      <p className="text-[11px] text-gray-400 mt-0.5">建议修改位置：{item.section}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">建议修改位置：{cleanText(item.section)}</p>
                     )}
                     {item.action && (
-                      <p className="text-[12px] text-gray-600 mt-1">{item.action}</p>
+                      <p className="text-[12px] text-gray-600 mt-1">{cleanText(item.action)}</p>
                     )}
                   </div>
                 </div>
@@ -687,8 +756,8 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
                 <div key={`ev_${i}`} className="text-[13px] text-gray-700 flex items-start gap-2 bg-gray-50 p-2.5 rounded-md border border-gray-100">
                   <span className="text-[#0052D9] font-medium shrink-0 mt-0.5">{i + 1}.</span>
                   <div>
-                    <span className="font-medium text-gray-800">{item.issue}</span>
-                    {item.action && <span className="text-gray-500 ml-1">→ {item.action}</span>}
+                    <span className="font-medium text-gray-800">{cleanText(item.issue)}</span>
+                    {item.action && <span className="text-gray-500 ml-1">→ {cleanText(item.action)}</span>}
                   </div>
                 </div>
               ))}
@@ -696,8 +765,8 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
                 <div key={`kw_${i}`} className="text-[13px] text-gray-700 flex items-start gap-2 bg-gray-50 p-2.5 rounded-md border border-gray-100">
                   <span className="text-[#0052D9] font-medium shrink-0 mt-0.5">{evidences.slice(0, 4).length + i + 1}.</span>
                   <div>
-                    <span className="font-medium text-gray-800">{item.section}：{item.issue}</span>
-                    {item.action && <span className="text-gray-500 ml-1">→ {item.action}</span>}
+                    <span className="font-medium text-gray-800">{cleanText(item.section)}：{cleanText(item.issue)}</span>
+                    {item.action && <span className="text-gray-500 ml-1">→ {cleanText(item.action)}</span>}
                   </div>
                 </div>
               ))}
@@ -713,8 +782,8 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
                 <div key={`st_${i}`} className="text-[13px] text-gray-700 flex items-start gap-2 bg-gray-50 p-2.5 rounded-md border border-gray-100">
                   <span className="text-[#0052D9] font-medium shrink-0 mt-0.5">{i + 1}.</span>
                   <div>
-                    <span className="font-medium text-gray-800">{item.section}：{item.issue}</span>
-                    {item.action && <span className="text-gray-500 ml-1">→ {item.action}</span>}
+                    <span className="font-medium text-gray-800">{cleanText(item.section)}：{cleanText(item.issue)}</span>
+                    {item.action && <span className="text-gray-500 ml-1">→ {cleanText(item.action)}</span>}
                   </div>
                 </div>
               ))}
@@ -722,8 +791,8 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
                 <div key={`ct_${i}`} className="text-[13px] text-gray-700 flex items-start gap-2 bg-gray-50 p-2.5 rounded-md border border-gray-100">
                   <span className="text-[#0052D9] font-medium shrink-0 mt-0.5">{structureFixes.length + i + 1}.</span>
                   <div>
-                    <span className="font-medium text-gray-800">{item.section}：{item.issue}</span>
-                    {item.action && <span className="text-gray-500 ml-1">→ {item.action}</span>}
+                    <span className="font-medium text-gray-800">{cleanText(item.section)}：{cleanText(item.issue)}</span>
+                    {item.action && <span className="text-gray-500 ml-1">→ {cleanText(item.action)}</span>}
                   </div>
                 </div>
               ))}
@@ -756,7 +825,7 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
             <ul className="space-y-1.5">
               {data.riskPoints.map((r, i) => (
                 <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2 bg-amber-50/50 p-2.5 rounded-md border border-amber-100">
-                  <span className="text-amber-500 mt-1 shrink-0">●</span> {r}
+                  <span className="text-amber-500 mt-1 shrink-0">●</span> {cleanText(r)}
                 </li>
               ))}
             </ul>
@@ -770,7 +839,7 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
               <ArrowUp className="w-3.5 h-3.5 text-[#0052D9]" />
               投递重点
             </h3>
-            <p className="text-[13px] text-gray-700 bg-blue-50/50 p-3 rounded-md border border-blue-100">{data.deliveryFocus}</p>
+            <p className="text-[13px] text-gray-700 bg-blue-50/50 p-3 rounded-md border border-blue-100">{cleanText(data.deliveryFocus)}</p>
           </section>
         )}
 
@@ -819,7 +888,7 @@ function RightSidebar({
   resumeName, profileDominantProfile, optimizationMode, targetDirection,
   jobTitle, jobCity, jobDirection, jobDepartment, jobRecruitType, jobKeywords,
   jobId, resumeId, resumeEdu, projectCount, internshipCount, skillTags, phase, isFast,
-  matchScore, matchLevel, matchGaps, matchLoaded,
+  matchScore, matchLevel, matchGaps, matchHighlights, matchLoaded,
   onDeepOptimization, onReselect,
 }: {
   resumeName: string;
@@ -843,6 +912,7 @@ function RightSidebar({
   matchScore?: number;
   matchLevel?: string;
   matchGaps: string[];
+  matchHighlights: string[];
   matchLoaded: boolean;
   onDeepOptimization: () => void;
   onReselect: () => void;
@@ -967,48 +1037,58 @@ function RightSidebar({
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions Panel */}
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100">
-          <h3 className="text-[13px] font-medium text-gray-500">操作</h3>
+          <h3 className="text-[13px] font-medium text-gray-500">优化操作</h3>
         </div>
-        <div className="p-3 space-y-1.5">
-          <button
-            onClick={onReselect}
-            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[#0052D9] hover:bg-blue-50 rounded-lg transition-colors"
-          >
-            <Search className="w-3.5 h-3.5" />
-            重新选择简历/岗位
-          </button>
+        <div className="p-4 space-y-3">
+          {/* Status */}
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isFast ? "bg-amber-400" : "bg-emerald-400"}`} />
+            <span className="text-[12px] text-gray-600">
+              {isFast ? "当前：快速优化" : "深度优化已完成"}
+            </span>
+          </div>
 
+          {/* Primary CTA */}
           {phase === "deep_loading" ? (
-            <div className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> 智能体深度优化中…
-            </div>
+            <button disabled className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-200 text-slate-500 text-sm font-semibold rounded-lg cursor-not-allowed">
+              <Loader2 className="w-4 h-4 animate-spin" /> 正在生成深度优化报告…
+            </button>
           ) : phase === "deep_done" || !isFast ? (
-            <button onClick={onDeepOptimization} className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-              <RefreshCw className="w-3.5 h-3.5" /> 重新生成深度优化
+            <button onClick={onDeepOptimization} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-blue-200 text-[#0052D9] text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors">
+              <RefreshCw className="w-4 h-4" /> 重新生成深度优化报告
             </button>
           ) : phase === "deep_error" ? (
-            <button onClick={onDeepOptimization} className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[#0052D9] hover:bg-blue-50 rounded-lg transition-colors">
-              <RefreshCw className="w-3.5 h-3.5" /> 重试深度优化
+            <button onClick={onDeepOptimization} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#0052D9] text-white text-sm font-semibold rounded-lg hover:bg-[#003DA5] transition-colors">
+              <RefreshCw className="w-4 h-4" /> 重新生成深度优化报告
             </button>
           ) : (
-            <button onClick={onDeepOptimization} className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[#0052D9] hover:bg-blue-50 rounded-lg transition-colors">
-              <Sparkles className="w-3.5 h-3.5" /> 生成深度优化
+            <button onClick={onDeepOptimization} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#0052D9] text-white text-sm font-semibold rounded-lg hover:bg-[#003DA5] shadow-sm transition-colors">
+              <Sparkles className="w-4 h-4" /> 生成深度优化报告
             </button>
           )}
 
-          {jobId && resumeId && (
-            <Link to={`/match?resumeId=${resumeId}&jobId=${jobId}`} className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-gray-500 hover:bg-gray-50 rounded-lg transition-colors">
-              <ExternalLink className="w-3.5 h-3.5" /> 进入匹配分析
-            </Link>
-          )}
-          {jobId && (
-            <Link to={`/jobs/${jobId}`} className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-gray-500 hover:bg-gray-50 rounded-lg transition-colors">
-              <Briefcase className="w-3.5 h-3.5" /> 返回岗位详情
-            </Link>
-          )}
+          {/* Divider */}
+          <div className="border-t border-gray-100" />
+
+          {/* Secondary actions */}
+          <div className="space-y-1">
+            {jobId && resumeId && (
+              <Link to={`/match?resumeId=${resumeId}&jobId=${jobId}`} className="w-full flex items-center gap-2 px-2 py-1.5 text-[12px] text-gray-500 hover:text-[#0052D9] hover:bg-gray-50 rounded transition-colors">
+                <ExternalLink className="w-3 h-3" /> 查看匹配分析
+              </Link>
+            )}
+            {jobId && (
+              <Link to={`/jobs/${jobId}`} className="w-full flex items-center gap-2 px-2 py-1.5 text-[12px] text-gray-500 hover:text-[#0052D9] hover:bg-gray-50 rounded transition-colors">
+                <Briefcase className="w-3 h-3" /> 返回岗位详情
+              </Link>
+            )}
+            <button onClick={onReselect} className="w-full flex items-center gap-2 px-2 py-1.5 text-[12px] text-gray-500 hover:text-[#0052D9] hover:bg-gray-50 rounded transition-colors">
+              <Search className="w-3 h-3" /> 重新选择简历/岗位
+            </button>
+          </div>
         </div>
       </div>
     </aside>
@@ -1032,7 +1112,7 @@ function RewriteExampleCard({ ex }: { ex: OptimizationRewriteExample }) {
       <div className="bg-blue-50/50 px-4 py-2 border-b border-blue-100 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {ex.section && <span className="text-xs font-bold text-[#0052D9] shrink-0">{ex.section}</span>}
-          {ex.reason && <span className="text-xs text-gray-500 truncate">{ex.reason}</span>}
+          {ex.reason && <span className="text-xs text-gray-500 truncate">{cleanText(ex.reason)}</span>}
         </div>
         <button
           onClick={handleCopy}
@@ -1044,11 +1124,11 @@ function RewriteExampleCard({ ex }: { ex: OptimizationRewriteExample }) {
       <div className="grid grid-cols-2 divide-x divide-gray-100">
         <div className="p-4 bg-gray-50/50">
           <div className="text-[11px] font-medium text-gray-400 mb-1.5">修改前</div>
-          <p className="text-[13px] text-gray-600 whitespace-pre-wrap leading-relaxed">{ex.before}</p>
+          <p className="text-[13px] text-gray-600 whitespace-pre-wrap leading-relaxed">{cleanText(ex.before)}</p>
         </div>
         <div className="p-4 bg-blue-50/20">
           <div className="text-[11px] font-medium text-[#0052D9] mb-1.5">修改后</div>
-          <p className="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">{ex.after}</p>
+          <p className="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">{cleanText(ex.after)}</p>
         </div>
       </div>
     </div>

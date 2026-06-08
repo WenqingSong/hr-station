@@ -6,6 +6,7 @@ import { FileText, Plus, Search, Sparkles, Wand2, GitCompare, Pencil, Trash2, Ey
 import { getResumes, deleteResume, setCurrentResume } from "../../api/resumes";
 import { AppConfirmDialog } from "../components/common/AppConfirmDialog";
 import { OptimizationEntryModal } from "../components/OptimizationEntryModal";
+import { ResumePickerModal, type ResumePickerOption } from "../components/ResumePickerModal";
 import type { Resume } from "../../types";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { isApiClientError } from "../../api/errors";
@@ -80,9 +81,10 @@ interface SmartAssistantProps {
   loading: boolean;
   resumes: ResumeRow[];
   onOptimize: () => void;
+  onCompare: () => void;
 }
 
-function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, loading, resumes, onOptimize }: SmartAssistantProps) {
+function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, loading, resumes, onOptimize, onCompare }: SmartAssistantProps) {
   const disabled = !hasResumes || selectedResumeId === null;
 
   const entries = [
@@ -111,7 +113,7 @@ function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, load
       icon: GitCompare,
       label: "查看版本对比",
       desc: "对比不同简历版本的变化与提升",
-      href: selectedResumeId ? `/resumes/compare?fromResumeId=${selectedResumeId}&toResumeId=${getOtherResumeId(resumes, selectedResumeId)}` : "#",
+      action: "compare",
       disabled: !hasResumes || resumes.length < 2,
     },
   ];
@@ -146,6 +148,17 @@ function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, load
             ) : "action" in entry && entry.action === "optimize" ? (
               <button
                 onClick={onOptimize}
+                className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-blue-50/50 transition-colors group w-full text-left"
+              >
+                <entry.icon className="w-4 h-4 text-[#0052D9] mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
+                <div>
+                  <p className="text-sm font-medium text-slate-800 group-hover:text-[#0052D9] transition-colors">{entry.label}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{entry.desc}</p>
+                </div>
+              </button>
+            ) : "action" in entry && entry.action === "compare" ? (
+              <button
+                onClick={onCompare}
                 className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-blue-50/50 transition-colors group w-full text-left"
               >
                 <entry.icon className="w-4 h-4 text-[#0052D9] mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
@@ -239,8 +252,20 @@ export function ResumeManagementPage() {
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [showOptimizationModal, setShowOptimizationModal] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [pickerOptions, setPickerOptions] = useState<ResumePickerOption[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerSelectedIds, setPickerSelectedIds] = useState<number[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleCompare = () => {
+    setPickerSelectedIds([]);
+    setPickerLoading(true);
+    setPickerOptions((rows ?? []).map((r) => ({ id: r.id, name: r.name })));
+    setTimeout(() => setPickerLoading(false), 100);
+    setShowCompareModal(true);
+  };
 
   const handleSelectResume = (id: number) => {
     if (id === selectedResumeId) return;
@@ -409,6 +434,7 @@ export function ResumeManagementPage() {
             loading={assistantLoading}
             resumes={rows ?? []}
             onOptimize={() => setShowOptimizationModal(true)}
+            onCompare={handleCompare}
           />
         </div>
 
@@ -430,6 +456,19 @@ export function ResumeManagementPage() {
         open={showOptimizationModal}
         onClose={() => setShowOptimizationModal(false)}
         initialResumeId={selectedResumeId}
+      />
+      <ResumePickerModal
+        open={showCompareModal}
+        title="选择要对比的两份简历"
+        description="选择两份不同的简历，系统会分析两版之间的差异和改进方向。"
+        resumes={pickerOptions}
+        loading={pickerLoading}
+        selectedIds={pickerSelectedIds}
+        selectionMode="compare"
+        onSelectionChange={setPickerSelectedIds}
+        confirmText="开始对比"
+        onConfirm={(ids) => { if (ids.length >= 2) navigate(`/resumes/compare?fromResumeId=${ids[0]}&toResumeId=${ids[1]}`); setShowCompareModal(false); }}
+        onClose={() => setShowCompareModal(false)}
       />
     </>
   );
