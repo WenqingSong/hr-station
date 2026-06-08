@@ -9,7 +9,6 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import {
   X,
-  CheckCircle2,
   Clock,
   Briefcase,
   Search,
@@ -355,16 +354,7 @@ export function ResumePickerModal({
                           <span className="text-[14px] font-semibold text-slate-900">
                             {resume.name}
                           </span>
-                          {resume.isCurrent && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 text-[#0052D9] text-[11px] rounded font-medium">
-                              <CheckCircle2 className="w-3 h-3" /> 当前使用
-                            </span>
-                          )}
-                          {resume.statusLabel && !resume.isCurrent && (
-                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 text-[11px] rounded">
-                              {resume.statusLabel}
-                            </span>
-                          )}
+
                         </div>
 
                         <div className="flex items-center gap-2 text-[12px] text-slate-500 mb-1.5 flex-wrap">
