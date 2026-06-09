@@ -11,6 +11,7 @@ import type { MatchAnalysisPageViewModel, ResumeOptionViewModel } from "../../ad
 import type { Resume } from "../../types";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
+import { humanizeProfile } from "../utils/profileLabel";
 import { PageLoading } from "../components/PageState";
 import { AgentStepLoadingOverlay } from "../components/common/AgentStepLoadingOverlay";
 import { BulletList } from "../components/common/BulletList";
@@ -250,9 +251,9 @@ export function JobMatchAnalysisPage() {
       <AgentStepLoadingOverlay
         open={phase === "deep_loading"}
         title="正在深度匹配分析"
-        description="Offerr鹅正在结合简历画像、岗位要求和匹配证据，生成完整分析报告。"
+        description="Offerr鹅正在结合简历定位、岗位要求和匹配证据，生成完整分析报告。"
         steps={[
-          { key: "profile", label: "读取简历画像标签" },
+          { key: "profile", label: "读取简历定位与技能信息" },
           { key: "requirements", label: "拆解岗位要求" },
           { key: "evidence", label: "计算匹配证据" },
           { key: "suggestions", label: "生成差距与补强建议" },
@@ -349,7 +350,7 @@ export function JobMatchAnalysisPage() {
               <h3 className="text-[13px] font-medium text-gray-500 mb-3">当前简历</h3>
               <p className="text-sm font-bold text-gray-900 mb-1">{selectedOption.name}</p>
               {activeResult?.profileDominantProfile && (
-                <p className="text-[11px] text-[#0052D9] mt-1 mb-2">画像方向：{activeResult.profileDominantProfile}</p>
+                <p className="text-[11px] text-[#0052D9] mt-1 mb-2">简历定位：{humanizeProfile(activeResult.profileDominantProfile)}</p>
               )}
               {selectedOption.directionLabel && (
                 <p className="text-[11px] text-gray-500">学校/专业：{selectedOption.directionLabel}</p>
@@ -378,7 +379,7 @@ export function JobMatchAnalysisPage() {
               <h3 className="text-[13px] font-medium text-gray-500 mb-2">深度匹配分析</h3>
               <p className="text-[11px] text-gray-400 mb-3">
                 {isFast
-                  ? "基于简历画像、岗位JD和匹配证据生成完整分析报告。"
+                  ? "基于简历定位、岗位JD和匹配证据生成完整分析报告。"
                   : "当前已展示深度匹配分析结果，可重新生成。"}
               </p>
               {phase === "deep_loading" ? (

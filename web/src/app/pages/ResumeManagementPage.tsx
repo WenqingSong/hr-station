@@ -92,7 +92,7 @@ function SmartAssistant({ selectedResumeId, selectedResumeName, hasResumes, load
     {
       icon: Sparkles,
       label: "推荐适合的岗位",
-      desc: "基于简历能力画像，AI 推荐高匹配度岗位",
+      desc: "基于简历能力定位，AI 推荐高匹配度岗位",
       href: selectedResumeId ? `/recommend?resumeId=${selectedResumeId}` : "#",
       disabled,
     },

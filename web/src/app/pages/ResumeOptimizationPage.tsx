@@ -12,6 +12,8 @@ import type { OptimizationMode, GenerationTier } from "../../types";
 import type { OptimizationFixItem, OptimizationRewriteExample, OptimizationLongTermItem } from "../../types";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
+import { humanizeProfile } from "../utils/profileLabel";
+import { cleanUserText } from "../utils/cleanUserText";
 import { PageLoading } from "../components/PageState";
 import { AgentStepLoadingOverlay } from "../components/common/AgentStepLoadingOverlay";
 import { BulletList } from "../components/common/BulletList";
@@ -23,11 +25,11 @@ import { Sparkles, RefreshCw, Loader2, Target, Info, FileEdit, AlertTriangle, Ar
 /** Sanitize display text: remove U+FFFD, control chars, normalize whitespace */
 function cleanText(value?: string | null): string {
   if (!value) return "";
-  return value
+  const sanitized = value
     .replace(/\uFFFD/g, "")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/\s+/g, " ");
+  return cleanUserText(sanitized).trim();
 }
 
 // ─── Phase ─────────────────────────────────────────────────────────────
@@ -426,7 +428,7 @@ export function ResumeOptimizationPage() {
               <p className="text-sm font-semibold text-slate-800 truncate">{resumeName}</p>
               <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5 flex-wrap">
                 {activeResult?.profileDominantProfile && (
-                  <span className="text-[#0052D9]">{activeResult.profileDominantProfile}</span>
+                  <span className="text-[#0052D9]">简历定位：{humanizeProfile(activeResult.profileDominantProfile)}</span>
                 )}
                 {eduLine && (
                   <><span className="text-slate-300">|</span>
@@ -919,7 +921,7 @@ function RightSidebar({
         <div className="p-4">
           <p className="text-sm font-bold text-gray-900 mb-1">{resumeName}</p>
           {profileDominantProfile && (
-            <p className="text-[11px] text-[#0052D9]">{profileDominantProfile}</p>
+            <p className="text-[11px] text-[#0052D9]">简历定位：{humanizeProfile(profileDominantProfile)}</p>
           )}
           {(resumeEdu || projectCount > 0 || internshipCount > 0) && (
             <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-2 flex-wrap">

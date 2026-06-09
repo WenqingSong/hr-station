@@ -537,7 +537,7 @@ export function MyResumesPage() {
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">手机号</label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="手机号" /></div>
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">邮箱</label><Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱地址" /></div>
         </div>
-        <p className="mt-5 text-[12px] text-slate-400 leading-relaxed border-t border-gray-100 pt-4">基础信息用于简历展示和基础画像。手机号 / 邮箱不会用于分析匹配。</p>
+        <p className="mt-5 text-[12px] text-slate-400 leading-relaxed border-t border-gray-100 pt-4">基础信息用于简历展示和简历概览。手机号 / 邮箱不会用于分析匹配。</p>
       </BasicInfoSection>
 
       <EducationSection defaultOpen={isEditingExistingResume && hasEducationContent} onAdd={addEducation}>

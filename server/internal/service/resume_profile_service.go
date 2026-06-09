@@ -587,15 +587,15 @@ func buildProfileSummary(dominant string, tags []tagEntry) string {
 			parts = append(parts, "实验与评估能力")
 		}
 		if len(parts) > 0 {
-			return fmt.Sprintf("算法研究型画像，核心方向：%s。", strings.Join(parts, "、"))
+			return fmt.Sprintf("算法 / 数据分析相关经历，核心方向：%s。", strings.Join(parts, "、"))
 		}
-		return "算法研究型画像，具备机器学习和深度学习基础。"
+		return "算法 / 数据分析相关经历，具备机器学习和深度学习基础。"
 	case "backend_engineering":
-		return "后端工程型画像，具备服务端开发和基础架构能力。"
+		return "后端开发相关经历，具备服务端开发和基础架构能力。"
 	case "career_exploration":
-		return "职业探索型画像，多方向有基础信号，尚无清晰主方向。"
+		return "求职目标待聚焦，多方向有基础信号，尚无清晰主方向。"
 	default:
-		return "通用画像。"
+		return "简历信息不足。"
 	}
 }
 

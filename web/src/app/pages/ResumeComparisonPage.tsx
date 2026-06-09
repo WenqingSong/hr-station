@@ -11,6 +11,8 @@ import { AgentStepLoadingOverlay, type AgentLoadingStep } from "../components/co
 import { BulletList } from "../components/common/BulletList";
 import { ResumePickerModal, type ResumePickerOption } from "../components/ResumePickerModal";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
+import { humanizeProfile, humanizeProfileChange } from "../utils/profileLabel";
+import { cleanUserText } from "../utils/cleanUserText";
 import { getResumes } from "../../api/resumes";
 import type { Resume } from "../../types";
 
@@ -18,15 +20,19 @@ import type { Resume } from "../../types";
 
 function cleanText(value?: string | null): string {
   if (!value) return "";
-  return value
+  // Step 1: sanitize control chars
+  const sanitized = value
     .replace(/\uFFFD/g, "")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, " ");
+  // Step 2: apply user-facing text cleaning (画像→简历定位, 标签→关键词, etc.)
+  const cleaned = cleanUserText(sanitized);
+  // Step 3: page-specific low-value replacements
+  return cleaned
     .replace(/\bfrom版本\b/g, "原版本")
     .replace(/\bto版本\b/g, "目标版本")
     .replace(/保留from版本/g, "保留原版本")
     .replace(/保留to版本/g, "保留目标版本")
-    .replace(/方向方向/g, "方向")
     .replace(/目标版本在整体质量上更优/g, "新版更适合作为当前主投递版本")
     .trim();
 }
@@ -238,7 +244,7 @@ export function ResumeComparisonPage() {
       <AgentStepLoadingOverlay
         open={phase === "deep_loading"}
         title="正在生成深度对比报告"
-        description="系统正在结合两份简历的画像和内容差异，生成完整对比分析。"
+        description="系统正在结合两份简历的定位和内容差异，生成完整对比分析。"
         steps={deepSteps}
         backendDone={deepBackendDone}
         onFinish={() => setPhase("deep_done")}
@@ -250,7 +256,7 @@ export function ResumeComparisonPage() {
           <CheckCheck className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-semibold text-emerald-800 mb-0.5">深度对比报告已完成</p>
-            <p className="text-[12px] text-emerald-700 leading-relaxed">基于两份简历的画像和内容差异生成。可重新生成或查看进一步分析。</p>
+            <p className="text-[12px] text-emerald-700 leading-relaxed">基于两份简历的定位和内容差异生成。可重新生成或查看进一步分析。</p>
           </div>
         </div>
       )}
@@ -268,7 +274,7 @@ export function ResumeComparisonPage() {
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
               {isDeep ? "深度对比已完成" : "快速对比 · 初步预览"}
-              {V.fromProfileDominantProfile && <><span className="text-slate-300 mx-1.5">|</span>画像: {V.fromProfileDominantProfile} → {V.toProfileDominantProfile}</>}
+              {V.fromProfileDominantProfile && <><span className="text-slate-300 mx-1.5">|</span>{humanizeProfileChange(V.fromProfileDominantProfile, V.toProfileDominantProfile)}</>}
             </p>
           </div>
           <div className="px-5 py-4 shrink-0">
@@ -396,7 +402,7 @@ export function ResumeComparisonPage() {
             <div className="px-4 py-3 border-b border-gray-100"><h3 className="text-[13px] font-medium text-gray-500">对比对象</h3></div>
             <div className="p-4">
               <p className="text-sm font-semibold text-gray-900 mb-1">{fromLabel} → {toLabel}</p>
-              {V.fromProfileDominantProfile && <p className="text-[11px] text-[#0052D9]">{V.fromProfileDominantProfile} → {V.toProfileDominantProfile}</p>}
+              {V.fromProfileDominantProfile && <p className="text-[11px] text-[#0052D9]">{humanizeProfile(V.fromProfileDominantProfile)} → {humanizeProfile(V.toProfileDominantProfile)}</p>}
             </div>
           </div>
 
