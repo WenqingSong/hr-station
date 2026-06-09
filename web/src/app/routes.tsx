@@ -1,5 +1,6 @@
 import { Navigate, Outlet, createBrowserRouter } from "react-router";
 import { Navbar } from "./components/Navbar";
+import { GlobalFooter } from "./components/GlobalFooter";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import { RouteProgressBar } from "./components/common/RouteProgressBar";
 import { JobListPage } from "./pages/JobListPage";
@@ -23,6 +24,7 @@ function RootLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
+      <GlobalFooter />
     </div>
   );
 }
