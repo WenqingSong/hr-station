@@ -13,6 +13,7 @@ import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { PageLoading } from "../components/PageState";
 import { AgentStepLoadingOverlay } from "../components/common/AgentStepLoadingOverlay";
+import { BulletList } from "../components/common/BulletList";
 import { MatchAnalysisSkeleton } from "../components/match/MatchAnalysisSkeleton";
 import { Badge } from "../components/ui/Badge";
 import { Loader2, Sparkles, RefreshCw } from "lucide-react";
@@ -305,13 +306,7 @@ export function JobMatchAnalysisPage() {
                 {activeResult.matchHighlights && activeResult.matchHighlights.length > 0 && (
                   <section>
                     <h3 className="font-bold text-sm text-gray-900 mb-2">核心优势</h3>
-                    <ul className="space-y-1">
-                      {activeResult.matchHighlights.slice(0, 2).map((a, i) => (
-                        <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2">
-                          <span className="text-green-500 mt-1 shrink-0">●</span> {a}
-                        </li>
-                      ))}
-                    </ul>
+                    <BulletList items={activeResult.matchHighlights.slice(0, 2).map(a => a)} tone="green" />
                   </section>
                 )}
                 {/* Main gap */}
@@ -375,13 +370,7 @@ export function JobMatchAnalysisPage() {
             {activeResult?.resumeEvidence && activeResult.resumeEvidence.length > 0 && (
               <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <h3 className="text-[13px] font-medium text-gray-500 mb-2">相关简历证据</h3>
-                <ul className="space-y-1.5">
-                  {activeResult.resumeEvidence.slice(0, 4).map((ev, i) => (
-                    <li key={i} className="text-[11px] text-gray-600 flex items-start gap-1.5">
-                      <span className="text-green-500 mt-0.5 shrink-0">●</span> {ev}
-                    </li>
-                  ))}
-                </ul>
+                <BulletList items={activeResult.resumeEvidence.slice(0, 4).map(ev => ev)} tone="green" size="sm" />
               </div>
             )}
 

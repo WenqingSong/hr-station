@@ -6,6 +6,7 @@ import type { RecommendationPageViewModel, ResumeOptionViewModel, RecommendedJob
 import { PageLoading, PageEmpty } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { AgentStepLoadingOverlay, type AgentLoadingStep } from "../components/common/AgentStepLoadingOverlay";
+import { BulletList } from "../components/common/BulletList";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { Badge } from "../components/ui/Badge";
 
@@ -248,9 +249,9 @@ export function JobRecommendationPage() {
               {isDeepDisplay && selectedJob.jobSpecificReason && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />为什么推荐这个岗位</h3><p className="text-[13px] text-gray-700 leading-relaxed">{selectedJob.jobSpecificReason}</p></section>)}
               {isDeepDisplay && selectedJob.resumeEvidence.length > 0 && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-green-500 rounded-full" />简历匹配证据</h3><div className="flex flex-wrap gap-1.5">{selectedJob.resumeEvidence.map((e, i) => (<Badge key={i} variant="outline" className="text-[11px] font-normal px-2 py-0.5 bg-green-50/50 text-green-800 border-green-200">{e}</Badge>))}</div></section>)}
               {/* Fast: simplified highlights */}
-              {!isDeepDisplay && selectedJob.matchHighlights.length > 0 && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-blue-400 rounded-full" />核心匹配点</h3><ul className="space-y-1.5">{selectedJob.matchHighlights.slice(0, 2).map((h, i) => (<li key={i} className="text-[13px] text-gray-700 flex items-start gap-2"><span className="text-green-500 mt-1 shrink-0">●</span> {h}</li>))}</ul></section>)}
+              {!isDeepDisplay && selectedJob.matchHighlights.length > 0 && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-blue-400 rounded-full" />核心匹配点</h3><BulletList items={selectedJob.matchHighlights.slice(0, 2).map(h => h)} tone="green" /></section>)}
               {/* Risks */}
-              {selectedJob.jobSpecificRisks.length > 0 && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-amber-400 rounded-full" />主要风险</h3><div className="bg-amber-50/30 border border-amber-100/50 rounded-md p-3"><ul className="space-y-1.5">{(isDeepDisplay ? selectedJob.jobSpecificRisks : selectedJob.jobSpecificRisks.slice(0, 2)).map((r, i) => (<li key={i} className="flex items-center gap-2 text-[13px] text-amber-700"><div className="w-1.5 h-1.5 rounded-full bg-amber-400/80 shrink-0" /> {r}</li>))}</ul></div></section>)}
+              {selectedJob.jobSpecificRisks.length > 0 && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-amber-400 rounded-full" />主要风险</h3><div className="bg-amber-50/30 border border-amber-100/50 rounded-md p-3"><BulletList items={(isDeepDisplay ? selectedJob.jobSpecificRisks : selectedJob.jobSpecificRisks.slice(0, 2)).map(r => r)} tone="amber" size="sm" /></div></section>)}
               {/* Deep: improvement */}
               {isDeepDisplay && selectedJob.suggestedImprovement && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />补强建议</h3><div className="bg-blue-50/30 border border-blue-100/50 rounded-md p-3"><p className="text-[13px] text-blue-800 leading-relaxed">{selectedJob.suggestedImprovement}</p></div></section>)}
               {/* Action */}

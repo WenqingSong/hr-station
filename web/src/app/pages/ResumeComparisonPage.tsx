@@ -8,6 +8,7 @@ import type { ResumeOptionViewModel } from "../../adapters";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { PageLoading, PageError } from "../components/PageState";
 import { AgentStepLoadingOverlay, type AgentLoadingStep } from "../components/common/AgentStepLoadingOverlay";
+import { BulletList } from "../components/common/BulletList";
 import { ResumePickerModal, type ResumePickerOption } from "../components/ResumePickerModal";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { getResumes } from "../../api/resumes";
@@ -321,7 +322,7 @@ export function ResumeComparisonPage() {
           {V.keyDifferences.length > 0 && (
             <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
               <h3 className="font-bold text-sm text-gray-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />本次迭代结论</h3>
-              <ul className="space-y-2">{V.keyDifferences.map((d, i) => <li key={i} className="flex items-start gap-2 text-[13px] text-gray-700"><span className="text-[#0052D9] mt-1 shrink-0">●</span>{cleanText(d)}</li>)}</ul>
+              <BulletList items={V.keyDifferences.map(d => cleanText(d))} tone="blue" />
             </section>
           )}
 
@@ -329,7 +330,7 @@ export function ResumeComparisonPage() {
           {V.toStrengths.length > 0 && (
             <section className="bg-white border border-emerald-200 rounded-lg p-5 shadow-sm">
               <h3 className="font-bold text-sm text-emerald-800 mb-3">新版明显提升</h3>
-              <ul className="space-y-1.5">{V.toStrengths.map((s, i) => <li key={i} className="text-[12px] text-emerald-700">• {cleanText(s)}</li>)}</ul>
+              <BulletList items={V.toStrengths.map(s => cleanText(s))} tone="green" size="sm" />
             </section>
           )}
 
@@ -337,7 +338,7 @@ export function ResumeComparisonPage() {
           {V.toRisks.length > 0 && (
             <section className="bg-amber-50/50 border border-amber-100 rounded-lg p-5">
               <h3 className="font-bold text-sm text-amber-800 mb-2">新版仍存在的问题</h3>
-              <ul className="space-y-1">{V.toRisks.map((r, i) => <li key={i} className="text-[12px] text-amber-700">• {cleanText(r)}</li>)}</ul>
+              <BulletList items={V.toRisks.map(r => cleanText(r))} tone="amber" size="sm" />
             </section>
           )}
 
@@ -345,16 +346,16 @@ export function ResumeComparisonPage() {
           {isDeep && (
             <div className="space-y-4">
               {/* 旧版值得保留 (filtered keepFromItems) */}
-              {(() => { const items = filterLowValue(V.keepFromItems); if (items.length > 0) return <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">旧版值得保留的内容</h3><ul className="space-y-1">{items.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>; if (V.keepFromItems.length > 0) return null; return null; })()}
+              {(() => { const items = filterLowValue(V.keepFromItems); if (items.length > 0) return <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">旧版值得保留的内容</h3><BulletList items={items.map(k => cleanText(k))} tone="slate" size="sm" /></section>; if (V.keepFromItems.length > 0) return null; return null; })()}
 
               {/* 新版必须保留 (filtered keepToItems) */}
-              {(() => { const items = filterLowValue(V.keepToItems); if (items.length > 0) return <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">新版必须保留的内容</h3><ul className="space-y-1">{items.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>; if (V.keepToItems.length > 0) return null; return null; })()}
+              {(() => { const items = filterLowValue(V.keepToItems); if (items.length > 0) return <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">新版必须保留的内容</h3><BulletList items={items.map(k => cleanText(k))} tone="slate" size="sm" /></section>; if (V.keepToItems.length > 0) return null; return null; })()}
 
               {/* 下一版合并方案 (merge + next) */}
               {V.mergeSuggestions.length > 0 && (
                 <section className="bg-green-50/50 border border-green-200 rounded-lg p-5"><h3 className="font-bold text-sm text-green-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-green-500 rounded-full" />下一版合并方案</h3>
-                  <ul className="space-y-2">{V.mergeSuggestions.map((m, i) => <li key={i} className="flex items-start gap-2 text-[13px] text-green-800"><span className="text-green-500 mt-0.5">→</span>{cleanText(m)}</li>)}</ul>
-                  {V.nextVersionSuggestions.length > 0 && <div className="mt-3 pt-3 border-t border-green-200"><ul className="space-y-1.5">{V.nextVersionSuggestions.map((n, i) => <li key={i} className="text-[13px] text-gray-700">• {cleanText(n)}</li>)}</ul></div>}
+                  <BulletList items={V.mergeSuggestions.map(m => cleanText(m))} tone="green" />
+                  {V.nextVersionSuggestions.length > 0 && <div className="mt-3 pt-3 border-t border-green-200"><BulletList items={V.nextVersionSuggestions.map(n => cleanText(n))} tone="green" /></div>}
                 </section>
               )}
 

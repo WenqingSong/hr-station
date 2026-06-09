@@ -14,6 +14,7 @@ import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { PageLoading } from "../components/PageState";
 import { AgentStepLoadingOverlay } from "../components/common/AgentStepLoadingOverlay";
+import { BulletList } from "../components/common/BulletList";
 import { OptimizationEntryModal } from "../components/OptimizationEntryModal";
 import { Sparkles, RefreshCw, Loader2, Target, Info, FileEdit, AlertTriangle, ArrowUp, FileText, Briefcase, Search, ExternalLink, ChevronDown, ChevronUp, Copy, CheckCheck, GraduationCap } from "lucide-react";
 
@@ -658,13 +659,7 @@ function FastView({ data, phase, onDeepOptimization }: { data: OptimizationV2Vie
                 <AlertTriangle className="w-3.5 h-3.5" />
                 主要风险
               </h3>
-              <ul className="space-y-1">
-                {data.riskPoints.slice(0, 2).map((r, i) => (
-                  <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2">
-                    <span className="text-amber-500 mt-1 shrink-0">●</span> {cleanText(r)}
-                  </li>
-                ))}
-              </ul>
+              <BulletList items={data.riskPoints.slice(0, 2).map(r => cleanText(r))} tone="amber" size="sm" />
             </section>
           )}
 
@@ -825,13 +820,7 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
               <AlertTriangle className="w-3.5 h-3.5" />
               风险提醒
             </h3>
-            <ul className="space-y-1.5">
-              {data.riskPoints.map((r, i) => (
-                <li key={i} className="text-[13px] text-gray-700 flex items-start gap-2 bg-amber-50/50 p-2.5 rounded-md border border-amber-100">
-                  <span className="text-amber-500 mt-1 shrink-0">●</span> {cleanText(r)}
-                </li>
-              ))}
-            </ul>
+            <BulletList items={data.riskPoints.map(r => cleanText(r))} tone="amber" size="sm" />
           </section>
         )}
 
@@ -849,16 +838,14 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
         {/* ── 7. Long Term (degraded) ── */}
         {data.longTermImprovements && data.longTermImprovements.length > 0 && (
           <SectionCollapse title="长期补强建议" defaultOpen={false}>
-            <div className="space-y-2 pt-2">
-              {data.longTermImprovements.map((item, i) => (
-                <div key={i} className="text-[13px] text-gray-700 flex items-start gap-2 bg-gray-50 p-2.5 rounded-md border border-gray-100">
-                  <span className="text-gray-400 mt-1 shrink-0">●</span>
-                  <div>
-                    <span className="font-medium text-gray-800">{item.direction}</span>
-                    {item.note && <span className="text-gray-500"> — {item.note}</span>}
-                  </div>
-                </div>
-              ))}
+            <div className="pt-2">
+              <BulletList 
+                items={data.longTermImprovements.map(item => (
+                  <span className="font-medium text-gray-800">{item.direction}{item.note && <span className="text-gray-500 font-normal"> — {item.note}</span>}</span>
+                ))} 
+                tone="slate" 
+                size="sm" 
+              />
             </div>
           </SectionCollapse>
         )}
@@ -1007,16 +994,16 @@ function RightSidebar({
                     <span className="px-1.5 py-0.5 bg-blue-50 text-[#0052D9] text-[10px] rounded font-medium">{matchLevel}</span>
                   )}
                 </div>
-                {matchGaps.slice(0, 2).map((g, i) => (
-                  <p key={i} className="text-[11px] text-gray-600 mb-1 flex items-start gap-1">
-                    <span className="text-amber-500 shrink-0">●</span> {g.length > 80 ? g.slice(0, 80) + "…" : g}
-                  </p>
-                ))}
-                {matchHighlights.slice(0, 1).map((h, i) => (
-                  <p key={i} className="text-[11px] text-emerald-600 mb-1 flex items-start gap-1">
-                    <span className="text-emerald-500 shrink-0">●</span> {h.length > 80 ? h.slice(0, 80) + "…" : h}
-                  </p>
-                ))}
+                <BulletList
+                  items={matchGaps.slice(0, 2).map(g => g.length > 80 ? g.slice(0, 80) + "…" : g)}
+                  tone="amber"
+                  size="xs"
+                />
+                <BulletList
+                  items={matchHighlights.slice(0, 1).map(h => h.length > 80 ? h.slice(0, 80) + "…" : h)}
+                  tone="green"
+                  size="xs"
+                />
                 <Link
                   to={`/match?resumeId=${resumeId}&jobId=${jobId}`}
                   className="mt-2 inline-flex items-center gap-1 text-[11px] text-[#0052D9] hover:underline"
