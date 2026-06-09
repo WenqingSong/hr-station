@@ -817,7 +817,7 @@ func judgeWinner(fromProf, toProf string, score int, mode, targetDir string) (le
 		return "两版方向一致，差异较小", winnerID, "两版内容差异较小，均可使用"
 	}
 
-	lbl = fmt.Sprintf("新版（%s方向）比旧版（%s方向）更适合投递", cmpProfileLabel(toProf), cmpProfileLabel(fromProf))
+	lbl = fmt.Sprintf("新版（%s）比旧版（%s）更适合投递", cmpProfileLabel(toProf), cmpProfileLabel(fromProf))
 	return lvl, winnerID, lbl
 }
 
@@ -855,12 +855,12 @@ func genProfileRisks(profile string, limit int) []string {
 
 func genOneSentence(fromProf, toProf string, winner uint64) string {
 	if fromProf == toProf {
-		return "两版简历方向一致，建议使用目标版本继续打磨。"
+		return "两版简历方向一致，新版在具体表达上更优。"
 	}
 	if winner == 2 {
-		return fmt.Sprintf("目标版本（%s）相比原版本（%s）更适合投递。", cmpProfileLabel(toProf), cmpProfileLabel(fromProf))
+		return fmt.Sprintf("新版（%s）相比旧版（%s），项目实践和岗位信号更集中。", cmpProfileLabel(toProf), cmpProfileLabel(fromProf))
 	}
-	return fmt.Sprintf("原版本（%s）相比目标版本（%s）更适合投递。", cmpProfileLabel(fromProf), cmpProfileLabel(toProf))
+	return fmt.Sprintf("旧版（%s）中有新版（%s）未包含的内容值得保留。", cmpProfileLabel(fromProf), cmpProfileLabel(toProf))
 }
 
 func cmpProfileLabel(p string) string {
@@ -875,21 +875,22 @@ func cmpProfileLabel(p string) string {
 
 func genKeyDiffs(from, to *model.ResumeVersion, fromProf, toProf string) []string {
 	diffs := []string{}
-	if fromProf != toProf {
-		diffs = append(diffs, fmt.Sprintf("求职方向从「%s」转向「%s」，新版投递信号更集中", cmpProfileLabel(fromProf), cmpProfileLabel(toProf)))
-	}
+	// Content-level differences first, not profile label
 	if len(to.ProfessionalSkills) > len(from.ProfessionalSkills) {
 		diffs = append(diffs, "新版技能描述从泛覆盖升级为具体技术栈，能更直接匹配岗位初筛关键词")
 	}
-	if len(to.RawText) > len(from.RawText) {
-		diffs = append(diffs, "新版内容更充实，从学习型描述转向实践型描述，更能证明候选人实际动手能力")
+	if len(to.RawText) > len(from.RawText)+50 {
+		diffs = append(diffs, "新版从学习记录型简历升级为项目证明型简历，更能证明候选人实际动手和工程落地能力")
 	}
 	if len(to.SelfEvaluation) > len(from.SelfEvaluation) {
-		diffs = append(diffs, "新版自我评价更具体，从空洞描述转为可验证的能力陈述")
+		diffs = append(diffs, "新版自我评价从空洞描述转为可验证的能力陈述，更有利于HR快速判断匹配度")
+	}
+	if fromProf != toProf {
+		diffs = append(diffs, fmt.Sprintf("新版的简历信号从「%s」转向「%s」，岗位定位更聚焦", cmpProfileLabel(fromProf), cmpProfileLabel(toProf)))
 	}
 	// Add content direction change insight
 	if toProf == "backend_engineering" && fromProf != toProf {
-		diffs = append(diffs, "旧版偏探索型表达适合说明成长路径，但新版的后端项目经历才是投递后端岗位的核心证据")
+		diffs = append(diffs, "新版增加了后端项目实践经历，能直接支撑后端开发岗位的核心关键词匹配")
 	}
 	if len(diffs) < 3 {
 		if len(diffs) == 0 {
@@ -898,7 +899,6 @@ func genKeyDiffs(from, to *model.ResumeVersion, fromProf, toProf string) []strin
 		diffs = append(diffs, "建议新版增加项目量化结果（接口数量、数据表设计、测试通过率等）以增强说服力")
 		diffs = append(diffs, "建议统一技术栈描述风格，确保每个关键词都绑定具体使用场景")
 	}
-	// Cap at 5
 	if len(diffs) > 5 {
 		diffs = diffs[:5]
 	}
@@ -907,9 +907,9 @@ func genKeyDiffs(from, to *model.ResumeVersion, fromProf, toProf string) []strin
 
 func genDeliveryAdvice(winner uint64, toProf string) string {
 	if winner == 2 {
-		return fmt.Sprintf("建议以新版（%s方向）作为主投递版本，适合投递该方向实习岗位。投递前应补充每个项目的接口数量、数据库设计和实际结果，避免只展示技术名词。", cmpProfileLabel(toProf))
+		return fmt.Sprintf("建议以新版作为主版本。新版相比旧版在项目实践、技术栈表达和岗位信号上更集中，更有利于初筛时判断候选人匹配度。投递前建议补充每个项目的量化产出。")
 	}
-	return "建议保留旧版作为基础版本，参考新版中更丰富的技能和项目描述进行优化后再投递。"
+	return "建议保留旧版作为基础参考，将新版中更丰富的技能和项目描述整合进来后再投递。"
 }
 
 func genDeliveryAdviceFull(winner uint64, toProf, mode, targetDir string) string {
