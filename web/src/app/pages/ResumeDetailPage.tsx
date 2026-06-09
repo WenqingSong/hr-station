@@ -272,8 +272,11 @@ export function ResumeDetailPage() {
               {resume.professional_skills?.trim() && (
                 <div>
                   <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">专业技能 / 工具能力</div>
-                  <div className="text-sm text-slate-700 leading-relaxed">{resume.professional_skills}</div>
-                  <TagList items={skillTags} />
+                  {skillTags.length > 0 ? (
+                    <TagList items={skillTags} />
+                  ) : (
+                    <div className="text-sm text-slate-700 leading-relaxed">{resume.professional_skills}</div>
+                  )}
                 </div>
               )}
               {resume.ai_application?.trim() && (
