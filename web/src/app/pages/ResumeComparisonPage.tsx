@@ -17,7 +17,19 @@ import type { Resume } from "../../types";
 
 function cleanText(value?: string | null): string {
   if (!value) return "";
-  return value.replace(/\uFFFD/g, "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/\uFFFD/g, "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+    .replace(/\s+/g, " ")
+    // K9-4-Quality-B: sanitize system-internal labels from text content
+    .replace(/\bfrom版本\b/g, "原版本")
+    .replace(/\bto版本\b/g, "目标版本")
+    .replace(/保留from版本/g, "保留原版本")
+    .replace(/保留to版本/g, "保留目标版本")
+    .replace(/整体结构框架/g, "具体模块内容")
+    .replace(/方向方向/g, "方向")
+    .replace(/目标版本在整体质量上更优/g, "新版更适合作为当前主投递版本")
+    .trim();
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────
@@ -320,8 +332,8 @@ export function ResumeComparisonPage() {
           {/* Deep sections */}
           {isDeep && (
             <div className="space-y-4">
-              {V.keepFromItems.length > 0 && <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">建议保留 {fromLabel} 的内容</h3><ul className="space-y-1">{V.keepFromItems.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>}
-              {V.keepToItems.length > 0 && <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">建议保留 {toLabel} 的内容</h3><ul className="space-y-1">{V.keepToItems.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>}
+              {V.keepFromItems.length > 0 && <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">旧版值得保留的内容</h3><ul className="space-y-1">{V.keepFromItems.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>}
+              {V.keepToItems.length > 0 && <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">新版必须保留的内容</h3><ul className="space-y-1">{V.keepToItems.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>}
               {V.mergeSuggestions.length > 0 && (
                 <section className="bg-green-50/50 border border-green-200 rounded-lg p-5"><h3 className="font-bold text-sm text-green-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-green-500 rounded-full" />合并建议</h3>
                   <ul className="space-y-2">{V.mergeSuggestions.map((m, i) => <li key={i} className="flex items-start gap-2 text-[13px] text-green-800"><span className="text-green-500 mt-0.5">→</span>{cleanText(m)}</li>)}</ul>

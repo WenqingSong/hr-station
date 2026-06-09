@@ -728,8 +728,8 @@ func (a *VersionCompareMockAgent) CompareV2(from, to *model.ResumeVersion, mode 
 		resp.FromRisks = genProfileRisks(fromProf, 3)
 		resp.ToRisks = genProfileRisks(toProf, 3)
 		resp.KeyDifferences = genKeyDiffs(from, to, fromProf, toProf)
-		resp.KeepFromItems = genKeepItems(from, fromProf, "from")
-		resp.KeepToItems = genKeepItems(to, toProf, "to")
+		resp.KeepFromItems = genKeepItems(from, fromProf, true)
+		resp.KeepToItems = genKeepItems(to, toProf, false)
 		resp.MergeSuggestions = genMergeSuggestions(fromProf, toProf)
 		resp.RewriteExamples = genRewriteExamples(from, to, fromProf, toProf)
 		resp.NextVersionSuggestions = genNextVerSuggestions(fromProf, toProf, mode, targetDirection)
@@ -797,9 +797,9 @@ func calcCompareScore(from, to *model.ResumeVersion, fromProf, toProf string, mo
 }
 
 func judgeWinner(fromProf, toProf string, score int, mode, targetDir string) (level string, winner uint64, label string) {
-	winnerID := uint64(2) // default to "to" resume
+	winnerID := uint64(2)
 	lvl := "目标版本更适合当前场景"
-	lbl := "目标版本在整体质量上更优"
+	lbl := "新版更适合作为当前主投递版本"
 
 	if mode == "target_direction" && targetDir != "" {
 		if toProf == targetDir && fromProf != targetDir {
@@ -812,15 +812,12 @@ func judgeWinner(fromProf, toProf string, score int, mode, targetDir string) (le
 
 	if fromProf == toProf {
 		if score > 75 {
-			return "两版方向一致，目标版本略优", winnerID, "两版方向一致，目标版本在细节上略优"
+			return "两版方向一致，新版细节更优", winnerID, "两版方向一致，新版在项目深度和表达细节上更优"
 		}
 		return "两版方向一致，差异较小", winnerID, "两版内容差异较小，均可使用"
 	}
 
-	if toProf == "backend_engineering" || toProf == "algorithm_research" || toProf == "product_operation" {
-		return lvl, winnerID, lbl
-	}
-
+	lbl = fmt.Sprintf("新版（%s方向）比旧版（%s方向）更适合投递", cmpProfileLabel(toProf), cmpProfileLabel(fromProf))
 	return lvl, winnerID, lbl
 }
 
@@ -879,28 +876,40 @@ func cmpProfileLabel(p string) string {
 func genKeyDiffs(from, to *model.ResumeVersion, fromProf, toProf string) []string {
 	diffs := []string{}
 	if fromProf != toProf {
-		diffs = append(diffs, fmt.Sprintf("画像方向：%s → %s", cmpProfileLabel(fromProf), cmpProfileLabel(toProf)))
+		diffs = append(diffs, fmt.Sprintf("求职方向从「%s」转向「%s」，新版投递信号更集中", cmpProfileLabel(fromProf), cmpProfileLabel(toProf)))
 	}
 	if len(to.ProfessionalSkills) > len(from.ProfessionalSkills) {
-		diffs = append(diffs, "技能描述更加丰富具体")
+		diffs = append(diffs, "新版技能描述从泛覆盖升级为具体技术栈，能更直接匹配岗位初筛关键词")
 	}
 	if len(to.RawText) > len(from.RawText) {
-		diffs = append(diffs, "简历内容更加充实")
+		diffs = append(diffs, "新版内容更充实，从学习型描述转向实践型描述，更能证明候选人实际动手能力")
 	}
 	if len(to.SelfEvaluation) > len(from.SelfEvaluation) {
-		diffs = append(diffs, "自我评价更完善")
+		diffs = append(diffs, "新版自我评价更具体，从空洞描述转为可验证的能力陈述")
 	}
-	if len(diffs) == 0 {
-		diffs = append(diffs, "两版简历表达差异较小")
+	// Add content direction change insight
+	if toProf == "backend_engineering" && fromProf != toProf {
+		diffs = append(diffs, "旧版偏探索型表达适合说明成长路径，但新版的后端项目经历才是投递后端岗位的核心证据")
+	}
+	if len(diffs) < 3 {
+		if len(diffs) == 0 {
+			diffs = append(diffs, "两版简历表达差异较小，建议从项目深度和技能细节入手提升区分度")
+		}
+		diffs = append(diffs, "建议新版增加项目量化结果（接口数量、数据表设计、测试通过率等）以增强说服力")
+		diffs = append(diffs, "建议统一技术栈描述风格，确保每个关键词都绑定具体使用场景")
+	}
+	// Cap at 5
+	if len(diffs) > 5 {
+		diffs = diffs[:5]
 	}
 	return diffs
 }
 
 func genDeliveryAdvice(winner uint64, toProf string) string {
 	if winner == 2 {
-		return fmt.Sprintf("建议使用目标版本（%s方向）投递。", cmpProfileLabel(toProf))
+		return fmt.Sprintf("建议以新版（%s方向）作为主投递版本，适合投递该方向实习岗位。投递前应补充每个项目的接口数量、数据库设计和实际结果，避免只展示技术名词。", cmpProfileLabel(toProf))
 	}
-	return fmt.Sprintf("建议保留原版本并参考目标版本的部分改进。")
+	return "建议保留旧版作为基础版本，参考新版中更丰富的技能和项目描述进行优化后再投递。"
 }
 
 func genDeliveryAdviceFull(winner uint64, toProf, mode, targetDir string) string {
@@ -917,31 +926,46 @@ func genResumeSummary(r *model.ResumeVersion, prof string) string {
 	return fmt.Sprintf("方向：%s。技能侧重：%s。简历内容总量约 %d 字。", cmpProfileLabel(prof), skills, len(r.RawText))
 }
 
-func genKeepItems(r *model.ResumeVersion, prof string, which string) []string {
+func genKeepItems(r *model.ResumeVersion, prof string, isFrom bool) []string {
+	versionLabel := "新版"
+	if isFrom {
+		versionLabel = "旧版"
+	}
 	items := []string{}
 	if len(r.ProfessionalSkills) > 20 {
-		items = append(items, fmt.Sprintf("保留%s版本的核心技能描述", which))
+		items = append(items, fmt.Sprintf("保留%s的核心技术栈描述（%s），用于支撑岗位匹配筛选", versionLabel, truncateStr(r.ProfessionalSkills, 50)))
 	}
 	if len(r.SelfEvaluation) > 20 {
-		items = append(items, fmt.Sprintf("保留%s版本的自我评价亮点", which))
+		items = append(items, fmt.Sprintf("保留%s的自我评价中具体的项目经验部分，压缩为1-2句话", versionLabel))
 	}
 	if len(r.AIApplication) > 10 {
-		items = append(items, fmt.Sprintf("保留%s版本的AI应用方向描述", which))
+		items = append(items, fmt.Sprintf("保留%s的AI应用经验，放在技能信息中作为加分项", versionLabel))
 	}
 	if len(items) < 2 {
-		items = append(items, fmt.Sprintf("保留%s版本的整体结构框架", which))
+		if isFrom {
+			items = append(items, "保留旧版中体现学习路径和成长轨迹的内容，对于体现候选人发展过程有参考价值")
+			items = append(items, "保留旧版的基础课程信息，压缩为教育经历中的一行补充")
+		} else {
+			items = append(items, "保留新版的项目经历，这是支撑目标岗位投递的核心证据")
+			items = append(items, "保留新版中更聚焦的求职方向表达，避免简历同时传递多个岗位信号")
+		}
+	}
+	// Cap at 4
+	if len(items) > 4 {
+		items = items[:4]
 	}
 	return items
 }
 
 func genMergeSuggestions(fromProf, toProf string) []string {
 	suggestions := []string{
-		"合并两版简历中的优势模块，保留更清晰的技能描述",
+		"以新版作为主体，旧版的学习基础信息压缩为教育经历补充，不要单独占一个大模块",
+		"删除或弱化旧版中与目标岗位无关的泛方向表达，避免投递信号混乱",
+		"把旧版的学习经历转化为新版项目经历的背景句，说明候选人从学习到实践的成长过程",
 	}
 	if fromProf != toProf {
-		suggestions = append(suggestions, fmt.Sprintf("注意统一方向表达：当前两版画像分别为「%s」和「%s」，建议聚焦一个方向", cmpProfileLabel(fromProf), cmpProfileLabel(toProf)))
+		suggestions = append(suggestions, fmt.Sprintf("注意统一方向表达：旧版偏向「%s」，新版偏向「%s」，建议聚焦新版方向", cmpProfileLabel(fromProf), cmpProfileLabel(toProf)))
 	}
-	suggestions = append(suggestions, "将目标版本的改进内容整合到原版本的结构框架中")
 	return suggestions
 }
 
@@ -949,19 +973,29 @@ func genRewriteExamples(from, to *model.ResumeVersion, fromProf, toProf string) 
 	examples := []model.RewriteCompareExample{
 		{
 			Section:       "技能描述",
-			FromVersion:   truncateStr(from.ProfessionalSkills, 60),
-			ToVersion:     truncateStr(to.ProfessionalSkills, 60),
-			SuggestedNext: "建议下一版保留 to 版本的技能关键词密度，并补充实际使用场景。",
-			Reason:        "to 版本技能描述更丰富，但缺少使用场景佐证。",
+			FromVersion:   truncateStr(from.ProfessionalSkills, 80),
+			ToVersion:     truncateStr(to.ProfessionalSkills, 80),
+			SuggestedNext: truncateStr(to.ProfessionalSkills, 80) + "（建议每个技能关键词绑定到一个具体项目，说明在项目中如何使用）",
+			Reason:        "新版技能描述更丰富，但如果直接将列表放上去会像堆砌。建议每个关键词都配合项目经历中的实际使用场景，这样更容易通过技术初筛。",
 		},
 	}
 	if fromProf != toProf {
 		examples = append(examples, model.RewriteCompareExample{
-			Section:       "职业方向",
-			FromVersion:   fmt.Sprintf("侧重 %s", cmpProfileLabel(fromProf)),
-			ToVersion:     fmt.Sprintf("侧重 %s", cmpProfileLabel(toProf)),
-			SuggestedNext: fmt.Sprintf("建议统一为 %s 方向，避免简历信号混乱。", cmpProfileLabel(toProf)),
-			Reason:        "两版方向不一致会导致投递时定位模糊。",
+			Section:       "求职方向",
+			FromVersion:   fmt.Sprintf("侧重 %s 方向表达", cmpProfileLabel(fromProf)),
+			ToVersion:     fmt.Sprintf("聚焦 %s 方向表达", cmpProfileLabel(toProf)),
+			SuggestedNext: fmt.Sprintf("求职方向：%s实习生。%s", cmpProfileLabel(toProf), "专注于该方向的技能深度和项目实践。"),
+			Reason:        fmt.Sprintf("旧版方向偏泛，投递时会让HR无法快速判断候选人匹配度。建议统一为「%s」方向，让简历的投递信号在一眼内被识别。", cmpProfileLabel(toProf)),
+		})
+	}
+	// Add project rewrite example if raw text differs significantly
+	if len(to.RawText) > len(from.RawText)+100 {
+		examples = append(examples, model.RewriteCompareExample{
+			Section:       "项目经历",
+			FromVersion:   "偏向课程学习的描述风格",
+			ToVersion:     "包含具体项目和技术的描述风格",
+			SuggestedNext: "下一个版本可以用「背景 / 职责 / 技术栈 / 结果」四段式重写项目经历，每个项目补充一个量化结果",
+			Reason:        "从学习型描述升级为实践型描述后，还需要补充量化数据才能让简历更有说服力。",
 		})
 	}
 	return examples
@@ -969,12 +1003,16 @@ func genRewriteExamples(from, to *model.ResumeVersion, fromProf, toProf string) 
 
 func genNextVerSuggestions(fromProf, toProf, mode, targetDir string) []string {
 	suggestions := []string{
-		fmt.Sprintf("以 %s 方向为主体，整合两版优点", cmpProfileLabel(toProf)),
+		fmt.Sprintf("把新版作为主版本，旧版仅保留学习背景描述，不再保留大段泛方向表达"),
+		fmt.Sprintf("每个项目补充一个量化结果：接口数量、数据表数量、测试通过率或部署结果"),
+		fmt.Sprintf("将技能关键词绑定到项目经历中，避免技能列表和项目内容脱节"),
 	}
 	if mode == "target_direction" {
-		suggestions = append(suggestions, fmt.Sprintf("围绕「%s」方向重新审视技能关键词和项目顺序", targetDir))
+		suggestions = append(suggestions, fmt.Sprintf("围绕「%s」方向调整项目描述顺序，把与该方向最相关的项目放在首位", targetDir))
 	}
-	suggestions = append(suggestions, "补充量化成果和 STAR 法则描述")
+	if fromProf != toProf {
+		suggestions = append(suggestions, fmt.Sprintf("统一全篇求职信号为「%s」方向，删除与目标岗位无关的探索描述", cmpProfileLabel(toProf)))
+	}
 	return suggestions
 }
 
