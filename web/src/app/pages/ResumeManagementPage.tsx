@@ -494,8 +494,8 @@ export function ResumeManagementPage() {
       />
       <ResumePickerModal
         open={showCompareModal}
-        title="选择要对比的两份简历"
-        description="选择两份不同的简历，系统会分析两版之间的差异和改进方向。"
+        title="选择两份简历进行版本对比"
+        description="先选择上一版，再选择当前版。系统会分析当前版相比上一版的提升、风险和下一版优化建议。"
         resumes={pickerOptions}
         loading={pickerLoading}
         selectedIds={pickerSelectedIds}

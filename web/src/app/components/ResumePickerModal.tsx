@@ -15,6 +15,7 @@ import {
   RefreshCw,
   FilePlus,
   ChevronRight,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 
@@ -94,7 +95,7 @@ export function ResumePickerModal({
   confirmDisabled = false,
   onConfirm,
   onClose,
-  searchPlaceholder = "搜索简历名、方向或技能关键词…",
+  searchPlaceholder = "搜索简历名称、内容侧重点或关键词…",
   footerLeft,
 }: ResumePickerModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -102,9 +103,101 @@ export function ResumePickerModal({
 
   const resolvedMax = maxSelected ?? (selectionMode === "compare" ? 2 : 1);
 
-  // ── Reset search on open/close ───────────────────────────────────────
+  // ── Compare-mode slot state ──────────────────────────────────────────
+  const isCompare = selectionMode === "compare";
+  const [baseId, setBaseId] = useState<number | null>(null);
+  const [currentId, setCurrentId] = useState<number | null>(null);
+  const [activeSlot, setActiveSlot] = useState<"base" | "current">("base");
+
+  // Sync compare slot state from external selectedIds on open
   useEffect(() => {
-    if (!open) setSearchQuery("");
+    if (!isCompare || !open) return;
+    if (selectedIds.length >= 2) {
+      setBaseId(selectedIds[0]);
+      setCurrentId(selectedIds[1]);
+      setActiveSlot("current");
+    } else if (selectedIds.length === 1) {
+      setBaseId(selectedIds[0]);
+      setCurrentId(null);
+      setActiveSlot("current");
+    } else {
+      setBaseId(null);
+      setCurrentId(null);
+      setActiveSlot("base");
+    }
+  }, [isCompare, open, selectedIds]);
+
+  // Notify parent of compare selection changes
+  const notifyCompareSelection = useCallback(
+    (bId: number | null, cId: number | null) => {
+      const ids: number[] = [];
+      if (bId != null) ids.push(bId);
+      if (cId != null) ids.push(cId);
+      onSelectionChange(ids);
+    },
+    [onSelectionChange],
+  );
+
+  const handleSlotSelect = useCallback(
+    (id: number) => {
+      if (activeSlot === "base") {
+        if (id === currentId) {
+          // Can't select same resume for both slots; swap instead
+          setBaseId(id);
+          setCurrentId(null);
+          notifyCompareSelection(id, null);
+        } else {
+          setBaseId(id);
+          setActiveSlot("current");
+          notifyCompareSelection(id, currentId);
+        }
+      } else {
+        if (id === baseId) {
+          setCurrentId(id);
+          setBaseId(null);
+          notifyCompareSelection(null, id);
+        } else {
+          setCurrentId(id);
+          notifyCompareSelection(baseId, id);
+        }
+      }
+    },
+    [activeSlot, baseId, currentId, notifyCompareSelection],
+  );
+
+  const handleSlotRemove = useCallback(
+    (slot: "base" | "current") => {
+      if (slot === "base") {
+        setBaseId(null);
+        setActiveSlot("base");
+        notifyCompareSelection(null, currentId);
+      } else {
+        setCurrentId(null);
+        setActiveSlot("current");
+        notifyCompareSelection(baseId, null);
+      }
+    },
+    [baseId, currentId, notifyCompareSelection],
+  );
+
+  const handleSwap = useCallback(() => {
+    const b = currentId;
+    const c = baseId;
+    setBaseId(b);
+    setCurrentId(c);
+    notifyCompareSelection(b, c);
+  }, [baseId, currentId, notifyCompareSelection]);
+
+  // ── Reset search / compare slots on open/close ───────────────────────
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery("");
+      if (isCompare) {
+        setBaseId(null);
+        setCurrentId(null);
+        setActiveSlot("base");
+      }
+    }
   }, [open]);
 
   // ── Body scroll lock ─────────────────────────────────────────────────
@@ -157,7 +250,7 @@ export function ResumePickerModal({
     );
   }, [resumes, searchQuery]);
 
-  // ── Toggle selection ─────────────────────────────────────────────────
+  // ── Toggle selection (single mode only) ──────────────────────────────
   const toggleSelection = useCallback(
     (id: number) => {
       const current = new Set(selectedIds);
@@ -165,30 +258,31 @@ export function ResumePickerModal({
         current.delete(id);
       } else {
         if (current.size >= resolvedMax) {
-          // In single mode: replace; in compare mode: replace last
-          if (selectionMode === "single") {
-            current.clear();
-          } else {
-            // Remove first to keep max 2 (replace older)
-            const arr = Array.from(current);
-            current.delete(arr[0]);
-          }
+          current.clear();
         }
         current.add(id);
       }
       onSelectionChange(Array.from(current));
     },
-    [selectedIds, resolvedMax, selectionMode, onSelectionChange],
+    [selectedIds, resolvedMax, onSelectionChange],
   );
 
   // ── Confirm state ────────────────────────────────────────────────────
-  const minRequired = selectionMode === "compare" ? 2 : 1;
+  const minRequired = isCompare ? 2 : 1;
   const canConfirm =
     !loading &&
     !confirming &&
     !error &&
     selectedIds.length >= minRequired &&
     !confirmDisabled;
+
+  const handleConfirm = useCallback(() => {
+    if (isCompare) {
+      onConfirm([baseId!, currentId!]);
+    } else {
+      onConfirm(selectedIds);
+    }
+  }, [isCompare, baseId, currentId, selectedIds, onConfirm]);
 
   if (!open) return null;
 
@@ -207,7 +301,7 @@ export function ResumePickerModal({
           aria-modal="true"
           aria-labelledby={TITLE_ID}
           className="flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-          style={{ maxHeight: "min(760px, calc(100vh - 64px))" }}
+          style={{ maxHeight: isCompare ? "min(820px, calc(100vh - 48px))" : "min(760px, calc(100vh - 64px))" }}
         >
           {/* ── Header ── */}
           <header className="shrink-0 border-b border-slate-100 px-6 pt-5 pb-4">
@@ -251,9 +345,9 @@ export function ResumePickerModal({
             </div>
           </div>
 
-          {/* ── Body / List ── */}
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-            {loading ? (
+          {/* ── Body ── */}
+          {loading ? (
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
               <div className="py-12 space-y-3">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="h-20 bg-slate-100 rounded-lg animate-pulse" />
@@ -262,7 +356,9 @@ export function ResumePickerModal({
                   正在读取你的简历…
                 </p>
               </div>
-            ) : error ? (
+            </div>
+          ) : error ? (
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
               <div className="py-10 text-center">
                 <p className="text-[13px] text-slate-600 mb-1">{error}</p>
                 {onRetry && (
@@ -274,8 +370,10 @@ export function ResumePickerModal({
                   </button>
                 )}
               </div>
-            ) : filteredResumes.length === 0 ? (
-              searchQuery.trim() ? (
+            </div>
+          ) : filteredResumes.length === 0 ? (
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+              {searchQuery.trim() ? (
                 <div className="py-10 text-center">
                   <p className="text-[13px] text-slate-500 mb-1">没有找到匹配的简历</p>
                   <p className="text-[12px] text-slate-400 mb-3">
@@ -304,12 +402,188 @@ export function ResumePickerModal({
                     <FilePlus className="w-3.5 h-3.5" /> 去添加简历
                   </Link>
                 </div>
-              )
-            ) : (
+              )}
+            </div>
+          ) : isCompare ? (
+            /* ════════════ Compare mode body ════════════ */
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-2">
+              {/* ── Slots area ── */}
+              <div className="mb-4 grid grid-cols-[1fr_auto_1fr] gap-3 items-start">
+                {/* Base slot */}
+                <div
+                  onClick={() => setActiveSlot("base")}
+                  className={`rounded-xl border-2 border-dashed p-3 cursor-pointer transition-all ${
+                    activeSlot === "base"
+                      ? "border-[#0052D9] bg-blue-50/40"
+                      : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                  }`}
+                >
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                    上一版简历 · 对比基线
+                  </p>
+                  {baseId != null ? (
+                    (() => {
+                      const r = resumes.find((x) => x.id === baseId);
+                      return (
+                        <div className="relative bg-white rounded-lg border border-[#0052D9] px-3 py-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleSlotRemove("base"); }}
+                            className="absolute top-1.5 right-1.5 p-0.5 text-slate-300 hover:text-slate-500 rounded"
+                            aria-label="移除上一版简历"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <p className="text-[13px] font-semibold text-slate-900 pr-5 truncate">
+                            {r?.name ?? "简历"}
+                          </p>
+                          {(r?.directionLabel || r?.updatedAt) && (
+                            <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                              {[r?.directionLabel, r?.updatedAt ? formatDateTime(r.updatedAt).slice(0,10) : ""].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <p className="text-[12px] text-slate-400 italic">
+                      从下方选择一份简历作为上一版
+                    </p>
+                  )}
+                </div>
+
+                {/* Swap button */}
+                <button
+                  onClick={handleSwap}
+                  disabled={baseId == null || currentId == null}
+                  className={`mt-[26px] p-1.5 rounded-lg border transition-all ${
+                    baseId != null && currentId != null
+                      ? "border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-[#0052D9] hover:bg-blue-50 cursor-pointer"
+                      : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
+                  }`}
+                  title="交换上一版与当前版的顺序"
+                  aria-label="交换顺序"
+                >
+                  <ArrowRightLeft className="w-4 h-4" />
+                </button>
+
+                {/* Current slot */}
+                <div
+                  onClick={() => setActiveSlot("current")}
+                  className={`rounded-xl border-2 border-dashed p-3 cursor-pointer transition-all ${
+                    activeSlot === "current"
+                      ? "border-[#0052D9] bg-blue-50/40"
+                      : "border-slate-200 bg-slate-50/50 hover:border-slate-300"
+                  }`}
+                >
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                    当前版简历 · 迭代版本
+                  </p>
+                  {currentId != null ? (
+                    (() => {
+                      const r = resumes.find((x) => x.id === currentId);
+                      return (
+                        <div className="relative bg-white rounded-lg border border-emerald-300 px-3 py-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleSlotRemove("current"); }}
+                            className="absolute top-1.5 right-1.5 p-0.5 text-slate-300 hover:text-slate-500 rounded"
+                            aria-label="移除当前版简历"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <p className="text-[13px] font-semibold text-slate-900 pr-5 truncate">
+                            {r?.name ?? "简历"}
+                          </p>
+                          {(r?.directionLabel || r?.updatedAt) && (
+                            <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                              {[r?.directionLabel, r?.updatedAt ? formatDateTime(r.updatedAt).slice(0,10) : ""].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <p className="text-[12px] text-slate-400 italic">
+                      从下方选择一份简历作为当前版
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Active slot hint ── */}
+              <div className="mb-3 text-center">
+                <span className="text-[11px] text-slate-400">
+                  当前选择目标：
+                  <span className={`font-medium ${activeSlot === "base" ? "text-[#0052D9]" : "text-emerald-600"}`}>
+                    {activeSlot === "base" ? " 上一版简历" : " 当前版简历"}
+                  </span>
+                  &nbsp;— 点击下方简历卡片将填入对应槽位
+                </span>
+              </div>
+
+              {/* ── Resume pool (grid) ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2">
+                {filteredResumes.map((resume) => {
+                  const isBase = resume.id === baseId;
+                  const isCurrent = resume.id === currentId;
+                  const isSelected = isBase || isCurrent;
+                  const isOtherSlot = (isBase && activeSlot === "current") || (isCurrent && activeSlot === "base");
+
+                  return (
+                    <div
+                      key={resume.id}
+                      onClick={() => { if (!isOtherSlot) handleSlotSelect(resume.id); }}
+                      className={`flex items-center gap-2.5 px-3 py-2.5 border rounded-lg cursor-pointer transition-all ${
+                        isOtherSlot
+                          ? "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed"
+                          : isSelected
+                          ? isBase
+                            ? "border-[#0052D9] bg-blue-50/30"
+                            : "border-emerald-300 bg-emerald-50/30"
+                          : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-semibold text-slate-900 truncate">
+                            {resume.name}
+                          </span>
+                          {isBase && (
+                            <span className="shrink-0 text-[10px] bg-[#0052D9] text-white px-1.5 py-0.5 rounded font-medium">
+                              上一版
+                            </span>
+                          )}
+                          {isCurrent && (
+                            <span className="shrink-0 text-[10px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-medium">
+                              当前版
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
+                          {resume.directionLabel && (
+                            <>
+                              <Briefcase className="w-2.5 h-2.5 shrink-0" />
+                              <span className="truncate">{resume.directionLabel}</span>
+                            </>
+                          )}
+                          {!resume.directionLabel && resume.updatedAt && (
+                            <span className="flex items-center gap-1 truncate">
+                              <Clock className="w-2.5 h-2.5 shrink-0" />
+                              {formatDateTime(resume.updatedAt).slice(0, 16)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* ════════════ Single mode body ════════════ */
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
               <div className="space-y-2 pb-2">
                 {filteredResumes.map((resume) => {
-                  const idx = selectedIds.indexOf(resume.id);
-                  const isSelected = idx !== -1;
+                  const isSelected = selectedIds.includes(resume.id);
 
                   return (
                     <div
@@ -323,29 +597,17 @@ export function ResumePickerModal({
                     >
                       {/* Selection indicator */}
                       <div className="flex-shrink-0 mt-1">
-                        {selectionMode === "compare" ? (
-                          <div
-                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center text-[11px] font-semibold transition-colors ${
-                              isSelected
-                                ? "border-[#0052D9] bg-[#0052D9] text-white"
-                                : "border-slate-300 text-slate-300"
-                            }`}
-                          >
-                            {isSelected ? idx + 1 : ""}
-                          </div>
-                        ) : (
-                          <div
-                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
-                              isSelected
-                                ? "border-[#0052D9]"
-                                : "border-slate-300"
-                            }`}
-                          >
-                            {isSelected && (
-                              <div className="w-2 h-2 rounded-full bg-[#0052D9]" />
-                            )}
-                          </div>
-                        )}
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                            isSelected
+                              ? "border-[#0052D9]"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {isSelected && (
+                            <div className="w-2 h-2 rounded-full bg-[#0052D9]" />
+                          )}
+                        </div>
                       </div>
 
                       {/* Info */}
@@ -354,7 +616,6 @@ export function ResumePickerModal({
                           <span className="text-[14px] font-semibold text-slate-900">
                             {resume.name}
                           </span>
-
                         </div>
 
                         <div className="flex items-center gap-2 text-[12px] text-slate-500 mb-1.5 flex-wrap">
@@ -393,8 +654,8 @@ export function ResumePickerModal({
                   );
                 })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* ── Footer ── */}
           <footer className="shrink-0 border-t border-slate-100 bg-white px-6 py-4">
@@ -418,7 +679,7 @@ export function ResumePickerModal({
                   取消
                 </button>
                 <button
-                  onClick={() => onConfirm(selectedIds)}
+                  onClick={handleConfirm}
                   disabled={!canConfirm}
                   className={`px-5 py-2 text-[13px] font-medium rounded-lg transition-colors ${
                     canConfirm
@@ -426,7 +687,7 @@ export function ResumePickerModal({
                       : "bg-slate-200 text-slate-400 cursor-not-allowed"
                   }`}
                 >
-                  {confirming ? "正在跳转…" : confirmText}
+                  {confirming ? "正在跳转…" : !canConfirm && isCompare ? "请选择上一版和当前版" : confirmText}
                 </button>
               </div>
             </div>

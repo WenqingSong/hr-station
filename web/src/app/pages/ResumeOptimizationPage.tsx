@@ -843,7 +843,7 @@ function DeepView({ data, phase }: { data: OptimizationV2ViewModel; phase: OptPh
             <div className="pt-2">
               <BulletList 
                 items={data.longTermImprovements.map(item => (
-                  <span className="font-medium text-gray-800">{item.direction}{item.note && <span className="text-gray-500 font-normal"> — {item.note}</span>}</span>
+                  <span className="font-medium text-gray-800">{cleanText(item.direction)}{item.note && <span className="text-gray-500 font-normal"> — {cleanText(item.note)}</span>}</span>
                 ))} 
                 tone="slate" 
                 size="sm" 
@@ -997,12 +997,12 @@ function RightSidebar({
                   )}
                 </div>
                 <BulletList
-                  items={matchGaps.slice(0, 2).map(g => g.length > 80 ? g.slice(0, 80) + "…" : g)}
+                  items={matchGaps.slice(0, 2).map(g => { const t = cleanText(g); return t.length > 80 ? t.slice(0, 80) + "…" : t; })}
                   tone="amber"
                   size="xs"
                 />
                 <BulletList
-                  items={matchHighlights.slice(0, 1).map(h => h.length > 80 ? h.slice(0, 80) + "…" : h)}
+                  items={matchHighlights.slice(0, 1).map(h => { const t = cleanText(h); return t.length > 80 ? t.slice(0, 80) + "…" : h; })}
                   tone="green"
                   size="xs"
                 />

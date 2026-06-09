@@ -6,18 +6,27 @@ import { useAuth } from "../../stores/authStore";
 import { AuthDialog } from "./auth/AuthDialog";
 import { normalizeRedirect } from "../../utils/redirect";
 
+const HERO_NAV_THRESHOLD = 280;
+
 export function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, clearAuth } = useAuth();
   const [hidden, setHidden] = useState(false);
-  const [isTop, setIsTop] = useState(true);
+  const [isHeroTop, setIsHeroTop] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authDialogMode, setAuthDialogMode] = useState<"login" | "register">("login");
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
   const redirectAfterLoginRef = useRef<string | null>(null);
+
+  // ── Hero route detection ──
+  const isHeroRoute =
+    location.pathname === "/" ||
+    location.pathname === "/jobs" ||
+    /^\/jobs\/[^/]+$/.test(location.pathname) ||
+    /^\/job\/[^/]+$/.test(location.pathname);
 
   useEffect(() => {
     const auth = searchParams.get("auth");
@@ -25,18 +34,16 @@ export function Navbar() {
       redirectAfterLoginRef.current = searchParams.get("redirect");
       setAuthDialogMode(auth === "register" ? "register" : "login");
       setAuthDialogOpen(true);
-      // 清理 URL 参数，避免刷新时反复触发
       setSearchParams({}, { replace: true });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 滚动隐藏 / 显示 + 顶部判定
+  // 滚动：隐藏/显示 + Hero 顶部判定
   useEffect(() => {
     const handleScroll = () => {
       if (!ticking.current) {
         window.requestAnimationFrame(() => {
           const currentScrollY = window.scrollY;
-          // K9-UI-ResumeEdit-D-B: resume editor routes — always show Navbar
           const isResumeEditorRoute =
             location.pathname === "/resumes/new" ||
             location.pathname === "/resumes/edit" ||
@@ -44,13 +51,11 @@ export function Navbar() {
 
           if (isResumeEditorRoute) {
             setHidden(false);
-            setIsTop(false);
             lastScrollY.current = currentScrollY;
             ticking.current = false;
             return;
           }
 
-          // K9-UI-ResumeEdit-D-B: delta threshold to filter layout shifts
           const delta = currentScrollY - lastScrollY.current;
           if (Math.abs(delta) < 30) {
             lastScrollY.current = currentScrollY;
@@ -66,20 +71,25 @@ export function Navbar() {
           if (currentScrollY <= 20) {
             setHidden(false);
           }
-          setIsTop(currentScrollY <= 80);
+
+          // Hero 顶部透明状态
+          setIsHeroTop(isHeroRoute && currentScrollY < HERO_NAV_THRESHOLD);
+
           lastScrollY.current = currentScrollY;
           ticking.current = false;
         });
         ticking.current = true;
       }
     };
+
+    // Immediately set initial state
+    setIsHeroTop(isHeroRoute && window.scrollY < HERO_NAV_THRESHOLD);
+
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [location.pathname]);
+  }, [location.pathname, isHeroRoute]);
 
   const handleAuthSuccess = () => {
-    // AuthDialog 已调用 useAuth().setAuthenticated() 更新全局状态
-    // K8-5-46-B：redirect 安全校验
     if (redirectAfterLoginRef.current) {
       const target = normalizeRedirect(redirectAfterLoginRef.current, "/jobs");
       redirectAfterLoginRef.current = null;
@@ -93,40 +103,26 @@ export function Navbar() {
     navigate("/");
   }
 
-  // K8-5-15-C-R：路由语义判断 — Hero 页面顶部才允许白字/透明 Navbar
-  const isHeroNavbarRoute =
-    location.pathname === "/" ||
-    location.pathname === "/jobs" ||
-    /^\/jobs\/[^/]+$/.test(location.pathname) ||
-    /^\/job\/[^/]+$/.test(location.pathname);
+  // ════════ Visual: two modes ════════
+  const navSurface = isHeroTop
+    ? "bg-slate-950/28 border-white/5 text-white backdrop-blur-[2px] shadow-none"
+    : "bg-white border-slate-200/70 text-slate-950 shadow-sm";
 
-  const useHeroNavbar = isHeroNavbarRoute && isTop;
-
-  const brandTextShadow: React.CSSProperties | undefined = useHeroNavbar
-    ? { textShadow: "0 1px 12px rgba(0,0,0,0.18)" }
-    : undefined;
-
-  // Hero 页顶部：深色透明玻璃悬浮在 Banner 上，白字
-  // 普通内容页：白底毛玻璃 + 深色字
-  const navSurfaceClass = useHeroNavbar
-    ? "border-white/10 bg-slate-950/18 text-white shadow-none backdrop-blur-md backdrop-saturate-150"
-    : "border-slate-200/40 bg-white/58 text-slate-950 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl backdrop-saturate-150";
-
-  const brandTextClass = useHeroNavbar
+  const brandClass = isHeroTop
     ? "text-white"
     : "text-slate-950";
 
-  const linkClass = useHeroNavbar
-    ? "text-white/88 hover:text-white"
+  const linkClass = isHeroTop
+    ? "text-white/85 hover:text-white"
     : "text-slate-700 hover:text-slate-950";
 
-  const logoutLinkClass = useHeroNavbar
-    ? "text-white/72 hover:text-white"
-    : "text-slate-500 hover:text-slate-950";
+  const logoutClass = isHeroTop
+    ? "text-white/70 hover:text-white"
+    : "text-slate-500 hover:text-slate-800";
 
-  const loginButtonClass = useHeroNavbar
-    ? "rounded-full border border-white/25 bg-white/8 px-4 py-2 text-sm font-medium text-white/92 backdrop-blur transition hover:bg-white/14 hover:text-white"
-    : "rounded-full border border-slate-200/70 bg-white/50 px-4 py-2 text-sm font-medium text-slate-700 backdrop-blur transition hover:bg-white/80 hover:text-slate-950";
+  const loginBtn = isHeroTop
+    ? "border-white/30 text-white/90 hover:bg-white/12 hover:text-white"
+    : "border-slate-200/70 text-slate-700 hover:bg-white/80 hover:text-slate-950";
 
   return (
     <>
@@ -135,16 +131,16 @@ export function Navbar() {
         "fixed inset-x-0 top-0 z-50",
         "h-16 md:h-[68px]",
         "border-b",
-        "transition-[transform,background-color,border-color,box-shadow,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        "transition-colors duration-200",
+        "transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         hidden ? "-translate-y-[110%]" : "translate-y-0",
-        navSurfaceClass,
+        navSurface,
       ].join(" ")}
     >
       <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-6 md:px-8">
         <Link
           to="/jobs"
-          className={`font-brand text-[22px] font-extrabold tracking-[-0.03em] ${brandTextClass}`}
-          style={brandTextShadow}
+          className={`font-brand text-[22px] font-extrabold tracking-[-0.03em] ${brandClass}`}
           aria-label="Offerr鹅首页"
         >
           Offerr鹅
@@ -162,7 +158,7 @@ export function Navbar() {
               </Link>
               <button
                 onClick={handleLogout}
-                className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${logoutLinkClass}`}
+                className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${logoutClass}`}
               >
                 <LogOut className="h-4 w-4" />
                 退出
@@ -172,7 +168,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => { setAuthDialogMode("login"); setAuthDialogOpen(true); }}
-              className={`inline-flex items-center gap-1.5 ${loginButtonClass}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition ${loginBtn}`}
             >
               <LogIn className="h-4 w-4" />
               登录
@@ -182,7 +178,6 @@ export function Navbar() {
       </div>
     </nav>
 
-    {/* K8-5-13-D：登录弹窗 — K8-5-36-A 支持 URL 参数驱动自动打开与 mode 切换 */}
     <AuthDialog
       open={authDialogOpen}
       onOpenChange={setAuthDialogOpen}
