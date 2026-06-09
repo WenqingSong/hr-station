@@ -115,6 +115,7 @@ export function ResumeOptimizationPage() {
   const [activeTier, setActiveTier] = useState<string>("fast");
   const [activeGeneratedBy, setActiveGeneratedBy] = useState<string>("");
   const [optError, setOptError] = useState<string | null>(null);
+  const [deepBackendDone, setDeepBackendDone] = useState(false);
 
   // Modal
   const [showModal, setShowModal] = useState(false);
@@ -288,6 +289,7 @@ export function ResumeOptimizationPage() {
     if (!rid || isNaN(rid)) return;
 
     setPhase("deep_loading");
+    setDeepBackendDone(false);
     const genInput = {
       optimization_mode: derivedMode,
       generation_tier: "quality" as GenerationTier,
@@ -299,7 +301,7 @@ export function ResumeOptimizationPage() {
         setActiveResult(r);
         setActiveTier("quality");
         setActiveGeneratedBy(r.generatedBy || "");
-        setPhase("deep_done");
+        setDeepBackendDone(true);
       })
       .catch(() => setPhase("deep_error"));
   };
@@ -390,7 +392,8 @@ export function ResumeOptimizationPage() {
           { key: "suggestions", label: "生成可执行的修改建议与改写示例" },
           { key: "strategy", label: "汇总投递重点和后续补强策略" },
         ]}
-        status="loading"
+        backendDone={deepBackendDone}
+        onFinish={() => setPhase("deep_done")}
       />
 
       {/* ── General mode notice ── */}

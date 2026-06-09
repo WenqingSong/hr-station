@@ -52,7 +52,7 @@ export function JobRecommendationPage() {
   const [activeGeneratedBy, setActiveGeneratedBy] = useState<string>("");
 
   const [selJobId, setSelJobId] = useState<number | null>(null);
-  const [deepOverlayStatus, setDeepOverlayStatus] = useState<"loading" | "success" | "error">("loading");
+  const [deepBackendDone, setDeepBackendDone] = useState(false);
 
   const deepSteps: AgentLoadingStep[] = [
     { key: "resume-profile", label: "读取简历画像标签" },
@@ -135,23 +135,23 @@ export function JobRecommendationPage() {
   // ── Deep recommendation ──────────────────────────────────────────────────
   async function handleDeepRecommendation() {
     if (!selectedOption) return;
-    setPhase("deep_loading"); setDeepErrorMessage(""); setDeepOverlayStatus("loading"); qualityAttemptsRef.current = 0;
+    setPhase("deep_loading"); setDeepErrorMessage(""); setDeepBackendDone(false); qualityAttemptsRef.current = 0;
 
     const pollQuality = async () => {
       try {
         const vm = await loadRecommendationViewModel({ resume_id: selectedOption.id, limit: 5, generation_tier: "quality" as any });
         if (vm.profileStatus === "ready" && vm.recommendedJobs.length > 0) {
-          setDeepOverlayStatus("success"); setDeepResult(vm); setActiveTier("quality");
+          setDeepBackendDone(true); setDeepResult(vm); setActiveTier("quality");
           setActiveGeneratedBy(vm.meta?.generated_by ?? "");
           if (vm.recommendedJobs.length > 0) setSelJobId(vm.recommendedJobs[0].jobId);
           return;
         }
         if (vm.profileStatus === "pending") { setPhase("deep_profile_pending"); return; }
-        if (vm.profileStatus === "failed") { setDeepOverlayStatus("error"); setPhase("deep_error"); setDeepErrorMessage(vm.profileMessage || "深度画像生成失败，已保留当前结果。"); return; }
+        if (vm.profileStatus === "failed") { setPhase("deep_error"); setDeepErrorMessage(vm.profileMessage || "深度画像生成失败，已保留当前结果。"); return; }
         qualityAttemptsRef.current++;
         if (qualityAttemptsRef.current >= MAX_QUALITY_POLL) { setPhase("deep_timeout"); return; }
         qualityPollRef.current = setTimeout(pollQuality, 2000);
-      } catch { setDeepOverlayStatus("error"); setPhase("deep_error"); setDeepErrorMessage("深度分析暂时生成失败，当前结果仍可参考。"); }
+      } catch { setPhase("deep_error"); setDeepErrorMessage("深度分析暂时生成失败，当前结果仍可参考。"); }
     };
     if (qualityPollRef.current) clearTimeout(qualityPollRef.current);
     pollQuality();
@@ -291,13 +291,12 @@ export function JobRecommendationPage() {
       </div>
 
       <AgentStepLoadingOverlay
-        open={phase === "deep_loading" || deepOverlayStatus === "success"}
+        open={phase === "deep_loading"}
         title="智能体正在深度分析岗位匹配"
         description="系统正在结合你的候选人标签、岗位标签和匹配证据，生成更高质量的推荐结果。"
         steps={deepSteps}
-        status={deepOverlayStatus === "success" ? "success" : phase === "deep_error" ? "error" : "loading"}
-        errorText={deepErrorMessage} successDelayMs={400}
-        onClose={() => { if (deepOverlayStatus === "success") { setPhase("deep_done"); setDeepOverlayStatus("loading"); } }}
+        backendDone={deepBackendDone}
+        onFinish={() => setPhase("deep_done")}
       />
     </ContentPageShell>
   );

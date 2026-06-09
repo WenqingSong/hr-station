@@ -85,6 +85,7 @@ export function JobMatchAnalysisPage() {
   const [activeTier, setActiveTier] = useState<string>("fast");
   const [activeGeneratedBy, setActiveGeneratedBy] = useState<string>("mock_agent");
   const [matchError, setMatchError] = useState<string | null>(null);
+  const [deepBackendDone, setDeepBackendDone] = useState(false);
 
   // ── Load job ──
   useEffect(() => {
@@ -176,12 +177,13 @@ export function JobMatchAnalysisPage() {
     if (!rid || isNaN(rid)) return;
 
     setPhase("deep_loading");
+    setDeepBackendDone(false);
     loadMatchAnalysisViewModel(jobId, { resume_id: rid, generation_tier: "quality" })
       .then((r) => {
         setActiveResult(r);
         setActiveTier("quality");
         setActiveGeneratedBy("mock_quality");
-        setPhase("deep_done");
+        setDeepBackendDone(true);
       })
       .catch(() => {
         setPhase("deep_error");
@@ -254,7 +256,8 @@ export function JobMatchAnalysisPage() {
           { key: "evidence", label: "计算匹配证据" },
           { key: "suggestions", label: "生成差距与补强建议" },
         ]}
-        status="loading"
+        backendDone={deepBackendDone}
+        onFinish={() => setPhase("deep_done")}
       />
 
       {/* Header */}

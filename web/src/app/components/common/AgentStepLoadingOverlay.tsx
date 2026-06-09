@@ -11,22 +11,39 @@ export type AgentLoadingStep = {
 
 type StepStatus = "pending" | "active" | "done" | "error";
 
-interface AgentStepLoadingOverlayProps {
+export interface AgentStepLoadingOverlayProps {
   open: boolean;
   title: string;
   description?: string;
   steps: AgentLoadingStep[];
-  /** "loading" auto-advances; "success" completes all; "error" marks current error */
-  status: "loading" | "success" | "error";
+  /** When true, backend is done — finish remaining steps gracefully */
+  backendDone?: boolean;
+  /** Called after all steps complete + success hold */
+  onFinish?: () => void;
+  /** Minimum visible time (ms) to avoid instant-close on fast API */
+  minVisibleMs?: number;
+  /** Interval between normal step advances (ms) */
+  stepIntervalMs?: number;
+  /** Interval between finishing steps after backendDone (ms) */
+  finishStepIntervalMs?: number;
+  /** Hold time after all steps done (ms) */
+  successHoldMs?: number;
+  /** Error state — shows error icon and text */
+  error?: boolean;
   errorText?: string;
-  /** minimum visible time after success before calling onClose (ms) */
+
+  // ── @deprecated: kept for backward compat ──
+  status?: "loading" | "success" | "error";
   successDelayMs?: number;
   onClose?: () => void;
 }
 
 // ─── Timer config ──────────────────────────────────────────────────────
 
-const STEP_INTERVALS = [800, 1000, 1200]; // ms between steps
+const DEFAULT_STEP_INTERVAL = 650;
+const DEFAULT_FINISH_STEP_INTERVAL = 260;
+const DEFAULT_MIN_VISIBLE = 1800;
+const DEFAULT_SUCCESS_HOLD = 420;
 
 // ─── Component ─────────────────────────────────────────────────────────
 
@@ -35,57 +52,112 @@ export function AgentStepLoadingOverlay({
   title,
   description,
   steps,
-  status,
+  backendDone: backendDoneProp,
+  onFinish,
+  minVisibleMs = DEFAULT_MIN_VISIBLE,
+  stepIntervalMs: stepIntervalMsProp,
+  finishStepIntervalMs: finishStepIntervalMsProp,
+  successHoldMs: successHoldMsProp,
+  error,
   errorText,
-  successDelayMs = 400,
+
+  // @deprecated compat
+  status: legacyStatus,
+  successDelayMs,
   onClose,
 }: AgentStepLoadingOverlayProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [finished, setFinished] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startedAtRef = useRef(0);
+  const backendDoneDoneRef = useRef(false);
+
+  const stepIntervalMs = stepIntervalMsProp ?? DEFAULT_STEP_INTERVAL;
+  const finishStepIntervalMs = finishStepIntervalMsProp ?? DEFAULT_FINISH_STEP_INTERVAL;
+  const successHoldMs = successHoldMsProp ?? DEFAULT_SUCCESS_HOLD;
+
+  // Legacy compat: derive backendDone from status
+  const isLegacy = legacyStatus !== undefined;
+  const backendDone = isLegacy
+    ? (legacyStatus === "success")
+    : (backendDoneProp ?? false);
 
   // Reset on open
   useEffect(() => {
     if (open) {
       setActiveIdx(0);
       setFinished(false);
+      startedAtRef.current = Date.now();
+      backendDoneDoneRef.current = false;
     }
   }, [open]);
 
-  // Auto-advance during loading
+  // Handle backendDone: finish remaining steps sequentially
   useEffect(() => {
-    if (!open || status !== "loading") return;
+    if (!open || !backendDone || finished || backendDoneDoneRef.current) return;
+    backendDoneDoneRef.current = true;
 
+    // Ensure min visible time has elapsed
+    const elapsed = Date.now() - startedAtRef.current;
+    const remaining = Math.max(0, minVisibleMs - elapsed);
+
+    const startFinish = () => {
+      let idx = activeIdx;
+      // Don't read stale state — use ref if needed
+      const timer = () => {
+        setActiveIdx((prev) => {
+          const next = prev + 1;
+          if (next >= steps.length) {
+            // All done — hold then finish
+            setTimeout(() => {
+              setFinished(true);
+              // Legacy compat
+              if (isLegacy && onClose) onClose();
+              if (!isLegacy && onFinish) onFinish();
+            }, successHoldMs);
+            return prev; // stay at last
+          }
+          // Schedule next finishing step
+          setTimeout(timer, finishStepIntervalMs);
+          return next;
+        });
+      };
+      // Start advancing from current position
+      setTimeout(timer, 0);
+    };
+
+    if (remaining > 0) {
+      timerRef.current = setTimeout(startFinish, remaining);
+    } else {
+      startFinish();
+    }
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [open, backendDone, steps.length, minVisibleMs, finishStepIntervalMs, successHoldMs, finished, isLegacy, onClose, onFinish]);
+
+  // Auto-advance during loading (before backendDone)
+  useEffect(() => {
+    if (!open || backendDone || finished) return;
+
+    const maxStep = Math.max(0, steps.length - 2); // never auto-complete
     const advance = () => {
       setActiveIdx((prev) => {
         const next = prev + 1;
-        if (next >= steps.length) return prev; // stay on last step
+        if (next > maxStep) return prev;
         return next;
       });
     };
 
-    if (activeIdx < steps.length - 1) {
-      const delay = STEP_INTERVALS[Math.min(activeIdx, STEP_INTERVALS.length - 1)];
-      timerRef.current = setTimeout(advance, delay);
+    if (activeIdx < maxStep) {
+      timerRef.current = setTimeout(advance, stepIntervalMs);
     }
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [open, status, activeIdx, steps.length]);
-
-  // On success: mark all done, then close
-  useEffect(() => {
-    if (!open || status !== "success") return;
-    setActiveIdx(steps.length);
-    timerRef.current = setTimeout(() => {
-      setFinished(true);
-      onClose?.();
-    }, successDelayMs);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [open, status, steps.length, successDelayMs, onClose]);
+  }, [open, backendDone, finished, activeIdx, steps.length, stepIntervalMs]);
 
   // Cleanup
   useEffect(() => {
@@ -96,11 +168,13 @@ export function AgentStepLoadingOverlay({
 
   if (!open) return null;
 
+  const effectiveError = isLegacy ? legacyStatus === "error" : (error ?? false);
+
   function stepStatus(idx: number): StepStatus {
-    if (status === "error" && idx === activeIdx) return "error";
+    if (effectiveError && idx === activeIdx) return "error";
     if (idx < activeIdx) return "done";
-    if (idx === activeIdx && status === "loading") return "active";
-    if (status === "success" && idx === steps.length) return "done";
+    if (idx === activeIdx && !finished) return "active";
+    if (finished && idx === activeIdx) return "done";
     return "pending";
   }
 
@@ -122,7 +196,11 @@ export function AgentStepLoadingOverlay({
       <div className="bg-white/95 rounded-2xl shadow-xl border border-white/60 p-8 max-w-md w-[380px] mx-4">
         {/* Header */}
         <div className="text-center mb-6">
-          <Loader2 className="w-10 h-10 animate-spin text-[#0052D9] mx-auto mb-3" />
+          {finished ? (
+            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+          ) : (
+            <Loader2 className="w-10 h-10 animate-spin text-[#0052D9] mx-auto mb-3" />
+          )}
           <h2 className="text-[17px] font-bold text-slate-900 mb-1">{title}</h2>
           {description && (
             <p className="text-sm text-slate-500 leading-relaxed">{description}</p>
@@ -156,16 +234,16 @@ export function AgentStepLoadingOverlay({
         </div>
 
         {/* Error message */}
-        {status === "error" && errorText && (
+        {effectiveError && errorText && (
           <div className="mt-4 pt-4 border-t border-slate-100">
             <p className="text-sm text-red-500 text-center">{errorText}</p>
           </div>
         )}
 
         {/* Footer hint */}
-        {status === "loading" && (
+        {!finished && !effectiveError && (
           <p className="text-xs text-slate-400 text-center mt-5">
-            深度推荐生成可能需要一点时间
+            深度生成正在进行中…
           </p>
         )}
       </div>

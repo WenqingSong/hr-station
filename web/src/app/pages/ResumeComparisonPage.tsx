@@ -63,7 +63,7 @@ export function ResumeComparisonPage() {
   const [deepResult, setDeepResult] = useState<CompareV2ViewModel | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [deepErrMsg, setDeepErrMsg] = useState("");
-  const [deepOverlayStatus, setDeepOverlayStatus] = useState<"loading" | "success" | "error">("loading");
+  const [deepBackendDone, setDeepBackendDone] = useState(false);
 
   // ── Selection modal ──
   const [showPicker, setShowPicker] = useState(false);
@@ -139,12 +139,12 @@ export function ResumeComparisonPage() {
 
   async function handleDeep() {
     if (!fromId || !toId) return;
-    setPhase("deep_loading"); setDeepErrMsg(""); setDeepOverlayStatus("loading");
+    setPhase("deep_loading"); setDeepErrMsg(""); setDeepBackendDone(false);
     try {
       const vm = await loadCompareV2ViewModel({ fromResumeId: fromId, toResumeId: toId, comparisonMode: mode, generationTier: "quality", targetDirection: dir, jobId: jobId ?? undefined });
-      setDeepResult(vm); setDeepOverlayStatus("success");
+      setDeepResult(vm); setDeepBackendDone(true);
     } catch {
-      setDeepOverlayStatus("error"); setPhase("deep_error");
+      setPhase("deep_error");
       setDeepErrMsg("深度对比生成失败，当前快速对比结果仍可参考。");
     }
   }
@@ -206,13 +206,12 @@ export function ResumeComparisonPage() {
 
       {/* Overlay */}
       <AgentStepLoadingOverlay
-        open={phase === "deep_loading" || deepOverlayStatus === "success"}
+        open={phase === "deep_loading"}
         title="正在生成深度对比报告"
         description="系统正在结合两份简历的画像和内容差异，生成完整对比分析。"
         steps={deepSteps}
-        status={deepOverlayStatus === "success" ? "success" : phase === "deep_error" ? "error" : "loading"}
-        errorText={deepErrMsg} successDelayMs={400}
-        onClose={() => { if (deepOverlayStatus === "success") { setPhase("deep_done"); setDeepOverlayStatus("loading"); } }}
+        backendDone={deepBackendDone}
+        onFinish={() => setPhase("deep_done")}
       />
 
       {/* ── Deep status bar ── */}
