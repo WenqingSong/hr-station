@@ -7,6 +7,17 @@ import { AuthDialog } from "./auth/AuthDialog";
 import { normalizeRedirect } from "../../utils/redirect";
 
 const HERO_NAV_THRESHOLD = 280;
+const HERO_BLEND_START_Y = 220;
+const HERO_BLEND_END_Y = 80;
+const SHOW_TOP_Y = 20;
+const HIDE_START_Y = 96;
+const SCROLL_DELTA = 8;
+
+function clamp(v: number, min = 0, max = 1) { return Math.min(max, Math.max(min, v)); }
+function getHeroProgress(scrollY: number, isHeroRoute: boolean) {
+  if (!isHeroRoute) return 0;
+  return clamp((HERO_BLEND_START_Y - scrollY) / (HERO_BLEND_START_Y - HERO_BLEND_END_Y));
+}
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -15,6 +26,7 @@ export function Navbar() {
   const { isAuthenticated, clearAuth } = useAuth();
   const [hidden, setHidden] = useState(false);
   const [isHeroTop, setIsHeroTop] = useState(false);
+  const [navHeroProgress, setNavHeroProgress] = useState(0);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authDialogMode, setAuthDialogMode] = useState<"login" | "register">("login");
   const lastScrollY = useRef(0);
@@ -45,8 +57,9 @@ export function Navbar() {
         window.requestAnimationFrame(() => {
           const currentScrollY = window.scrollY;
 
-          // ── Hero 顶部透明状态（必须优先执行，不受 delta 守卫阻挡）──
+          // ── 1. 视觉状态永远优先更新，不受 delta 守卫阻挡 ──
           setIsHeroTop(isHeroRoute && currentScrollY < HERO_NAV_THRESHOLD);
+          setNavHeroProgress(getHeroProgress(currentScrollY, isHeroRoute));
 
           const isResumeEditorRoute =
             location.pathname === "/resumes/new" ||
@@ -60,8 +73,8 @@ export function Navbar() {
             return;
           }
 
-          // 顶部强制显示
-          if (currentScrollY <= 20) {
+          // ── 2. 页面顶部强制显示 ──
+          if (currentScrollY <= SHOW_TOP_Y) {
             setHidden(false);
             lastScrollY.current = currentScrollY;
             ticking.current = false;
@@ -69,15 +82,21 @@ export function Navbar() {
           }
 
           const delta = currentScrollY - lastScrollY.current;
-          if (Math.abs(delta) < 30) {
+
+          // ── 3. 微小滚动只跳过显隐，不跳过视觉 ──
+          if (Math.abs(delta) < SCROLL_DELTA) {
             lastScrollY.current = currentScrollY;
             ticking.current = false;
             return;
           }
 
-          if (delta > 0 && currentScrollY > 80) {
+          // ── 4. 向下滚动，超过起始距离后隐藏 ──
+          if (delta > 0 && currentScrollY > HIDE_START_Y) {
             setHidden(true);
-          } else if (delta < 0) {
+          }
+
+          // ── 5. 向上滚动，显示 ──
+          if (delta < 0) {
             setHidden(false);
           }
 
@@ -90,6 +109,7 @@ export function Navbar() {
 
     // Immediately set initial state
     setIsHeroTop(isHeroRoute && window.scrollY < HERO_NAV_THRESHOLD);
+    setNavHeroProgress(getHeroProgress(window.scrollY, isHeroRoute));
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -109,24 +129,22 @@ export function Navbar() {
     navigate("/");
   }
 
-  // ════════ Visual: two modes ════════
-  const navSurface = isHeroTop
-    ? "bg-slate-950/28 border-white/5 text-white backdrop-blur-[2px] shadow-none"
-    : "bg-white border-slate-200/70 text-slate-950 shadow-sm";
+  // ════════ Visual: progress-driven transition ════════
+  const isHeroText = navHeroProgress >= 0.55;
 
-  const brandClass = isHeroTop
+  const brandClass = isHeroText
     ? "text-white"
     : "text-slate-950";
 
-  const linkClass = isHeroTop
+  const linkClass = isHeroText
     ? "text-white/85 hover:text-white"
     : "text-slate-700 hover:text-slate-950";
 
-  const logoutClass = isHeroTop
+  const logoutClass = isHeroText
     ? "text-white/70 hover:text-white"
     : "text-slate-500 hover:text-slate-800";
 
-  const loginBtn = isHeroTop
+  const loginBtn = isHeroText
     ? "border-white/30 text-white/90 hover:bg-white/12 hover:text-white"
     : "border-slate-200/70 text-slate-700 hover:bg-white/80 hover:text-slate-950";
 
@@ -136,17 +154,40 @@ export function Navbar() {
       className={[
         "fixed inset-x-0 top-0 z-50",
         "h-16 md:h-[68px]",
-        "border-b",
-        "transition-colors duration-200",
         "transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         hidden ? "-translate-y-[110%]" : "translate-y-0",
-        navSurface,
       ].join(" ")}
     >
-      <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-6 md:px-8">
+      {/* ── solidSurface: white background ── */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-white shadow-sm"
+        style={{ opacity: 1 - navHeroProgress }}
+      />
+      {/* ── heroSurface: dark translucent ── */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-slate-950/28 backdrop-blur-[2px]"
+        style={{ opacity: navHeroProgress }}
+      />
+      {/* ── solid border ── */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-slate-200/70"
+        style={{ opacity: 1 - navHeroProgress }}
+      />
+      {/* ── hero border ── */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-white/5"
+        style={{ opacity: navHeroProgress }}
+      />
+
+      {/* ── Content ── */}
+      <div className="relative z-10 mx-auto flex h-full max-w-[1440px] items-center justify-between px-6 md:px-8">
         <Link
           to="/jobs"
-          className={`font-brand text-[22px] font-extrabold tracking-[-0.03em] ${brandClass}`}
+          className={`font-brand text-[22px] font-extrabold tracking-[-0.03em] transition-colors duration-200 ${brandClass}`}
           aria-label="Offerr鹅首页"
         >
           Offerr鹅
@@ -157,14 +198,14 @@ export function Navbar() {
             <>
               <Link
                 to="/resumes"
-                className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${linkClass}`}
+                className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 ${linkClass}`}
               >
                 <FileText className="h-4 w-4" />
                 我的简历
               </Link>
               <button
                 onClick={handleLogout}
-                className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${logoutClass}`}
+                className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 ${logoutClass}`}
               >
                 <LogOut className="h-4 w-4" />
                 退出
@@ -174,7 +215,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => { setAuthDialogMode("login"); setAuthDialogOpen(true); }}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition ${loginBtn}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition duration-200 ${loginBtn}`}
             >
               <LogIn className="h-4 w-4" />
               登录
