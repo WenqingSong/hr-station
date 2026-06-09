@@ -13,7 +13,8 @@ import { isApiClientError } from "../../api/errors";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 5;
+const DESKTOP_PAGE_SIZE = 8;
+const COMPACT_PAGE_SIZE = 5;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -233,7 +234,7 @@ function ActionBtn({ children, onClick, to, className = "" }: {
   to?: string;
   className?: string;
 }) {
-  const base = `flex items-center gap-1 text-[13px] text-slate-400 hover:text-[#0052D9] transition-colors cursor-pointer ${className}`;
+  const base = `flex items-center gap-1 whitespace-nowrap text-[13px] text-slate-400 hover:text-[#0052D9] transition-colors cursor-pointer ${className}`;
   if (to) {
     return <Link to={to} onClick={onClick} className={base}>{children}</Link>;
   }
@@ -258,6 +259,34 @@ export function ResumeManagementPage() {
   const [pickerSelectedIds, setPickerSelectedIds] = useState<number[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ── Responsive pageSize ─────────────────────────────────────────────────
+  const getInitialPageSize = () => {
+    if (typeof window === "undefined") return DESKTOP_PAGE_SIZE;
+    return window.matchMedia("(min-width: 1024px)").matches
+      ? DESKTOP_PAGE_SIZE
+      : COMPACT_PAGE_SIZE;
+  };
+  const [pageSize, setPageSize] = useState(getInitialPageSize);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const handleChange = () => {
+      setPageSize(media.matches ? DESKTOP_PAGE_SIZE : COMPACT_PAGE_SIZE);
+    };
+    if (media.addEventListener) {
+      media.addEventListener("change", handleChange);
+    } else {
+      media.addListener(handleChange);
+    }
+    return () => {
+      if (media.removeEventListener) {
+        media.removeEventListener("change", handleChange);
+      } else {
+        media.removeListener(handleChange);
+      }
+    };
+  }, []);
 
   const handleCompare = () => {
     setPickerSelectedIds([]);
@@ -287,7 +316,7 @@ export function ResumeManagementPage() {
       setRows(updated);
       if (list.length === 0) { setSelectedResumeId(null); setPage(1); return; }
       // Keep current page within bounds
-      const maxPage = Math.max(1, Math.ceil(updated.length / PAGE_SIZE));
+      const maxPage = Math.max(1, Math.ceil(updated.length / pageSize));
       if (page > maxPage) setPage(maxPage);
     } catch { /* ignore */ }
     finally { setDeleteLoading(false); setDeleteTarget(null); }
@@ -316,9 +345,15 @@ export function ResumeManagementPage() {
   const hasResumes = useMemo(() => (rows && rows.length > 0) ?? false, [rows]);
 
   // Pagination
-  const totalPages = Math.max(1, Math.ceil((rows?.length ?? 0) / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((rows?.length ?? 0) / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pagedRows = (rows ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pagedRows = (rows ?? []).slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // K9-UI-ResumeManagement-B: correct currentPage when pageSize changes
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil((rows?.length ?? 0) / pageSize));
+    setPage((p) => Math.min(p, maxPage));
+  }, [rows?.length, pageSize]);
 
   if (loading) {
     return <PageLoading message="正在加载简历列表…" />;
@@ -326,7 +361,7 @@ export function ResumeManagementPage() {
 
   if (error) {
     return (
-      <ContentPageShell maxWidthClassName="max-w-[1040px]">
+      <ContentPageShell maxWidthClassName="max-w-[1200px]">
         <PageError title="简历列表加载失败，请稍后重试。" description="">
           <Link to="/resumes/edit" className="text-[#0052D9] text-sm hover:underline">去创建简历</Link>
         </PageError>
@@ -336,7 +371,7 @@ export function ResumeManagementPage() {
 
   if (!rows || rows.length === 0) {
     return (
-      <ContentPageShell maxWidthClassName="max-w-[1040px]">
+      <ContentPageShell maxWidthClassName="max-w-[1200px]">
         <EmptyState />
       </ContentPageShell>
     );
@@ -344,7 +379,7 @@ export function ResumeManagementPage() {
 
   return (
     <>
-    <ContentPageShell maxWidthClassName="max-w-[1040px]">
+    <ContentPageShell maxWidthClassName="max-w-[1200px]">
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
@@ -396,7 +431,7 @@ export function ResumeManagementPage() {
                       {formatDate(row.createdAt)}
                     </span>
                     {/* Actions column: fixed width, right-aligned */}
-                    <div className="w-[260px] shrink-0 flex items-center justify-end gap-5">
+                    <div className="w-[220px] shrink-0 flex items-center justify-end gap-3">
                       <ActionBtn to={`/resumes/detail/${row.id}`} onClick={(e) => e.stopPropagation()}>
                         <Eye className="w-3.5 h-3.5" />
                         查看详情
