@@ -21,15 +21,32 @@ function cleanText(value?: string | null): string {
     .replace(/\uFFFD/g, "")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
     .replace(/\s+/g, " ")
-    // K9-4-Quality-B: sanitize system-internal labels from text content
     .replace(/\bfrom版本\b/g, "原版本")
     .replace(/\bto版本\b/g, "目标版本")
     .replace(/保留from版本/g, "保留原版本")
     .replace(/保留to版本/g, "保留目标版本")
-    .replace(/整体结构框架/g, "具体模块内容")
     .replace(/方向方向/g, "方向")
     .replace(/目标版本在整体质量上更优/g, "新版更适合作为当前主投递版本")
     .trim();
+}
+
+function isLowValueCompareText(text: string): boolean {
+  if (!text) return true;
+  const low = text.trim();
+  return (
+    low.includes("整体结构框架") ||
+    low.includes("具体模块内容") ||
+    low === "保留原版本的整体结构框架" ||
+    low === "保留目标版本的整体结构框架" ||
+    low === "保留原版本的具体模块内容" ||
+    low === "保留目标版本的具体模块内容" ||
+    low.length < 5
+  );
+}
+
+function filterLowValue(items: string[]): string[] {
+  const result = items.filter((s) => !isLowValueCompareText(s));
+  return result.length > 0 ? result : [];
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────
@@ -297,61 +314,59 @@ export function ResumeComparisonPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
         {/* ── Main Report ── */}
         <div className="min-w-0 space-y-4">
+          {/* Iteration Summary */}
+          {V.oneSentenceSummary && <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4"><p className="text-[13px] text-blue-800 leading-relaxed font-medium">{cleanText(V.oneSentenceSummary)}</p></div>}
+
           {/* Key Differences */}
           {V.keyDifferences.length > 0 && (
             <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-              <h3 className="font-bold text-sm text-gray-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />关键差异</h3>
+              <h3 className="font-bold text-sm text-gray-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />本次迭代结论</h3>
               <ul className="space-y-2">{V.keyDifferences.map((d, i) => <li key={i} className="flex items-start gap-2 text-[13px] text-gray-700"><span className="text-[#0052D9] mt-1 shrink-0">●</span>{cleanText(d)}</li>)}</ul>
             </section>
           )}
 
-          {/* One-line summary */}
-          {V.oneSentenceSummary && <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4"><p className="text-[13px] text-blue-800 leading-relaxed">{cleanText(V.oneSentenceSummary)}</p></div>}
-
-          {/* Strengths */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* 新版明显提升 (to_strengths) */}
+          {V.toStrengths.length > 0 && (
             <section className="bg-white border border-emerald-200 rounded-lg p-5 shadow-sm">
-              <h3 className="font-bold text-sm text-emerald-800 mb-3">{fromLabel} 优势</h3>
-              <ul className="space-y-1.5">{V.fromStrengths.map((s, i) => <li key={i} className="text-[12px] text-emerald-700">• {cleanText(s)}</li>)}</ul>
-            </section>
-            <section className="bg-white border border-emerald-200 rounded-lg p-5 shadow-sm">
-              <h3 className="font-bold text-sm text-emerald-800 mb-3">{toLabel} 优势</h3>
+              <h3 className="font-bold text-sm text-emerald-800 mb-3">新版明显提升</h3>
               <ul className="space-y-1.5">{V.toStrengths.map((s, i) => <li key={i} className="text-[12px] text-emerald-700">• {cleanText(s)}</li>)}</ul>
             </section>
-          </div>
+          )}
 
-          {/* Risks */}
-          <div className="grid grid-cols-2 gap-4">
-            <section className="bg-amber-50/50 border border-amber-100 rounded-lg p-5"><h3 className="font-bold text-sm text-amber-800 mb-2">{fromLabel} 风险</h3><ul className="space-y-1">{V.fromRisks.map((r, i) => <li key={i} className="text-[12px] text-amber-700">• {cleanText(r)}</li>)}</ul></section>
-            <section className="bg-amber-50/50 border border-amber-100 rounded-lg p-5"><h3 className="font-bold text-sm text-amber-800 mb-2">{toLabel} 风险</h3><ul className="space-y-1">{V.toRisks.map((r, i) => <li key={i} className="text-[12px] text-amber-700">• {cleanText(r)}</li>)}</ul></section>
-          </div>
-
-          {/* Delivery advice */}
-          {V.deliveryAdvice && <div className="bg-blue-50/30 border border-blue-100 rounded-lg p-4"><p className="text-[13px] text-blue-700">{cleanText(V.deliveryAdvice)}</p></div>}
+          {/* 新版仍存在的问题 (to_risks) */}
+          {V.toRisks.length > 0 && (
+            <section className="bg-amber-50/50 border border-amber-100 rounded-lg p-5">
+              <h3 className="font-bold text-sm text-amber-800 mb-2">新版仍存在的问题</h3>
+              <ul className="space-y-1">{V.toRisks.map((r, i) => <li key={i} className="text-[12px] text-amber-700">• {cleanText(r)}</li>)}</ul>
+            </section>
+          )}
 
           {/* Deep sections */}
           {isDeep && (
             <div className="space-y-4">
-              {V.keepFromItems.length > 0 && <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">旧版值得保留的内容</h3><ul className="space-y-1">{V.keepFromItems.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>}
-              {V.keepToItems.length > 0 && <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">新版必须保留的内容</h3><ul className="space-y-1">{V.keepToItems.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>}
+              {/* 旧版值得保留 (filtered keepFromItems) */}
+              {(() => { const items = filterLowValue(V.keepFromItems); if (items.length > 0) return <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">旧版值得保留的内容</h3><ul className="space-y-1">{items.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>; if (V.keepFromItems.length > 0) return null; return null; })()}
+
+              {/* 新版必须保留 (filtered keepToItems) */}
+              {(() => { const items = filterLowValue(V.keepToItems); if (items.length > 0) return <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-2">新版必须保留的内容</h3><ul className="space-y-1">{items.map((k, i) => <li key={i} className="text-[12px] text-gray-600">• {cleanText(k)}</li>)}</ul></section>; if (V.keepToItems.length > 0) return null; return null; })()}
+
+              {/* 下一版合并方案 (merge + next) */}
               {V.mergeSuggestions.length > 0 && (
-                <section className="bg-green-50/50 border border-green-200 rounded-lg p-5"><h3 className="font-bold text-sm text-green-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-green-500 rounded-full" />合并建议</h3>
+                <section className="bg-green-50/50 border border-green-200 rounded-lg p-5"><h3 className="font-bold text-sm text-green-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-green-500 rounded-full" />下一版合并方案</h3>
                   <ul className="space-y-2">{V.mergeSuggestions.map((m, i) => <li key={i} className="flex items-start gap-2 text-[13px] text-green-800"><span className="text-green-500 mt-0.5">→</span>{cleanText(m)}</li>)}</ul>
+                  {V.nextVersionSuggestions.length > 0 && <div className="mt-3 pt-3 border-t border-green-200"><ul className="space-y-1.5">{V.nextVersionSuggestions.map((n, i) => <li key={i} className="text-[13px] text-gray-700">• {cleanText(n)}</li>)}</ul></div>}
                 </section>
               )}
-              {V.nextVersionSuggestions.length > 0 && (
-                <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />下一版迭代建议</h3>
-                  <ul className="space-y-1.5">{V.nextVersionSuggestions.map((n, i) => <li key={i} className="text-[13px] text-gray-700">• {cleanText(n)}</li>)}</ul>
-                </section>
-              )}
+
+              {/* 改写示例 */}
               {V.rewriteExamples.length > 0 && (
-                <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-purple-500 rounded-full" />改写示例</h3>
+                <section className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm"><h3 className="font-bold text-sm text-gray-900 mb-3 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-purple-500 rounded-full" />可直接复制的改写示例</h3>
                   <div className="space-y-3">{V.rewriteExamples.map((ex, i) => (
                     <div key={i} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                       <div className="text-[11px] text-purple-600 font-medium mb-1">{cleanText(ex.section)}</div>
                       <div className="grid grid-cols-2 gap-3 text-[12px]">
-                        <div><span className="text-gray-400 text-[10px]">原版本</span><p className="text-gray-500 mt-0.5">{cleanText(ex.fromVersion)}</p></div>
-                        <div><span className="text-gray-400 text-[10px]">目标版本</span><p className="text-gray-700 mt-0.5 font-medium">{cleanText(ex.toVersion)}</p></div>
+                        <div><span className="text-gray-400 text-[10px]">旧版本</span><p className="text-gray-500 mt-0.5">{cleanText(ex.fromVersion)}</p></div>
+                        <div><span className="text-gray-400 text-[10px]">当前版本</span><p className="text-gray-700 mt-0.5 font-medium">{cleanText(ex.toVersion)}</p></div>
                       </div>
                       {ex.suggestedNext && <p className="text-[11px] text-blue-600 mt-2 border-t border-gray-200 pt-2">下一版建议: {cleanText(ex.suggestedNext)}</p>}
                       {ex.reason && <p className="text-[10px] text-gray-400 mt-1">原因: {cleanText(ex.reason)}</p>}
@@ -359,6 +374,16 @@ export function ResumeComparisonPage() {
                   ))}</div>
                 </section>
               )}
+            </div>
+          )}
+
+          {/* 初筛通过率影响 */}
+          {V.deliveryAdvice && <div className="bg-blue-50/30 border border-blue-100 rounded-lg p-4"><h3 className="font-bold text-sm text-blue-800 mb-1">初筛通过率影响</h3><p className="text-[13px] text-blue-700">{cleanText(V.deliveryAdvice)}</p></div>}
+
+          {/* Old cache hint for fast reports */}
+          {isFast && (
+            <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 text-center">
+              <p className="text-[11px] text-gray-400">当前展示的是快捷对比结果。如内容不够具体，建议点击上方按钮生成深度对比报告，获取更完整的迭代诊断。</p>
             </div>
           )}
         </div>
