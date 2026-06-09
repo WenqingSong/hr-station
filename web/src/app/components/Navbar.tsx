@@ -44,12 +44,24 @@ export function Navbar() {
       if (!ticking.current) {
         window.requestAnimationFrame(() => {
           const currentScrollY = window.scrollY;
+
+          // ── Hero 顶部透明状态（必须优先执行，不受 delta 守卫阻挡）──
+          setIsHeroTop(isHeroRoute && currentScrollY < HERO_NAV_THRESHOLD);
+
           const isResumeEditorRoute =
             location.pathname === "/resumes/new" ||
             location.pathname === "/resumes/edit" ||
             location.pathname.startsWith("/resumes/edit?id=");
 
           if (isResumeEditorRoute) {
+            setHidden(false);
+            lastScrollY.current = currentScrollY;
+            ticking.current = false;
+            return;
+          }
+
+          // 顶部强制显示
+          if (currentScrollY <= 20) {
             setHidden(false);
             lastScrollY.current = currentScrollY;
             ticking.current = false;
@@ -68,12 +80,6 @@ export function Navbar() {
           } else if (delta < 0) {
             setHidden(false);
           }
-          if (currentScrollY <= 20) {
-            setHidden(false);
-          }
-
-          // Hero 顶部透明状态
-          setIsHeroTop(isHeroRoute && currentScrollY < HERO_NAV_THRESHOLD);
 
           lastScrollY.current = currentScrollY;
           ticking.current = false;

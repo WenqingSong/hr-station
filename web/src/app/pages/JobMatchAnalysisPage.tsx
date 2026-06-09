@@ -50,11 +50,11 @@ function parseResumeIdFromQuery(resumeId: string | null): number | null {
 function getHeaderLabel(phase: MatchPhase, tier: string | undefined, genBy: string | undefined): string {
   if (phase === "loading_latest") return "正在读取匹配分析结果";
   if (phase === "fast_loading") return "正在生成快速匹配分析";
-  if (phase === "deep_loading") return "智能体正在深度分析";
-  if (phase === "fast_done") return "快速匹配 · 规则分析";
+  if (phase === "deep_loading") return "正在深度分析中";
+  if (phase === "fast_done") return "快速匹配 · 标准匹配分析";
   if (phase === "deep_done") {
-    if (genBy?.includes("llm")) return "深度匹配 · AI生成";
-    return "深度匹配 · 规则兜底";
+    if (genBy?.includes("llm")) return "深度匹配 · 智能匹配分析";
+    return "深度匹配 · 基础匹配分析";
   }
   if (phase === "deep_error") return "深度匹配分析生成失败 · 已保留当前结果";
   if (phase === "fast_error") return "快速匹配分析生成失败";
