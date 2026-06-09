@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronUp, ChevronDown, Trash2, Plus, Sparkles, CheckCircle2, XCircle, AlertCircle, HelpCircle, Loader2, FileText } from "lucide-react";
 import { createResume, updateResume, getCurrentResume, getResumes, getResumeById, checkResumeName } from "../../api/resumes";
 import type { ResumeManagementViewModel } from "../../adapters";
 import { toResumeManagementViewModel } from "../../adapters";
@@ -11,16 +11,20 @@ import { PageError, PageLoading } from "../components/PageState";
 import { isValidResumeId } from "../../utils/redirect";
 import { isApiClientError } from "../../api/errors";
 import { Input } from "../components/ui/input";
-import { Textarea } from "../components/ui/textarea";
+import { AutoGrowTextarea } from "../components/ui/auto-grow-textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { ResumeEditorShell, ResumeEditorSaveCard, ResumeBasicsSection, BasicInfoSection, EducationSection, ProjectSection, SkillsSection, InternshipSection, CertificatesSection, PortfolioExtraSection } from "../components/resume-editor";
+import { ResumeEditorEmptyState } from "../components/resume-editor/ResumeEditorEmptyState";
+import { ResumeEditorStatusSidebar, type ReadinessCategory } from "../components/resume-editor/ResumeEditorStatusSidebar";
 import { AppConfirmDialog } from "../components/common/AppConfirmDialog";
+import { cn } from "../components/ui/utils";
+import { AnimatedListItem } from "../components/ui/animated-list-item";
 
 interface Project { id: number; name: string; desc: string; role: string; startDate: string; endDate: string; }
 interface Education { id: number; school: string; major: string; degree: string; startDate: string; endDate: string; department: string; gpa: string; gpaScale: string; rank: string; coreCourses: string; researchDirection: string; advisor: string; lab: string; paperSummary: string; }
 interface Internship { id: number; company: string; position: string; startDate: string; endDate: string; content: string; }
 interface SkillsDraft { developmentLanguages: string; aiApplication: string; }
-interface LanguageExamDraft { name: string; score: string; }
+interface LanguageExamDraft { id: number; name: string; score: string; }
 interface CertificateDraft { id: number; name: string; description: string; }
 interface AwardDraft { id: number; name: string; description: string; }
 interface WorkDraft { id: number; name: string; link: string; password: string; }
@@ -151,7 +155,7 @@ export function MyResumesPage() {
     }
   }
 
-  // Save button disabled only when actively saving or still checking name
+  // Save button disabled when actively saving or still checking name
   const saveDisabled = saving || nameCheckStatus === "checking";
   const [personalName, setPersonalName] = useState(""); const [phone, setPhone] = useState("");
   const [email, setEmail] = useState(""); const [currentCity, setCurrentCity] = useState("");
@@ -166,6 +170,85 @@ export function MyResumesPage() {
   const [awardDrafts, setAwardDrafts] = useState<AwardDraft[]>([]);
   const [portfolioDraft, setPortfolioDraft] = useState<PortfolioDraft>({ works: [{ id: 1, name: "", link: "", password: "" }], homepage: "" });
   const [extraInfoDraft, setExtraInfoDraft] = useState<ExtraInfoDraft>({ additionalInfo: "" });
+
+  // ── Delayed remove animation state ─────────────────────────────────────────
+  const [removingItemKeys, setRemovingItemKeys] = useState<Set<string>>(new Set());
+  const removeTimeoutsRef = useRef<number[]>([]);
+
+  // K9-UI-ResumeEdit-D-B: cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      removeTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
+      removeTimeoutsRef.current = [];
+    };
+  }, []);
+
+  const markRemoving = useCallback((key: string, removeFn: () => void) => {
+    setRemovingItemKeys((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+    const timeoutId = window.setTimeout(() => {
+      removeFn();
+      setRemovingItemKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }, 170);
+    removeTimeoutsRef.current.push(timeoutId);
+  }, []);
+
+  // ── Demo content fill ─────────────────────────────────────────────────────
+  const [fillingDemo, setFillingDemo] = useState(false);
+  const [demoError, setDemoError] = useState("");
+
+  async function handleFillDemo() {
+    setFillingDemo(true); setDemoError("");
+    try {
+      const demoResume = await getResumeById(201);
+      const vm = toResumeManagementViewModel(demoResume);
+      setResumeName(vm.name || "示例简历");
+      setNameCheckStatus("idle");
+      setNameCheckMessage("");
+      setPersonalName(vm.realName || "");
+      setPhone(vm.phone || "");
+      setEmail(vm.email || "");
+      setCurrentCity(vm.city || "");
+      const eduList: Education[] = (vm.educations || []).map((e, i) => ({
+        id: i + 1, school: e.school || "", major: e.major || "", degree: e.degree || "本科",
+        startDate: e.start_date || "", endDate: e.end_date || "",
+        department: e.department || "", gpa: e.gpa || "", gpaScale: e.gpa_scale || "",
+        rank: e.rank_text || "", coreCourses: e.core_courses || "",
+        researchDirection: e.research_direction || "", advisor: e.advisor || "",
+        lab: e.lab || "", paperSummary: e.paper_summary || "",
+      }));
+      setEducations(eduList);
+      const intList: Internship[] = (vm.internships || []).map((it, i) => ({
+        id: i + 1, company: it.company || "", position: it.position || "",
+        startDate: it.start_date || "", endDate: it.end_date || "", content: it.description || "",
+      }));
+      setInternships(intList);
+      const projList: Project[] = (vm.projects || []).map((p, i) => ({
+        id: i + 1, name: p.name || "", desc: p.description || "", role: p.role || "",
+        startDate: p.start_date || "", endDate: p.end_date || "",
+      }));
+      setProjects(projList);
+      setSkillsDraft({ developmentLanguages: vm.professionalSkills || "", aiApplication: vm.aiApplication || "" });
+      setLanguageExamDrafts((vm.languageExams || []).map((le, i) => ({ id: i + 1, name: le.exam_type || "", score: le.score || "" })));
+      setCertificateDrafts((vm.certificates || []).map((c, i) => ({ id: i + 1, name: c.name || "", description: c.description || "" })));
+      setAwardDrafts((vm.awards || []).map((a, i) => ({ id: i + 1, name: a.name || "", description: a.description || "" })));
+      const ws: WorkDraft[] = (vm.works || []).map((w, i) => ({ id: i + 1, name: w.name || "", link: w.url || "", password: w.password || "" }));
+      setPortfolioDraft({ works: ws.length > 0 ? ws : [{ id: 1, name: "", link: "", password: "" }], homepage: vm.homepage || "" });
+      setExtraInfoDraft({ additionalInfo: vm.additionalInfo || "" });
+    } catch {
+      setDemoError("加载体验内容失败，请稍后重试。");
+    } finally {
+      setFillingDemo(false);
+    }
+  }
 
   useEffect(() => {
     if (formVm && mode === "edit") { setResumeName(formVm.name || ""); }
@@ -189,7 +272,7 @@ export function MyResumesPage() {
     }));
     setProjects(projList);
     setSkillsDraft({ developmentLanguages: formVm.professionalSkills || "", aiApplication: formVm.aiApplication || "" });
-    setLanguageExamDrafts((formVm.languageExams || []).map((le: ResumeLanguageExam) => ({ name: le.exam_type || "", score: le.score || "" })));
+    setLanguageExamDrafts((formVm.languageExams || []).map((le: ResumeLanguageExam, i: number) => ({ id: i + 1, name: le.exam_type || "", score: le.score || "" })));
     setCertificateDrafts((formVm.certificates || []).map((c: ResumeCertificate, i: number) => ({ id: i + 1, name: c.name || "", description: c.description || "" })));
     setAwardDrafts((formVm.awards || []).map((a: ResumeAward, i: number) => ({ id: i + 1, name: a.name || "", description: a.description || "" })));
     const worksList: WorkDraft[] = (formVm.works || []).map((w: ResumeWork, i: number) => ({ id: i + 1, name: w.name || "", link: w.url || "", password: w.password || "" }));
@@ -257,18 +340,26 @@ export function MyResumesPage() {
 
     // ── Proceed with save ──────────────────────────────────────────────────
     setSaveSuccessMsg(""); setSaveErrorMsg(""); setSaving(true);
+    // Filter out items currently in exit animation
+    const visibleEducations = educations.filter((e) => !removingItemKeys.has(`education:${e.id}`));
+    const visibleProjects = projects.filter((p) => !removingItemKeys.has(`project:${p.id}`));
+    const visibleInternships = internships.filter((i) => !removingItemKeys.has(`internship:${i.id}`));
+    const visibleCerts = certificateDrafts.filter((c) => !removingItemKeys.has(`certificate:${c.id}`));
+    const visibleAwards = awardDrafts.filter((a) => !removingItemKeys.has(`award:${a.id}`));
+    const visibleWorks = portfolioDraft.works.filter((w) => !removingItemKeys.has(`work:${w.id}`));
+    const visibleLanguageExams = languageExamDrafts.filter((le) => !removingItemKeys.has(`language:${le.id}`));
     const payload: SaveResumePayload = {
       name: trimmedName, is_current: true,
       real_name: personalName || "", phone: phone || "", email: email || "", city: currentCity || "",
       professional_skills: skillsDraft.developmentLanguages || "", ai_application: skillsDraft.aiApplication || "",
       homepage: portfolioDraft.homepage || "", additional_info: extraInfoDraft.additionalInfo || "",
-      educations: educations.map((e) => ({ school: e.school || "", degree: e.degree || "", major: e.major || "", department: e.department || "", start_date: e.startDate || "", end_date: e.endDate || "", gpa: e.gpa || "", gpa_scale: e.gpaScale || "", rank_text: e.rank || "", core_courses: e.coreCourses || "", research_direction: e.researchDirection || "", advisor: e.advisor || "", lab: e.lab || "", paper_summary: e.paperSummary || "" })),
-      projects: projects.map((p) => ({ name: p.name || "", role: p.role || "", start_date: p.startDate || "", end_date: p.endDate || "", description: p.desc || "" })),
-      internships: internships.map((i) => ({ company: i.company || "", position: i.position || "", start_date: i.startDate || "", end_date: i.endDate || "", description: i.content || "" })),
-      language_exams: languageExamDrafts.filter((le) => le.name.trim()).map((le) => ({ exam_type: le.name.trim(), score: le.score.trim() })),
-      certificates: certificateDrafts.filter((c) => c.name.trim()).map((c) => ({ name: c.name.trim(), description: c.description || "" })),
-      awards: awardDrafts.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), description: a.description || "" })),
-      works: portfolioDraft.works.filter((w) => w.name || w.link).map((w) => ({ name: w.name || "", url: w.link || "", password: w.password || "" })),
+      educations: visibleEducations.map((e) => ({ school: e.school || "", degree: e.degree || "", major: e.major || "", department: e.department || "", start_date: e.startDate || "", end_date: e.endDate || "", gpa: e.gpa || "", gpa_scale: e.gpaScale || "", rank_text: e.rank || "", core_courses: e.coreCourses || "", research_direction: e.researchDirection || "", advisor: e.advisor || "", lab: e.lab || "", paper_summary: e.paperSummary || "" })),
+      projects: visibleProjects.map((p) => ({ name: p.name || "", role: p.role || "", start_date: p.startDate || "", end_date: p.endDate || "", description: p.desc || "" })),
+      internships: visibleInternships.map((i) => ({ company: i.company || "", position: i.position || "", start_date: i.startDate || "", end_date: i.endDate || "", description: i.content || "" })),
+      language_exams: visibleLanguageExams.filter((le) => le.name.trim()).map((le) => ({ exam_type: le.name.trim(), score: le.score.trim() })),
+      certificates: visibleCerts.filter((c) => c.name.trim()).map((c) => ({ name: c.name.trim(), description: c.description || "" })),
+      awards: visibleAwards.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), description: a.description || "" })),
+      works: visibleWorks.filter((w) => w.name || w.link).map((w) => ({ name: w.name || "", url: w.link || "", password: w.password || "" })),
     };
     try {
       if (mode === "add" || !editingResumeId) { await createResume(payload); } else { await updateResume(editingResumeId, payload); }
@@ -309,9 +400,9 @@ export function MyResumesPage() {
   function addCertificate() { const newId = Math.max(0, ...certificateDrafts.map((c) => c.id)) + 1; setRecentlyAdded({ type: "certificate", key: String(newId) }); setCertificateDrafts((cs) => [...cs, { id: newId, name: "", description: "" }]); }
   function updateCertificate(id: number, field: keyof CertificateDraft, value: string) { setCertificateDrafts((cs) => cs.map((c) => (c.id === id ? { ...c, [field]: value } : c))); }
   function removeCertificate(id: number) { setCertificateDrafts((cs) => cs.filter((c) => c.id !== id)); }
-  const addLanguageExam = () => { setRecentlyAdded({ type: "languageExam", key: String(languageExamDrafts.length) }); setLanguageExamDrafts((prev) => [...prev, { name: "", score: "" }]); };
-  const updateLanguageExam = (idx: number, field: keyof LanguageExamDraft, value: string) => { setLanguageExamDrafts((prev) => prev.map((le, i) => (i === idx ? { ...le, [field]: value } : le))); };
-  const removeLanguageExam = (idx: number) => setLanguageExamDrafts((prev) => prev.filter((_, i) => i !== idx));
+  const addLanguageExam = () => { const newId = Math.max(0, ...languageExamDrafts.map((le) => le.id)) + 1; setRecentlyAdded({ type: "languageExam", key: String(newId) }); setLanguageExamDrafts((prev) => [...prev, { id: newId, name: "", score: "" }]); };
+  const updateLanguageExam = (id: number, field: keyof LanguageExamDraft, value: string) => { setLanguageExamDrafts((prev) => prev.map((le) => (le.id === id ? { ...le, [field]: value } : le))); };
+  const removeLanguageExam = (id: number) => setLanguageExamDrafts((prev) => prev.filter((le) => le.id !== id));
   function addAward() { const newId = Math.max(0, ...awardDrafts.map((a) => a.id)) + 1; setRecentlyAdded({ type: "award", key: String(newId) }); setAwardDrafts((as) => [...as, { id: newId, name: "", description: "" }]); }
   function updateAward(id: number, field: keyof AwardDraft, value: string) { setAwardDrafts((as) => as.map((a) => (a.id === id ? { ...a, [field]: value } : a))); }
   function removeAward(id: number) { setAwardDrafts((as) => as.filter((a) => a.id !== id)); }
@@ -319,6 +410,45 @@ export function MyResumesPage() {
   function updateEdu(id: number, field: keyof Education, value: string) { setEducations((es) => es.map((e) => (e.id === id ? { ...e, [field]: value } : e))); }
   function addInternship() { const newId = Math.max(0, ...internships.map((i) => i.id)) + 1; setRecentlyAdded({ type: "internship", key: String(newId) }); setInternships((is) => [...is, { id: newId, company: "", position: "", startDate: "", endDate: "", content: "" }]); }
   function updateIntern(id: number, field: keyof Internship, value: string) { setInternships((is) => is.map((i) => (i.id === id ? { ...i, [field]: value } : i))); }
+
+  // ── Readiness computation (must be before any early returns to keep hook count stable) ──
+  const readiness = useMemo(() => {
+    const weights = { resumeName: 5, realName: 10, contact: 10, education: 15, skills: 15, practice: 20, direction: 10, aiSkill: 5, certAndLink: 10 };
+    let score = 0;
+    if (resumeName.trim()) score += weights.resumeName;
+    if (personalName.trim()) score += weights.realName;
+    if (phone.trim() || email.trim()) score += weights.contact;
+    if (educations.some((e) => e.school.trim() && e.major.trim())) score += weights.education;
+    if (skillsDraft.developmentLanguages.trim()) score += weights.skills;
+    if (projects.some((p) => p.name.trim()) || internships.some((i) => i.company.trim() || i.position.trim())) score += weights.practice;
+    if (extraInfoDraft.additionalInfo.trim() || currentCity.trim() || skillsDraft.developmentLanguages.trim()) score += weights.direction;
+    if (skillsDraft.aiApplication.trim()) score += weights.aiSkill;
+    if (languageExamDrafts.some((le) => le.name.trim()) || certificateDrafts.some((c) => c.name.trim()) || awardDrafts.some((a) => a.name.trim()) || portfolioDraft.works.some((w) => w.name.trim() || w.link.trim()) || !!portfolioDraft.homepage.trim()) score += weights.certAndLink;
+    return score;
+  }, [resumeName, personalName, phone, email, educations, skillsDraft, projects, internships, extraInfoDraft, currentCity, languageExamDrafts, certificateDrafts, awardDrafts, portfolioDraft]);
+
+  const readinessCategories: ReadinessCategory[] = useMemo(() => {
+    const hasEdu = educations.some((e) => e.school.trim() && e.major.trim());
+    const hasPractice = projects.some((p) => p.name.trim()) || internships.some((i) => i.company.trim() || i.position.trim());
+    const hasCert = languageExamDrafts.some((le) => le.name.trim()) || certificateDrafts.some((c) => c.name.trim()) || awardDrafts.some((a) => a.name.trim()) || portfolioDraft.works.some((w) => w.name.trim() || w.link.trim()) || !!portfolioDraft.homepage.trim();
+    return [
+      { label: "基础信息", status: (personalName.trim() ? "complete" : "missing") as ReadinessCategory["status"] },
+      { label: "教育经历", status: (hasEdu ? "complete" : "missing") as ReadinessCategory["status"] },
+      { label: "技能能力", status: (skillsDraft.developmentLanguages.trim() ? "complete" : "missing") as ReadinessCategory["status"] },
+      { label: "实践经历", status: (hasPractice ? "complete" : "missing") as ReadinessCategory["status"] },
+      { label: "AI 应用", status: (skillsDraft.aiApplication.trim() ? "complete" : "missing") as ReadinessCategory["status"] },
+      { label: "证书获奖", status: (hasCert ? "complete" : (certificateDrafts.length > 0 || awardDrafts.length > 0 ? "partial" : "missing")) as ReadinessCategory["status"] },
+    ];
+  }, [personalName, educations, skillsDraft, projects, internships, languageExamDrafts, certificateDrafts, awardDrafts, portfolioDraft]);
+
+  const readinessNextStep = useMemo(() => {
+    if (readiness >= 100) return "";
+    if (!personalName.trim()) return "先填写姓名，这是简历的基础身份信息。";
+    if (!educations.some((e) => e.school.trim() && e.major.trim())) return "补充教育经历，学校、专业和学历是匹配分析的重要依据。";
+    if (!skillsDraft.developmentLanguages.trim()) return "填写专业技能或工具能力，帮助岗位匹配时精准定位。";
+    if (!projects.some((p) => p.name.trim()) && !internships.some((i) => i.company.trim())) return "补充一段项目或实习经历，会显著提升岗位推荐和匹配分析质量。";
+    return "继续补充更多信息，让投递准备度更完善。";
+  }, [readiness, personalName, educations, skillsDraft, projects, internships]);
 
   if (mode === "edit" && loading) return <ResumeSkeleton />;
   if (mode === "edit" && resumeError) return (<PageError title="简历加载失败" description={resumeError} onRetry={handleRetryLoad} />);
@@ -339,25 +469,61 @@ export function MyResumesPage() {
 
   return (
     <>
-    <ResumeEditorShell title={mode === "add" ? "创建简历" : "编辑简历"} subtitle="完善你的经历和技能，让 Offerr鹅 更准确地完成岗位推荐、匹配分析和简历优化。" saveCard={<ResumeEditorSaveCard mode={mode} saving={saving} successMessage={saveSuccessMsg} errorMessage={saveErrorMsg} onSave={handleSave} disabled={saveDisabled} />}>
+    <ResumeEditorShell title={mode === "add" ? "创建简历" : "编辑简历"} subtitle="完善你的经历和技能，让 Offerr鹅 更准确地完成岗位推荐、匹配分析和简历优化。" saveCard={<ResumeEditorSaveCard mode={mode} saving={saving} successMessage={saveSuccessMsg} errorMessage={saveErrorMsg} onSave={handleSave} disabled={saveDisabled} />} sidebar={<ResumeEditorStatusSidebar readiness={readiness} categories={readinessCategories} nextStep={readinessNextStep} saving={saving} />}>
       <Link to="/resumes" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors -mt-2 mb-1"><ChevronLeft className="w-3 h-3" />返回我的简历</Link>
-      <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
         <Sparkles className="w-3.5 h-3.5 text-[#0052D9] flex-shrink-0" />
         <span className="text-xs text-[#0052D9]">当前简历可用于：<strong>岗位推荐</strong> / <strong>岗位匹配分析</strong> / <strong>简历优化</strong></span>
-        <span className="w-px h-3.5 bg-blue-200 mx-1" /><span className="text-xs text-gray-400">建议仅作投递前参考，不替代真实经历核实。</span>
+        <span className="w-px h-3.5 bg-blue-200 mx-1 hidden sm:block" /><span className="text-xs text-gray-400 hidden sm:inline">建议仅作投递前参考，不替代真实经历核实。</span>
+        {isCreateMode && (
+          <>
+            <span className="w-px h-3.5 bg-blue-200 mx-1" />
+            <button
+              type="button"
+              onClick={handleFillDemo}
+              disabled={fillingDemo}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0052D9] px-3 py-1 text-xs font-medium text-white hover:bg-[#0047BD] transition-colors disabled:opacity-50"
+            >
+              {fillingDemo ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+              {fillingDemo ? "填入中…" : "填入体验内容"}
+            </button>
+          </>
+        )}
       </div>
+      {demoError && (
+        <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-2.5 text-xs text-red-600 flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          {demoError}
+        </div>
+      )}
 
       <ResumeBasicsSection>
         <div className="space-y-5">
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">简历名称 <span className="text-red-500">*</span></label><Input value={resumeName} onChange={(e) => { setResumeName(e.target.value); setNameCheckStatus("idle"); setNameCheckMessage(""); }} onBlur={handleNameBlur} placeholder="用于区分不同简历版本" /></div>
-          <div className="flex items-start gap-2 rounded-xl px-4 py-3 border text-[13px] leading-relaxed
-            {nameCheckStatus === 'available' ? 'bg-green-50 border-green-100 text-green-700' :
-             nameCheckStatus === 'duplicate' || nameCheckStatus === 'invalid' ? 'bg-red-50 border-red-200 text-red-600' :
-             nameCheckStatus === 'error' ? 'bg-red-50 border-red-100 text-red-500' :
-             nameCheckStatus === 'checking' ? 'bg-blue-50 border-blue-100 text-blue-600' :
-             'bg-slate-50 border-slate-100 text-slate-500'}">
-            <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <p>{nameCheckMessage || (nameCheckStatus === "idle" ? "输入简历名称后自动检查是否可用" : "")}</p>
+          <div
+            className={cn(
+              "flex items-center gap-2 rounded-xl px-4 py-3 border text-[13px] leading-relaxed min-h-[48px]",
+              nameCheckStatus === "available" && "bg-green-50 border-green-100 text-green-700",
+              (nameCheckStatus === "duplicate" || nameCheckStatus === "invalid") && "bg-red-50 border-red-200 text-red-600",
+              nameCheckStatus === "error" && "bg-red-50 border-red-100 text-red-500",
+              nameCheckStatus === "checking" && "bg-blue-50 border-blue-100 text-blue-600",
+              nameCheckStatus === "idle" && "bg-blue-50/60 border-blue-100 text-blue-600",
+            )}
+          >
+            {nameCheckStatus === "idle" && <HelpCircle className="w-4 h-4 flex-shrink-0" />}
+            {nameCheckStatus === "checking" && <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" />}
+            {nameCheckStatus === "available" && <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
+            {nameCheckStatus === "duplicate" && <XCircle className="w-4 h-4 flex-shrink-0" />}
+            {nameCheckStatus === "invalid" && <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+            {nameCheckStatus === "error" && <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+            <p>
+              {nameCheckStatus === "idle" && "输入简历名称后自动检查是否可用"}
+              {nameCheckStatus === "checking" && "正在检查名称是否可用…"}
+              {nameCheckStatus === "available" && (isEditingExistingResume ? "当前名称可继续使用" : "名称可用")}
+              {nameCheckStatus === "duplicate" && "名称已存在，请换一个名称"}
+              {nameCheckStatus === "invalid" && "请输入简历名称"}
+              {nameCheckStatus === "error" && "检查失败，请稍后重试"}
+            </p>
           </div>
         </div>
       </ResumeBasicsSection>
@@ -375,10 +541,15 @@ export function MyResumesPage() {
       </BasicInfoSection>
 
       <EducationSection defaultOpen={isEditingExistingResume && hasEducationContent} onAdd={addEducation}>
-        {educations.length === 0 ? (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><p className="text-sm text-slate-500 mb-1">暂无教育经历</p><p className="text-xs text-slate-400 mb-3">可以先添加你的学校、专业和学历信息。</p><button onClick={addEducation} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加教育经历</button></div>) : (
-          <div className="space-y-4">{educations.map((edu, idx) => (
-            <div key={edu.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "education" && recentlyAdded.key === String(edu.id) ? "resume-item-enter" : ""}`}>
-              <div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">教育经历 {idx + 1}</span><button onClick={() => setEducations((es) => es.filter((e) => e.id !== edu.id))} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button></div>
+        {(() => { const eduActive = educations.some((e) => !removingItemKeys.has(`education:${e.id}`)); const eduRemoving = educations.some((e) => removingItemKeys.has(`education:${e.id}`)); if (educations.length === 0 || (!eduActive && eduRemoving)) return <ResumeEditorEmptyState title="暂无教育经历" description="可以先添加你的学校、专业和学历信息。" actionLabel="+ 添加教育经历" onAction={addEducation} />;
+          return (
+          <div className="space-y-4">{educations.map((edu, idx) => {
+            const eduKey = `education:${edu.id}`;
+            const isRemoving = removingItemKeys.has(eduKey);
+            return (
+            <AnimatedListItem key={edu.id} removing={isRemoving}>
+              <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "education" && recentlyAdded.key === String(edu.id) ? "resume-item-enter" : ""}`}>
+              <div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">教育经历 {idx + 1}</span><button onClick={() => markRemoving(eduKey, () => setEducations((es) => es.filter((e) => e.id !== edu.id)))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500 transition-colors", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div>
               <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                 <div><label className="mb-1.5 block text-sm font-medium text-slate-700">学校 <span className="text-red-500">*</span></label><Input className="h-10" value={edu.school} onChange={(e) => updateEdu(edu.id, "school", e.target.value)} placeholder="学校名称" /></div>
                 <div><label className="mb-1.5 block text-sm font-medium text-slate-700">专业 <span className="text-red-500">*</span></label><Input className="h-10" value={edu.major} onChange={(e) => updateEdu(edu.id, "major", e.target.value)} placeholder="专业名称" /></div>
@@ -400,78 +571,133 @@ export function MyResumesPage() {
                   <div><label className="mb-1.5 block text-sm font-medium text-slate-700">导师</label><Input className="h-10" value={edu.advisor} onChange={(e) => updateEdu(edu.id, "advisor", e.target.value)} placeholder="如：张教授" /></div>
                   <div><label className="mb-1.5 block text-sm font-medium text-slate-700">实验室</label><Input className="h-10" value={edu.lab} onChange={(e) => updateEdu(edu.id, "lab", e.target.value)} placeholder="如：智能信息处理实验室" /></div>
                 </div>
-                <div className="mt-4"><label className="mb-1.5 block text-sm font-medium text-slate-700">论文 / 学术成果</label><Textarea className="min-h-[72px] resize-none" rows={2} value={edu.paperSummary} onChange={(e) => updateEdu(edu.id, "paperSummary", e.target.value)} placeholder="简要描述发表的论文或参与的科研项目" /></div>
+                <div className="mt-4"><label className="mb-1.5 block text-sm font-medium text-slate-700">论文 / 学术成果</label><AutoGrowTextarea minRows={2} maxRows={10} value={edu.paperSummary} onChange={(e) => updateEdu(edu.id, "paperSummary", e.target.value)} placeholder="简要描述发表的论文或参与的科研项目" /></div>
               </div>
             </div>
-          ))}
-            <button type="button" onClick={addEducation} className="mt-3 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加教育经历</button>
-          </div>)}
+            </AnimatedListItem>
+          );})}
+            {educations.some((e) => !removingItemKeys.has(`education:${e.id}`)) && <button type="button" onClick={addEducation} className="mt-3 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加教育经历</button>}
+          </div>); })()}
       </EducationSection>
 
       <ProjectSection defaultOpen={isEditingExistingResume && hasProjectContent}>
-        {projects.length === 0 ? (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><p className="text-sm text-slate-500 mb-1">暂无项目经历</p><p className="text-xs text-slate-400 mb-3">可以补充课程项目、比赛项目或个人项目。</p><button onClick={addProject} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加项目经历</button></div>) : (
-          <div className="space-y-4">{projects.map((proj, idx) => (
-            <div key={proj.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "project" && recentlyAdded.key === String(proj.id) ? "resume-item-enter" : ""}`}>
-              <div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">项目经历 {idx + 1}</span><div className="flex items-center gap-1"><button onClick={() => moveProject(idx, -1)} disabled={idx === 0} className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30" title="上移"><ChevronUp className="w-3.5 h-3.5" /></button><button onClick={() => moveProject(idx, 1)} disabled={idx === projects.length - 1} className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30" title="下移"><ChevronDown className="w-3.5 h-3.5" /></button><button onClick={() => removeProject(proj.id)} className="p-1 text-slate-400 hover:text-red-500" title="删除"><Trash2 className="w-3.5 h-3.5" /></button></div></div>
+        {(() => { const projActive = projects.some((p) => !removingItemKeys.has(`project:${p.id}`)); const projRemoving = projects.some((p) => removingItemKeys.has(`project:${p.id}`)); if (projects.length === 0 || (!projActive && projRemoving)) return <ResumeEditorEmptyState title="暂无项目经历" description="可以补充课程项目、比赛项目或个人项目。" actionLabel="+ 添加项目经历" onAction={addProject} />;
+          return (
+          <div className="space-y-4">{projects.map((proj, idx) => {
+            const projKey = `project:${proj.id}`;
+            const isRemoving = removingItemKeys.has(projKey);
+            return (
+            <AnimatedListItem key={proj.id} removing={isRemoving}>
+              <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "project" && recentlyAdded.key === String(proj.id) ? "resume-item-enter" : ""}`}>
+              <div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">项目经历 {idx + 1}</span><div className="flex items-center gap-1"><button onClick={() => moveProject(idx, -1)} disabled={idx === 0 || isRemoving} className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30" title="上移"><ChevronUp className="w-3.5 h-3.5" /></button><button onClick={() => moveProject(idx, 1)} disabled={idx === projects.length - 1 || isRemoving} className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30" title="下移"><ChevronDown className="w-3.5 h-3.5" /></button><button onClick={() => markRemoving(projKey, () => removeProject(proj.id))} disabled={isRemoving} className={cn("p-1 text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")} title="删除"><Trash2 className="w-3.5 h-3.5" /></button></div></div>
               <div><label className="mb-1.5 block text-sm font-medium text-slate-700">项目名称 <span className="text-red-500">*</span></label><Input className="h-10" value={proj.name} onChange={(e) => updateProject(proj.id, "name", e.target.value)} placeholder="项目名称" /></div>
               <div><label className="mb-1.5 block text-sm font-medium text-slate-700">项目时间</label><div className="flex items-center gap-2"><YearMonthPicker value={proj.startDate} onChange={(v) => updateProject(proj.id, "startDate", v)} placeholder="开始时间" /><span className="text-slate-400">—</span><YearMonthPicker value={proj.endDate} onChange={(v) => updateProject(proj.id, "endDate", v)} placeholder="结束时间" /></div></div>
               <div><label className="mb-1.5 block text-sm font-medium text-slate-700">在项目中担任的角色</label><Input className="h-10" value={proj.role} onChange={(e) => updateProject(proj.id, "role", e.target.value)} placeholder="如：接口设计、数据库设计" /></div>
-              <div><label className="mb-1.5 block text-sm font-medium text-slate-700">描述</label><Textarea className="min-h-[120px] resize-none" rows={4} value={proj.desc} onChange={(e) => updateProject(proj.id, "desc", e.target.value)} placeholder="描述项目背景、你负责的部分、使用的技术栈和主要成果" /></div>
+              <div><label className="mb-1.5 block text-sm font-medium text-slate-700">描述</label><AutoGrowTextarea minRows={4} maxRows={12} value={proj.desc} onChange={(e) => updateProject(proj.id, "desc", e.target.value)} placeholder="描述项目背景、你负责的部分、使用的技术栈和主要成果" /></div>
             </div>
-          ))}
-            <button type="button" onClick={addProject} className="mt-3 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加项目经历</button>
-          </div>)}
+            </AnimatedListItem>
+          );})}
+            {projects.some((p) => !removingItemKeys.has(`project:${p.id}`)) && <button type="button" onClick={addProject} className="mt-3 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加项目经历</button>}
+          </div>); })()}
       </ProjectSection>
 
       <SkillsSection defaultOpen={isEditingExistingResume && hasSkillsContent}>
         <div className="border-t border-gray-200 pt-5 mt-5 space-y-4">
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">专业技能 / 工具能力</label><Input className="h-10" value={skillsDraft.developmentLanguages} onChange={(e) => updateSkillsDraft("developmentLanguages", e.target.value)} placeholder="技术岗可填 Go / Java / SQL" /><p className="mt-1.5 text-xs text-slate-400">可填写开发语言、设计工具、数据分析方法、办公软件等。</p></div>
-          <div><label className="mb-1.5 block text-sm font-medium text-slate-700">AI 应用技能 <span className="text-xs font-normal text-amber-600">推荐</span></label><Textarea className="min-h-[88px] resize-none" rows={3} value={skillsDraft.aiApplication} onChange={(e) => updateSkillsDraft("aiApplication", e.target.value)} placeholder="例如：使用 CodeBuddy 辅助需求拆解、代码生成、Bug 定位、接口文档、测试用例和项目复盘。" /></div>
+          <div><label className="mb-1.5 block text-sm font-medium text-slate-700">AI 应用技能 <span className="text-xs font-normal text-amber-600">推荐</span></label><AutoGrowTextarea minRows={3} maxRows={8} value={skillsDraft.aiApplication} onChange={(e) => updateSkillsDraft("aiApplication", e.target.value)} placeholder="例如：使用 CodeBuddy 辅助需求拆解、代码生成、Bug 定位、接口文档、测试用例和项目复盘。" /></div>
         </div>
         <p className="mt-5 text-[12px] text-slate-400 border-t border-gray-100 pt-4">技能信息有助于 Offerr鹅 提升岗位推荐、匹配分析和简历优化质量。</p>
       </SkillsSection>
 
       <InternshipSection defaultOpen={isEditingExistingResume && hasInternshipContent} autoOpenKey={sectionAutoOpenKey}>
-        {internships.length === 0 ? (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><p className="text-sm text-slate-500 mb-1">暂无实习经历</p><button onClick={addInternship} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加实习经历</button></div>) : (
-          <div className="space-y-4">{internships.map((intern, idx) => (
-            <div key={intern.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "internship" && recentlyAdded.key === String(intern.id) ? "resume-item-enter" : ""}`}>
-              <div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">实习经历 {idx + 1}</span><button onClick={() => setInternships((is) => is.filter((i) => i.id !== intern.id))} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+        {(() => { const intActive = internships.some((i) => !removingItemKeys.has(`internship:${i.id}`)); const intRemoving = internships.some((i) => removingItemKeys.has(`internship:${i.id}`)); if (internships.length === 0 || (!intActive && intRemoving)) return <ResumeEditorEmptyState title="暂无实习经历" description="可以补充实习、兼职或校内实践经历。" actionLabel="+ 添加实习经历" onAction={addInternship} />;
+          return (
+          <div className="space-y-4">{internships.map((intern, idx) => {
+            const intKey = `internship:${intern.id}`;
+            const isRemoving = removingItemKeys.has(intKey);
+            return (
+            <AnimatedListItem key={intern.id} removing={isRemoving}>
+              <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 ${recentlyAdded?.type === "internship" && recentlyAdded.key === String(intern.id) ? "resume-item-enter" : ""}`}>
+              <div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">实习经历 {idx + 1}</span><button onClick={() => markRemoving(intKey, () => setInternships((is) => is.filter((i) => i.id !== intern.id)))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div>
               <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2"><div><label className="mb-1.5 block text-sm font-medium text-slate-700">公司名称 <span className="text-red-500">*</span></label><Input className="h-10" value={intern.company} onChange={(e) => updateIntern(intern.id, "company", e.target.value)} placeholder="公司名称" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">职位 <span className="text-red-500">*</span></label><Input className="h-10" value={intern.position} onChange={(e) => updateIntern(intern.id, "position", e.target.value)} placeholder="职位" /></div></div>
               <div><label className="mb-1.5 block text-sm font-medium text-slate-700">时间</label><div className="flex items-center gap-2"><YearMonthPicker value={intern.startDate} onChange={(v) => updateIntern(intern.id, "startDate", v)} placeholder="开始时间" /><span className="text-slate-400">—</span><YearMonthPicker value={intern.endDate} onChange={(v) => updateIntern(intern.id, "endDate", v)} placeholder="结束时间" /></div></div>
-              <div><label className="mb-1.5 block text-sm font-medium text-slate-700">描述</label><Textarea className="min-h-[120px] resize-none" rows={4} value={intern.content} onChange={(e) => updateIntern(intern.id, "content", e.target.value)} placeholder="描述工作内容、使用的技术栈和主要成果" /></div>
+              <div><label className="mb-1.5 block text-sm font-medium text-slate-700">描述</label><AutoGrowTextarea minRows={4} maxRows={12} value={intern.content} onChange={(e) => updateIntern(intern.id, "content", e.target.value)} placeholder="描述工作内容、使用的技术栈和主要成果" /></div>
             </div>
-          ))}
-            <button type="button" onClick={addInternship} className="mt-3 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加实习经历</button>
-          </div>)}
+            </AnimatedListItem>
+          );})}
+            {internships.some((i) => !removingItemKeys.has(`internship:${i.id}`)) && <button type="button" onClick={addInternship} className="mt-3 text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加实习经历</button>}
+          </div>); })()}
       </InternshipSection>
 
       <CertificatesSection onAdd={addCertificate} defaultOpen={isEditingExistingResume && hasCertificateAwardContent} autoOpenKey={sectionAutoOpenKey}>
         <div className="mb-5 pb-5 border-b border-gray-100">
           <h4 className="text-sm font-medium text-slate-600 mb-3">外语考试 / 等级</h4>
-          {languageExamDrafts.length === 0 ? (<div className="rounded-xl bg-gray-50/70 py-6 text-center"><p className="text-sm text-slate-500 mb-1">暂无外语考试</p><button onClick={addLanguageExam} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加外语考试</button></div>) : (<>
-            {languageExamDrafts.map((le, idx) => (<div key={idx} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-4 space-y-3 mb-3 ${recentlyAdded?.type === "languageExam" && recentlyAdded.key === String(idx) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">外语考试 {idx + 1}</span><button onClick={() => removeLanguageExam(idx)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div><div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2"><div><label className="mb-1.5 block text-sm font-medium text-slate-700">考试类型</label><Input className="h-10" value={le.name} onChange={(e) => updateLanguageExam(idx, "name", e.target.value)} placeholder="如：CET-4、CET-6、IELTS" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">分数 / 等级</label><Input className="h-10" value={le.score} onChange={(e) => updateLanguageExam(idx, "score", e.target.value)} placeholder="例如：503 / 6.5" /></div></div></div>))}
+          {(() => { const langActive = languageExamDrafts.some((le) => !removingItemKeys.has(`language:${le.id}`)); const langRemoving = languageExamDrafts.some((le) => removingItemKeys.has(`language:${le.id}`)); if (languageExamDrafts.length === 0 || (!langActive && langRemoving)) return <ResumeEditorEmptyState title="暂无外语考试" description="可以补充四六级、雅思、托福等语言成绩。" actionLabel="+ 添加外语考试" onAction={addLanguageExam} />;
+            return (<>
+            {languageExamDrafts.map((le, idx) => {
+              const langKey = `language:${le.id}`;
+              const isRemoving = removingItemKeys.has(langKey);
+              return (
+              <AnimatedListItem key={le.id} removing={isRemoving}>
+                <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-4 space-y-3 mb-3 ${recentlyAdded?.type === "languageExam" && recentlyAdded.key === String(le.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">外语考试 {idx + 1}</span><button onClick={() => markRemoving(langKey, () => removeLanguageExam(le.id))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div><div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2"><div><label className="mb-1.5 block text-sm font-medium text-slate-700">考试类型</label><Input className="h-10" value={le.name} onChange={(e) => updateLanguageExam(le.id, "name", e.target.value)} placeholder="如：CET-4、CET-6、IELTS" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">分数 / 等级</label><Input className="h-10" value={le.score} onChange={(e) => updateLanguageExam(le.id, "score", e.target.value)} placeholder="例如：503 / 6.5" /></div></div></div>
+              </AnimatedListItem>
+            );})}
             <button onClick={addLanguageExam} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加外语考试</button>
-          </>)}
+          </>); })()}
         </div>
-        {certificateDrafts.length === 0 && awardDrafts.length === 0 ? (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline mr-3">+ 添加证书</button><button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button></div>) : (<>
+        {(() => {
+          const certActive = certificateDrafts.some((c) => !removingItemKeys.has(`certificate:${c.id}`));
+          const certRemoving = certificateDrafts.some((c) => removingItemKeys.has(`certificate:${c.id}`));
+          const awardActive = awardDrafts.some((a) => !removingItemKeys.has(`award:${a.id}`));
+          const awardRemoving = awardDrafts.some((a) => removingItemKeys.has(`award:${a.id}`));
+          const certsEmpty = certificateDrafts.length === 0 || (!certActive && certRemoving);
+          const awardsEmpty = awardDrafts.length === 0 || (!awardActive && awardRemoving);
+          if (certsEmpty && awardsEmpty) {
+            return (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><p className="text-sm text-slate-500 mb-1">暂无证书与获奖</p><p className="text-xs text-slate-400 mb-3">可以补充语言、云计算、软件开发等相关证书或竞赛获奖。</p><div className="flex gap-2 justify-center"><button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加证书</button><button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button></div></div>);
+          }
+          return (<>
           {certificateDrafts.length > 0 && <h4 className="text-sm font-medium text-slate-600 mb-3">证书</h4>}
-          {certificateDrafts.map((cert, idx) => (<div key={cert.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "certificate" && recentlyAdded.key === String(cert.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">证书 {idx + 1}</span><button onClick={() => removeCertificate(cert.id)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书名称 <span className="text-red-500">*</span></label><Input className="h-10" value={cert.name} onChange={(e) => updateCertificate(cert.id, "name", e.target.value)} placeholder="如：CET-4 503" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书说明</label><Textarea className="min-h-[72px] resize-none" rows={2} value={cert.description} onChange={(e) => updateCertificate(cert.id, "description", e.target.value)} placeholder="补充信息" /></div></div>))}
+          {certificateDrafts.map((cert, idx) => {
+            const certKey = `certificate:${cert.id}`;
+            const isRemoving = removingItemKeys.has(certKey);
+            return (
+            <AnimatedListItem key={cert.id} removing={isRemoving}>
+              <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "certificate" && recentlyAdded.key === String(cert.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">证书 {idx + 1}</span><button onClick={() => markRemoving(certKey, () => removeCertificate(cert.id))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书名称 <span className="text-red-500">*</span></label><Input className="h-10" value={cert.name} onChange={(e) => updateCertificate(cert.id, "name", e.target.value)} placeholder="如：CET-4 503" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书说明</label><AutoGrowTextarea minRows={2} maxRows={6} value={cert.description} onChange={(e) => updateCertificate(cert.id, "description", e.target.value)} placeholder="补充信息" /></div></div>
+            </AnimatedListItem>
+          );})}
           {awardDrafts.length > 0 && <h4 className="text-sm font-medium text-slate-600 mb-3 mt-2">获奖</h4>}
-          {awardDrafts.map((award, idx) => (<div key={award.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "award" && recentlyAdded.key === String(award.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">获奖 {idx + 1}</span><button onClick={() => removeAward(award.id)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项名称 <span className="text-red-500">*</span></label><Input className="h-10" value={award.name} onChange={(e) => updateAward(award.id, "name", e.target.value)} placeholder="如：国家奖学金" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项说明</label><Textarea className="min-h-[72px] resize-none" rows={2} value={award.description} onChange={(e) => updateAward(award.id, "description", e.target.value)} placeholder="获奖信息补充" /></div></div>))}
-          <div className="flex gap-2 mt-2"><button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加证书</button><button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button></div>
-        </>)}
+          {awardDrafts.map((award, idx) => {
+            const awardKey = `award:${award.id}`;
+            const isRemoving = removingItemKeys.has(awardKey);
+            return (
+            <AnimatedListItem key={award.id} removing={isRemoving}>
+              <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "award" && recentlyAdded.key === String(award.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">获奖 {idx + 1}</span><button onClick={() => markRemoving(awardKey, () => removeAward(award.id))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项名称 <span className="text-red-500">*</span></label><Input className="h-10" value={award.name} onChange={(e) => updateAward(award.id, "name", e.target.value)} placeholder="如：国家奖学金" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项说明</label><AutoGrowTextarea minRows={2} maxRows={6} value={award.description} onChange={(e) => updateAward(award.id, "description", e.target.value)} placeholder="获奖信息补充" /></div></div>
+            </AnimatedListItem>
+          );})}
+          {(certActive || awardActive) && <div className="flex gap-2 mt-2"><button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加证书</button><button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button></div>}
+        </>); })}
       </CertificatesSection>
 
       <PortfolioExtraSection defaultOpen={isEditingExistingResume && hasPortfolioExtraContent} autoOpenKey={sectionAutoOpenKey}>
         <p className="text-[13px] text-slate-500 mb-5">只支持链接，不支持附件上传。</p>
-        {portfolioDraft.works.map((work, idx) => (<div key={work.id} className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "work" && recentlyAdded.key === String(work.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">作品链接 {idx + 1}</span><button onClick={() => removeWork(work.id)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">作品名称</label><Input className="h-10" value={work.name} onChange={(e) => updateWork(work.id, "name", e.target.value)} placeholder="如：分布式在线考试系统" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">作品链接</label><Input className="h-10" value={work.link} onChange={(e) => updateWork(work.id, "link", e.target.value)} placeholder="如：https://cnb.cool/xxx" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">密码或提取码</label><Input className="h-10" value={work.password} onChange={(e) => updateWork(work.id, "password", e.target.value)} placeholder="如无需密码留空" /></div></div>))}
-        <button onClick={addWork} className="text-[13px] font-medium text-[#0052D9] hover:underline mb-4 inline-block">+ 添加作品链接</button>
+        {(() => { const workActive = portfolioDraft.works.some((w) => !removingItemKeys.has(`work:${w.id}`)); const workRemoving = portfolioDraft.works.some((w) => removingItemKeys.has(`work:${w.id}`)); if (portfolioDraft.works.length === 0 || (!workActive && workRemoving)) return <ResumeEditorEmptyState title="暂无作品链接" description="可以补充 GitHub、博客、作品集或项目地址。" actionLabel="+ 添加作品链接" onAction={addWork} />;
+          return (<>
+        {portfolioDraft.works.map((work, idx) => {
+          const workKey = `work:${work.id}`;
+          const isRemoving = removingItemKeys.has(workKey);
+          return (
+          <AnimatedListItem key={work.id} removing={isRemoving}>
+            <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "work" && recentlyAdded.key === String(work.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">作品链接 {idx + 1}</span><button onClick={() => markRemoving(workKey, () => removeWork(work.id))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">作品名称</label><Input className="h-10" value={work.name} onChange={(e) => updateWork(work.id, "name", e.target.value)} placeholder="如：分布式在线考试系统" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">作品链接</label><Input className="h-10" value={work.link} onChange={(e) => updateWork(work.id, "link", e.target.value)} placeholder="如：https://cnb.cool/xxx" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">密码或提取码</label><Input className="h-10" value={work.password} onChange={(e) => updateWork(work.id, "password", e.target.value)} placeholder="如无需密码留空" /></div></div>
+          </AnimatedListItem>
+        );})}
+        {portfolioDraft.works.some((w) => !removingItemKeys.has(`work:${w.id}`)) && <button onClick={addWork} className="text-[13px] font-medium text-[#0052D9] hover:underline mb-4 inline-block">+ 添加作品链接</button>}
+        </>); })()}
         <div className="mt-4"><label className="mb-1.5 block text-sm font-medium text-slate-700">个人主页</label><Input className="h-10" value={portfolioDraft.homepage} onChange={(e) => setPortfolioDraft((prev) => ({ ...prev, homepage: e.target.value }))} placeholder="如：https://github.com/xxx" /></div>
       </PortfolioExtraSection>
 
       <PortfolioExtraSection title="补充信息" defaultOpen={isEditingExistingResume && hasPortfolioExtraContent} autoOpenKey={sectionAutoOpenKey}>
         <p className="text-[13px] text-slate-500 mb-5">补充其他未覆盖的信息，如技术背景、求职意向、社团经历、志愿服务等。</p>
-        <Textarea className="min-h-[140px]" value={extraInfoDraft.additionalInfo} onChange={(e) => setExtraInfoDraft({ additionalInfo: e.target.value })} placeholder="补充介绍你的技术方向、项目经验、学习能力、目标岗位" />
+        <AutoGrowTextarea minRows={4} maxRows={15} value={extraInfoDraft.additionalInfo} onChange={(e) => setExtraInfoDraft({ additionalInfo: e.target.value })} placeholder="补充介绍你的技术方向、项目经验、学习能力、目标岗位" />
         <div className="mt-2 flex items-center justify-between"><span className="text-[12px] text-slate-400">建议包含：技术方向、项目经验、学习能力、目标岗位。</span><span className="text-[12px] text-slate-400">当前约 {extraInfoDraft.additionalInfo.length} 字</span></div>
       </PortfolioExtraSection>
     </ResumeEditorShell>

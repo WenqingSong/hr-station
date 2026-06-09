@@ -76,7 +76,7 @@ export function YearMonthPicker({
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
         className={cn(
-          "flex h-10 w-full items-center rounded-xl border border-slate-200 bg-white px-3 text-sm text-left transition-all duration-200",
+          "flex h-10 w-[136px] items-center rounded-xl border border-slate-200 bg-white px-3 text-sm text-left transition-all duration-200",
           "focus:outline-none focus:ring-4 focus:ring-[#0052D9]/10",
           disabled ? "cursor-not-allowed bg-gray-50 text-slate-400" : "cursor-pointer hover:border-slate-300",
         )}

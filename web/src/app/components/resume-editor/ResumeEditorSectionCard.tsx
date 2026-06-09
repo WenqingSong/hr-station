@@ -124,22 +124,30 @@ export function ResumeEditorSectionCard({
         )}
       </div>
 
-      {/* ── Description (when collapsed, show hint) ──────────────── */}
-      {description && !open && collapsible && (
-        <div className="px-6 pb-1">
-          <p className="text-[13px] text-slate-400 line-clamp-1">{description}</p>
+      {/* ── Body — grid animation ─────────────────────────────────── */}
+      <div
+        className={cn(
+          "grid overflow-anchor-none transition-[grid-template-rows] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+          open
+            ? "grid-rows-[1fr]"
+            : "grid-rows-[0fr]",
+        )}
+        style={{ overflowAnchor: "none" }}
+      >
+        <div className="overflow-hidden">
+          <div className="px-6 pb-5">
+            {description && (
+              <p className={cn(
+                "text-[13px] text-slate-500 mb-5",
+                open ? "" : "line-clamp-1"
+              )}>
+                {description}
+              </p>
+            )}
+            <div className={cn(!description && "pt-2")}>{children}</div>
+          </div>
         </div>
-      )}
-
-      {/* ── Body ────────────────────────────────────────────────── */}
-      {!isCollapsed && (
-        <div className="px-6 pb-6">
-          {description && (
-            <p className="text-[13px] text-slate-500 mb-5 -mt-2">{description}</p>
-          )}
-          <div className={cn(!description && "pt-2")}>{children}</div>
-        </div>
-      )}
+      </div>
     </section>
   );
 }

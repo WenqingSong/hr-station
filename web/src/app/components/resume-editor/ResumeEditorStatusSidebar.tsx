@@ -1,148 +1,135 @@
 import React from "react";
-import {
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Sparkles,
-  FileText,
-  Search,
-  Zap,
-  BarChart3,
-} from "lucide-react";
+import { CheckCircle2, AlertCircle, ArrowRight, Sparkles } from "lucide-react";
 
 export interface ResumeEditorStatusSidebarProps {
-  completeness: number;
-  /** Whether the resume has enough info for analysis */
-  aiReady: boolean;
-  /** Count of required fields still missing */
-  missingRequired: number;
-  /** Count of recommended fields to fill */
-  recommendedToFill: number;
-  /** Function statuses */
-  aiFunctions?: {
-    recommendation: boolean;
-    matchAnalysis: boolean;
-    resumeOptimization: boolean;
-    versionComparison: boolean;
-  };
+  /** Overall readiness score (0–100) */
+  readiness: number;
+  /** Per-category statuses */
+  categories: ReadinessCategory[];
+  /** Next-step suggestion string */
+  nextStep?: string;
   /** Whether currently saving */
   saving?: boolean;
 }
 
+export interface ReadinessCategory {
+  label: string;
+  status: "complete" | "partial" | "missing";
+  /** Optional detail text */
+  detail?: string;
+}
+
 /**
- * Right sidebar for the resume editor.
+ * "投递准备度" right sidebar for the resume editor.
  *
- * Shows completion status, readiness, missing required/recommended fields,
- * and function availability.
- *
- * Desktop: sticky on right. Mobile: placed above the main form.
+ * Shows a progress ring + category breakdown.
+ * Pure UI — receives computed data via props.
  */
 export function ResumeEditorStatusSidebar({
-  completeness,
-  aiReady,
-  missingRequired,
-  recommendedToFill,
-  aiFunctions,
+  readiness,
+  categories,
+  nextStep,
   saving,
 }: ResumeEditorStatusSidebarProps) {
+  const safeReadiness = Math.max(0, Math.min(100, Math.round(readiness)));
+
   return (
     <div className="bg-white rounded-2xl ring-1 ring-gray-100 overflow-hidden">
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="px-5 py-4 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-slate-900">简历状态</h3>
+        <h3 className="text-sm font-semibold text-slate-900">投递准备度</h3>
       </div>
 
       <div className="px-5 py-4 space-y-4">
-        {/* Completion */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-500">完成度</span>
-            <span className="text-sm font-semibold text-[#0052D9]">
-              {completeness}%
-            </span>
+        {/* Progress ring + score */}
+        <div className="flex items-center gap-4">
+          {/* Circular progress */}
+          <div className="relative w-16 h-16 flex-shrink-0">
+            <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+              <circle
+                cx="32" cy="32" r="27"
+                fill="none"
+                stroke="#f1f5f9"
+                strokeWidth="5"
+              />
+              <circle
+                cx="32" cy="32" r="27"
+                fill="none"
+                stroke={safeReadiness >= 100 ? "#22c55e" : safeReadiness >= 50 ? "#0052D9" : "#f59e0b"}
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeDasharray={`${safeReadiness * 1.696} 169.6`}
+                className="transition-all duration-500 ease-out"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-sm font-bold text-slate-800">{safeReadiness}</span>
+            </div>
           </div>
-          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-slate-700">
+              {safeReadiness >= 100
+                ? "准备充分"
+                : safeReadiness >= 60
+                  ? "持续完善中"
+                  : safeReadiness >= 30
+                    ? "需要补充"
+                    : "刚刚开始"}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+              {safeReadiness >= 100
+                ? "简历信息完整，可用于投递分析。"
+                : "继续补充信息，提升岗位匹配精度。"}
+            </p>
+          </div>
+        </div>
+
+        {/* Category list */}
+        <div className="space-y-1.5">
+          {categories.map((cat) => (
             <div
-              className="h-full bg-[#0052D9] rounded-full transition-all duration-300"
-              style={{ width: `${Math.max(completeness, 5)}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Readiness */}
-        <div
-          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs ${
-            aiReady
-              ? "bg-green-50 text-green-700 ring-1 ring-green-100"
-              : "bg-orange-50 text-orange-600 ring-1 ring-orange-100"
-          }`}
-        >
-          {aiReady ? (
-            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-          ) : (
-            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-          )}
-          <span>{aiReady ? "信息完整，可用于分析" : "当前信息尚不完整"}</span>
-        </div>
-
-        {/* Missing / recommended */}
-        <div className="space-y-2">
-          {missingRequired > 0 && (
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500 flex items-center gap-1.5">
-                <AlertCircle className="w-3 h-3 text-red-400" />
-                必填缺失
-              </span>
-              <span className="font-medium text-red-600">{missingRequired} 项</span>
-            </div>
-          )}
-          {recommendedToFill > 0 && (
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500 flex items-center gap-1.5">
-                <Clock className="w-3 h-3 text-amber-400" />
-                推荐补充
-              </span>
-              <span className="font-medium text-amber-600">
-                {recommendedToFill} 项
+              key={cat.label}
+              className="flex items-center justify-between py-1.5"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {cat.status === "complete" ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                ) : cat.status === "partial" ? (
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-gray-200 flex-shrink-0" />
+                )}
+                <span className="text-xs text-slate-600 truncate">
+                  {cat.label}
+                </span>
+              </div>
+              <span
+                className={`text-[11px] font-medium flex-shrink-0 ml-2 ${
+                  cat.status === "complete"
+                    ? "text-green-600"
+                    : cat.status === "partial"
+                      ? "text-amber-600"
+                      : "text-slate-400"
+                }`}
+              >
+                {cat.status === "complete"
+                  ? "已完成"
+                  : cat.status === "partial"
+                    ? "待完善"
+                    : "待补充"}
               </span>
             </div>
-          )}
-          {missingRequired === 0 && recommendedToFill === 0 && (
-            <div className="text-xs text-slate-400">
-              所有必填项已完成，推荐项也已补充。
-            </div>
-          )}
+          ))}
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-gray-100" />
-
-        {/* Functions */}
-        {aiFunctions && (
-          <div className="space-y-2.5">
-            <span className="text-xs font-medium text-slate-500">
-              四核心功能状态
-            </span>
-            <FunctionItem
-              icon={<Sparkles className="w-3.5 h-3.5" />}
-              label="岗位推荐"
-              ready={aiFunctions.recommendation}
-            />
-            <FunctionItem
-              icon={<Search className="w-3.5 h-3.5" />}
-              label="岗位匹配分析"
-              ready={aiFunctions.matchAnalysis}
-            />
-            <FunctionItem
-              icon={<Zap className="w-3.5 h-3.5" />}
-              label="简历优化"
-              ready={aiFunctions.resumeOptimization}
-            />
-            <FunctionItem
-              icon={<BarChart3 className="w-3.5 h-3.5" />}
-              label="版本对比"
-              ready={aiFunctions.versionComparison}
-            />
+        {/* Next step */}
+        {nextStep && (
+          <div className="rounded-xl bg-blue-50 ring-1 ring-blue-100 px-3 py-2.5">
+            <div className="flex items-start gap-1.5">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0052D9] flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-[#0052D9] leading-relaxed">{nextStep}</p>
+            </div>
           </div>
         )}
 
@@ -156,30 +143,6 @@ export function ResumeEditorStatusSidebar({
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function FunctionItem({
-  icon,
-  label,
-  ready,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  ready: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between text-xs">
-      <span className="text-slate-500 flex items-center gap-1.5">
-        {icon}
-        {label}
-      </span>
-      {ready ? (
-        <CheckCircle2 className="w-3 h-3 text-green-500" />
-      ) : (
-        <Clock className="w-3 h-3 text-gray-300" />
-      )}
     </div>
   );
 }

@@ -36,9 +36,31 @@ export function Navbar() {
       if (!ticking.current) {
         window.requestAnimationFrame(() => {
           const currentScrollY = window.scrollY;
-          if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
+          // K9-UI-ResumeEdit-D-B: resume editor routes — always show Navbar
+          const isResumeEditorRoute =
+            location.pathname === "/resumes/new" ||
+            location.pathname === "/resumes/edit" ||
+            location.pathname.startsWith("/resumes/edit?id=");
+
+          if (isResumeEditorRoute) {
+            setHidden(false);
+            setIsTop(false);
+            lastScrollY.current = currentScrollY;
+            ticking.current = false;
+            return;
+          }
+
+          // K9-UI-ResumeEdit-D-B: delta threshold to filter layout shifts
+          const delta = currentScrollY - lastScrollY.current;
+          if (Math.abs(delta) < 30) {
+            lastScrollY.current = currentScrollY;
+            ticking.current = false;
+            return;
+          }
+
+          if (delta > 0 && currentScrollY > 80) {
             setHidden(true);
-          } else if (currentScrollY < lastScrollY.current) {
+          } else if (delta < 0) {
             setHidden(false);
           }
           if (currentScrollY <= 20) {
@@ -53,7 +75,7 @@ export function Navbar() {
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [location.pathname]);
 
   const handleAuthSuccess = () => {
     // AuthDialog 已调用 useAuth().setAuthenticated() 更新全局状态
