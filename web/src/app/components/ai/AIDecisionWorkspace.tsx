@@ -31,7 +31,7 @@ export function AIDecisionWorkspace() {
       <div className="mb-1">
         <div className="flex items-center gap-1.5 mb-1">
           <Sparkles className="h-4 w-4 text-[#0052D9]" />
-          <h3 className="text-base font-semibold text-gray-800">Offerr鹅</h3>
+          <h3 className="text-base font-semibold text-gray-800">Offer捕手</h3>
         </div>
         <p className="text-[12px] text-gray-400 leading-relaxed">
           基于你的简历，帮你筛选更适合的岗位并分析匹配度。
@@ -42,8 +42,8 @@ export function AIDecisionWorkspace() {
       {!isAuthenticated && (
         <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
           <LogIn className="w-6 h-6 text-gray-300 mx-auto mb-2.5" />
-          <p className="text-[13px] text-gray-600 mb-1">登录后使用 Offerr鹅</p>
-          <p className="text-[12px] text-gray-400 mb-3 leading-relaxed">Offerr鹅会基于你的简历，帮你筛选更适合的岗位。</p>
+          <p className="text-[13px] text-gray-600 mb-1">登录后使用 Offer捕手</p>
+          <p className="text-[12px] text-gray-400 mb-3 leading-relaxed">Offer捕手会基于你的简历，帮你筛选更适合的岗位。</p>
           <div className="flex flex-col gap-2">
             <Button className="w-full text-[13px]" onClick={() => { setAuthDialogMode("login"); setAuthDialogOpen(true); }}>
               登录

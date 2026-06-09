@@ -469,7 +469,7 @@ export function MyResumesPage() {
 
   return (
     <>
-    <ResumeEditorShell title={mode === "add" ? "创建简历" : "编辑简历"} subtitle="完善你的经历和技能，让 Offerr鹅 更准确地完成岗位推荐、匹配分析和简历优化。" saveCard={<ResumeEditorSaveCard mode={mode} saving={saving} successMessage={saveSuccessMsg} errorMessage={saveErrorMsg} onSave={handleSave} disabled={saveDisabled} />} sidebar={<ResumeEditorStatusSidebar readiness={readiness} categories={readinessCategories} nextStep={readinessNextStep} saving={saving} />}>
+    <ResumeEditorShell title={mode === "add" ? "创建简历" : "编辑简历"} subtitle="完善你的经历和技能，让 Offer捕手 更准确地完成岗位推荐、匹配分析和简历优化。" saveCard={<ResumeEditorSaveCard mode={mode} saving={saving} successMessage={saveSuccessMsg} errorMessage={saveErrorMsg} onSave={handleSave} disabled={saveDisabled} />} sidebar={<ResumeEditorStatusSidebar readiness={readiness} categories={readinessCategories} nextStep={readinessNextStep} saving={saving} />}>
       <Link to="/resumes" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors -mt-2 mb-1"><ChevronLeft className="w-3 h-3" />返回我的简历</Link>
       <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
         <Sparkles className="w-3.5 h-3.5 text-[#0052D9] flex-shrink-0" />
@@ -606,7 +606,7 @@ export function MyResumesPage() {
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">专业技能 / 工具能力</label><Input className="h-10" value={skillsDraft.developmentLanguages} onChange={(e) => updateSkillsDraft("developmentLanguages", e.target.value)} placeholder="技术岗可填 Go / Java / SQL" /><p className="mt-1.5 text-xs text-slate-400">可填写开发语言、设计工具、数据分析方法、办公软件等。</p></div>
           <div><label className="mb-1.5 block text-sm font-medium text-slate-700">AI 应用技能 <span className="text-xs font-normal text-amber-600">推荐</span></label><AutoGrowTextarea minRows={3} maxRows={8} value={skillsDraft.aiApplication} onChange={(e) => updateSkillsDraft("aiApplication", e.target.value)} placeholder="例如：使用 CodeBuddy 辅助需求拆解、代码生成、Bug 定位、接口文档、测试用例和项目复盘。" /></div>
         </div>
-        <p className="mt-5 text-[12px] text-slate-400 border-t border-gray-100 pt-4">技能信息有助于 Offerr鹅 提升岗位推荐、匹配分析和简历优化质量。</p>
+        <p className="mt-5 text-[12px] text-slate-400 border-t border-gray-100 pt-4">技能信息有助于 Offer捕手 提升岗位推荐、匹配分析和简历优化质量。</p>
       </SkillsSection>
 
       <InternshipSection defaultOpen={isEditingExistingResume && hasInternshipContent} autoOpenKey={sectionAutoOpenKey}>

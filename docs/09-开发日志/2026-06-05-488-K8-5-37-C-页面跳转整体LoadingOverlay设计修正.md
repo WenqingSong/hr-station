@@ -60,7 +60,7 @@ K8-5-37-B 已完成 RouteProgressBar + AIThinkingLoading + 内联文案替换，
 | 属性 | 值 |
 |------|-----|
 | 背景 | `bg-[#F5F7FB]/[0.92]` + `backdrop-blur-[2px]` |
-| 内容 | Offerr鹅 品牌标识 + Loader2 spinner + "正在加载…" |
+| 内容 | Offer捕手 品牌标识 + Loader2 spinner + "正在加载…" |
 | z-index | `z-40`（低于 Navbar z-50、RouteProgressBar z-9999、AppBootLoading z-99999） |
 | 动画 | 无额外动画，仅 spinner 自旋 |
 

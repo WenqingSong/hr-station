@@ -6,7 +6,7 @@
 
 ## 1. 本阶段目标
 
-- 改造 `ui/textarea.tsx` Offerr鹅 风格
+- 改造 `ui/textarea.tsx` Offer捕手 风格
 - 改造 `ui/select.tsx` SelectTrigger/SelectContent/SelectItem 视觉
 - MyResumesPage 接入统一 Input/Textarea/Select（清除所有原生控件）
 

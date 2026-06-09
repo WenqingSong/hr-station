@@ -29,7 +29,7 @@
 |------|------|------|
 | 腾讯岗位数据和完整 JD | jobs 表 + tencent_join | data_quality=full_jd |
 | 匹配分析 Prompt | server/prompts/match_analysis_v1.md | HR初筛+技术面试官双视角 |
-| 岗位推荐 Prompt | server/prompts/recommendation_v1.md | 四档推荐+Offer鹅语气 |
+| 岗位推荐 Prompt | server/prompts/recommendation_v1.md | 四档推荐+Offer捕手语气 |
 | 简历优化 Prompt | server/prompts/resume_optimization_v1.md | P0/P1/P2+关键词对齐 |
 | JSON 修复 Prompt | server/prompts/json_repair_v1.md | 只修结构不重做业务分析 |
 | 匹配分析 Schema | server/prompts/schema/match_analysis_schema.json | 17 required 字段 |

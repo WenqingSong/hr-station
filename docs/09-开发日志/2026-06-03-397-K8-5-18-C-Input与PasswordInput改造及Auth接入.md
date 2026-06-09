@@ -6,7 +6,7 @@
 
 ## 1. 本阶段目标
 
-- 改造 `ui/input.tsx` — Offerr鹅 统一风格
+- 改造 `ui/input.tsx` — Offer捕手 统一风格
 - 新建 `ui/password-input.tsx`
 - `theme.css` 隐藏浏览器默认 password reveal
 - AuthDialog / LoginPage / RegisterPage 接入统一控件

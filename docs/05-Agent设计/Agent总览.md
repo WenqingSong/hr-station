@@ -193,7 +193,7 @@ ENABLE_LLM_FALLBACK=true → LLM 失败时回退 Mock Agent
   - 当前仍未替换 Mock Agent
   - **4-1.4.5 已完成：推荐 Prompt 首轮输出验收（partial_pass）**
     - 模型输出 JSON 合法，7 个顶层字段完整，4 个推荐项各含 19 个必要字段
-    - 证据链真实，Offer鹅语气专业，分数克制（88/42/35/33）
+    - 证据链真实，Offer捕手语气专业，分数克制（88/42/35/33）
     - 发现轻微问题：四档推荐覆盖不完整，不阻塞 Schema 定稿
     - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
   - **4-1.4.6A/B 已完成：推荐 JSON Schema 定稿与登记**

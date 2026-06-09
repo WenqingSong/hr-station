@@ -64,7 +64,7 @@ export function JobDetailAIDecision() {
       <div className="mb-1">
         <div className="flex items-center gap-2 mb-1">
           <Sparkles className="h-4 w-4 text-[#0052D9]" />
-          <h2 className="text-[16px] font-semibold text-slate-900">Offerr鹅投递决策</h2>
+          <h2 className="text-[16px] font-semibold text-slate-900">Offer捕手投递决策</h2>
         </div>
         <p className="text-[12px] leading-5 text-gray-500">
           基于当前岗位与简历，进行 AI 匹配分析和投递风险提示。

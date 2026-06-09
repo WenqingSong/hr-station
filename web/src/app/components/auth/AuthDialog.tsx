@@ -179,7 +179,7 @@ export function AuthDialog({
                   '"Alimama ShuHeiTi", "MiSans", "HarmonyOS Sans SC", "Source Han Sans SC", "Noto Sans SC", "Inter", system-ui, sans-serif',
               }}
             >
-              Offerr鹅
+              Offer捕手
             </p>
             <p className="text-[13px] font-medium text-slate-500 mb-3">
               学生求职匹配与简历优化智能体
@@ -188,7 +188,7 @@ export function AuthDialog({
               {mode === "login" ? "登录" : "注册"}
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              {mode === "login" ? "欢迎回来，登录你的账号" : "创建一个账号，开始使用 Offerr鹅"}
+              {mode === "login" ? "欢迎回来，登录你的账号" : "创建一个账号，开始使用 Offer捕手"}
             </p>
           </div>
 

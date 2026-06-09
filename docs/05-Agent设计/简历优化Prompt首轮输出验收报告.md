@@ -21,7 +21,7 @@
 11. 验证 rewrite_examples 是否严格基于真实经历
 12. 验证 requires_user_verification 是否正确使用
 13. 验证模型是否避免编造项目数据、系统规模、职责范围
-14. 验证 Offer鹅语气是否亲和但不幼稚
+14. 验证 Offer捕手语气是否亲和但不幼稚
 15. 验证真实性提醒是否专业明确
 16. 验证输出是否适合 Demo 展示
 
@@ -104,7 +104,7 @@
 | 字段 | 存在 | 说明 |
 |------|------|------|
 | optimization_summary | ✅ | 2-3句话，说明优化方向和优先级 |
-| offer_go_summary | ✅ | Offer鹅语气，先结论后原因 |
+| offer_go_summary | ✅ | Offer捕手语气，先结论后原因 |
 | target_job | ✅ | job_id=9, title=软件开发-后台开发方向, department=CDG, category=技术, data_quality=full_jd |
 | screening_focus | ✅ | 3 项，每项含 focus / why_it_matters / related_jd_requirement |
 | priority_suggestions | ✅ | p0=2, p1=2, p2=1 |
@@ -249,7 +249,7 @@
 | expected_effect 是否明确 | ✅ |
 | 是否能指导用户下一步真实行动 | ✅ |
 
-## 17. Offer鹅语气检查
+## 17. Offer捕手语气检查
 
 | 检查项 | 结果 | 说明 |
 |--------|------|------|
@@ -322,7 +322,7 @@
 - ✅ summary_optimization 包含 current_problem / rewrite_direction / example
 - ✅ missing_evidence_plan 全部 should_not_fake=true（2 项）
 - ✅ rewrite_examples 全部 requires_user_verification=true（3 项）
-- ✅ Offer鹅语气亲和专业
+- ✅ Offer捕手语气亲和专业
 - ✅ 真实性提醒完整
 - ✅ 具备 HR 初筛 + 技术面试官 + 简历表达优化三视角
 - ✅ 所有建议围绕目标岗位 JD

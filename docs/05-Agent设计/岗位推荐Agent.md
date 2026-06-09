@@ -129,12 +129,12 @@
 - 当前该 Prompt Template 已登记（4-1.4.4A 人工定稿，4-1.4.4B CodeBuddy 登记）
 - 模板面向"不知道选择哪个岗位"的学生求职场景
 - 模板采用四档推荐：优先投递 / 建议尝试 / 先了解再决定 / 暂不建议
-- 模板包含 Offer鹅展示语气、推荐理由、证据链、风险点、查询建议、下一步行动和真实性提醒
+- 模板包含 Offer捕手展示语气、推荐理由、证据链、风险点、查询建议、下一步行动和真实性提醒
 - 当前仍使用 Mock Agent
 - 当前仍未接入 Go 后端和 Hunyuan
 - **4-1.4.5 已完成：推荐 Prompt 首轮输出验收（partial_pass）**
   - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
-  - 模型输出 JSON 合法，字段完整，证据链真实，Offer鹅语气专业
+  - 模型输出 JSON 合法，字段完整，证据链真实，Offer捕手语气专业
   - 发现轻微问题：四档推荐覆盖不完整，不阻塞后续 Schema 定稿
 - 推荐 Agent 后续将使用：
   - Prompt Template：`server/prompts/recommendation_v1.md`

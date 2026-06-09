@@ -188,9 +188,9 @@ export function Navbar() {
         <Link
           to="/jobs"
           className={`font-brand text-[22px] font-extrabold tracking-[-0.03em] transition-colors duration-200 ${brandClass}`}
-          aria-label="Offerr鹅首页"
+          aria-label="Offer捕手首页"
         >
-          Offerr鹅
+          Offer捕手
         </Link>
 
         <div className="flex items-center gap-5">

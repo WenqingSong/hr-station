@@ -33,7 +33,7 @@
 | 匹配 Mock Agent | server/internal/agent/match_mock.go | 规则打分 + 证据链 |
 | 版本对比 Mock Agent | server/internal/agent/version_compare_mock.go | 字段差异对比 |
 | 匹配分析 Prompt | server/prompts/match_analysis_v1.md | HR初筛+技术面试官双视角 |
-| 推荐 Prompt | server/prompts/recommendation_v1.md | 四档推荐+Offer鹅语气 |
+| 推荐 Prompt | server/prompts/recommendation_v1.md | 四档推荐+Offer捕手语气 |
 | 简历优化 Prompt | server/prompts/resume_optimization_v1.md | P0/P1/P2+关键词对齐 |
 | JSON 修复 Prompt | server/prompts/json_repair_v1.md | 只修结构不重做业务 |
 | 匹配分析 Schema | server/prompts/schema/match_analysis_schema.json | 17 required 字段 |

@@ -150,7 +150,7 @@ export function JobDetailJD() {
             </section>
           )}
 
-          {/* ── 投递说明（Offerr鹅增强，弱化展示） ── */}
+          {/* ── 投递说明（Offer捕手增强，弱化展示） ── */}
           <section className="bg-blue-50/40 border border-blue-100/40 rounded-lg p-4">
             <h2 className="text-[13px] font-semibold text-gray-700 mb-1.5">投递说明</h2>
             <p className="text-[12px] text-gray-500 leading-relaxed">

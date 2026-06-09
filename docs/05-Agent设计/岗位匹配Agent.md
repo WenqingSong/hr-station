@@ -125,7 +125,7 @@
 
 - 匹配分析 Agent 后续将使用 `server/prompts/match_analysis_v1.md`
 - 当前该 Prompt Template 已登记（4-1.4.1A 人工定稿，4-1.4.1B CodeBuddy 登记）
-- 模板包含 HR 初筛 + 技术面试官双视角、Offer鹅语气、证据链、P0/P1/P2 优化建议、面试追问预测和真实性提醒
+- 模板包含 HR 初筛 + 技术面试官双视角、Offer捕手语气、证据链、P0/P1/P2 优化建议、面试追问预测和真实性提醒
 - 当前仍使用 Mock Agent
 - **4-1.4.2 已完成：匹配分析 Prompt 首轮输出验收**
   - 验收结论：partial_pass

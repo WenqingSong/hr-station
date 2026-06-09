@@ -40,7 +40,7 @@
 | 无首页/查公司/招聘活动/关键问答 | ✅ | — | |
 | 无中文/En/English/Beta | ✅ | — | |
 | 无头像/用户名/下拉菜单 | ✅ | — | |
-| 无Offer鹅/AI聊天入口 | ✅ | — | |
+| 无Offer捕手/AI聊天入口 | ✅ | — | |
 | Navbar跳转 `/resumes` | ✅ | `Navbar.tsx` `to="/resumes"` | |
 
 ## 5. 路由验收

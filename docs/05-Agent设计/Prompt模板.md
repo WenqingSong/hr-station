@@ -10,12 +10,12 @@ Prompt 将作为独立产品资产管理：
 - 目录 `server/prompts/`（替代原 `server/internal/agent/prompts/` 规划）
 - ✅ `match_analysis_v1.md` 已登记 — Match Analysis Agent Prompt Template（4-1.4.1A 人工定稿，4-1.4.1B CodeBuddy 登记）
   - 模板包含 HR 初筛 + 技术面试官双视角
-  - 模板包含 Offer鹅展示语气、证据链、P0/P1/P2 优化建议、面试追问预测和真实性提醒
+  - 模板包含 Offer捕手展示语气、证据链、P0/P1/P2 优化建议、面试追问预测和真实性提醒
   - 模板要求严格 JSON 输出，包含完整 JSON 结构定义和枚举约束
   - 当前尚未接入 Go 后端和 Hunyuan
   - **4-1.4.2 首轮输出验收结论：partial_pass**
     - JSON 输出合法，17 个顶层字段完整，枚举值全部合法
-    - 证据链真实引用 JD 和简历，Offer鹅语气亲和专业，分数克制（72 分）
+    - 证据链真实引用 JD 和简历，Offer捕手语气亲和专业，分数克制（72 分）
     - 发现问题：rewrite_example 中少量具体数字超出简历事实，证据链缺少 missing 判断
     - 问题不阻塞进入 4-1.4.3A JSON Schema 定稿
     - 验收报告见 `docs/05-Agent设计/匹配分析Prompt首轮输出验收报告.md`
@@ -33,10 +33,10 @@ Prompt 将作为独立产品资产管理：
   - 该模板由人工定稿，CodeBuddy 只登记和检查，不重写核心 Prompt
   - 模板面向"不知道选择哪个岗位"的学生求职场景
   - 模板采用四档推荐：优先投递 / 建议尝试 / 先了解再决定 / 暂不建议
-  - 模板包含 Offer鹅展示语气、推荐理由、证据链、风险点、查询建议、下一步行动和真实性提醒
+  - 模板包含 Offer捕手展示语气、推荐理由、证据链、风险点、查询建议、下一步行动和真实性提醒
   - **4-1.4.5 首轮输出验收结论：partial_pass**
     - JSON 输出合法，7 个顶层字段完整，4 个推荐项各含 19 个必要字段
-    - 证据链真实引用 JD 和简历，Offer鹅语气亲和专业，分数克制（88/42/35/33）
+    - 证据链真实引用 JD 和简历，Offer捕手语气亲和专业，分数克制（88/42/35/33）
     - 发现问题：四档推荐覆盖不完整（仅使用 priority_apply 和 not_recommended 两档），岗位 13 分类偏保守
     - 问题不阻塞进入 4-1.4.6A 推荐 Schema 定稿
     - 验收报告见 `docs/05-Agent设计/推荐Prompt首轮输出验收报告.md`
@@ -60,7 +60,7 @@ Prompt 将作为独立产品资产管理：
     - P0/P1/P2 优化建议具体且围绕目标岗位（p0=2, p1=2, p2=1）
     - keyword_alignment 正确区分 present/partial/missing（7 项）
     - rewrite_examples 全部 requires_user_verification=true，保守但正确
-    - Offer鹅语气亲和专业，真实性提醒完整
+    - Offer捕手语气亲和专业，真实性提醒完整
     - 发现轻微问题：rewrite_examples 全部需要用户确认，无直接可用示例
     - 问题不阻塞进入 4-1.4.9A 简历优化 Schema 定稿
     - 验收报告见 `docs/05-Agent设计/简历优化Prompt首轮输出验收报告.md`

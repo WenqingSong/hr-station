@@ -200,7 +200,7 @@ export function JobRecommendationPage() {
     <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-[22px] font-semibold text-gray-900 flex items-center gap-2"><Sparkles className="w-5 h-5 text-[#0052D9]" />Offerr鹅岗位推荐</h1>
+        <h1 className="text-[22px] font-semibold text-gray-900 flex items-center gap-2"><Sparkles className="w-5 h-5 text-[#0052D9]" />Offer捕手岗位推荐</h1>
         <p className="mt-1.5 text-sm text-gray-500">基于简历 <span className="font-medium text-gray-700">{displayName}</span>（ID:{selectedOption.id}），从岗位池中推荐 Top 5 岗位。</p>
         <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-gray-500">
           <span className="flex items-center gap-1.5 text-[#0052D9] font-medium">{headerLabel}</span>

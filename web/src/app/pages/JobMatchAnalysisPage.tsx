@@ -251,7 +251,7 @@ export function JobMatchAnalysisPage() {
       <AgentStepLoadingOverlay
         open={phase === "deep_loading"}
         title="正在深度匹配分析"
-        description="Offerr鹅正在结合简历定位、岗位要求和匹配证据，生成完整分析报告。"
+        description="Offer捕手正在结合简历定位、岗位要求和匹配证据，生成完整分析报告。"
         steps={[
           { key: "profile", label: "读取简历定位与技能信息" },
           { key: "requirements", label: "拆解岗位要求" },

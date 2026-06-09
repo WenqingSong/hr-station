@@ -38,7 +38,7 @@ export function ResumeEditorSaveCard({
             {isAdd ? "创建简历" : "保存简历"}
           </h2>
           <p className="text-[13px] text-slate-500 leading-relaxed">
-            保存后，Offerr鹅 会基于最新保存版本进行岗位推荐、匹配分析和优化建议。
+            保存后，Offer捕手 会基于最新保存版本进行岗位推荐、匹配分析和优化建议。
           </p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">

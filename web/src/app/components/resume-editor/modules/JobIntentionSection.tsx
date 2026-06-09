@@ -26,7 +26,7 @@ export function JobIntentionSection({
   return (
     <ResumeEditorSectionCard
       title="求职意向"
-      description="如果你已经有明确方向，可以填写；暂时不确定也可以留空，Offerr鹅 会基于教育、技能和项目经历推荐适合的岗位。"
+      description="如果你已经有明确方向，可以填写；暂时不确定也可以留空，Offer捕手 会基于教育、技能和项目经历推荐适合的岗位。"
       badge="推荐"
       defaultOpen={true}
       {...rest}
