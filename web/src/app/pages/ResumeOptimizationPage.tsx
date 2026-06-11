@@ -294,13 +294,14 @@ export function ResumeOptimizationPage() {
 
     setPhase("deep_loading");
     setDeepBackendDone(false);
+    const abort = new AbortController();
     const genInput = {
       optimization_mode: derivedMode,
       generation_tier: "quality" as GenerationTier,
     } as any;
     if (derivedMode === "target_direction") genInput.target_direction = targetDirection || "";
     if (derivedMode === "target_job") genInput.job_id = parsedJobId;
-    loadGenerateOptimizationV2ViewModel(rid, genInput)
+    loadGenerateOptimizationV2ViewModel(rid, genInput, abort.signal)
       .then((r) => {
         setActiveResult(r);
         setActiveTier("quality");
@@ -308,6 +309,9 @@ export function ResumeOptimizationPage() {
         setDeepBackendDone(true);
       })
       .catch(() => setPhase("deep_error"));
+    // K13-Stability-A: auto-abort after 90s to stay under backend LLM_TIMEOUT_SECONDS=120
+    const timer = setTimeout(() => abort.abort(), 90000);
+    abort.signal.addEventListener("abort", () => clearTimeout(timer));
   };
 
   const handleReselect = () => {

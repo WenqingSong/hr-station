@@ -37,12 +37,24 @@ func resolveDir(baseDir string) string {
 
 // mapping maps each PromptName to its file name relative to baseDir.
 var mapping = map[PromptName]string{
-	PromptMatchAnalysis:      "match_analysis_v1.md",
-	PromptRecommendation:     "recommendation_v1.md",
-	PromptResumeOptimization: "resume_optimization_v1.md",
-	PromptJSONRepair:         "json_repair_v1.md",
-	PromptVersionCompare:     "version_compare_v1.md",
+	PromptMatchAnalysis:          "match_analysis_v1.md",
+	PromptRecommendation:         "recommendation_v1.md",
+	PromptResumeOptimization:     "resume_optimization_v1.md",
+	PromptJSONRepair:             "json_repair_v1.md",
+	PromptVersionCompare:         "version_compare_v1.md",
 	PromptResumeOptimizationCore: "resume_optimization_core_v1.md",
+	// K13-Fix-C1: Deep recommendation 3-agent prompts
+	PromptRecommendationDecision: "recommendation_decision_v1.md",
+	PromptRecommendationVerifier: "recommendation_verifier_v1.md",
+	// K13-Fix-C2: Deep match 3-agent prompts
+	PromptMatchDecision: "match_decision_v1.md",
+	PromptMatchVerifier: "match_verifier_v1.md",
+	// K13-Fix-C3: Deep optimization 3-agent prompts
+	PromptOptimizationDecision: "optimization_decision_v1.md",
+	PromptOptimizationVerifier: "optimization_verifier_v1.md",
+	// K13-Fix-C4: Deep compare 3-agent prompts
+	PromptCompareDecision: "compare_decision_v1.md",
+	PromptCompareVerifier: "compare_verifier_v1.md",
 }
 
 // Loader loads Prompt template files from a configured directory.

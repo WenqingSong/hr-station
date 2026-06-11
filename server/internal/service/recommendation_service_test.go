@@ -157,7 +157,7 @@ func TestRecService_LLM_Success(t *testing.T) {
 	}
 
 	// Verify service construction with nil repos (same as match test)
-	_ = NewRecommendationService(nil, nil, nil, agent.NewRecommendationMockAgent(), runner, runner, true, true, true, nil)
+	_ = NewRecommendationService(nil, nil, nil, agent.NewRecommendationMockAgent(), runner, runner, true, true, true, nil, nil)
 
 	// Test the LLM agent directly (same pattern as match_service_test.go)
 	llmAgent := agent.NewRecommendationAgent(runner)
@@ -315,7 +315,7 @@ func TestRecService_LLM_FallbackRequired(t *testing.T) {
 
 func TestRecService_LLMDisabled_UseMock(t *testing.T) {
 	// When LLM is disabled, service construction should work with nil pipelineRunner
-	svc := NewRecommendationService(nil, nil, nil, agent.NewRecommendationMockAgent(), nil, nil, false, true, true, nil)
+	svc := NewRecommendationService(nil, nil, nil, agent.NewRecommendationMockAgent(), nil, nil, false, true, true, nil, nil)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 	}
@@ -464,7 +464,7 @@ func TestRecService_EmptyRecommendations_Fallback(t *testing.T) {
 
 func TestRecService_RequestParamValidation(t *testing.T) {
 	// Verify service construction and limit capping logic
-	svc := NewRecommendationService(nil, nil, nil, agent.NewRecommendationMockAgent(), nil, nil, false, true, true, nil)
+	svc := NewRecommendationService(nil, nil, nil, agent.NewRecommendationMockAgent(), nil, nil, false, true, true, nil, nil)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 	}

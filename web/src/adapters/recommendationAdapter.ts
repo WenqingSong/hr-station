@@ -94,6 +94,7 @@ function getScoreLabel(score: number): string {
 
 function getSource(generatedBy?: string): RecommendationSource {
   if (!generatedBy) return "unknown";
+  if (generatedBy === "fast_tag_engine") return "mock";
   if (generatedBy === "mock_agent") return "mock";
   if (generatedBy === "mock_quality") return "deep_llm";
   if (generatedBy === "llm_agent") return "deep_llm";
@@ -103,6 +104,7 @@ function getSource(generatedBy?: string): RecommendationSource {
 
 function getSourceLabel(source: RecommendationSource, generatedBy?: string, isQuality?: boolean): string {
   // K9-1-T-D: product-friendly labels — never show "演示数据"
+  if (generatedBy === "fast_tag_engine") return "快速推荐 · 标签匹配";
   if (generatedBy === "mock_agent") return "快速推荐 · 规则推荐";
   if (generatedBy === "mock_quality") return "深度推荐 · 规则兜底";
   if (generatedBy === "llm_agent" || generatedBy?.startsWith("llm")) return "深度推荐 · AI生成";

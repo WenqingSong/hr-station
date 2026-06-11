@@ -18,15 +18,36 @@ const (
 	// TargetCompare indicates a version compare output.
 	TargetCompare TargetOutputType = "version_compare"
 	TargetResumeOptimizationCore TargetOutputType = "resume_optimization_core"
+	// K13-Fix-C1: Deep recommendation 3-agent targets
+	TargetRecommendationDecision TargetOutputType = "recommendation_decision"
+	TargetRecommendationVerifier TargetOutputType = "recommendation_verifier"
+	// K13-Fix-C2: Deep match 3-agent targets
+	TargetMatchDecision TargetOutputType = "match_decision"
+	TargetMatchVerifier TargetOutputType = "match_verifier"
+	// K13-Fix-C3: Deep optimization 3-agent targets
+	TargetOptimizationDecision TargetOutputType = "optimization_decision"
+	TargetOptimizationVerifier TargetOutputType = "optimization_verifier"
+	// K13-Fix-C4: Deep compare 3-agent targets
+	TargetCompareDecision TargetOutputType = "compare_decision"
+	TargetCompareVerifier TargetOutputType = "compare_verifier"
 )
 
 // validTargetOutputTypes contains all allowed TargetOutputType values.
 var validTargetOutputTypes = map[TargetOutputType]bool{
-	TargetMatchAnalysis:      true,
-	TargetRecommendation:     true,
-	TargetResumeOptimization: true,
-	TargetCompare:                true,
-	TargetResumeOptimizationCore: true,
+	TargetMatchAnalysis:           true,
+	TargetRecommendation:          true,
+	TargetResumeOptimization:      true,
+	TargetCompare:                 true,
+	TargetResumeOptimizationCore:  true,
+	TargetRecommendationDecision:  true,
+	TargetRecommendationVerifier:  true,
+	TargetMatchDecision:           true,
+	TargetMatchVerifier:           true,
+	TargetOptimizationDecision:    true,
+	TargetOptimizationVerifier:    true,
+	// K13-Fix-C4
+	TargetCompareDecision:         true,
+	TargetCompareVerifier:         true,
 }
 
 // AgentStatus describes the outcome of a pipeline run.

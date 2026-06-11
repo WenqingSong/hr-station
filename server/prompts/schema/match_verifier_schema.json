@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["generated_by", "score", "level"],
+  "properties": {
+    "generated_by": { "type": "string" },
+    "agent_status": { "type": "string" },
+    "fallback": { "type": "boolean" },
+    "fallback_reason": { "type": "string" },
+    "repair_applied": { "type": "boolean" },
+    "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "level": { "type": "string" },
+    "summary": { "type": "string" },
+    "confidence": { "type": "string" },
+    "matched_points": { "type": "array" },
+    "gap_points": { "type": "array" },
+    "risk_points": { "type": "array" },
+    "improvement_suggestions": { "type": "array" }
+  }
+}

@@ -6,6 +6,8 @@ import (
 	apperror "offer-catcher/server/internal/errors"
 	"fmt"
 	"log"
+	"math"
+	"strings"
 	"time"
 
 	"offer-catcher/server/internal/agent"
@@ -61,6 +63,7 @@ type RecommendationService struct {
 	fallbackEnable     bool
 	enableMockAgent    bool
 	profileSvc         *ResumeProfileService
+	tagEvidence        *TagEvidenceService // K13-Fix-B: Fast 统一使用 Tag/Evidence
 }
 
 // NewRecommendationService creates a new RecommendationService.
@@ -75,6 +78,7 @@ func NewRecommendationService(
 	fallbackEnable bool,
 	enableMockAgent bool,
 	profileSvc *ResumeProfileService,
+	tagEvidence *TagEvidenceService,
 ) *RecommendationService {
 	return &RecommendationService{
 		resumeRepo:         resumeRepo,
@@ -87,6 +91,7 @@ func NewRecommendationService(
 		fallbackEnable:     fallbackEnable,
 		enableMockAgent:    enableMockAgent,
 		profileSvc:         profileSvc,
+		tagEvidence:        tagEvidence,
 	}
 }
 
@@ -171,7 +176,6 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 }
 
 func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64, req RecommendationRequest, profileType, profileDominant, profileSource string) (*RecommendationResponse, error) {
-	runner := s.selectRunner(req.GenerationTier)
 	resume, err := s.getResume(ctx, userID, req)
 	if err != nil {
 		return nil, err
@@ -185,30 +189,52 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 		return nil, apperror.ErrJobNotFound
 	}
 
-	// Try LLM Pipeline
-	if s.llmEnabled && runner != nil {
-		log.Printf("[RecommendationService] use_llm=true tier=%s", string(req.GenerationTier))
+	// K13-Fix-B: Fast tier uses TagEvidenceService (no LLM)
+	isFast := req.GenerationTier != model.GenerationTierQuality
+
+	if isFast && s.tagEvidence != nil {
+		log.Printf("[RecommendationService] use_fast_tag_engine tier=%s resume=%d", req.GenerationTier, req.ResumeID)
+		resp, err := s.fastRecommendWithTags(ctx, userID, resume, jobs, req.Limit, profileType, profileDominant, profileSource)
+		if err == nil {
+			return resp, nil
+		}
+		log.Printf("[RecommendationService] fast tag engine failed: %v, falling back to mock", err)
+	}
+
+	// K13-Fix-B: Deep/Quality tier uses LLM pipeline
+	runner := s.selectRunner(req.GenerationTier)
+	isQuality := req.GenerationTier == model.GenerationTierQuality
+
+	if isQuality && s.llmEnabled && runner != nil {
+		// K13-Fix-C1: Try 3-agent pipeline first (for true Deep recommendation)
+		if s.tagEvidence != nil {
+			log.Printf("[RecommendationService] use_deep_3agent tier=%s resume=%d", req.GenerationTier, req.ResumeID)
+			resp, err3a := s.recommendWith3Agents(ctx, userID, resume, jobs, req.Limit, runner, profileType, profileDominant, profileSource)
+			if err3a == nil {
+				return resp, nil
+			}
+			log.Printf("[RecommendationService] 3-agent pipeline failed: %v, falling back to old LLM path", err3a)
+		}
+
+		// Fall back to old single-agent LLM pipeline
+		log.Printf("[RecommendationService] use_deep_llm tier=%s", req.GenerationTier)
 		resp, fallbackErr := s.recommendWithLLM(ctx, userID, resume, jobs, req.Limit, runner)
 		if fallbackErr == nil {
 			s.fillProfileFields(resp, profileType, profileDominant, profileSource)
 			return resp, nil
 		}
 		log.Printf("[RecommendationService] LLM pipeline fallback: %v", fallbackErr)
-
-		// K13-Fix-1: Check fallback enable flag
 		if !s.fallbackEnable {
 			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
 		}
-
 		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, false, profileType, profileDominant, profileSource)
 	}
 
-	// LLM disabled — check if mock is allowed
+	// Fallback to mock agent
 	if !s.enableMockAgent {
-		return nil, apperror.New(apperror.CodeInternal, "LLM is disabled and ENABLE_MOCK_AGENT=false, no generation path available", 500)
+		return nil, apperror.New(apperror.CodeInternal, "no generation path available", 500)
 	}
-
-	log.Printf("[RecommendationService] use_llm=false use_mock=true tier=%s", string(req.GenerationTier))
+	log.Printf("[RecommendationService] use_mock_fallback tier=%s", req.GenerationTier)
 	qualityMode := req.GenerationTier == model.GenerationTierQuality
 	return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, nil, qualityMode, profileType, profileDominant, profileSource)
 }
@@ -534,6 +560,210 @@ func (s *RecommendationService) GetLatestRecommendation(ctx context.Context, use
 		CreatedAt:              latest.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Result:                 resultData,
 	}, nil
+}
+
+// ─── K13-Fix-B: Fast Recommendation via TagEvidenceService ───────────────
+
+// fastRecommendWithTags generates Fast-tier recommendations using TagEvidenceService.
+// No LLM call — uses RecallJobsByTags + tag matrix scoring.
+func (s *RecommendationService) fastRecommendWithTags(ctx context.Context, userID uint64, resume *model.ResumeVersion, allJobs []*model.Job, limit int, profileType, profileDominant, profileSource string) (*RecommendationResponse, error) {
+	// 1. Ensure tag profile for this resume
+	if s.tagEvidence == nil {
+		return nil, fmt.Errorf("tag evidence service not available")
+	}
+	_, err := s.tagEvidence.EnsureResumeTagProfile(ctx, resume.ID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("fast recommend: %w", err)
+	}
+
+	// 2. Build job map for title lookup
+	jobMap := make(map[uint64]*model.Job)
+	for _, j := range allJobs {
+		jobMap[j.ID] = j
+	}
+
+	// 3. Recall top candidates
+	candidates, err := s.tagEvidence.RecallJobsByTags(ctx, resume.ID, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("fast recommend: recall: %w", err)
+	}
+
+	// 4. Build RecommendedJob entries from candidates
+	var recommended []*model.RecommendedJob
+	for i, c := range candidates {
+		if i >= limit {
+			break
+		}
+		// Fill title/department/city from job lookup
+		title, dept, city := "", "", ""
+		if j, ok := jobMap[c.JobID]; ok {
+			title, dept, city = j.Title, j.Department, j.City
+		}
+		// Scale tagScore (count-based, typically 1-50) to 70-95 range
+		scaledScore := int(math.Min(95, math.Max(70, 70 + c.TagScore*0.5)))
+		rec := &model.RecommendedJob{
+			JobID:               c.JobID,
+			Title:               title,
+			Department:          dept,
+			City:                city,
+			Category:            c.Category,
+			JobType:             "",
+			RecommendationScore: scaledScore,
+			RecommendationReason: buildFastRecommendReason(c),
+			RecommendationLabel:  buildFastLabel(c.TagScore),
+			RecommendationPriority: buildFastPriority(c.TagScore),
+			MatchHighlights:     c.MatchedTags,
+			RiskPoints:          c.MissingTags,
+			SuggestedAction:     "建议查看岗位详情，进行匹配分析",
+			GeneratedBy:         "fast_tag_engine",
+			AgentStatus:         "success",
+			FallbackReason:      "none",
+			RepairApplied:       false,
+			DataQuality:         "rule",
+			ResumeEvidence:      c.EvidenceRefs,
+		}
+		recommended = append(recommended, rec)
+	}
+
+	// 4. Build response
+	summary := fmt.Sprintf("基于 %d 个岗位标签匹配，共推荐 %d 个岗位", len(allJobs), len(recommended))
+	meta := model.AgentResponseMeta{
+		AgentName:      "FastRecommendationEngine",
+		GeneratedBy:    "fast_tag_engine",
+		AgentStatus:    "success",
+		FallbackReason: "none",
+		RepairApplied:  false,
+		SchemaValid:    true,
+	}
+
+	now := time.Now().Format("2006-01-02T15:04:05Z07:00")
+	resp := &RecommendationResponse{
+		ResumeVersionID:       resume.ID,
+		ResumeID:              resume.ID,
+		GeneratedBy:           "fast_tag_engine",
+		RecommendedJobs:       recommended,
+		Summary:               summary,
+		CreatedAt:             now,
+		Meta:                  meta,
+		GenerationTier:        "fast",
+		PipelineMode:          "fast_tag_engine",
+		ProfileStatus:         "ready",
+		ProfileType:           profileType,
+		ProfileSource:         profileSource,
+		ProfileDominantProfile: profileDominant,
+	}
+
+	s.fillProfileFields(resp, profileType, profileDominant, profileSource)
+	return resp, nil
+}
+
+// ─── K13-Fix-C1: Deep Recommendation via 3-Agent Pipeline ───────────────
+
+// recommendWith3Agents implements the Deep recommendation using 3 physical agents:
+// Agent 1: Context/Tag/Evidence (rule-based)
+// Agent 2: Decision/Generation (LLM)
+// Agent 3: Verifier/Frontend-Contract (LLM)
+func (s *RecommendationService) recommendWith3Agents(ctx context.Context, userID uint64, resume *model.ResumeVersion, allJobs []*model.Job, limit int, runner agent.PipelineRunner, profileType, profileDominant, profileSource string) (*RecommendationResponse, error) {
+	// Prepare TagEvidenceService data
+	rp, err := s.tagEvidence.EnsureResumeTagProfile(ctx, resume.ID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("3agent: resume profile: %w", err)
+	}
+
+	jps, err := s.tagEvidence.GetAllJobTagProfiles(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("3agent: job profiles: %w", err)
+	}
+
+	// Build job map for title lookup
+	jobMap := make(map[uint64]*model.Job)
+	for _, j := range allJobs {
+		jobMap[j.ID] = j
+	}
+
+	// Run 3-agent pipeline
+	result, err := agent.RunDeepRecommendation3Agents(ctx, rp, jps, jobMap, runner, runner)
+	if err != nil {
+		return nil, fmt.Errorf("3agent: %w", err)
+	}
+
+	// Build RecommendedJob entries from final output
+	var recommended []*model.RecommendedJob
+	for _, item := range result.FinalOutput.Items {
+		if len(recommended) >= limit {
+			break
+		}
+		title, dept, city := item.Title, "", ""
+		if j, ok := jobMap[item.JobID]; ok {
+			title, dept, city = j.Title, j.Department, j.City
+		}
+		rec := &model.RecommendedJob{
+			JobID:                item.JobID,
+			Title:                title,
+			Department:           dept,
+			City:                 city,
+			RecommendationScore:  item.RecommendationScore,
+			RecommendationReason: item.RecommendationReason,
+			RecommendationLabel:  item.RecommendationLevel,
+			RecommendationPriority: item.RecommendationLevel,
+			MatchHighlights:      item.MatchHighlights,
+			RiskPoints:           item.RiskPoints,
+			ResumeEvidence:       item.ResumeEvidence,
+			SuggestedAction:      item.SuggestedAction,
+			ApplyReadiness:       item.OptimizationSignal,
+			GeneratedBy:          result.FinalOutput.GeneratedBy,
+			AgentStatus:          result.FinalOutput.AgentStatus,
+			RepairApplied:        result.FinalOutput.RepairApplied,
+			DataQuality:          "llm",
+		}
+		recommended = append(recommended, rec)
+	}
+
+	meta := model.AgentResponseMeta{
+		AgentName:   "DeepRecommendationEngine",
+		GeneratedBy: result.FinalOutput.GeneratedBy,
+		AgentStatus: result.FinalOutput.AgentStatus,
+		RepairApplied: result.FinalOutput.RepairApplied,
+	}
+
+	now := time.Now().Format("2006-01-02T15:04:05Z07:00")
+	resp := &RecommendationResponse{
+		ResumeVersionID:        resume.ID,
+		ResumeID:               resume.ID,
+		GeneratedBy:            result.FinalOutput.GeneratedBy,
+		RecommendedJobs:        recommended,
+		Summary:                "",
+		CreatedAt:              now,
+		Meta:                   meta,
+		GenerationTier:         "quality",
+		PipelineMode:           "deep_3agent",
+		ProfileStatus:          "ready",
+		ProfileType:            profileType,
+		ProfileSource:          profileSource,
+		ProfileDominantProfile: profileDominant,
+	}
+
+	s.fillProfileFields(resp, profileType, profileDominant, profileSource)
+	return resp, nil
+}
+
+func buildFastRecommendReason(c model.JobCandidate) string {
+	if len(c.MatchedTags) > 0 {
+		return fmt.Sprintf("标签匹配：%s", strings.Join(c.MatchedTags[:min(3, len(c.MatchedTags))], "、"))
+	}
+	return "该岗位可能与你的简历方向存在潜在匹配"
+}
+
+func buildFastLabel(score float64) string {
+	if score >= 15 { return "强匹配" }
+	if score >= 8 { return "较高匹配" }
+	return "可关注"
+}
+
+func buildFastPriority(score float64) string {
+	if score >= 15 { return "strong" }
+	if score >= 8 { return "high" }
+	return "try"
 }
 
 func convertProfileTags(tags []model.ProfileTag) []agent.StoredTag {

@@ -28,6 +28,8 @@ export interface AgentStepLoadingOverlayProps {
   finishStepIntervalMs?: number;
   /** Hold time after all steps done (ms) */
   successHoldMs?: number;
+  /** K13-Stability-A: max total duration before auto-finish (ms). Default 90s to stay under backend's 120s LLM timeout. */
+  maxDurationMs?: number;
   /** Error state — shows error icon and text */
   error?: boolean;
   errorText?: string;
@@ -44,6 +46,7 @@ const DEFAULT_STEP_INTERVAL = 650;
 const DEFAULT_FINISH_STEP_INTERVAL = 260;
 const DEFAULT_MIN_VISIBLE = 1800;
 const DEFAULT_SUCCESS_HOLD = 420;
+const DEFAULT_MAX_DURATION_MS = 90000; // 90s — under backend LLM_TIMEOUT_SECONDS=120
 
 // ─── Component ─────────────────────────────────────────────────────────
 
@@ -58,6 +61,7 @@ export function AgentStepLoadingOverlay({
   stepIntervalMs: stepIntervalMsProp,
   finishStepIntervalMs: finishStepIntervalMsProp,
   successHoldMs: successHoldMsProp,
+  maxDurationMs = DEFAULT_MAX_DURATION_MS,
   error,
   errorText,
 
@@ -158,6 +162,22 @@ export function AgentStepLoadingOverlay({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [open, backendDone, finished, activeIdx, steps.length, stepIntervalMs]);
+
+  // K13-Stability-A: Safety timeout — if backend never responds, auto-finish after maxDurationMs
+  useEffect(() => {
+    if (!open || backendDone || finished) return;
+    const maxTimer = setTimeout(() => {
+      if (!backendDone && !finished) {
+        // Force finish: mark all steps done and call onFinish
+        setActiveIdx(steps.length - 1);
+        setFinished(true);
+        setTimeout(() => {
+          if (onFinish) onFinish();
+        }, successHoldMs);
+      }
+    }, maxDurationMs);
+    return () => clearTimeout(maxTimer);
+  }, [open, backendDone, finished, maxDurationMs, steps.length, successHoldMs, onFinish]);
 
   // Cleanup
   useEffect(() => {

@@ -234,7 +234,7 @@ export async function loadLatestCompareV2ViewModel(params: {
 export async function loadCompareV2ViewModel(input: {
   fromResumeId: number; toResumeId: number; comparisonMode?: string;
   generationTier?: string; targetDirection?: string; jobId?: number;
-}): Promise<CompareV2ViewModel> {
+}, signal?: AbortSignal): Promise<CompareV2ViewModel> {
   const raw = await generateResumeCompare({
     from_resume_id: input.fromResumeId,
     to_resume_id: input.toResumeId,
@@ -242,7 +242,7 @@ export async function loadCompareV2ViewModel(input: {
     generation_tier: input.generationTier || 'fast',
     target_direction: input.targetDirection,
     job_id: input.jobId,
-  });
+  }, signal);
   return mapCompareV2(raw);
 }
 
@@ -333,8 +333,9 @@ export async function loadRecommendationViewModel(
 export async function loadMatchAnalysisViewModel(
   jobId: string,
   input?: Partial<MatchAnalysisRequest>,
+  signal?: AbortSignal,
 ): Promise<MatchAnalysisPageViewModel> {
-  const response = await runMatchAnalysis(jobId, input);
+  const response = await runMatchAnalysis(jobId, input, signal);
   return toMatchAnalysisPageViewModel(response.result, response.meta);
 }
 
@@ -363,7 +364,7 @@ export async function loadLatestMatchViewModel(jobId: string, resumeId: number):
     return { hasResult: false };
   }
   const result = raw.result
-    ? toMatchAnalysisPageViewModel(raw.result, { generated_by: raw.generated_by || "mock_agent" } as any)
+    ? toMatchAnalysisPageViewModel(raw.result, { generated_by: raw.generated_by || "fast_tag_engine" } as any)
     : undefined;
   return {
     hasResult: true,
@@ -484,7 +485,8 @@ export async function loadLatestOptimizationV2ViewModel(
 export async function loadGenerateOptimizationV2ViewModel(
   resumeId: number,
   input: GenerateOptimizationRequest,
+  signal?: AbortSignal,
 ): Promise<OptimizationV2ViewModel> {
-  const raw = await generateResumeOptimization(resumeId, input);
+  const raw = await generateResumeOptimization(resumeId, input, signal);
   return mapOptV2(raw);
 }

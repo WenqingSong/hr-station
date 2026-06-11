@@ -30,7 +30,7 @@ func (f *fakeResumeOptSvcPipelineRunner) Run(_ context.Context, _ pipeline.RunRe
 
 func TestResumeOptimizationService_Optimize_NormalRequest(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go、MySQL、Redis，参与过后台管理系统开发，负责用户模块和权限模块的接口开发。",
@@ -64,7 +64,7 @@ func TestResumeOptimizationService_Optimize_NormalRequest(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_EmptyResumeText(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "",
@@ -84,7 +84,7 @@ func TestResumeOptimizationService_Optimize_EmptyResumeText(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_NoTargetJob(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go 开发",
@@ -101,7 +101,7 @@ func TestResumeOptimizationService_Optimize_NoTargetJob(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_NoTitleOrJDText(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go 开发",
@@ -119,7 +119,7 @@ func TestResumeOptimizationService_Optimize_NoTitleOrJDText(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_ShortResumeInsufficientInfo(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "学生",
@@ -140,7 +140,7 @@ func TestResumeOptimizationService_Optimize_ShortResumeInsufficientInfo(t *testi
 
 func TestResumeOptimizationService_Optimize_WithUserIntention(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go 和 MySQL，做过项目。",
@@ -165,7 +165,7 @@ func TestResumeOptimizationService_Optimize_WithUserIntention(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_TopFixItemsMax3(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go，做过后台项目，了解 MySQL 和 Redis。",
@@ -187,7 +187,7 @@ func TestResumeOptimizationService_Optimize_TopFixItemsMax3(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_NoSuggestChangeTo(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "做过一些 Go 项目",
@@ -214,7 +214,7 @@ func TestResumeOptimizationService_Optimize_NoSuggestChangeTo(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_NoFabricatedMetrics(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go，做过项目。",
@@ -238,7 +238,7 @@ func TestResumeOptimizationService_Optimize_NoFabricatedMetrics(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_WithJDTextOnly(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go 开发，做过后台管理系统",
@@ -259,7 +259,7 @@ func TestResumeOptimizationService_Optimize_WithJDTextOnly(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_WithTitleOnly(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go 开发",
@@ -280,7 +280,7 @@ func TestResumeOptimizationService_Optimize_WithTitleOnly(t *testing.T) {
 
 func TestResumeOptimizationService_Optimize_WhitespaceOnlyResumeText(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "   ",
@@ -303,7 +303,7 @@ func TestResumeOptimizationService_LLMDisabled_UseMock(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
 	// llmEnabled=false — should use Mock regardless of pipelineRunner
 	runner := &fakeResumeOptSvcPipelineRunner{}
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, runner, runner, false, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, runner, runner, false, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go 开发，做过后台系统",
@@ -337,7 +337,7 @@ func TestResumeOptimizationService_LLMEnabled_PipelineSuccess(t *testing.T) {
 			FallbackRequired: false,
 		},
 	}
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, runner, runner, true, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, runner, runner, true, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go 开发，做过项目",
@@ -374,7 +374,7 @@ func TestResumeOptimizationService_LLMEnabled_PipelineFallbackToMock(t *testing.
 			ErrorMessage:     "timeout",
 		},
 	}
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, runner, runner, true, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, runner, runner, true, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go 开发，做过后台系统",
@@ -414,7 +414,7 @@ func TestResumeOptimizationService_LLMEnabled_PipelineFallbackToMock(t *testing.
 func TestResumeOptimizationService_LLMEnabled_NilRunner_UseMock(t *testing.T) {
 	mockAgent := agent.NewResumeOptimizationMockAgent()
 	// pipelineRunner is nil — should fall back to Mock
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, true, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, nil, nil, true, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go 开发",
@@ -443,7 +443,7 @@ func TestResumeOptimizationService_LLMFallback_PreservesTopFixItems(t *testing.T
 			ErrorCode:        "SCHEMA_VALIDATION_FAILED",
 		},
 	}
-	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, runner, runner, true, true, true)
+	svc := NewResumeOptimizationService(nil, nil, nil, mockAgent, runner, runner, true, true, true, nil)
 
 	req := ResumeOptimizationRequest{
 		ResumeText: "熟悉 Go、MySQL，做过后台系统开发，负责接口开发",

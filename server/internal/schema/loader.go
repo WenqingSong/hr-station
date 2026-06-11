@@ -43,6 +43,18 @@ var mapping = map[SchemaName]string{
 	SchemaResumeOptimization: "resume_optimization_schema.json",
 	SchemaVersionCompare:     "version_compare_schema.json",
 	SchemaResumeOptimizationCore: "resume_optimization_core_schema.json",
+	// K13-Fix-C1: Deep recommendation 3-agent schemas
+	SchemaRecommendationDecision: "recommendation_decision_schema.json",
+	SchemaRecommendationVerifier: "recommendation_verifier_schema.json",
+	// K13-Fix-C2: Deep match 3-agent schemas
+	SchemaMatchDecision: "match_decision_schema.json",
+	SchemaMatchVerifier: "match_verifier_schema.json",
+	// K13-Fix-C3: Deep optimization 3-agent schemas
+	SchemaOptimizationDecision: "optimization_decision_schema.json",
+	SchemaOptimizationVerifier: "optimization_verifier_schema.json",
+	// K13-Fix-C4: Deep compare 3-agent schemas
+	SchemaCompareDecision: "compare_decision_schema.json",
+	SchemaCompareVerifier: "compare_verifier_schema.json",
 }
 
 // Loader loads JSON Schema files from a configured directory.

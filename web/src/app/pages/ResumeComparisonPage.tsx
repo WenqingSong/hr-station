@@ -178,8 +178,11 @@ export function ResumeComparisonPage() {
   async function handleDeep() {
     if (!fromId || !toId) return;
     setPhase("deep_loading"); setDeepErrMsg(""); setDeepBackendDone(false);
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 90000);
+    abort.signal.addEventListener("abort", () => clearTimeout(timer));
     try {
-      const vm = await loadCompareV2ViewModel({ fromResumeId: fromId, toResumeId: toId, comparisonMode: mode, generationTier: "quality", targetDirection: dir, jobId: jobId ?? undefined });
+      const vm = await loadCompareV2ViewModel({ fromResumeId: fromId, toResumeId: toId, comparisonMode: mode, generationTier: "quality", targetDirection: dir, jobId: jobId ?? undefined }, abort.signal);
       setDeepResult(vm); setDeepBackendDone(true);
     } catch {
       setPhase("deep_error");

@@ -13,6 +13,30 @@ type ResumeRepository struct{ db *sql.DB }
 
 func NewResumeRepository(db *sql.DB) *ResumeRepository { return &ResumeRepository{db: db} }
 
+// ResumeIDPair for lightweight backfill queries.
+type ResumeIDPair struct {
+	ID     uint64
+	UserID uint64
+}
+
+// ListAllIDPairs returns (id, user_id) for all resumes (K13-Fix-A backfill).
+func (r *ResumeRepository) ListAllIDPairs(ctx context.Context) ([]ResumeIDPair, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, user_id FROM resumes ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("list all ids: %w", err)
+	}
+	defer rows.Close()
+	var result []ResumeIDPair
+	for rows.Next() {
+		var p ResumeIDPair
+		if err := rows.Scan(&p.ID, &p.UserID); err != nil {
+			return nil, err
+		}
+		result = append(result, p)
+	}
+	return result, rows.Err()
+}
+
 func (r *ResumeRepository) ListByUserID(ctx context.Context, userID uint64) ([]*model.Resume, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id FROM resumes WHERE user_id=? ORDER BY updated_at DESC`, userID)
 	if err != nil {

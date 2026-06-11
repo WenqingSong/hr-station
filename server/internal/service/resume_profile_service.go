@@ -137,7 +137,7 @@ func (s *ResumeProfileService) generateFast(ctx context.Context, userID, resumeI
 	if string(riskJSON) == "null" {
 		riskJSON = []byte("[]")
 	}
-	evidenceJSON := []byte("{}")
+	evidenceJSON := buildResumeEvidenceJSON(resume)
 
 	var resumeUpdAt *time.Time
 	if !resume.UpdatedAt.IsZero() {
@@ -657,4 +657,17 @@ func cm(text string, phrases ...string) int { c:=0; for _,p:=range phrases { if 
 
 func eduText(r *model.Resume) string { var p []string; for _,e:=range r.Educations { p=append(p,e.ResearchDirection+" "+e.PaperSummary+" "+e.CoreCourses) }; return strings.Join(p," ") }
 func projText(r *model.Resume) string { var p []string; for _,x:=range r.Projects { p=append(p,x.Name+" "+x.Role+" "+x.Description) }; return strings.Join(p," ") }
+
+// ─── K13-Fix-A: Real Evidence JSON generation ────────────────────────────
+
+// buildResumeEvidenceJSON generates JSON evidence for a resume.
+// Replaces the previous hardcoded "{}" in generateFast.
+func buildResumeEvidenceJSON(resume *model.Resume) []byte {
+	ev := buildResumeEvidence(resume, resume.RawText)
+	b, err := json.Marshal(ev)
+	if err != nil || string(b) == "null" {
+		return []byte("{}")
+	}
+	return b
+}
 func internText(r *model.Resume) string { var p []string; for _,x:=range r.Internships { p=append(p,x.Company+" "+x.Position+" "+x.Description) }; return strings.Join(p," ") }

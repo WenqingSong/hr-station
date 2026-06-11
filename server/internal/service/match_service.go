@@ -6,6 +6,7 @@ import (
 	apperror "offer-catcher/server/internal/errors"
 	"fmt"
 	"log"
+	"math"
 	"time"
 
 	"offer-catcher/server/internal/agent"
@@ -30,8 +31,7 @@ type MatchResponse struct {
 }
 
 // MatchService handles job match analysis business logic.
-// It supports LLM Pipeline priority with Mock Agent fallback.
-// Supports generation_tier: "fast" uses fastRunner, "quality" uses qualityRunner.
+// K13-Fix-B: Fast tier uses TagEvidenceService (no LLM); Deep tier uses LLM pipeline.
 type MatchService struct {
 	resumeRepo    *repository.ResumeRepository
 	jobRepo       *repository.JobRepository
@@ -42,11 +42,10 @@ type MatchService struct {
 	llmEnabled    bool
 	fallbackEnable bool
 	enableMockAgent bool
+	tagEvidence    *TagEvidenceService // K13-Fix-B
 }
 
 // NewMatchService creates a new MatchService.
-// If both runners are nil or llmEnabled is false, it falls back to Mock Agent only
-// (unless enableMockAgent is false, in which case it returns an error).
 func NewMatchService(
 	resumeRepo *repository.ResumeRepository,
 	jobRepo *repository.JobRepository,
@@ -57,6 +56,7 @@ func NewMatchService(
 	llmEnabled bool,
 	fallbackEnable bool,
 	enableMockAgent bool,
+	tagEvidence *TagEvidenceService,
 ) *MatchService {
 	return &MatchService{
 		resumeRepo:    resumeRepo,
@@ -68,6 +68,7 @@ func NewMatchService(
 		llmEnabled:    llmEnabled,
 		fallbackEnable: fallbackEnable,
 		enableMockAgent: enableMockAgent,
+		tagEvidence:    tagEvidence,
 	}
 }
 
@@ -85,8 +86,12 @@ func (s *MatchService) selectRunner(tier model.GenerationTier) agent.PipelineRun
 // first. If the Pipeline returns fallback_required or mapping fails, it falls
 // back to the Mock Agent. When LLM is disabled, it uses the Mock Agent directly.
 func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64, req MatchRequest) (*MatchResponse, error) {
-	runner := s.selectRunner(req.GenerationTier)
 	log.Printf("[MatchService] generation_tier=%s", string(req.GenerationTier))
+
+	genTier := string(req.GenerationTier)
+	if genTier == "" {
+		genTier = "fast"
+	}
 
 	// Get resume version
 	resume, err := s.getResume(ctx, userID, req)
@@ -103,37 +108,48 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 		return nil, apperror.ErrJobNotFound
 	}
 
-	// Try LLM Pipeline if enabled
-	genTier := string(req.GenerationTier)
-	if genTier == "" {
-		genTier = "fast"
+	// K13-Fix-B: Fast tier uses TagEvidenceService (no LLM)
+	isFast := genTier == "fast" || req.GenerationTier != model.GenerationTierQuality
+	if isFast && s.tagEvidence != nil {
+		log.Printf("[MatchService] use_fast_tag_engine tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
+		resp, err := s.fastMatchWithTags(ctx, userID, resume, job)
+		if err == nil {
+			return resp, nil
+		}
+		log.Printf("[MatchService] fast tag match failed: %v, falling back to mock", err)
 	}
-	if s.llmEnabled && runner != nil {
-		log.Printf("[MatchService] use_llm=true tier=%s", genTier)
+
+	// K13-Fix-C2: Deep/Quality tier — try 3-agent first, then fallback
+	runner := s.selectRunner(req.GenerationTier)
+	isQuality := genTier == "quality" || req.GenerationTier == model.GenerationTierQuality
+	if isQuality && s.llmEnabled && runner != nil {
+		// Try C2 3-agent pipeline
+		if s.tagEvidence != nil {
+			log.Printf("[MatchService] use_deep_3agent tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
+			resp, err3a := s.matchWith3Agents(ctx, userID, resume, job, runner)
+			if err3a == nil {
+				return resp, nil
+			}
+			log.Printf("[MatchService] 3-agent match failed: %v, falling back to old LLM path", err3a)
+		}
+		// Fallback to old single-agent LLM
+		log.Printf("[MatchService] use_deep_llm tier=%s", genTier)
 		resp, fallbackErr := s.analyzeWithLLM(ctx, resume, job, runner)
 		if fallbackErr == nil {
 			return resp, nil
 		}
-
-		// Log the fallback reason
 		log.Printf("[MatchService] LLM pipeline fallback: %v", fallbackErr)
-
-		// K13-Fix-1: Check fallback enable flag
 		if !s.fallbackEnable {
 			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
 		}
-
-		// Fall back to Mock Agent
 		return s.analyzeWithMock(ctx, userID, resume, job, fallbackErr, genTier)
 	}
 
-	// LLM disabled — check if mock is allowed
+	// Fallback
 	if !s.enableMockAgent {
-		return nil, apperror.New(apperror.CodeInternal, "LLM is disabled and ENABLE_MOCK_AGENT=false, no generation path available", 500)
+		return nil, apperror.New(apperror.CodeInternal, "no generation path available", 500)
 	}
-
-	// LLM disabled — use Mock Agent directly
-	log.Printf("[MatchService] use_llm=false use_mock=true tier=%s", genTier)
+	log.Printf("[MatchService] use_mock_fallback tier=%s", genTier)
 	return s.analyzeWithMock(ctx, userID, resume, job, nil, genTier)
 }
 
@@ -346,4 +362,171 @@ func (s *MatchService) GetLatestMatchAnalysis(ctx context.Context, userID, resum
 		CreatedAt:             latest.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Result:                resultData,
 	}, nil
+}
+
+// ─── K13-Fix-B: Fast Match via TagEvidenceService ─────────────────────────
+
+// fastMatchWithTags generates Fast-tier match analysis using TagEvidenceService.
+// No LLM call — compares resume tags + job tags + evidence.
+func (s *MatchService) fastMatchWithTags(ctx context.Context, userID uint64, resume *model.ResumeVersion, job *model.Job) (*MatchResponse, error) {
+	if s.tagEvidence == nil {
+		return nil, fmt.Errorf("tag evidence service not available")
+	}
+
+	rp, err := s.tagEvidence.EnsureResumeTagProfile(ctx, resume.ID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("fast match: %w", err)
+	}
+	jp, err := s.tagEvidence.EnsureJobTagProfile(ctx, job.ID)
+	if err != nil {
+		return nil, fmt.Errorf("fast match: %w", err)
+	}
+
+	matched, missing, tagScore := computeTagMatch(rp, jp)
+	score := int(math.Min(98, 60 + tagScore*0.8)) // scale count-based score to 60-98
+	level := fastMatchLevel(score)
+
+	evidenceChain := []model.MatchEvidence{}
+	for _, m := range matched[:min(3, len(matched))] {
+		evidenceChain = append(evidenceChain, model.MatchEvidence{Requirement: m, ResumePoint: "已匹配", Judgement: "match"})
+	}
+	for _, m := range missing[:min(3, len(missing))] {
+		evidenceChain = append(evidenceChain, model.MatchEvidence{Requirement: m, ResumePoint: "未匹配", Judgement: "gap"})
+	}
+
+	result := &model.MatchAnalysisResult{
+		MatchScore:              score,
+		MatchLevel:              level,
+		MatchLabel:              level,
+		ScreeningResult:         "pass",
+		EvidenceChain:           evidenceChain,
+		MatchHighlights:         matched,
+		GapPoints:               missing,
+		RiskPoints:              missing,
+		OptimizationSuggestions: []model.MatchSuggestion{{Priority: "P0", Title: "查漏补缺", Reason: "标签匹配发现缺口", Action: "针对缺失标签补充对应经历或技能描述"}},
+		NextSteps:               []string{"针对缺失标签补充对应经历或技能描述"},
+		GeneratedBy:             "fast_tag_engine",
+		AgentStatus:             "success",
+		FallbackReason:          "none",
+		RepairApplied:           false,
+		DataQuality:             "rule",
+		Summary:                 level,
+	}
+
+	meta := model.AgentResponseMeta{
+		AgentName:      "FastMatchEngine",
+		GeneratedBy:    "fast_tag_engine",
+		AgentStatus:    "success",
+		FallbackReason: "none",
+		RepairApplied:  false,
+		SchemaValid:    true,
+	}
+
+	return &MatchResponse{
+		AnalysisID:  0,
+		GeneratedBy: "fast_tag_engine",
+		Result:      result,
+		CreatedAt:   time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		Meta:        meta,
+	}, nil
+}
+
+// ─── K13-Fix-C2: Deep Match with 3 Agents ───────────────────────────────
+
+// matchWith3Agents runs the 3-agent deep match pipeline.
+func (s *MatchService) matchWith3Agents(ctx context.Context, userID uint64, resume *model.ResumeVersion, job *model.Job, runner agent.PipelineRunner) (*MatchResponse, error) {
+	if s.tagEvidence == nil {
+		return nil, fmt.Errorf("3agent match: tag evidence service not available")
+	}
+
+	rp, err := s.tagEvidence.EnsureResumeTagProfile(ctx, resume.ID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("3agent match: resume profile: %w", err)
+	}
+	jp, err := s.tagEvidence.EnsureJobTagProfile(ctx, job.ID)
+	if err != nil {
+		return nil, fmt.Errorf("3agent match: job profile: %w", err)
+	}
+
+	final, trace, err := agent.RunDeepMatch3Agents(ctx, rp, jp, resume.Name, job.Title, runner, runner)
+	if err != nil {
+		return nil, fmt.Errorf("3agent match: %w", err)
+	}
+
+	result := &model.MatchAnalysisResult{
+		MatchScore:              final.Score,
+		MatchLevel:              final.Level,
+		MatchLabel:              final.Level,
+		ScreeningResult:         "pass",
+		MatchHighlights:         extractTitles(final.MatchedPoints),
+		GapPoints:               extractTitles(final.GapPoints),
+		RiskPoints:              extractRiskTitles(final.RiskPoints),
+		Summary:                 final.Summary,
+		GeneratedBy:             final.GeneratedBy,
+		AgentStatus:             final.AgentStatus,
+		RepairApplied:           final.RepairApplied,
+		FallbackReason:          final.FallbackReason,
+		DataQuality:             "llm",
+		OptimizationSuggestions: convertImprovements(final.ImprovementSuggestions),
+		NextSteps:               extractActions(final.ImprovementSuggestions),
+	}
+
+	meta := model.AgentResponseMeta{
+		AgentName:      "DeepMatchEngine",
+		GeneratedBy:    final.GeneratedBy,
+		AgentStatus:    final.AgentStatus,
+		FallbackReason: final.FallbackReason,
+		RepairApplied:  final.RepairApplied,
+		SchemaValid:    final.AgentStatus != "fallback",
+	}
+
+	_ = trace // available for logging/debug
+
+	return &MatchResponse{
+		AnalysisID:  0,
+		GeneratedBy: final.GeneratedBy,
+		Result:      result,
+		CreatedAt:   time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		Meta:        meta,
+	}, nil
+}
+
+func extractTitles(pts []agent.MatchDecisionPoint) []string {
+	if len(pts) == 0 { return []string{} }
+	r := make([]string, len(pts))
+	for i, p := range pts { r[i] = p.Title }
+	return r
+}
+
+func extractRiskTitles(pts []agent.MatchDecisionRisk) []string {
+	if len(pts) == 0 { return []string{} }
+	r := make([]string, len(pts))
+	for i, p := range pts { r[i] = p.Title }
+	return r
+}
+
+func convertImprovements(items []agent.MatchImprovement) []model.MatchSuggestion {
+	result := make([]model.MatchSuggestion, len(items))
+	for i, item := range items {
+		result[i] = model.MatchSuggestion{
+			Priority: item.Priority,
+			Title:    item.Title,
+			Action:   item.Action,
+		}
+	}
+	return result
+}
+
+func extractActions(items []agent.MatchImprovement) []string {
+	r := make([]string, len(items))
+	for i, item := range items {
+		r[i] = item.Action
+	}
+	return r
+}
+
+func fastMatchLevel(score int) string {
+	if score >= 80 { return "建议投递" }
+	if score >= 60 { return "建议补强后投递" }
+	return "待进一步分析"
 }

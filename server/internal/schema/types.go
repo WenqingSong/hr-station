@@ -15,6 +15,18 @@ const (
 	SchemaVersionCompare SchemaName = "version_compare"
 	// SchemaResumeOptimizationCore is the resume optimization core output Schema.
 	SchemaResumeOptimizationCore SchemaName = "resume_optimization_core"
+	// K13-Fix-C1: Deep recommendation 3-agent schemas.
+	SchemaRecommendationDecision SchemaName = "recommendation_decision"
+	SchemaRecommendationVerifier SchemaName = "recommendation_verifier"
+	// K13-Fix-C2: Deep match 3-agent schemas.
+	SchemaMatchDecision SchemaName = "match_decision"
+	SchemaMatchVerifier SchemaName = "match_verifier"
+	// K13-Fix-C3: Deep optimization 3-agent schemas.
+	SchemaOptimizationDecision SchemaName = "optimization_decision"
+	SchemaOptimizationVerifier SchemaName = "optimization_verifier"
+	// K13-Fix-C4: Deep compare 3-agent schemas.
+	SchemaCompareDecision SchemaName = "compare_decision"
+	SchemaCompareVerifier SchemaName = "compare_verifier"
 )
 
 // Document holds a loaded JSON Schema file.

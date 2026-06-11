@@ -164,23 +164,58 @@ func main() {
 		log.Println("[offer-catcher-server] ProfileAgent disabled (LLM off), quality profiles use rule fallback")
 	}
 
+	// K13-Fix-A: Initialize TagEvidence module
+	jobProfileRepo := repository.NewJobProfileRepository(mysqlDB.DB)
+	tagEvidenceService := service.NewTagEvidenceService(resumeRepo, resumeProfileRepo, jobProfileRepo)
+	tagEvidenceService.SetJobRepo(jobRepo)
+	// Backfill job profiles in background
+	go func() {
+		if err := tagEvidenceService.EnsureAllOpenJobTagProfiles(context.Background(), 100); err != nil {
+			log.Printf("[TagEvidence] backfill jobs: %v", err)
+		} else {
+			count, _ := jobProfileRepo.Count(context.Background())
+			log.Printf("[TagEvidence] job profiles ready: %d", count)
+		}
+	}()
+
+	// K13-Fix-A: Backfill resume profiles with empty evidence
+	go func() {
+		pairs, err := resumeRepo.ListAllIDPairs(context.Background())
+		if err != nil {
+			log.Printf("[TagEvidence] backfill resumes: list error: %v", err)
+			return
+		}
+		refreshed := 0
+		for _, p := range pairs {
+			profile, _ := resumeProfileRepo.FindByResumeIDAndType(context.Background(), p.ID, "fast")
+			if profile == nil || profile.EvidenceJSON == "" || profile.EvidenceJSON == "{}" || profile.EvidenceJSON == "null" {
+				if _, err := tagEvidenceService.EnsureResumeTagProfile(context.Background(), p.ID, p.UserID); err != nil {
+					log.Printf("[TagEvidence] backfill resume %d: %v", p.ID, err)
+				} else {
+					refreshed++
+				}
+			}
+		}
+		log.Printf("[TagEvidence] resume profiles backfilled: %d", refreshed)
+	}()
+
 	// K13-Fix-1: Read fallback/mock flags from config
 	fallbackEnabled := cfg.LLM.FallbackEnable
 	mockAgentEnabled := cfg.Feature.EnableMockAgent
 	log.Printf("[offer-catcher-server] fallback_enable=%v enable_mock_agent=%v", fallbackEnabled, mockAgentEnabled)
 
-	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled)
+	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, tagEvidenceService)
 	matchHandler := httpserver.NewMatchHandler(matchService)
 
-	// Initialize recommendation service with both runners (tier selected per request)
-	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, resumeProfileService)
+	// K13-Fix-B: RecommendationService with TagEvidenceService for Fast tier
+	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, resumeProfileService, tagEvidenceService)
 	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
 
 	// Initialize version compare module with both runners (tier selected per request)
 	versionCompareRepo := repository.NewResumeCompareRepository(mysqlDB.DB)
 	versionCompareMockAgent := agent.NewVersionCompareMockAgent()
 	versionCompareMockAgent.SetProfileProvider(resumeProfileService)
-	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, jobRepo, versionCompareMockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, resumeProfileService)
+	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, jobRepo, versionCompareMockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, resumeProfileService, tagEvidenceService)
 	versionCompareHandler := httpserver.NewVersionCompareHandler(versionCompareService)
 
 	// Initialize resume optimization module with both runners (tier selected per request)
@@ -191,7 +226,7 @@ func main() {
 		ma, _ := matchRepo.FindLatestByResumeAndJob(ctx, userID, resumeID, jobID)
 		return ma
 	})
-	resumeOptimizationService := service.NewResumeOptimizationService(resumeRepo, jobRepo, resumeOptimizationRepo, resumeOptimizationMockAgentV2, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled)
+	resumeOptimizationService := service.NewResumeOptimizationService(resumeRepo, jobRepo, resumeOptimizationRepo, resumeOptimizationMockAgentV2, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, tagEvidenceService)
 	resumeOptimizationHandler := httpserver.NewResumeOptimizationHandler(resumeOptimizationService)
 	resumeHandler.SetOptimizationV2Handler(http.HandlerFunc(resumeOptimizationHandler.OptimizeV2))
 	resumeHandler.SetOptimizationLatestHandler(http.HandlerFunc(resumeOptimizationHandler.LatestV2))

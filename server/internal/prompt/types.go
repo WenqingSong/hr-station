@@ -17,6 +17,18 @@ const (
 	PromptVersionCompare PromptName = "version_compare"
 	// PromptResumeOptimizationCore is the resume optimization core prompt.
 	PromptResumeOptimizationCore PromptName = "resume_optimization_core"
+	// K13-Fix-C1: Deep recommendation 3-agent prompts.
+	PromptRecommendationDecision PromptName = "recommendation_decision"
+	PromptRecommendationVerifier PromptName = "recommendation_verifier"
+	// K13-Fix-C2: Deep match 3-agent prompts.
+	PromptMatchDecision PromptName = "match_decision"
+	PromptMatchVerifier PromptName = "match_verifier"
+	// K13-Fix-C3: Deep optimization 3-agent prompts.
+	PromptOptimizationDecision PromptName = "optimization_decision"
+	PromptOptimizationVerifier PromptName = "optimization_verifier"
+	// K13-Fix-C4: Deep compare 3-agent prompts.
+	PromptCompareDecision PromptName = "compare_decision"
+	PromptCompareVerifier PromptName = "compare_verifier"
 )
 
 // Template holds a loaded Prompt template.

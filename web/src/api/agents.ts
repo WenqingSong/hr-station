@@ -89,6 +89,7 @@ export async function runRecommendation(
 export async function runMatchAnalysis(
   jobId: string,
   input?: Partial<MatchAnalysisRequest>,
+  signal?: AbortSignal,
 ): Promise<MatchAnalysisAgentResponse> {
   const payload: MatchAnalysisRequest = {
     ...input,
@@ -97,6 +98,7 @@ export async function runMatchAnalysis(
   return post<MatchAnalysisAgentResponse, MatchAnalysisRequest>(
     `/jobs/${encodeURIComponent(jobId)}/match`,
     payload,
+    signal ? { signal } : undefined,
   );
 }
 
@@ -165,10 +167,12 @@ export interface GenerateOptimizationRequest {
 export async function generateResumeOptimization(
   resumeId: number,
   input: GenerateOptimizationRequest,
+  signal?: AbortSignal,
 ): Promise<OptimizationResultV2> {
   return post<OptimizationResultV2, GenerateOptimizationRequest>(
     `/resumes/${resumeId}/optimization`,
     input,
+    signal ? { signal } : undefined,
   );
 }
 
@@ -218,6 +222,6 @@ export interface GenerateCompareRequest {
   job_id?: number;
 }
 
-export async function generateResumeCompare(input: GenerateCompareRequest): Promise<any> {
-  return post<any, GenerateCompareRequest>('/resumes/compare', input);
+export async function generateResumeCompare(input: GenerateCompareRequest, signal?: AbortSignal): Promise<any> {
+  return post<any, GenerateCompareRequest>('/resumes/compare', input, signal ? { signal } : undefined);
 }

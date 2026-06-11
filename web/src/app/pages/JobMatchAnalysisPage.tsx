@@ -85,7 +85,7 @@ export function JobMatchAnalysisPage() {
   const [phase, setPhase] = useState<MatchPhase>("loading_latest");
   const [activeResult, setActiveResult] = useState<MatchAnalysisPageViewModel | null>(null);
   const [activeTier, setActiveTier] = useState<string>("fast");
-  const [activeGeneratedBy, setActiveGeneratedBy] = useState<string>("mock_agent");
+  const [activeGeneratedBy, setActiveGeneratedBy] = useState<string>("fast_tag_engine");
   const [matchError, setMatchError] = useState<string | null>(null);
   const [deepBackendDone, setDeepBackendDone] = useState(false);
 
@@ -180,7 +180,8 @@ export function JobMatchAnalysisPage() {
 
     setPhase("deep_loading");
     setDeepBackendDone(false);
-    loadMatchAnalysisViewModel(jobId, { resume_id: rid, generation_tier: "quality" })
+    const abort = new AbortController();
+    loadMatchAnalysisViewModel(jobId, { resume_id: rid, generation_tier: "quality" }, abort.signal)
       .then((r) => {
         setActiveResult(r);
         setActiveTier("quality");
@@ -190,6 +191,10 @@ export function JobMatchAnalysisPage() {
       .catch(() => {
         setPhase("deep_error");
       });
+    // K13-Stability-A: auto-abort after 90s to stay under backend LLM_TIMEOUT_SECONDS=120
+    const timer = setTimeout(() => abort.abort(), 90000);
+    // Cleanup timeout on success (abort resolves the promise → .catch sets deep_error)
+    abort.signal.addEventListener("abort", () => clearTimeout(timer));
   };
 
   // ── Guard states ──

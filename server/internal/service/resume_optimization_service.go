@@ -50,10 +50,10 @@ type ResumeOptimizationService struct {
 	llmEnabled       bool
 	fallbackEnable   bool
 	enableMockAgent  bool
+	tagEvidence      *TagEvidenceService // K13-Fix-C3
 }
 
 // NewResumeOptimizationService creates a new ResumeOptimizationService.
-// If both runners are nil or llmEnabled is false, it falls back to Mock Agent only.
 func NewResumeOptimizationService(
 	resumeRepo *repository.ResumeRepository,
 	jobRepo *repository.JobRepository,
@@ -64,6 +64,7 @@ func NewResumeOptimizationService(
 	llmEnabled bool,
 	fallbackEnable bool,
 	enableMockAgent bool,
+	tagEvidence *TagEvidenceService,
 ) *ResumeOptimizationService {
 	return &ResumeOptimizationService{
 		resumeRepo:       resumeRepo,
@@ -75,6 +76,7 @@ func NewResumeOptimizationService(
 		llmEnabled:       llmEnabled,
 		fallbackEnable:   fallbackEnable,
 		enableMockAgent:  enableMockAgent,
+		tagEvidence:      tagEvidence,
 	}
 }
 
@@ -489,84 +491,206 @@ func (s *ResumeOptimizationService) OptimizeV2(ctx context.Context, userID, resu
 	genTier := string(req.GenerationTier)
 	if genTier == "" { genTier = "fast" }
 
-	// K13-Fix-1: Try LLM pipeline for quality tier
+	// K13-Fix-C3: Fast tier → TagEvidence engine (no LLM)
 	qualityMode := req.GenerationTier == model.GenerationTierQuality
 	runner := s.selectRunner(req.GenerationTier)
-	if s.llmEnabled && runner != nil && qualityMode {
-		log.Printf("[OptimizeV2] use_llm=true tier=%s resume_id=%d", genTier, resumeID)
-		input := &agent.OptimizeInput{ResumeText: resume.RawText}
-		if job != nil {
-			input.JobTitle = job.Title
-			input.JDText = job.Description
+
+	if !qualityMode && s.tagEvidence != nil {
+		log.Printf("[OptimizeV2] use_fast_tag_engine tier=%s resume_id=%d", genTier, resumeID)
+		result, err := s.fastOptimizeWithTags(ctx, userID, resumeID, resume, mode, req.TargetDirection, req.JobID, job)
+		if err == nil {
+			return result, nil
 		}
+		log.Printf("[OptimizeV2] fast tag optimize failed: %v, falling back to mock", err)
+	}
+
+	// K13-Fix-C3: Quality tier → 3-agent pipeline
+	if qualityMode && s.llmEnabled && runner != nil {
+		if s.tagEvidence != nil {
+			log.Printf("[OptimizeV2] use_deep_3agent tier=%s resume_id=%d", genTier, resumeID)
+			result, err3a := s.optimizeWith3Agents(ctx, userID, resumeID, resume, mode, req.TargetDirection, req.JobID, job, runner)
+			if err3a == nil {
+				return result, nil
+			}
+			log.Printf("[OptimizeV2] 3-agent optimize failed: %v, falling back to old LLM", err3a)
+		}
+		// Fallback: old V1 LLM pipeline
+		input := &agent.OptimizeInput{ResumeText: resume.RawText}
+		if job != nil { input.JobTitle = job.Title; input.JDText = job.Description }
 		llmAgent := agent.NewResumeOptimizationAgent(runner)
 		llmResult, fbErr := llmAgent.Optimize(ctx, input)
 		if fbErr == nil {
-			// Map V1 LLM result to V2 format
 			result := mapOptimizeV1ToV2(llmResult, resumeID, mode, req.TargetDirection, req.JobID, genTier)
-			// Save to DB
-			resultJSON, _ := json.Marshal(result)
-			opt := &model.ResumeOptimizationSnapshot{
-				UserID: userID, ResumeID: resumeID, JobID: req.JobID,
-				OptimizationMode: mode, GenerationTier: genTier,
-				GeneratedBy: result.GeneratedBy, Status: "ready",
-				ProfileType: result.ProfileType,
-				ProfileDominantProfile: result.ProfileDominantProfile,
-				TargetDirection: req.TargetDirection, ResultJSON: resultJSON,
-			}
-			if createErr := s.optimizationRepo.CreateV2(ctx, opt); createErr != nil {
-				log.Printf("[OptimizeV2] failed to save snapshot: %v", createErr)
-			}
-			result.OptimizationID = opt.ID
+			s.saveOptV2Snapshot(ctx, userID, resumeID, req.JobID, mode, genTier, result.GeneratedBy, result.ProfileType, result.ProfileDominantProfile, req.TargetDirection, result)
 			return result, nil
 		}
 		log.Printf("[OptimizeV2] LLM fallback: %v", fbErr)
 		if !s.fallbackEnable {
-			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %v", fbErr), 500)
+			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed: %v", fbErr), 500)
 		}
 	} else if qualityMode && !s.enableMockAgent {
-		return nil, apperror.New(apperror.CodeInternal, "quality mode requested but LLM disabled and ENABLE_MOCK_AGENT=false", 500)
+		return nil, apperror.New(apperror.CodeInternal, "quality mode requested but LLM disabled and mock disabled", 500)
 	}
 
-	// Run mock agent (V2 mock agent)
-	log.Printf("[OptimizeV2] use_llm=false use_mock=true tier=%s resume_id=%d", genTier, resumeID)
-
-	// Get V2 agent
+	// Fallback to mock agent
+	log.Printf("[OptimizeV2] use_mock_fallback tier=%s resume_id=%d", genTier, resumeID)
 	v2Agent, ok := s.mockAgent.(*agent.ResumeOptimizationMockAgentV2)
-	if !ok {
-		return nil, fmt.Errorf("v2 optimization agent not available")
+	if !ok { return nil, fmt.Errorf("v2 optimization agent not available") }
+	mockResult, mockErr := v2Agent.OptimizeV2(ctx, userID, resumeID, resume, mode, req.TargetDirection, req.JobID, job, genTier)
+	if mockErr != nil {
+		return nil, fmt.Errorf("failed to generate optimization: %w", mockErr)
 	}
+	s.saveOptV2Snapshot(ctx, userID, resumeID, req.JobID, mode, genTier, mockResult.GeneratedBy, mockResult.ProfileType, mockResult.ProfileDominantProfile, req.TargetDirection, mockResult)
+	return mockResult, nil
+}
 
-	result, err := v2Agent.OptimizeV2(ctx, userID, resumeID, resume, mode, req.TargetDirection, req.JobID, job, genTier)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate optimization: %w", err)
-	}
-
-	// Save to DB
-	resultJSON, err := json.Marshal(result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result: %w", err)
-	}
-
+func (s *ResumeOptimizationService) saveOptV2Snapshot(ctx context.Context, userID, resumeID uint64, jobID uint64, mode, tier, generatedBy, profileType, profileDominant, targetDir string, result *model.OptimizationResultV2) {
+	resultJSON, _ := json.Marshal(result)
 	opt := &model.ResumeOptimizationSnapshot{
-		UserID:                 userID,
-		ResumeID:               resumeID,
-		JobID:                  req.JobID,
-		OptimizationMode:       mode,
-		GenerationTier:         genTier,
-		GeneratedBy:            result.GeneratedBy,
-		Status:                 "ready",
-		ProfileType:            result.ProfileType,
-		ProfileDominantProfile: result.ProfileDominantProfile,
-		TargetDirection:        req.TargetDirection,
-		ResultJSON:             resultJSON,
+		UserID: userID, ResumeID: resumeID, JobID: jobID,
+		OptimizationMode: mode, GenerationTier: tier,
+		GeneratedBy: generatedBy, Status: "ready",
+		ProfileType: profileType, ProfileDominantProfile: profileDominant,
+		TargetDirection: targetDir, ResultJSON: resultJSON,
 	}
 	if createErr := s.optimizationRepo.CreateV2(ctx, opt); createErr != nil {
 		log.Printf("[OptimizeV2] failed to save snapshot: %v", createErr)
 	}
 	result.OptimizationID = opt.ID
+}
 
+// ─── K13-Fix-C3: fastOptimizeWithTags ─────────────────────────────────
+
+func (s *ResumeOptimizationService) fastOptimizeWithTags(ctx context.Context, userID, resumeID uint64, resume *model.Resume, mode, targetDir string, jobID uint64, job *model.Job) (*model.OptimizationResultV2, error) {
+	rp, err := s.tagEvidence.EnsureResumeTagProfile(ctx, resumeID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("fast optimize: %w", err)
+	}
+
+	var jp *model.JobTagProfile
+	if job != nil { jp, _ = s.tagEvidence.EnsureJobTagProfile(ctx, jobID) }
+
+	gaps := buildFastOptGaps(rp, jp)
+	score := fastOptScore(len(gaps))
+
+	result := &model.OptimizationResultV2{
+		ResumeID:               resumeID,
+		JobID:                  jobID,
+		OptimizationMode:       mode,
+		TargetDirection:        targetDir,
+		GenerationTier:         "fast",
+		GeneratedBy:            "fast_tag_engine",
+		Status:                 "ready",
+		ProfileType:            "fast",
+		ProfileDominantProfile: rp.DominantProfile,
+		OptimizationScore:      score,
+		OptimizationLevel:      fastOptLevel(score),
+		OneSentenceSummary:     fmt.Sprintf("基于%d项标签分析，生成优化建议", len(rp.PrimaryTags)),
+		QuickFixItems:          gapsToQuickFixes(gaps, rp),
+		RiskPoints:             gapsToRiskPoints(gaps),
+		RewriteExamples: []model.OptimizationRewriteExample{
+			{Section: "项目经历", Before: "建议优化表述", After: "使用STAR法则描述：场景-任务-行动-结果", Reason: "提升简历可读性"},
+		},
+		DeliveryFocus:          "检查专业技能描述是否完整、项目经历是否使用STAR法则",
+		LongTermImprovements:  []model.OptimizationLongTermItem{{Direction: "持续完善", Note: "随项目和实习经历增加，定期更新简历"}},
+		StructureFixItems:     []model.OptimizationFixItem{},
+		ContentFixItems:       []model.OptimizationFixItem{},
+		KeywordFixItems:       []model.OptimizationFixItem{},
+		EvidenceFixItems:      []model.OptimizationFixItem{},
+	}
+	s.saveOptV2Snapshot(ctx, userID, resumeID, jobID, mode, "fast", "fast_tag_engine", "fast", rp.DominantProfile, targetDir, result)
 	return result, nil
+}
+
+// ─── K13-Fix-C3: optimizeWith3Agents ──────────────────────────────────
+
+func (s *ResumeOptimizationService) optimizeWith3Agents(ctx context.Context, userID, resumeID uint64, resume *model.Resume, mode, targetDir string, jobID uint64, job *model.Job, runner agent.PipelineRunner) (*model.OptimizationResultV2, error) {
+	rp, err := s.tagEvidence.EnsureResumeTagProfile(ctx, resumeID, userID)
+	if err != nil { return nil, fmt.Errorf("3agent opt: %w", err) }
+
+	var jp *model.JobTagProfile
+	if job != nil { jp, _ = s.tagEvidence.EnsureJobTagProfile(ctx, jobID) }
+
+	final, _, err := agent.RunDeepOptimization3Agents(ctx, rp, jp, mode, runner, runner)
+	if err != nil { return nil, fmt.Errorf("3agent opt: %w", err) }
+
+	result := &model.OptimizationResultV2{
+		ResumeID:               resumeID, JobID: jobID,
+		OptimizationMode:       mode, TargetDirection: targetDir,
+		GenerationTier:         "quality",
+		GeneratedBy:            final.GeneratedBy,
+		Status:                 "ready",
+		ProfileType:            "quality",
+		ProfileDominantProfile: rp.DominantProfile,
+		OptimizationScore:      final.OptimizationScore,
+		OptimizationLevel:      fastOptLevel(final.OptimizationScore),
+		OneSentenceSummary:     "深度优化报告已完成",
+		QuickFixItems:          final.QuickFixItems,
+		StructureFixItems:      final.StructureFixItems,
+		ContentFixItems:        final.ContentFixItems,
+		KeywordFixItems:        final.KeywordFixItems,
+		EvidenceFixItems:       final.EvidenceFixItems,
+		RiskPoints:             final.RiskPoints,
+		RewriteExamples:        final.RewriteExamples,
+		DeliveryFocus:          "请根据深度优化建议调整简历",
+		LongTermImprovements:   []model.OptimizationLongTermItem{},
+	}
+	s.saveOptV2Snapshot(ctx, userID, resumeID, jobID, mode, "quality", final.GeneratedBy, "quality", rp.DominantProfile, targetDir, result)
+	return result, nil
+}
+
+// ─── helpers ─────────────────────────────────────────────────────────
+
+func buildFastOptGaps(rp *model.ResumeTagProfile, jp *model.JobTagProfile) []string {
+	var gaps []string
+	if rp.Evidence.ProjectCount < 2 { gaps = append(gaps, "建议增加项目经历") }
+	if rp.Evidence.InternshipCount < 1 { gaps = append(gaps, "建议补充实习经历") }
+	if jp != nil {
+		_, missing, _ := computeOptTagMatch(rp, jp)
+		for _, m := range missing[:min(3, len(missing))] { gaps = append(gaps, "缺失标签："+m) }
+	}
+	return gaps
+}
+
+func fastOptScore(gapCount int) int {
+	s := 90 - gapCount*10
+	if s < 50 { s = 50 }
+	return s
+}
+
+func fastOptLevel(score int) string {
+	if score >= 80 { return "建议直接投递" }
+	if score >= 65 { return "建议补强后投递" }
+	return "需重点优化后再投递"
+}
+
+func gapsToQuickFixes(gaps []string, rp *model.ResumeTagProfile) []model.OptimizationFixItem {
+	var fixes []model.OptimizationFixItem
+	for i, g := range gaps {
+		if i >= 4 { break }
+		fixes = append(fixes, model.OptimizationFixItem{Section: "整体", Issue: g, Action: "请根据建议调整"})
+	}
+	return fixes
+}
+
+func gapsToRiskPoints(gaps []string) []string {
+	r := make([]string, len(gaps))
+	for i, g := range gaps { r[i] = g }
+	return r
+}
+
+func computeOptTagMatch(rp *model.ResumeTagProfile, jp *model.JobTagProfile) (matched, missing []string, score float64) {
+	resumeSet := make(map[string]bool)
+	for _, t := range rp.PrimaryTags { resumeSet[t.Tag] = true }
+	for _, t := range rp.SkillTags { resumeSet[t.Tag] = true }
+	jobSet := make(map[string]bool)
+	for _, t := range jp.PrimaryTags { jobSet[t.Tag] = true }
+	for _, t := range jp.SkillTags { jobSet[t.Tag] = true }
+	for _, t := range jp.RequirementTags { jobSet[t.Tag] = true }
+	for jt := range jobSet {
+		if resumeSet[jt] { matched = append(matched, jt); score += 1 }
+	}
+	return matched, missing, score
 }
 
 // mapOptimizeV1ToV2 maps V1 LLM result to V2 optimization format.
