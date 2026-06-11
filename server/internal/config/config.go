@@ -83,17 +83,21 @@ type SessionConfig struct {
 }
 
 // LLMConfig holds LLM API configuration.
-// These fields map 1:1 to the LLM_* environment variables in .env.
 type LLMConfig struct {
 	Enable            bool
 	Provider          string
 	BaseURL           string
 	APIKey            string
 	Model             string // deprecated: kept for backward compatibility; prefer FastModel / QualityModel
-	FastModel         string // LLM_FAST_MODEL — deepseek-v4-flash
-	QualityModel      string // LLM_QUALITY_MODEL — deepseek-v4-pro-202606
-	DefaultTier       string // LLM_DEFAULT_TIER — "fast" or "quality"
+	FastModel         string // LLM_FAST_MODEL
+	QualityModel      string // LLM_QUALITY_MODEL
+	DefaultTier       string // LLM_DEFAULT_TIER
+	// K14-Hy3: Hy3-preview provider specific
+	Hy3BaseURL        string // LLM_HY3_BASE_URL
+	Hy3APIKey         string // LLM_HY3_API_KEY
+	Hy3Model          string // LLM_HY3_MODEL
 	Temperature       float64
+	TopP              float64 // LLM_TOP_P
 	MaxOutputTokens   int
 	TimeoutSeconds    int
 	RepairEnable      bool
@@ -102,6 +106,25 @@ type LLMConfig struct {
 	LogRawOutput      bool
 	PromptDir         string
 	SchemaDir         string
+	// K14-Hy3: Reasoning effort per stage
+	Hy3ReasonEffortFast          string
+	Hy3ReasonEffortTag           string
+	Hy3ReasonEffortDeepContext   string
+	Hy3ReasonEffortDeepDecision  string
+	Hy3ReasonEffortDeepVerifier  string
+	Hy3ReasonEffortRepair        string
+}
+
+// ResolveBaseURL returns provider-specific BaseURL.
+func (c LLMConfig) ResolveBaseURL(provider string) string {
+	if provider == "hy3" && c.Hy3BaseURL != "" { return c.Hy3BaseURL }
+	return c.BaseURL
+}
+
+// ResolveAPIKey returns provider-specific API key.
+func (c LLMConfig) ResolveAPIKey(provider string) string {
+	if provider == "hy3" && c.Hy3APIKey != "" { return c.Hy3APIKey }
+	return c.APIKey
 }
 
 // FeatureConfig holds feature flag configuration.
@@ -183,8 +206,13 @@ func Load() *Config {
 			FastModel:         coalesceModel(getEnv("LLM_FAST_MODEL", ""), getEnv("LLM_MODEL", "")),
 			QualityModel:      coalesceModel(getEnv("LLM_QUALITY_MODEL", ""), getEnv("LLM_MODEL", "")),
 			DefaultTier:       getEnv("LLM_DEFAULT_TIER", "fast"),
+			// K14-Hy3
+			Hy3BaseURL:        getEnv("LLM_HY3_BASE_URL", "https://api.lkeap.cloud.tencent.com/plan/v3/chat/completions"),
+			Hy3APIKey:         getEnv("LLM_HY3_API_KEY", ""),
+			Hy3Model:          getEnv("LLM_HY3_MODEL", "hy3-preview"),
 			Temperature:       getEnvAsFloat64("LLM_TEMPERATURE", 0.2),
-			MaxOutputTokens:   getEnvAsInt("LLM_MAX_OUTPUT_TOKENS", 8192),
+			TopP:              getEnvAsFloat64("LLM_TOP_P", 1.0),
+			MaxOutputTokens:   getEnvAsInt("LLM_MAX_OUTPUT_TOKENS", 4096),
 			TimeoutSeconds:    getEnvAsInt("LLM_TIMEOUT_SECONDS", 120),
 			RepairEnable:      getEnvAsBool("LLM_REPAIR_ENABLE", true),
 			RepairMaxAttempts: getEnvAsInt("LLM_REPAIR_MAX_ATTEMPTS", 1),
@@ -192,6 +220,13 @@ func Load() *Config {
 			LogRawOutput:      getEnvAsBool("LLM_LOG_RAW_OUTPUT", false),
 			PromptDir:         getEnv("LLM_PROMPT_DIR", "server/prompts"),
 			SchemaDir:         getEnv("LLM_SCHEMA_DIR", "server/prompts/schema"),
+			// K14-Hy3 reasoning effort defaults
+			Hy3ReasonEffortFast:         getEnv("HY3_REASONING_EFFORT_FAST", "no_think"),
+			Hy3ReasonEffortTag:          getEnv("HY3_REASONING_EFFORT_TAG", "no_think"),
+			Hy3ReasonEffortDeepContext:  getEnv("HY3_REASONING_EFFORT_DEEP_CONTEXT", "low"),
+			Hy3ReasonEffortDeepDecision: getEnv("HY3_REASONING_EFFORT_DEEP_DECISION", "high"),
+			Hy3ReasonEffortDeepVerifier: getEnv("HY3_REASONING_EFFORT_DEEP_VERIFIER", "low"),
+			Hy3ReasonEffortRepair:       getEnv("HY3_REASONING_EFFORT_REPAIR", "no_think"),
 		},
 		Feature: FeatureConfig{
 			EnableMockAgent: getEnvAsBool("ENABLE_MOCK_AGENT", true),

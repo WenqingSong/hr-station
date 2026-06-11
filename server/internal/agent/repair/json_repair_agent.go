@@ -3,6 +3,7 @@ package repair
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"offer-catcher/server/internal/llm"
@@ -166,14 +167,18 @@ func (a *Agent) callLLM(ctx context.Context, req RepairRequest, renderedPrompt s
 				Content: renderedPrompt,
 			},
 		},
-		Temperature: 0,
-		MaxTokens:   8192,
+		Temperature:     0,
+		MaxTokens:       8192,
+		ReasoningEffort: req.ReasoningEffort,
 		Metadata: map[string]string{
 			"agent_name":        "JSONRepairAgent",
 			"prompt_name":       "json_repair_v1",
 			"target_output_type": string(req.TargetOutputType),
 		},
 	}
+
+	log.Printf("[LLMRepair] reasoning_effort=%s target=%s",
+		req.ReasoningEffort, string(req.TargetOutputType))
 
 	return a.llmClient.Chat(ctx, chatReq)
 }

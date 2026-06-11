@@ -6,6 +6,8 @@ type Provider string
 const (
 	// ProviderHunyuan is the Tencent Hunyuan model provider.
 	ProviderHunyuan Provider = "hunyuan"
+	// ProviderHy3 is the Tencent Cloud LKEAP hy3-preview provider.
+	ProviderHy3 Provider = "hy3"
 	// ProviderNoop is a non-functional provider used for testing the
 	// Client interface contract without accessing external networks.
 	ProviderNoop Provider = "noop"
@@ -36,8 +38,17 @@ type ChatRequest struct {
 	Messages []Message `json:"messages"`
 	// Temperature controls output randomness. Recommended range [0, 2].
 	Temperature float64 `json:"temperature,omitempty"`
+	// TopP controls nucleus sampling. Recommended range [0, 1]. Zero = use default.
+	TopP float64 `json:"top_p,omitempty"`
 	// MaxTokens limits the response length. Must be > 0.
 	MaxTokens int `json:"max_tokens,omitempty"`
+	// ReasoningEffort is the Hy3-preview thinking effort: no_think / low / high.
+	// Empty string means use provider default. Ignored by non-Hy3 providers.
+	ReasoningEffort string `json:"reasoning_effort,omitempty"`
+	// ExtraBody carries provider-specific fields merged into the request body.
+	// When ReasoningEffort is set on a Hy3 provider, it is automatically added
+	// under extra_body.chat_template_kwargs.reasoning_effort.
+	ExtraBody map[string]interface{} `json:"-"`
 	// TimeoutSec overrides the client-level timeout for this request.
 	// Zero means use the client default.
 	TimeoutSec int `json:"-"`

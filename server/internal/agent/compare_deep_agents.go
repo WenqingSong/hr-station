@@ -204,8 +204,10 @@ func RunDeepCompare3Agents(
 	ctxJSON, _ := json.Marshal(a1Out)
 	a2Req := pipeline.RunRequest{
 		AgentName: "CompareDecisionAgent", PromptName: prompt.PromptCompareDecision, SchemaName: schema.SchemaCompareDecision, TargetOutputType: pipeline.TargetCompareDecision,
-		PromptValues: map[string]string{"COMPARE_CONTEXT_JSON": string(ctxJSON)},
+		ReasoningEffort: pipeline.ReasoningHigh,
+		PromptValues:    map[string]string{"COMPARE_CONTEXT_JSON": string(ctxJSON)},
 	}
+	log.Printf("[DeepCompare] agent2_decision reasoning_effort=%s", pipeline.ReasoningHigh)
 	a2Result := runner2.Run(ctx, a2Req)
 	if a2Result.FallbackRequired { return nil, trace, fmt.Errorf("agent2 decision failed: %s", a2Result.FallbackReason) }
 	trace.Agent2DurationMs = time.Since(t1).Milliseconds(); trace.Agent2Type = "llm_quality"
@@ -220,8 +222,10 @@ func RunDeepCompare3Agents(
 	a3JSON, _ := json.Marshal(a3In)
 	a3Req := pipeline.RunRequest{
 		AgentName: "CompareVerifierAgent", PromptName: prompt.PromptCompareVerifier, SchemaName: schema.SchemaCompareVerifier, TargetOutputType: pipeline.TargetCompareVerifier,
-		PromptValues: map[string]string{"VERIFIER_INPUT_JSON": string(a3JSON)},
+		ReasoningEffort: pipeline.ReasoningLow,
+		PromptValues:    map[string]string{"VERIFIER_INPUT_JSON": string(a3JSON)},
 	}
+	log.Printf("[DeepCompare] agent3_verifier reasoning_effort=%s", pipeline.ReasoningLow)
 	a3Result := runner3.Run(ctx, a3Req)
 	trace.Agent3DurationMs = time.Since(t2).Milliseconds(); trace.Agent3Type = "llm_quality"
 

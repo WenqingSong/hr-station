@@ -220,10 +220,12 @@ func RunDeepMatch3Agents(
 		PromptName:       prompt.PromptMatchDecision,
 		SchemaName:       schema.SchemaMatchDecision,
 		TargetOutputType: pipeline.TargetMatchDecision,
+		ReasoningEffort:  pipeline.ReasoningHigh,
 		PromptValues: map[string]string{
 			"MATCH_CONTEXT_JSON": string(ctxJSON),
 		},
 	}
+	log.Printf("[DeepMatch] agent2_decision reasoning_effort=%s", pipeline.ReasoningHigh)
 	a2Result := runner2.Run(ctx, a2Req)
 	if a2Result.FallbackRequired {
 		return nil, trace, fmt.Errorf("agent2 decision failed: %s", a2Result.FallbackReason)
@@ -249,10 +251,12 @@ func RunDeepMatch3Agents(
 		PromptName:       prompt.PromptMatchVerifier,
 		SchemaName:       schema.SchemaMatchVerifier,
 		TargetOutputType: pipeline.TargetMatchVerifier,
+		ReasoningEffort:  pipeline.ReasoningLow,
 		PromptValues: map[string]string{
 			"VERIFIER_INPUT_JSON": string(a3JSON),
 		},
 	}
+	log.Printf("[DeepMatch] agent3_verifier reasoning_effort=%s", pipeline.ReasoningLow)
 	a3Result := runner3.Run(ctx, a3Req)
 	trace.Agent3DurationMs = time.Since(t2).Milliseconds()
 	trace.Agent3Type = "llm_quality"

@@ -26,27 +26,37 @@ import (
 //   - Modify business Agent logic
 //   - Implement retry loops or recursive repair
 type Runner struct {
-	llmClient    llm.Client
-	promptLoader *prompt.Loader
-	schemaLoader *schema.Loader
-	validator    *schema.Validator
-	repairAgent  *repair.Agent
+	llmClient             llm.Client
+	promptLoader          *prompt.Loader
+	schemaLoader          *schema.Loader
+	validator             *schema.Validator
+	repairAgent           *repair.Agent
+	maxTokens             int
+	temperature           float64
+	repairReasoningEffort string
 }
 
 // NewRunner creates a new Pipeline Runner.
+// K14-Hy3: maxTokens, temperature, and repairReasoningEffort are config-driven.
 func NewRunner(
 	llmClient llm.Client,
 	promptLoader *prompt.Loader,
 	schemaLoader *schema.Loader,
 	validator *schema.Validator,
 	repairAgent *repair.Agent,
+	maxTokens int,
+	temperature float64,
+	repairReasoningEffort string,
 ) *Runner {
 	return &Runner{
-		llmClient:    llmClient,
-		promptLoader: promptLoader,
-		schemaLoader: schemaLoader,
-		validator:    validator,
-		repairAgent:  repairAgent,
+		llmClient:             llmClient,
+		promptLoader:          promptLoader,
+		schemaLoader:          schemaLoader,
+		validator:             validator,
+		repairAgent:           repairAgent,
+		maxTokens:             maxTokens,
+		temperature:           temperature,
+		repairReasoningEffort: repairReasoningEffort,
 	}
 }
 
@@ -167,25 +177,25 @@ func (r *Runner) callLLM(ctx context.Context, req RunRequest, renderedPrompt str
 		schemaChars = len(schemaDoc.Content)
 	}
 
-	// K13-Fix-1.6: Diagnostic log - request body characteristics only, no content
-	log.Printf("[LLMRequest] agent=%s prompt=%s schema=%s target=%s max_tokens=%d temperature=0.2 messages=2 system_chars=%d user_chars=%d schema_chars=%d repair=%v",
+	maxTok := r.maxTokens
+	if maxTok <= 0 { maxTok = 4096 }
+	temp := r.temperature
+	if temp <= 0 { temp = 0.2 }
+
+	// K14-Hy3: Diagnostic log with config-driven values
+	log.Printf("[LLMRequest] agent=%s prompt=%s schema=%s target=%s max_tokens=%d temperature=%.2f reason_effort=%s messages=2 system_chars=%d user_chars=%d schema_chars=%d repair=%v",
 		req.AgentName, string(req.PromptName), string(req.SchemaName), string(req.TargetOutputType),
-		8192,
+		maxTok, temp, req.ReasoningEffort,
 		systemChars, userChars, schemaChars, r.repairAgent != nil)
 
 	chatReq := llm.ChatRequest{
 		Messages: []llm.Message{
-			{
-				Role:    llm.RoleSystem,
-				Content: systemMsg,
-			},
-			{
-				Role:    llm.RoleUser,
-				Content: renderedPrompt,
-			},
+			{Role: llm.RoleSystem, Content: systemMsg},
+			{Role: llm.RoleUser, Content: renderedPrompt},
 		},
-		Temperature: 0.2,
-		MaxTokens:   8192,
+		Temperature:     temp,
+		MaxTokens:       maxTok,
+		ReasoningEffort: req.ReasoningEffort,
 		Metadata: map[string]string{
 			"agent_name":         req.AgentName,
 			"prompt_name":        string(req.PromptName),
@@ -251,11 +261,12 @@ func (r *Runner) attemptRepair(
 	start time.Time,
 ) *RunResult {
 	repairReq := repair.RepairRequest{
-		TargetOutputType: targetOutputTypeFromSchema(schemaDoc.Name),
-		TargetSchemaJSON: schemaDoc.Content,
-		BrokenOutput:     brokenOutput,
-		ValidationErrors: fmt.Sprintf("%s: %s", failureType, validationErrors),
-		RepairContext:    fmt.Sprintf("schema_name=%s", schemaDoc.Name),
+		TargetOutputType:  targetOutputTypeFromSchema(schemaDoc.Name),
+		TargetSchemaJSON:  schemaDoc.Content,
+		BrokenOutput:      brokenOutput,
+		ValidationErrors:  fmt.Sprintf("%s: %s", failureType, validationErrors),
+		RepairContext:     fmt.Sprintf("schema_name=%s", schemaDoc.Name),
+		ReasoningEffort:   r.repairReasoningEffort,
 	}
 
 	repairResult := r.repairAgent.Repair(context.Background(), repairReq)

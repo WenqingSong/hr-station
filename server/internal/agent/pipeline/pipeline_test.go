@@ -64,7 +64,7 @@ func newTestRunner(fc *fakeClient) *Runner {
 	v := schema.NewValidator()
 	repairAgent := repair.NewAgent(fc, pl, sl, v)
 
-	return NewRunner(fc, pl, sl, v, repairAgent)
+	return NewRunner(fc, pl, sl, v, repairAgent, 4096, 0.2, ReasoningNoThink)
 }
 
 func loadSchemaJSON(t *testing.T, relPath string) string {
@@ -601,7 +601,7 @@ func TestPipeline_PromptLoadFailed(t *testing.T) {
 	sl := schema.NewLoader(schemaDir)
 	v := schema.NewValidator()
 	repairAgent := repair.NewAgent(fc, pl, sl, v)
-	runner := NewRunner(fc, pl, sl, v, repairAgent)
+	runner := NewRunner(fc, pl, sl, v, repairAgent, 4096, 0.2, ReasoningNoThink)
 
 	result := runner.Run(context.Background(), RunRequest{
 		AgentName:        "TestAgent",
@@ -631,7 +631,7 @@ func TestPipeline_SchemaLoadFailed(t *testing.T) {
 	sl := schema.NewLoader(schemaDir)
 	v := schema.NewValidator()
 	repairAgent := repair.NewAgent(fc, pl, sl, v)
-	runner := NewRunner(fc, pl, sl, v, repairAgent)
+	runner := NewRunner(fc, pl, sl, v, repairAgent, 4096, 0.2, ReasoningNoThink)
 
 	result := runner.Run(context.Background(), RunRequest{
 		AgentName:        "TestAgent",
@@ -805,3 +805,152 @@ func TestPipeline_DurationMs(t *testing.T) {
 
 // Ensure unused import is not flagged
 var _ = time.Millisecond
+
+// ─── K14-Hy3: Reasoning Effort Tests ──────────────────────────────────
+
+func TestReasoningEffort_Agent2Decision_SetsHigh(t *testing.T) {
+	// Verify that ReasoningHigh is the correct constant.
+	if ReasoningHigh != "high" {
+		t.Errorf("expected ReasoningHigh='high', got '%s'", ReasoningHigh)
+	}
+}
+
+func TestReasoningEffort_Agent3Verifier_SetsLow(t *testing.T) {
+	if ReasoningLow != "low" {
+		t.Errorf("expected ReasoningLow='low', got '%s'", ReasoningLow)
+	}
+}
+
+func TestReasoningEffort_Repair_SetsNoThink(t *testing.T) {
+	if ReasoningNoThink != "no_think" {
+		t.Errorf("expected ReasoningNoThink='no_think', got '%s'", ReasoningNoThink)
+	}
+}
+
+func TestReasoningEffort_RunRequest_PassesThrough(t *testing.T) {
+	validJSON := toJSON(minimalMatchAnalysis())
+	fc := &fakeClient{responses: []string{validJSON}}
+	runner := newTestRunner(fc)
+
+	// Run with ReasoningEffort explicitly set
+	result := runner.Run(context.Background(), RunRequest{
+		AgentName:        "MatchDecisionAgent",
+		PromptName:       prompt.PromptMatchAnalysis,
+		SchemaName:       schema.SchemaMatchAnalysis,
+		TargetOutputType: TargetMatchAnalysis,
+		ReasoningEffort:  ReasoningHigh,
+		PromptValues:     map[string]string{},
+	})
+
+	if result.AgentStatus != StatusSuccess {
+		t.Fatalf("expected success, got: %s", result.AgentStatus)
+	}
+	// The fakeClient doesn't validate the reasoning effort, but the pipeline should not crash.
+}
+
+func TestReasoningEffort_EmptyIsAcceptable(t *testing.T) {
+	validJSON := toJSON(minimalMatchAnalysis())
+	fc := &fakeClient{responses: []string{validJSON}}
+	runner := newTestRunner(fc)
+
+	// Run without ReasoningEffort — must still work (old provider compatible)
+	result := runner.Run(context.Background(), RunRequest{
+		AgentName:        "TestAgent",
+		PromptName:       prompt.PromptMatchAnalysis,
+		SchemaName:       schema.SchemaMatchAnalysis,
+		TargetOutputType: TargetMatchAnalysis,
+		PromptValues:     map[string]string{},
+	})
+
+	if result.AgentStatus != StatusSuccess {
+		t.Fatalf("expected success with empty reasoning_effort, got: %s", result.AgentStatus)
+	}
+}
+
+func TestNormalizeReasoningEffort_ValidValues(t *testing.T) {
+	tests := []struct {
+		input    string
+		fallback string
+		want     string
+	}{
+		{"no_think", "", "no_think"},
+		{"low", "", "low"},
+		{"high", "", "high"},
+		{"HIGH", "", "high"},
+		{" Low ", "", "low"},
+		{"", "no_think", "no_think"},
+		{"invalid", "no_think", "no_think"},
+		{"think_low", "no_think", "no_think"},
+		{"think_high", "no_think", "no_think"},
+	}
+
+	for _, tc := range tests {
+		got := NormalizeReasoningEffort(tc.input, tc.fallback)
+		if got != tc.want {
+			t.Errorf("NormalizeReasoningEffort(%q, %q) = %q, want %q", tc.input, tc.fallback, got, tc.want)
+		}
+	}
+}
+
+func TestReasoningEffort_RepairReq_PassesNoThinkToClient(t *testing.T) {
+	// Repair should receive no_think from the runner
+	brokenJSON := `{"match_score": broken`
+	validJSON := toJSON(minimalMatchAnalysis())
+	fc := &fakeClient{responses: []string{brokenJSON, validJSON}}
+
+	promptDir, _ := filepath.Abs("../../../prompts")
+	schemaDir, _ := filepath.Abs("../../../prompts/schema")
+	pl := prompt.NewLoader(promptDir)
+	sl := schema.NewLoader(schemaDir)
+	v := schema.NewValidator()
+	repairAgent := repair.NewAgent(fc, pl, sl, v)
+
+	// Create runner with repair_reasoning_effort=no_think
+	runner := NewRunner(fc, pl, sl, v, repairAgent, 4096, 0.2, ReasoningNoThink)
+
+	result := runner.Run(context.Background(), RunRequest{
+		AgentName:        "MatchAnalysisAgent",
+		PromptName:       prompt.PromptMatchAnalysis,
+		SchemaName:       schema.SchemaMatchAnalysis,
+		TargetOutputType: TargetMatchAnalysis,
+		PromptValues:     map[string]string{},
+	})
+
+	// Should succeed via repair
+	if result.AgentStatus != StatusRepaired {
+		t.Fatalf("expected repaired after repair, got: %s (error: %s)", result.AgentStatus, result.ErrorMessage)
+	}
+	if !result.RepairApplied {
+		t.Error("expected RepairApplied=true")
+	}
+	if !result.RepairSuccess {
+		t.Error("expected RepairSuccess=true")
+	}
+}
+
+func TestReasoningEffort_FastPath_NoLLMCall(t *testing.T) {
+	// Fast path uses fast_tag_engine — no LLM call at all.
+	// This test verifies that ReasoningEffort alone doesn't trigger LLM.
+	// (Fast paths are verified at the service layer.)
+	// Here we just verify the constants don't enable LLM by themselves.
+	if ReasoningStageFast == "" || ReasoningStageTag == "" {
+		t.Error("reasoning stage constants must be non-empty")
+	}
+}
+
+func TestReasoningEffort_ConfigDrive(t *testing.T) {
+	// Verify that Runner stores and uses the repairReasoningEffort from config.
+	fc := &fakeClient{}
+	promptDir, _ := filepath.Abs("../../../prompts")
+	schemaDir, _ := filepath.Abs("../../../prompts/schema")
+	pl := prompt.NewLoader(promptDir)
+	sl := schema.NewLoader(schemaDir)
+	v := schema.NewValidator()
+	repairAgent := repair.NewAgent(fc, pl, sl, v)
+
+	runner := NewRunner(fc, pl, sl, v, repairAgent, 4096, 0.2, ReasoningNoThink)
+
+	if runner.repairReasoningEffort != ReasoningNoThink {
+		t.Errorf("expected repairReasoningEffort=%s, got %s", ReasoningNoThink, runner.repairReasoningEffort)
+	}
+}

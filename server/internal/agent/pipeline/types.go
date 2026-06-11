@@ -1,6 +1,8 @@
 package pipeline
 
 import (
+	"strings"
+
 	"offer-catcher/server/internal/prompt"
 	"offer-catcher/server/internal/schema"
 )
@@ -77,6 +79,9 @@ type RunRequest struct {
 	// Metadata carries optional diagnostic key-value pairs.
 	// Must not contain API keys.
 	Metadata map[string]string
+	// ReasoningEffort is the Hy3-preview thinking effort: no_think / low / high.
+	// Empty means use provider default. Ignored by non-Hy3 providers.
+	ReasoningEffort string
 }
 
 // RunResult is the output of a Pipeline.Run call.
@@ -206,5 +211,39 @@ func mapLLMErrorCodeToFallbackReason(code string) string {
 		return FallbackLLMCallFailed
 	default:
 		return FallbackUnknownError
+	}
+}
+
+// ─── K14-Hy3: Reasoning Effort Constants ────────────────────────────────
+
+// Reasoning effort values for Hy3-preview.
+// Only no_think / low / high are officially supported.
+// think_low / think_high must never be used as formal values.
+const (
+	ReasoningNoThink = "no_think"
+	ReasoningLow     = "low"
+	ReasoningHigh    = "high"
+)
+
+// Reasoning stage constants for logging / debugging.
+const (
+	ReasoningStageFast         = "fast"
+	ReasoningStageTag          = "tag"
+	ReasoningStageDeepContext  = "deep_context"
+	ReasoningStageDeepDecision = "deep_decision"
+	ReasoningStageDeepVerifier = "deep_verifier"
+	ReasoningStageRepair       = "repair"
+)
+
+// NormalizeReasoningEffort validates and normalizes the reasoning effort string.
+// Only "no_think", "low", "high" are accepted (case-insensitive, trimmed).
+// Any other value returns fallback.
+func NormalizeReasoningEffort(v string, fallback string) string {
+	normalized := strings.ToLower(strings.TrimSpace(v))
+	switch normalized {
+	case ReasoningNoThink, ReasoningLow, ReasoningHigh:
+		return normalized
+	default:
+		return fallback
 	}
 }

@@ -39,6 +39,9 @@ type RepairRequest struct {
 	// allowed enum values). Must not contain API keys, full resumes, or
 	// full JDs.
 	RepairContext string
+	// ReasoningEffort is the Hy3-preview thinking effort for repair: no_think / low / high.
+	// Empty means use provider default. Ignored by non-Hy3 providers.
+	ReasoningEffort string
 	// Metadata carries optional diagnostic key-value pairs. Must not
 	// contain API keys.
 	Metadata map[string]string

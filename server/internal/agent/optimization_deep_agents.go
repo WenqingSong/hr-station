@@ -210,8 +210,10 @@ func RunDeepOptimization3Agents(
 		PromptName:       prompt.PromptOptimizationDecision,
 		SchemaName:       schema.SchemaOptimizationDecision,
 		TargetOutputType: pipeline.TargetOptimizationDecision,
+		ReasoningEffort:  pipeline.ReasoningHigh,
 		PromptValues:     map[string]string{"OPTIMIZATION_CONTEXT_JSON": string(ctxJSON)},
 	}
+	log.Printf("[DeepOptimization] agent2_decision reasoning_effort=%s", pipeline.ReasoningHigh)
 	a2Result := runner2.Run(ctx, a2Req)
 	if a2Result.FallbackRequired {
 		return nil, trace, fmt.Errorf("agent2 decision failed: %s", a2Result.FallbackReason)
@@ -234,8 +236,10 @@ func RunDeepOptimization3Agents(
 		PromptName:       prompt.PromptOptimizationVerifier,
 		SchemaName:       schema.SchemaOptimizationVerifier,
 		TargetOutputType: pipeline.TargetOptimizationVerifier,
+		ReasoningEffort:  pipeline.ReasoningLow,
 		PromptValues:     map[string]string{"VERIFIER_INPUT_JSON": string(a3JSON)},
 	}
+	log.Printf("[DeepOptimization] agent3_verifier reasoning_effort=%s", pipeline.ReasoningLow)
 	a3Result := runner3.Run(ctx, a3Req)
 	trace.Agent3DurationMs = time.Since(t2).Milliseconds()
 	trace.Agent3Type = "llm_quality"

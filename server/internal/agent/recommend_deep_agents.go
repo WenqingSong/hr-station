@@ -394,6 +394,7 @@ func RunDeepRecommendation3Agents(
 		PromptName:       prompt.PromptRecommendationDecision,
 		SchemaName:       schema.SchemaRecommendationDecision,
 		TargetOutputType: pipeline.TargetRecommendationDecision,
+		ReasoningEffort:  pipeline.ReasoningHigh,
 		PromptValues: map[string]string{
 			"RESUME_CONTEXT_JSON": string(resumeJSON),
 			"CANDIDATE_JOBS_JSON": string(candidatesJSON),
@@ -404,6 +405,7 @@ func RunDeepRecommendation3Agents(
 		},
 	}
 
+	log.Printf("[DeepRecommend] agent2_decision reasoning_effort=%s", pipeline.ReasoningHigh)
 	agent2Result := runner2.Run(ctx, agent2Req)
 	if agent2Result.FallbackRequired {
 		return nil, fmt.Errorf("agent2 decision failed: %s", agent2Result.FallbackReason)
@@ -430,6 +432,7 @@ func RunDeepRecommendation3Agents(
 		PromptName:       prompt.PromptRecommendationVerifier,
 		SchemaName:       schema.SchemaRecommendationVerifier,
 		TargetOutputType: pipeline.TargetRecommendationVerifier,
+		ReasoningEffort:  pipeline.ReasoningLow,
 		PromptValues: map[string]string{
 			"DECISION_JSON":      string(decisionJSON),
 			"CANDIDATES_JSON":    string(candidatesJSON2),
@@ -437,6 +440,7 @@ func RunDeepRecommendation3Agents(
 		},
 	}
 
+	log.Printf("[DeepRecommend] agent3_verifier reasoning_effort=%s", pipeline.ReasoningLow)
 	agent3Result := runner3.Run(ctx, agent3Req)
 	if agent3Result.FallbackRequired {
 		log.Printf("[DeepRecommend] stage=agent3_verifier fallback — using agent2 output with local normalization")

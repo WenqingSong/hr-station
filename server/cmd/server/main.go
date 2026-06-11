@@ -97,60 +97,51 @@ func main() {
 	matchMockAgent := agent.NewMatchMockAgent()
 	matchMockAgent.SetProfileProvider(resumeProfileService)
 
-	// Initialize LLM infrastructure for MatchAnalysisAgent pipeline
+	// K14-Hy3: Provider factory — create LLM client based on LLM_PROVIDER config
 	var fastRunner, qualityRunner *pipeline.Runner
 	llmEnabled := cfg.LLM.Enable
 	if llmEnabled {
-		baseCfg := llm.Config{
+		provider := cfg.LLM.Provider
+		maxTok := cfg.LLM.MaxOutputTokens
+		if maxTok <= 0 { maxTok = 4096 }
+		temp := cfg.LLM.Temperature
+		if temp <= 0 { temp = 0.2 }
+
+		// Fast client
+		fastCfg := llm.Config{
 			Enable:            cfg.LLM.Enable,
-			Provider:          llm.Provider(cfg.LLM.Provider),
-			BaseURL:           cfg.LLM.BaseURL,
-			APIKey:            cfg.LLM.APIKey,
-			Temperature:       cfg.LLM.Temperature,
-			MaxOutputTokens:   cfg.LLM.MaxOutputTokens,
+			Provider:          llm.Provider(provider),
+			BaseURL:           cfg.LLM.ResolveBaseURL(provider),
+			APIKey:            cfg.LLM.ResolveAPIKey(provider),
+			Model:             cfg.LLM.FastModel,
+			Temperature:       temp,
+			MaxOutputTokens:   maxTok,
 			TimeoutSeconds:    cfg.LLM.TimeoutSeconds,
 			RepairEnable:      cfg.LLM.RepairEnable,
 			RepairMaxAttempts: cfg.LLM.RepairMaxAttempts,
 			FallbackEnable:    cfg.LLM.FallbackEnable,
-			LogRawOutput:      cfg.LLM.LogRawOutput,
 			PromptDir:         cfg.LLM.PromptDir,
 			SchemaDir:         cfg.LLM.SchemaDir,
 		}
+		fastClient := newLLMClient(fastCfg, provider)
 
-		// Fast client (deepseek-v4-flash)
-		fastCfg := baseCfg
-		fastCfg.Model = cfg.LLM.FastModel
-		if err := fastCfg.Validate(); err != nil {
-			log.Fatalf("[offer-catcher-server] Invalid Fast LLM config: %v", err)
-		}
-		fastClient, err := llm.NewHunyuanClient(fastCfg, nil)
-		if err != nil {
-			log.Fatalf("[offer-catcher-server] Failed to create Fast LLM client: %v", err)
-		}
-
-		// Quality client (deepseek-v4-pro-202606)
-		qualityCfg := baseCfg
+		// Quality client
+		qualityCfg := fastCfg
 		qualityCfg.Model = cfg.LLM.QualityModel
-		if err := qualityCfg.Validate(); err != nil {
-			log.Fatalf("[offer-catcher-server] Invalid Quality LLM config: %v", err)
-		}
-		qualityClient, err := llm.NewHunyuanClient(qualityCfg, nil)
-		if err != nil {
-			log.Fatalf("[offer-catcher-server] Failed to create Quality LLM client: %v", err)
-		}
+		qualityClient := newLLMClient(qualityCfg, provider)
 
-		promptLoader := prompt.NewLoader(baseCfg.PromptDir)
-		schemaLoader := schema.NewLoader(baseCfg.SchemaDir)
+		promptLoader := prompt.NewLoader(fastCfg.PromptDir)
+		schemaLoader := schema.NewLoader(fastCfg.SchemaDir)
 		validator := schema.NewValidator()
-
-		// Repair agent for Quality tier (repair is quality-sensitive; fast tier uses Mock fallback on failure)
 		repairAgent := repair.NewAgent(qualityClient, promptLoader, schemaLoader, validator)
 
-		fastRunner = pipeline.NewRunner(fastClient, promptLoader, schemaLoader, validator, repairAgent)
-		qualityRunner = pipeline.NewRunner(qualityClient, promptLoader, schemaLoader, validator, repairAgent)
+		repairReEffort := cfg.LLM.Hy3ReasonEffortRepair
 
-		log.Printf("[offer-catcher-server] LLM pipeline initialized (fast=%s quality=%s timeout_seconds=%d)",
-			cfg.LLM.FastModel, cfg.LLM.QualityModel, cfg.LLM.TimeoutSeconds)
+		fastRunner = pipeline.NewRunner(fastClient, promptLoader, schemaLoader, validator, repairAgent, maxTok, temp, repairReEffort)
+		qualityRunner = pipeline.NewRunner(qualityClient, promptLoader, schemaLoader, validator, repairAgent, maxTok, temp, repairReEffort)
+
+		log.Printf("[offer-catcher-server] LLM pipeline initialized (provider=%s fast=%s quality=%s timeout_seconds=%d max_tokens=%d)",
+			provider, cfg.LLM.FastModel, cfg.LLM.QualityModel, cfg.LLM.TimeoutSeconds, maxTok)
 	} else {
 		log.Println("[offer-catcher-server] LLM disabled, using Mock Agent only")
 	}
@@ -256,5 +247,25 @@ func main() {
 	if err := http.ListenAndServe(addr, router); err != nil {
 		log.Fatalf("[offer-catcher-server] Server failed: %v", err)
 		os.Exit(1)
+	}
+}
+
+// newLLMClient creates an LLM client based on provider string.
+// K14-Hy3: supports hy3 (LKEAP) and deepseek/hunyuan/tokenhub (OpenAI-compatible).
+func newLLMClient(cfg llm.Config, provider string) llm.Client {
+	switch provider {
+	case "hy3":
+		c, err := llm.NewHy3Client(cfg, nil)
+		if err != nil {
+			log.Fatalf("[offer-catcher-server] Failed to create Hy3 client: %v", err)
+		}
+		return c
+	default:
+		// deepseek, hunyuan, tokenhub all use OpenAI-compatible path
+		c, err := llm.NewHunyuanClient(cfg, nil)
+		if err != nil {
+			log.Fatalf("[offer-catcher-server] Failed to create LLM client: %v", err)
+		}
+		return c
 	}
 }
