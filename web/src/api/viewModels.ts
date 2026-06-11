@@ -1,5 +1,7 @@
 // ─── API → ViewModel 统一 Loader（K8-5-48-C） ────────────────────────────────
 
+import { normalizeAgentData } from "./normalizeAgentResponse";
+
 import {
   getJobs,
   getJobDetail,
@@ -243,7 +245,7 @@ export async function loadCompareV2ViewModel(input: {
     target_direction: input.targetDirection,
     job_id: input.jobId,
   }, signal);
-  return mapCompareV2(raw);
+  return mapCompareV2(normalizeAgentData(raw as any, "compare") as any);
 }
 
 /** 加载指定简历摘要 ViewModel */
@@ -319,15 +321,19 @@ export async function loadRecommendationViewModel(
   input?: Partial<RecommendationRequest>,
 ): Promise<RecommendationPageViewModel> {
   const response = await runRecommendation(input);
-  // K9-1-I: extract profile fields from response data
+  const normalized = normalizeAgentData(response as any, "recommendation");
+  // Ensure recommended_jobs is an array
+  const jobs = Array.isArray(normalized.recommended_jobs) ? normalized.recommended_jobs : [];
+  // Build a result-like object for the existing adapter
+  const resultLike: any = { ...normalized, recommended_jobs: jobs };
   const profileExtras = {
-    profileStatus: (response as any).profile_status,
-    profileType: (response as any).profile_type,
-    profileSource: (response as any).profile_source,
-    profileDominantProfile: (response as any).profile_dominant_profile,
-    profileMessage: (response as any).profile_message,
+    profileStatus: normalized.profile_status as string | undefined,
+    profileType: normalized.profile_type as string | undefined,
+    profileSource: normalized.profile_source as string | undefined,
+    profileDominantProfile: normalized.profile_dominant_profile as string | undefined,
+    profileMessage: normalized.profile_message as string | undefined,
   };
-  return toRecommendationPageViewModel(response.result, response.meta, profileExtras);
+  return toRecommendationPageViewModel(resultLike, normalized.meta as any, profileExtras);
 }
 
 export async function loadMatchAnalysisViewModel(
@@ -336,10 +342,13 @@ export async function loadMatchAnalysisViewModel(
   signal?: AbortSignal,
 ): Promise<MatchAnalysisPageViewModel> {
   const response = await runMatchAnalysis(jobId, input, signal);
-  const vm = toMatchAnalysisPageViewModel(response.result, response.meta);
+  const normalized = normalizeAgentData(response as any, "match");
+  // Use normalized data (handles result:null or result:object)
+  const result = (normalized.result as any) || normalized;
+  const vm = toMatchAnalysisPageViewModel(result, normalized.meta as any);
   // Dev-Reboot-Fix-C: propagate generated_by/fallback from meta
-  vm.generatedBy = response.meta?.generated_by || "";
-  vm.fallback = response.meta?.fallback;
+  vm.generatedBy = (normalized.meta as any)?.generated_by || normalized.generated_by as string || "";
+  vm.fallback = (normalized.meta as any)?.fallback ?? (normalized.fallback as boolean | undefined);
   return vm;
 }
 
@@ -496,5 +505,5 @@ export async function loadGenerateOptimizationV2ViewModel(
   signal?: AbortSignal,
 ): Promise<OptimizationV2ViewModel> {
   const raw = await generateResumeOptimization(resumeId, input, signal);
-  return mapOptV2(raw);
+  return mapOptV2(normalizeAgentData(raw as any, "optimization") as any);
 }

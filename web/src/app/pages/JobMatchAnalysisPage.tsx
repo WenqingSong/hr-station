@@ -18,7 +18,7 @@ import AgentErrorState from "../components/common/AgentErrorState";
 import { BulletList } from "../components/common/BulletList";
 import { MatchAnalysisSkeleton } from "../components/match/MatchAnalysisSkeleton";
 import { Badge } from "../components/ui/Badge";
-import { Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, AlertCircle } from "lucide-react";
 import { isMockGeneratedBy } from "../utils/agentError";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -75,10 +75,12 @@ export function JobMatchAnalysisPage() {
 
   const [job, setJob] = useState<JobApiItem | null>(null);
   const [loadingJob, setLoadingJob] = useState(!!jobId);
+  const [jobNotFound, setJobNotFound] = useState(false);
 
   const [resumeOptions, setResumeOptions] = useState<ResumeOptionViewModel[]>([]);
   const [selectedOption, setSelectedOption] = useState<ResumeOptionViewModel | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const [urlResumeNotFound, setUrlResumeNotFound] = useState(false);
 
   const [selectedResumeDetail, setSelectedResumeDetail] = useState<Resume | null>(null);
   const [loadingResumeDetail, setLoadingResumeDetail] = useState(false);
@@ -96,8 +98,8 @@ export function JobMatchAnalysisPage() {
   useEffect(() => {
     if (!jobId) { setLoadingJob(false); return; }
     getJobDetail(jobId)
-      .then(setJob)
-      .catch(() => {})
+      .then((j) => { if (j) setJob(j); else setJobNotFound(true); })
+      .catch(() => { setJobNotFound(true); })
       .finally(() => setLoadingJob(false));
   }, [jobId]);
 
@@ -106,16 +108,30 @@ export function JobMatchAnalysisPage() {
     loadResumeOptionViewModelsFromApi()
       .then((opts) => {
         setResumeOptions(opts);
-        if (opts.length === 0) return;
+        if (opts.length === 0) { setLoadingOptions(false); return; }
         const targetId = parseResumeIdFromQuery(resumeIdStr);
-        const matched = targetId ? opts.find((o) => o.id === targetId) : undefined;
-        setSelectedOption(matched ?? opts[0]);
+        if (targetId) {
+          const found = opts.find((o) => o.id === targetId);
+          if (!found) {
+            setUrlResumeNotFound(true);
+            setSelectedOption(null);
+            setLoadingOptions(false);
+            return;
+          }
+          setSelectedOption(found);
+          navigate(`/match?jobId=${jobId}&resumeId=${found.id}`, { replace: true });
+        } else {
+          const cur = opts.find((o) => o.isCurrent) ?? opts[0];
+          setSelectedOption(cur);
+          navigate(`/match?jobId=${jobId}&resumeId=${cur.id}`, { replace: true });
+        }
+        setLoadingOptions(false);
       })
       .catch((err) => {
         const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
         if (authRedirect) { navigate(authRedirect, { replace: true }); return; }
-      })
-      .finally(() => setLoadingOptions(false));
+        setLoadingOptions(false);
+      });
   }, []);
 
   // ── Load resume detail ──
@@ -206,11 +222,30 @@ export function JobMatchAnalysisPage() {
   };
 
   // ── Guard states ──
+  // Missing jobId
   if (!jobId) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">缺少目标岗位</p>
-        <Link to="/jobs" className="text-[#0052D9] text-sm underline">返回岗位列表</Link>
+      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
+        <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">缺少目标岗位</h2>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+          请先从岗位列表选择一个岗位，再进行匹配分析。
+        </p>
+        <Link to="/jobs" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">返回岗位列表</Link>
+      </div>
+    );
+  }
+
+  // Job not found or load failed
+  if (!loadingJob && jobNotFound) {
+    return (
+      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
+        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">岗位不存在或已下线</h2>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+          当前链接中的岗位（ID: {jobId}）无法访问。请返回岗位列表重新选择。
+        </p>
+        <Link to="/jobs" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">返回岗位列表</Link>
       </div>
     );
   }
@@ -219,11 +254,42 @@ export function JobMatchAnalysisPage() {
     return <MatchAnalysisSkeleton message="正在加载岗位和简历信息…" />;
   }
 
-  if (resumeOptions.length === 0 || !selectedOption) {
+  // URL resumeId doesn't belong to current user
+  if (urlResumeNotFound) {
+    return (
+      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
+        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">简历不存在或不属于当前账号</h2>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+          当前链接中的简历无法访问。请从你的简历列表中选择一份简历后再进行岗位匹配分析。
+        </p>
+        <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">返回我的简历</Link>
+      </div>
+    );
+  }
+
+  // No resumes at all
+  if (resumeOptions.length === 0) {
+    return (
+      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
+        <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">你还没有可用于匹配的简历</h2>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+          请先创建或导入一份简历，Offer捕手才能基于你的经历分析岗位匹配度。
+        </p>
+        <div className="flex justify-center gap-3">
+          <Link to="/resumes/new" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">去创建简历</Link>
+          <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">管理我的简历</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedOption) {
     return (
       <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">你还没有可用于匹配的简历</p>
-        <Link to="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</Link>
+        <p className="text-gray-500 text-sm mb-3">无法选择简历</p>
+        <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
       </div>
     );
   }

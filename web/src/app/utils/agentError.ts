@@ -129,3 +129,16 @@ export function isErrorTier(
   if (!status) return false;
   return status === "fast_error" || status === "deep_error" || status === "latest_error";
 }
+
+/**
+ * ContractError — backend response structure doesn't match frontend expectation.
+ * MUST NOT be shown as "推荐结果加载失败" or network error.
+ */
+export class ContractError extends Error {
+  feature: string;
+  constructor(feature: string, detail: string) {
+    super(`[${feature}] ${detail}`);
+    this.name = "ContractError";
+    this.feature = feature;
+  }
+}
