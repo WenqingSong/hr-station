@@ -205,11 +205,9 @@ export function MyResumesPage() {
   const [fillingDemo, setFillingDemo] = useState(false);
   const [demoError, setDemoError] = useState("");
 
-  async function handleFillDemo() {
-    setFillingDemo(true); setDemoError("");
-    try {
-      const demoResume = await getResumeById(201);
-      const vm = toResumeManagementViewModel(demoResume);
+  function fillDemoFromVm(vm: ResumeManagementViewModel | null) {
+    if (vm) {
+      // Fill from real API data (seed resume 201)
       setResumeName(vm.name || "示例简历");
       setNameCheckStatus("idle");
       setNameCheckMessage("");
@@ -243,8 +241,52 @@ export function MyResumesPage() {
       const ws: WorkDraft[] = (vm.works || []).map((w, i) => ({ id: i + 1, name: w.name || "", link: w.url || "", password: w.password || "" }));
       setPortfolioDraft({ works: ws.length > 0 ? ws : [{ id: 1, name: "", link: "", password: "" }], homepage: vm.homepage || "" });
       setExtraInfoDraft({ additionalInfo: vm.additionalInfo || "" });
+      return;
+    }
+
+    // Fallback: hardcoded demo data when API is unreachable
+    setResumeName("示例简历");
+    setNameCheckStatus("idle");
+    setNameCheckMessage("");
+    setPersonalName("张同学");
+    setPhone("13800138000");
+    setEmail("zhang@example.com");
+    setCurrentCity("北京");
+    setEducations([{
+      id: 1, school: "清华大学", major: "计算机科学与技术", degree: "硕士",
+      startDate: "2024-09", endDate: "2027-06", department: "计算机科学与技术系",
+      gpa: "3.8", gpaScale: "4.0", rank: "", coreCourses: "机器学习、深度学习、推荐系统",
+      researchDirection: "推荐系统", advisor: "", lab: "", paperSummary: "",
+    }]);
+    setInternships([{
+      id: 1, company: "腾讯科技", position: "后端开发实习生",
+      startDate: "2025-06", endDate: "2025-09",
+      content: "参与内部平台后端开发，使用 Go + MySQL + Redis 完成用户管理、权限校验和数据统计接口开发。",
+    }]);
+    setProjects([{
+      id: 1, name: "分布式课程论坛", role: "后端负责人",
+      startDate: "2024-10", endDate: "2024-12",
+      desc: "基于 Go + MySQL + Redis 实现高并发课程论坛，支持帖子发布、评论、点赞、搜索、权限管理和内容审核。",
+    }]);
+    setSkillsDraft({
+      developmentLanguages: "Go、Python、SQL、MySQL、Redis、Docker、Linux、Git",
+      aiApplication: "使用 CodeBuddy 辅助需求拆解、代码生成、Bug 定位、接口文档、测试用例和项目复盘。",
+    });
+    setLanguageExamDrafts([{ id: 1, name: "CET-6", score: "520" }]);
+    setCertificateDrafts([{ id: 1, name: "阿里云云计算基础认证 ACA", description: "了解云服务器、云数据库、对象存储等云计算基础概念。" }]);
+    setAwardDrafts([{ id: 1, name: "国家奖学金", description: "研究生国家奖学金，2025 年获得。" }]);
+    setPortfolioDraft({ works: [{ id: 1, name: "GitHub", link: "https://github.com/demo", password: "" }], homepage: "https://github.com/demo" });
+    setExtraInfoDraft({ additionalInfo: "目标岗位：后端开发实习生。具备 Go 后端开发、接口设计、数据库建模、单元测试和前后端联调经验。" });
+  }
+
+  async function handleFillDemo() {
+    setFillingDemo(true); setDemoError("");
+    try {
+      const demoResume = await getResumeById(201);
+      fillDemoFromVm(toResumeManagementViewModel(demoResume));
     } catch {
-      setDemoError("加载体验内容失败，请稍后重试。");
+      // API unreachable — use hardcoded demo data
+      fillDemoFromVm(null);
     } finally {
       setFillingDemo(false);
     }
@@ -645,37 +687,51 @@ export function MyResumesPage() {
             <button onClick={addLanguageExam} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加外语考试</button>
           </>); })()}
         </div>
-        {(() => {
-          const certActive = certificateDrafts.some((c) => !removingItemKeys.has(`certificate:${c.id}`));
-          const certRemoving = certificateDrafts.some((c) => removingItemKeys.has(`certificate:${c.id}`));
-          const awardActive = awardDrafts.some((a) => !removingItemKeys.has(`award:${a.id}`));
-          const awardRemoving = awardDrafts.some((a) => removingItemKeys.has(`award:${a.id}`));
-          const certsEmpty = certificateDrafts.length === 0 || (!certActive && certRemoving);
-          const awardsEmpty = awardDrafts.length === 0 || (!awardActive && awardRemoving);
-          if (certsEmpty && awardsEmpty) {
-            return (<div className="rounded-xl bg-gray-50/70 py-8 text-center"><p className="text-sm text-slate-500 mb-1">暂无证书与获奖</p><p className="text-xs text-slate-400 mb-3">可以补充语言、云计算、软件开发等相关证书或竞赛获奖。</p><div className="flex gap-2 justify-center"><button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加证书</button><button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button></div></div>);
-          }
-          return (<>
-          {certificateDrafts.length > 0 && <h4 className="text-sm font-medium text-slate-600 mb-3">证书</h4>}
-          {certificateDrafts.map((cert, idx) => {
-            const certKey = `certificate:${cert.id}`;
-            const isRemoving = removingItemKeys.has(certKey);
-            return (
-            <AnimatedListItem key={cert.id} removing={isRemoving}>
-              <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "certificate" && recentlyAdded.key === String(cert.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">证书 {idx + 1}</span><button onClick={() => markRemoving(certKey, () => removeCertificate(cert.id))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书名称 <span className="text-red-500">*</span></label><Input className="h-10" value={cert.name} onChange={(e) => updateCertificate(cert.id, "name", e.target.value)} placeholder="如：CET-4 503" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书说明</label><AutoGrowTextarea minRows={2} maxRows={6} value={cert.description} onChange={(e) => updateCertificate(cert.id, "description", e.target.value)} placeholder="补充信息" /></div></div>
-            </AnimatedListItem>
-          );})}
-          {awardDrafts.length > 0 && <h4 className="text-sm font-medium text-slate-600 mb-3 mt-2">获奖</h4>}
-          {awardDrafts.map((award, idx) => {
-            const awardKey = `award:${award.id}`;
-            const isRemoving = removingItemKeys.has(awardKey);
-            return (
-            <AnimatedListItem key={award.id} removing={isRemoving}>
-              <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "award" && recentlyAdded.key === String(award.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">获奖 {idx + 1}</span><button onClick={() => markRemoving(awardKey, () => removeAward(award.id))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项名称 <span className="text-red-500">*</span></label><Input className="h-10" value={award.name} onChange={(e) => updateAward(award.id, "name", e.target.value)} placeholder="如：国家奖学金" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项说明</label><AutoGrowTextarea minRows={2} maxRows={6} value={award.description} onChange={(e) => updateAward(award.id, "description", e.target.value)} placeholder="获奖信息补充" /></div></div>
-            </AnimatedListItem>
-          );})}
-          {(certActive || awardActive) && <div className="flex gap-2 mt-2"><button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加证书</button><button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button></div>}
-        </>); })}
+        {/* 证书 */}
+        <div className="mb-5 pb-5 border-b border-gray-100">
+          <h4 className="text-sm font-medium text-slate-600 mb-3">证书</h4>
+          {(() => {
+            const certActive = certificateDrafts.some((c) => !removingItemKeys.has(`certificate:${c.id}`));
+            const certRemoving = certificateDrafts.some((c) => removingItemKeys.has(`certificate:${c.id}`));
+            const certsEmpty = certificateDrafts.length === 0 || (!certActive && certRemoving);
+            if (certsEmpty) {
+              return <ResumeEditorEmptyState title="暂无证书" description="可以补充专业技术、语言、云计算等相关证书。" actionLabel="+ 添加证书" onAction={addCertificate} />;
+            }
+            return (<>
+            {certificateDrafts.map((cert, idx) => {
+              const certKey = `certificate:${cert.id}`;
+              const isRemoving = removingItemKeys.has(certKey);
+              return (
+              <AnimatedListItem key={cert.id} removing={isRemoving}>
+                <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "certificate" && recentlyAdded.key === String(cert.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">证书 {idx + 1}</span><button onClick={() => markRemoving(certKey, () => removeCertificate(cert.id))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书名称 <span className="text-red-500">*</span></label><Input className="h-10" value={cert.name} onChange={(e) => updateCertificate(cert.id, "name", e.target.value)} placeholder="如：CET-4 503" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">证书说明</label><AutoGrowTextarea minRows={2} maxRows={6} value={cert.description} onChange={(e) => updateCertificate(cert.id, "description", e.target.value)} placeholder="补充信息" /></div></div>
+              </AnimatedListItem>
+            );})}
+            {certActive && <button onClick={addCertificate} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加证书</button>}
+          </>); })()}
+        </div>
+
+        {/* 获奖经历 */}
+        <div>
+          <h4 className="text-sm font-medium text-slate-600 mb-3">获奖经历</h4>
+          {(() => {
+            const awardActive = awardDrafts.some((a) => !removingItemKeys.has(`award:${a.id}`));
+            const awardRemoving = awardDrafts.some((a) => removingItemKeys.has(`award:${a.id}`));
+            const awardsEmpty = awardDrafts.length === 0 || (!awardActive && awardRemoving);
+            if (awardsEmpty) {
+              return <ResumeEditorEmptyState title="暂无获奖经历" description="可以补充竞赛获奖、学术荣誉、奖学金等。" actionLabel="+ 添加获奖" onAction={addAward} />;
+            }
+            return (<>
+            {awardDrafts.map((award, idx) => {
+              const awardKey = `award:${award.id}`;
+              const isRemoving = removingItemKeys.has(awardKey);
+              return (
+              <AnimatedListItem key={award.id} removing={isRemoving}>
+                <div className={`rounded-2xl bg-gray-50/70 ring-1 ring-gray-100 p-5 space-y-4 mb-4 ${recentlyAdded?.type === "award" && recentlyAdded.key === String(award.id) ? "resume-item-enter" : ""}`}><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">获奖 {idx + 1}</span><button onClick={() => markRemoving(awardKey, () => removeAward(award.id))} disabled={isRemoving} className={cn("text-slate-400 hover:text-red-500", isRemoving && "opacity-50 pointer-events-none")}><Trash2 className="w-4 h-4" /></button></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项名称 <span className="text-red-500">*</span></label><Input className="h-10" value={award.name} onChange={(e) => updateAward(award.id, "name", e.target.value)} placeholder="如：国家奖学金" /></div><div><label className="mb-1.5 block text-sm font-medium text-slate-700">奖项说明</label><AutoGrowTextarea minRows={2} maxRows={6} value={award.description} onChange={(e) => updateAward(award.id, "description", e.target.value)} placeholder="获奖信息补充" /></div></div>
+              </AnimatedListItem>
+            );})}
+            {awardActive && <button onClick={addAward} className="text-[13px] font-medium text-[#0052D9] hover:underline">+ 添加获奖</button>}
+          </>); })()}
+        </div>
       </CertificatesSection>
 
       <PortfolioExtraSection defaultOpen={isEditingExistingResume && hasPortfolioExtraContent} autoOpenKey={sectionAutoOpenKey}>

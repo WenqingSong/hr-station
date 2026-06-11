@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../ui/utils";
 
@@ -33,16 +34,34 @@ export function YearMonthPicker({
   const [open, setOpen] = useState(false);
   const parsed = parseYearMonth(value);
   const [viewYear, setViewYear] = useState(parsed.year);
-  const ref = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [panelPos, setPanelPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
+        // Also check that the click is not inside the portal panel
+        setOpen(false);
+      }
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Calculate panel position on open
+  useEffect(() => {
+    if (!open) return;
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    setPanelPos({
+      left: rect.left + window.scrollX,
+      top: rect.bottom + window.scrollY + 4,
+    });
   }, [open]);
 
   // Sync viewYear when value changes
@@ -69,9 +88,10 @@ export function YearMonthPicker({
   const display = value ? `${parsed.year}.${String(parsed.month).padStart(2, "0")}` : "";
 
   return (
-    <div ref={ref} className={cn("relative", className)}>
+    <div ref={containerRef} className={cn("relative", className)}>
       {/* Trigger */}
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
@@ -89,9 +109,13 @@ export function YearMonthPicker({
         </svg>
       </button>
 
-      {/* Panel */}
-      {open && (
-        <div className="absolute left-0 top-full z-[9999] mt-1 w-[256px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+      {/* Panel — rendered to body via portal to escape stacking context */}
+      {open &&
+        createPortal(
+          <div
+            className="fixed w-[256px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl"
+            style={{ left: panelPos.left, top: panelPos.top, zIndex: 99999 }}
+          >
           {/* Year nav */}
           <div className="flex items-center justify-between mb-3">
             <button
@@ -152,7 +176,8 @@ export function YearMonthPicker({
               本月
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
