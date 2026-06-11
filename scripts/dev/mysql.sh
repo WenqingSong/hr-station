@@ -26,7 +26,7 @@ MYSQL_ROOT_PASSWORD=$(get_env_value "MYSQL_ROOT_PASSWORD" "password")
 INIT_SQL="${PROJECT_ROOT}/server/sql/init.sql"
 
 # 核心表列表（K8-5-47-B: resumes schema_version=3 精简模块化）
-CORE_TABLES="users resumes jobs recommendation_results match_analyses resume_compare_results"
+CORE_TABLES="users resumes jobs job_profiles resume_profiles recommendation_results match_analyses resume_compare_results"
 
 # 检查 MySQL 容器是否运行
 check_mysql_container() {

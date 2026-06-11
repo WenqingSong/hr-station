@@ -120,6 +120,8 @@ export interface OptimizationResultV2 {
   target_direction?: string;
   generation_tier?: GenerationTier;
   generated_by?: string;
+  fallback?: boolean;
+  agent_status?: string;
   status?: string;
   profile_type?: string;
   profile_dominant_profile?: string;

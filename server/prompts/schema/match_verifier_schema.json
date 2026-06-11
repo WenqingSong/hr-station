@@ -1,4 +1,5 @@
 {
+"title": "Match Verifier Agent Output Schema",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "additionalProperties": true,

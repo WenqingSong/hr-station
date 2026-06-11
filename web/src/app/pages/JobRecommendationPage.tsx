@@ -6,10 +6,12 @@ import type { RecommendationPageViewModel, ResumeOptionViewModel, RecommendedJob
 import { PageLoading, PageEmpty } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { AgentStepLoadingOverlay, type AgentLoadingStep } from "../components/common/AgentStepLoadingOverlay";
+import AgentErrorState from "../components/common/AgentErrorState";
 import { BulletList } from "../components/common/BulletList";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { humanizeProfile } from "../utils/profileLabel";
 import { Badge } from "../components/ui/Badge";
+import { isMockGeneratedBy } from "../utils/agentError";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,14 +75,33 @@ export function JobRecommendationPage() {
   useEffect(() => { return () => { if (fastPollRef.current) clearTimeout(fastPollRef.current); if (qualityPollRef.current) clearTimeout(qualityPollRef.current); }; }, []);
 
   // ── Load resume options ──────────────────────────────────────────────────
+  const [urlResumeNotFound, setUrlResumeNotFound] = useState(false);
+
   useEffect(() => {
     loadResumeOptionViewModelsFromApi()
       .then((opts) => {
         setResumeOptions(opts);
+        // No resumes at all
         if (opts.length === 0) { setSelectedOption(null); setLoadingOptions(false); return; }
         const target = parseResumeIdFromQuery(resumeId);
-        if (target) { const found = opts.find((o) => o.id === target); setSelectedOption(found ?? opts[0]); }
-        else { const cur = opts.find((o) => o.isCurrent); setSelectedOption(cur ?? opts[0]); }
+        if (target) {
+          const found = opts.find((o) => o.id === target);
+          if (!found) {
+            // URL resumeId doesn't belong to current user
+            setUrlResumeNotFound(true);
+            setSelectedOption(null);
+            setLoadingOptions(false);
+            return;
+          }
+          setSelectedOption(found);
+          // Update URL to the resolved resumeId
+          navigate(`/recommend?resumeId=${found.id}`, { replace: true });
+        } else {
+          // No resumeId in URL — pick current or first
+          const cur = opts.find((o) => o.isCurrent) ?? opts[0];
+          setSelectedOption(cur);
+          navigate(`/recommend?resumeId=${cur.id}`, { replace: true });
+        }
         setLoadingOptions(false);
       })
       .catch((err) => { const r = getAuthRedirectIf401(err, location.pathname, location.search); if (r) { navigate(r, { replace: true }); return; } setLoadingOptions(false); });
@@ -144,7 +165,13 @@ export function JobRecommendationPage() {
         const vm = await loadRecommendationViewModel({ resume_id: selectedOption.id, limit: 5, generation_tier: "quality" as any });
         if (vm.profileStatus === "ready" && vm.recommendedJobs.length > 0) {
           setDeepBackendDone(true); setDeepResult(vm); setActiveTier("quality");
-          setActiveGeneratedBy(vm.meta?.generated_by ?? "");
+          const genBy = vm.meta?.generated_by ?? "";
+          setActiveGeneratedBy(genBy);
+          // Dev-Reboot-Fix-C: if backend returned mock, show error state
+          if (isMockGeneratedBy(genBy) || vm.meta?.fallback) {
+            setPhase("deep_error"); setDeepErrorMessage("AI 模型连接失败，当前显示的不是AI生成结果。");
+            return;
+          }
           if (vm.recommendedJobs.length > 0) setSelJobId(vm.recommendedJobs[0].jobId);
           return;
         }
@@ -165,18 +192,68 @@ export function JobRecommendationPage() {
 
   // ── Loading states ───────────────────────────────────────────────────────
   if (loadingOptions) return <PageLoading message="正在加载简历信息…" />;
-  if (resumeOptions.length === 0 || !selectedOption) {
-    return (<PageEmpty title="你还没有可用于推荐的简历" description="请先创建一份简历，系统会基于你的简历生成岗位推荐。"><Link to="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</Link></PageEmpty>);
+
+  // User has resumes but the URL resumeId doesn't belong to them
+  if (urlResumeNotFound) {
+    return (
+      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
+        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">简历不存在或不属于当前账号</h2>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+          当前链接中的简历无法访问。请从你的简历列表中选择一份简历后再生成岗位推荐。
+        </p>
+        <div className="flex justify-center gap-3">
+          <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">返回我的简历</Link>
+        </div>
+      </div>
+    );
   }
+
+  // No resumes at all — show empty state with CTA
+  if (resumeOptions.length === 0) {
+    return (
+      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
+        <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">你还没有可用于推荐的简历</h2>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+          请先创建或导入一份简历，Offer捕手才能基于你的经历推荐合适岗位。
+        </p>
+        <div className="flex justify-center gap-3">
+          <Link to="/resumes/new" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">去创建简历</Link>
+          <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">管理我的简历</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedOption) {
+    return (<PageEmpty title="无法选择简历" description="请返回简历列表重新选择。" />);
+  }
+
   if (phase === "loading_latest") return <PageLoading message="正在读取推荐结果…" />;
   if (phase === "fast_loading") {
     return (<div className="max-w-[1440px] mx-auto px-6 py-32 text-center"><Loader2 className="w-10 h-10 animate-spin text-[#0052D9] mx-auto mb-4" /><h2 className="text-lg font-bold text-gray-900 mb-2">正在生成快速推荐</h2><p className="text-sm text-gray-500 max-w-md mx-auto">系统正在提取你的教育、项目、实习经历和技能关键词进行快速岗位推荐。</p></div>);
   }
   if (phase === "fast_error" || phase === "profile_failed") {
-    return (<div className="max-w-[1440px] mx-auto px-6 py-12 text-center"><AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-3" /><p className="text-gray-500 text-sm mb-3">{errorMessage}</p><button onClick={() => setSelectedOption({ ...selectedOption })} className="text-[#0052D9] text-sm underline">重新尝试</button></div>);
+    return (
+      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
+        <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-3" />
+        <p className="text-gray-500 text-sm mb-3">{errorMessage}</p>
+        <p className="text-xs text-gray-400 mb-4">请确认网络连接正常、服务器运行中，或尝试切换简历后重试。</p>
+        <div className="flex justify-center gap-3">
+          <button onClick={() => setSelectedOption({ ...selectedOption })} className="text-[#0052D9] text-sm underline">重新尝试</button>
+          <Link to="/resumes" className="text-gray-500 text-sm underline">返回我的简历</Link>
+        </div>
+      </div>
+    );
   }
   if (!activeResult || jobs.length === 0) {
-    return (<div className="max-w-[1440px] mx-auto px-6 py-12 text-center"><p className="text-gray-500 text-sm">暂无推荐结果。</p></div>);
+    return (
+      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
+        <p className="text-gray-500 text-sm mb-4">暂无推荐结果。</p>
+        <Link to="/resumes" className="text-[#0052D9] text-sm underline">切换简历</Link>
+      </div>
+    );
   }
 
   const displayName = selectedOption.name;

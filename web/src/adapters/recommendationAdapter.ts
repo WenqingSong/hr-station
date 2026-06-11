@@ -13,7 +13,7 @@ import {
 // ─── ViewModel 类型 ────────────────────────────────────────────────────────────
 
 export type RecommendationSource =
-  | "mock" | "fast_llm" | "deep_llm" | "fallback" | "cache" | "unknown";
+  | "mock" | "fast_tag" | "fast_llm" | "deep_llm" | "fallback" | "cache" | "unknown";
 
 export type RecommendationLevel = "high" | "medium" | "low";
 
@@ -94,9 +94,10 @@ function getScoreLabel(score: number): string {
 
 function getSource(generatedBy?: string): RecommendationSource {
   if (!generatedBy) return "unknown";
-  if (generatedBy === "fast_tag_engine") return "mock";
+  // Dev-Reboot-Fix-C: mock_quality is mock data, not real LLM
+  if (generatedBy === "fast_tag_engine") return "fast_tag";
   if (generatedBy === "mock_agent") return "mock";
-  if (generatedBy === "mock_quality") return "deep_llm";
+  if (generatedBy === "mock_quality") return "mock";
   if (generatedBy === "llm_agent") return "deep_llm";
   if (generatedBy.includes("fallback")) return "fallback";
   return "unknown";
@@ -110,6 +111,7 @@ function getSourceLabel(source: RecommendationSource, generatedBy?: string, isQu
   if (generatedBy === "llm_agent" || generatedBy?.startsWith("llm")) return "深度推荐 · AI生成";
   if (generatedBy?.includes("fallback")) return "推荐失败 · 已保留快速结果";
   switch (source) {
+    case "fast_tag": return "快速推荐 · 标签匹配";
     case "mock": return isQuality ? "深度推荐 · 规则兜底" : "快速推荐 · 规则推荐";
     case "fast_llm": return "快速推荐 · AI生成";
     case "deep_llm": return "深度推荐 · AI生成";

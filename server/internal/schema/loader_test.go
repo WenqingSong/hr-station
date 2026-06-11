@@ -103,16 +103,24 @@ func TestLoader_List(t *testing.T) {
 	l := NewLoader(testBaseDir)
 	names := l.List()
 
-	if len(names) != 5 {
-		t.Fatalf("List returned %d names, want 5", len(names))
+	if len(names) != 13 {
+		t.Fatalf("List returned %d names, want 13", len(names))
 	}
 
 	expected := map[SchemaName]bool{
-		SchemaMatchAnalysis:           true,
-		SchemaRecommendation:          true,
-		SchemaResumeOptimization:      true,
-		SchemaVersionCompare:          true,
-		SchemaResumeOptimizationCore:  true,
+		SchemaMatchAnalysis:              true,
+		SchemaRecommendation:             true,
+		SchemaResumeOptimization:         true,
+		SchemaVersionCompare:             true,
+		SchemaResumeOptimizationCore:     true,
+		SchemaRecommendationDecision:     true,
+		SchemaRecommendationVerifier:     true,
+		SchemaMatchDecision:              true,
+		SchemaMatchVerifier:              true,
+		SchemaOptimizationDecision:       true,
+		SchemaOptimizationVerifier:       true,
+		SchemaCompareDecision:            true,
+		SchemaCompareVerifier:            true,
 	}
 	for _, n := range names {
 		if !expected[n] {

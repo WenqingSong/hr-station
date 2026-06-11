@@ -336,7 +336,11 @@ export async function loadMatchAnalysisViewModel(
   signal?: AbortSignal,
 ): Promise<MatchAnalysisPageViewModel> {
   const response = await runMatchAnalysis(jobId, input, signal);
-  return toMatchAnalysisPageViewModel(response.result, response.meta);
+  const vm = toMatchAnalysisPageViewModel(response.result, response.meta);
+  // Dev-Reboot-Fix-C: propagate generated_by/fallback from meta
+  vm.generatedBy = response.meta?.generated_by || "";
+  vm.fallback = response.meta?.fallback;
+  return vm;
 }
 
 // ─── K9-2-E: Latest Match ViewModel Loader ─────────────────────────────────────
@@ -398,6 +402,8 @@ export interface OptimizationV2ViewModel {
   targetDirection?: string;
   generationTier: string;
   generatedBy: string;
+  fallback?: boolean;
+  agentStatus?: string;
   status: string;
   profileType: string;
   profileDominantProfile: string;
@@ -440,6 +446,8 @@ function mapOptV2(raw: OptimizationResultV2): OptimizationV2ViewModel {
     targetDirection: raw.target_direction ?? "",
     generationTier: raw.generation_tier ?? "fast",
     generatedBy: raw.generated_by ?? "",
+    fallback: raw.fallback,
+    agentStatus: raw.agent_status,
     status: raw.status ?? "ready",
     profileType: raw.profile_type ?? "",
     profileDominantProfile: raw.profile_dominant_profile ?? "",

@@ -33,14 +33,44 @@ func (a *MatchMockAgent) AnalyzeFast(ctx context.Context, resume *model.ResumeVe
 	risks := buildMatchRiskPoints(cp, job)
 	improvements := buildMatchImprovements(cp, job)
 	summary := buildMatchSummary(cp, resume, job, score)
+	projCount := len(resume.Projects)
+	internCount := len(resume.Internships)
+
+	// Dev-Reboot-Fix-A: populate minimal fields required by tests
+	evidenceChain := []model.MatchEvidence{
+		{
+			Requirement: "岗位核心能力", ResumePoint: fmt.Sprintf("共 %d 个项目、%d 段实习经历", projCount, internCount),
+			Judgement: "匹配", ResumeModule: "整体评估",
+			Risk: "建议补充量化成果和具体技术细节", FixAction: "在项目经历中补充技术栈名称和量化结果",
+		},
+		{
+			Requirement: "技能与关键词匹配", ResumePoint: "简历中包含部分岗位关键词",
+			Judgement: "部分匹配", ResumeModule: "skills",
+			Risk: "部分技能关键词缺失", FixAction: "补充JD中的核心技能关键词",
+		},
+	}
+	applyReadiness := "ready: 当前匹配度可尝试投递，建议先查看优化建议"
+	authenticityNotice := fmt.Sprintf("基于Mock Agent生成，匹配分数=%d，仅供参考", score)
+	// Minimal TopFixItems for fast tier
+	topFixItems := []model.TopFixItem{{
+		Issue: "项目经历缺少量化成果", WhyItMatters: "量化成果帮助评估真实水平",
+		Action: "在项目经历中补充技术栈名称和量化结果",
+		ExampleReference: "例如：使用Go+MySQL实现RESTful API", SelfCheckQuestion: "项目描述中有量化数据吗？",
+		EstimatedEffort: "15-30分钟", ResumeModule: "项目经历",
+	}}
 
 	return &model.MatchAnalysisResult{
 		JobID: job.ID, JobTitle: job.Title, ResumeID: resume.ID,
-		MatchScore: score, MatchLevel: level, ScreeningResult: level,
+		MatchScore: score, MatchLevel: level, ScreeningResult: "possible",
 		Summary: summary,
+		EvidenceChain:           evidenceChain,
 		MatchHighlights:         fitPoints,
 		RiskPoints:              risks,
 		OptimizationSuggestions: toMatchSuggestions(improvements),
+		ApplyReadiness:          applyReadiness,
+		OptimizationStopSignal:  "当前可尝试投递，建议先补强简历关键缺口",
+		TopFixItems:             topFixItems,
+		AuthenticityNotice:      authenticityNotice,
 		ProfileType:             "fast",
 		ProfileDominantProfile:  cp.dominant,
 		GeneratedBy:             "mock_agent",

@@ -8,6 +8,8 @@ import type { JobApiItem } from "../../api/jobs";
 import type { ResumeOptionViewModel } from "../../adapters";
 import type { OptimizationV2ViewModel } from "../../api/viewModels";
 import type { Resume } from "../../types";
+import AgentErrorState from "../components/common/AgentErrorState";
+import { isMockGeneratedBy } from "../utils/agentError";
 import type { OptimizationMode, GenerationTier } from "../../types";
 import type { OptimizationFixItem, OptimizationRewriteExample, OptimizationLongTermItem } from "../../types";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
@@ -53,7 +55,11 @@ function getHeaderLabel(phase: OptPhase, tier: string, genBy: string): string {
   if (phase === "fast_loading") return "正在生成快速优化建议";
   if (phase === "deep_loading") return "智能体正在深度优化";
   if (phase === "fast_done") return "快速优化 · 初步预览";
-  if (phase === "deep_done") return "深度优化已完成";
+  if (phase === "deep_done") {
+    if (isMockGeneratedBy(genBy)) return "深度优化 · 模型连接失败";
+    if (genBy === "llm_agent") return "深度优化 · AI 优化";
+    return "深度优化已完成";
+  }
   if (phase === "deep_error") return "深度优化生成失败 · 已保留当前结果";
   if (phase === "fast_error") return "快速优化生成失败";
   return "";
@@ -305,8 +311,13 @@ export function ResumeOptimizationPage() {
       .then((r) => {
         setActiveResult(r);
         setActiveTier("quality");
-        setActiveGeneratedBy(r.generatedBy || "");
+        const genBy = r.generatedBy || "";
+        setActiveGeneratedBy(genBy);
         setDeepBackendDone(true);
+        // Dev-Reboot-Fix-C: if backend returned mock or fallback, show error
+        if (isMockGeneratedBy(genBy) || r.fallback || r.agentStatus === "fallback") {
+          setPhase("deep_error");
+        }
       })
       .catch(() => setPhase("deep_error"));
     // K13-Stability-A: auto-abort after 90s to stay under backend LLM_TIMEOUT_SECONDS=120

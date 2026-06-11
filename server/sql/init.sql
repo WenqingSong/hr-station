@@ -264,6 +264,33 @@ INSERT INTO `jobs` VALUES (10001,'软件开发-后台开发方向','企业发展
 UNLOCK TABLES;
 
 --
+-- Table structure for table `job_profiles`
+-- K13-Fix-A: Persistent job tag + evidence profiles for TagEvidenceService.
+--
+DROP TABLE IF EXISTS `job_profiles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `job_profiles` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `job_id` bigint unsigned NOT NULL,
+  `direction` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `category` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `primary_tags_json` json DEFAULT NULL,
+  `skill_tags_json` json DEFAULT NULL,
+  `requirement_tags_json` json DEFAULT NULL,
+  `responsibility_tags_json` json DEFAULT NULL,
+  `risk_tags_json` json DEFAULT NULL,
+  `evidence_json` json DEFAULT NULL,
+  `source` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'rule',
+  `version` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'tag_agent_v1',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_job_id` (`job_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `match_analyses`
 --
 

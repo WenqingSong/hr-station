@@ -20,8 +20,8 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.MaxOutputTokens != 8192 {
 		t.Errorf("MaxOutputTokens = %d, want 8192", cfg.MaxOutputTokens)
 	}
-	if cfg.TimeoutSeconds != 30 {
-		t.Errorf("TimeoutSeconds = %d, want 30", cfg.TimeoutSeconds)
+	if cfg.TimeoutSeconds != 120 {
+		t.Errorf("TimeoutSeconds = %d, want 120", cfg.TimeoutSeconds)
 	}
 	if cfg.RepairEnable != true {
 		t.Errorf("RepairEnable = %v, want true", cfg.RepairEnable)

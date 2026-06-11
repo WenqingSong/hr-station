@@ -4,7 +4,7 @@ import { MatchAnalysisHeader } from "../components/match/MatchAnalysisHeader";
 import { MatchAnalysisSidebarLeft } from "../components/match/MatchAnalysisSidebarLeft";
 import { MatchAnalysisDetail } from "../components/match/MatchAnalysisDetail";
 import { MatchAnalysisSidebarRight } from "../components/match/MatchAnalysisSidebarRight";
-import { loadMatchAnalysisViewModel, loadLatestMatchViewModel, loadResumeOptionViewModelsFromApi, loadResumeVersionDetail } from "../../api";
+import { loadMatchAnalysisViewModel, loadLatestMatchViewModel, loadResumeOptionViewModelsFromApi, loadResumeVersionDetail, type MatchLatestResponse } from "../../api";
 import { getJobDetail } from "../../api/jobs";
 import type { JobApiItem } from "../../api/jobs";
 import type { MatchAnalysisPageViewModel, ResumeOptionViewModel } from "../../adapters";
@@ -14,10 +14,12 @@ import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { humanizeProfile } from "../utils/profileLabel";
 import { PageLoading } from "../components/PageState";
 import { AgentStepLoadingOverlay } from "../components/common/AgentStepLoadingOverlay";
+import AgentErrorState from "../components/common/AgentErrorState";
 import { BulletList } from "../components/common/BulletList";
 import { MatchAnalysisSkeleton } from "../components/match/MatchAnalysisSkeleton";
 import { Badge } from "../components/ui/Badge";
 import { Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { isMockGeneratedBy } from "../utils/agentError";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -53,7 +55,8 @@ function getHeaderLabel(phase: MatchPhase, tier: string | undefined, genBy: stri
   if (phase === "deep_loading") return "正在深度分析中";
   if (phase === "fast_done") return "快速匹配 · 标准匹配分析";
   if (phase === "deep_done") {
-    if (genBy?.includes("llm")) return "深度匹配 · 智能匹配分析";
+    if (isMockGeneratedBy(genBy)) return "深度匹配 · 模型连接失败";
+    if (genBy === "llm_agent") return "深度匹配 · 智能匹配分析";
     return "深度匹配 · 基础匹配分析";
   }
   if (phase === "deep_error") return "深度匹配分析生成失败 · 已保留当前结果";
@@ -157,7 +160,7 @@ export function JobMatchAnalysisPage() {
             .then((r) => {
               setActiveResult(r);
               setActiveTier("fast");
-              setActiveGeneratedBy("mock_agent");
+              setActiveGeneratedBy(r.generatedBy || "fast_tag_engine");
               setPhase("fast_done");
             })
             .catch(() => {
@@ -185,8 +188,13 @@ export function JobMatchAnalysisPage() {
       .then((r) => {
         setActiveResult(r);
         setActiveTier("quality");
-        setActiveGeneratedBy("mock_quality");
+        const genBy = r.generatedBy || "";
+        setActiveGeneratedBy(genBy);
         setDeepBackendDone(true);
+        // If backend returned mock/fallback, treat as error
+        if (isMockGeneratedBy(genBy) || r.fallback) {
+          setPhase("deep_error");
+        }
       })
       .catch(() => {
         setPhase("deep_error");

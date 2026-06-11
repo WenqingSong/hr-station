@@ -24,6 +24,9 @@ export interface MatchAnalysisPageViewModel {
   riskItems: string[];
   nextActions: string[];
   meta?: AgentMetaViewModel;
+  // Dev-Reboot-Fix-C: generated_by + fallback for mock detection
+  generatedBy?: string;
+  fallback?: boolean;
 
   // K9-2-Regression-C: Full Deep fields from backend
   fitPoints?: string[];
@@ -55,6 +58,9 @@ export function toMatchAnalysisPageViewModel(
     riskItems: result.risk_items || result.risk_points || [],
     nextActions: result.next_actions || [],
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
+    // Dev-Reboot-Fix-C: propagate mock/fallback flags
+    generatedBy: meta?.generated_by || "",
+    fallback: meta?.fallback,
     // K9-2-Regression-C: Deep fields
     fitPoints: result.fit_points || result.match_highlights || [],
     resumeEvidence: result.resume_evidence || [],

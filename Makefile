@@ -18,6 +18,7 @@ DEV_SCRIPT := scripts/dev
         ensure-env \
         up stop down restart restart-soft reset reset-up \
         ps \
+        prod-config prod-check \
         infra-up infra-down infra-status infra-logs \
         db-import db-reset db-shell db-check \
         backend-up backend-start backend-stop backend-restart backend-logs backend-status backend-health \
@@ -75,6 +76,10 @@ help: ## 查看所有可用命令
 	@echo "  make db-reset      ⚠️ 危险：重新导入初始化 SQL，需要 CONFIRM=yes"
 	@echo "  make db-shell      进入 MySQL shell"
 	@echo "  make db-check      检查核心表是否存在、记录数是否正常"
+	@echo ""
+	@echo "生产部署准备:"
+	@echo "  make prod-config   验证生产 compose 配置（不启动容器）"
+	@echo "  make prod-check    生产部署前安全校验"
 	@echo ""
 	@echo "后端:"
 	@echo "  make backend-up       后台启动 Go 后端"
@@ -332,6 +337,35 @@ db-shell: ## 进入 MySQL shell
 
 db-check: ## 检查核心表
 	@$(DEV_SCRIPT)/mysql.sh check
+
+# ============================================================
+# 生产部署准备
+# ============================================================
+
+prod-config: ## 验证生产 compose 配置（不启动容器）
+	@if [ ! -f .env.prod ]; then echo "ERROR: .env.prod missing"; exit 1; fi
+	@if [ ! -f docker-compose.prod.yml ]; then echo "ERROR: docker-compose.prod.yml missing"; exit 1; fi
+	@docker compose --env-file .env.prod -f docker-compose.prod.yml config
+
+prod-check: ## 生产部署前安全校验（非零退出=不安全）
+	@echo "=== prod-check ==="
+	@ok=true; \
+	for f in .env.prod docker-compose.prod.yml; do \
+		if [ -f "$$f" ]; then echo "  ✅ $$f"; else echo "  ❌ $$f missing"; ok=false; fi; \
+	done; \
+	for kv in "LLM_PROVIDER=hy3" "LLM_MODEL=hy3-preview" "ENABLE_MOCK_AGENT=false" "LLM_FALLBACK_ENABLE=false"; do \
+		key="$${kv%%=*}"; want="$${kv##*=}"; \
+		actual=$$(grep "^$${key}=" .env.prod | cut -d= -f2- || true); \
+		if [ "$$actual" = "$$want" ]; then echo "  ✅ $${key}=$${actual}"; else echo "  ❌ $${key}=$${actual} (want $$want)"; ok=false; fi; \
+	done; \
+	for key in MYSQL_ROOT_PASSWORD JWT_SECRET; do \
+		if grep -q "^$${key}=.\+" .env.prod; then echo "  ✅ $${key}=EXISTS"; else echo "  ❌ $${key}=MISSING"; ok=false; fi; \
+	done; \
+	has_key=$$(grep -c '^LLM_API_KEY=.\+' .env.prod || true); \
+	has_hy3=$$(grep -c '^LLM_HY3_API_KEY=.\+' .env.prod || true); \
+	if [ "$$has_key" -gt 0 ] || [ "$$has_hy3" -gt 0 ]; then echo "  ✅ LLM_API_KEY or LLM_HY3_API_KEY exists"; else echo "  ❌ No LLM API key found"; ok=false; fi; \
+	if ! docker compose --env-file .env.prod -f docker-compose.prod.yml config >/dev/null 2>&1; then echo "  ❌ prod compose config failed"; ok=false; else echo "  ✅ prod compose config passes"; fi; \
+	if [ "$$ok" = "true" ]; then echo "✅ prod-check PASSED"; else echo "❌ prod-check FAILED"; exit 1; fi
 
 # ============================================================
 # 后端

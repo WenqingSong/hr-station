@@ -8,11 +8,13 @@ import type { ResumeOptionViewModel } from "../../adapters";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { PageLoading, PageError } from "../components/PageState";
 import { AgentStepLoadingOverlay, type AgentLoadingStep } from "../components/common/AgentStepLoadingOverlay";
+import AgentErrorState from "../components/common/AgentErrorState";
 import { BulletList } from "../components/common/BulletList";
 import { ResumePickerModal, type ResumePickerOption } from "../components/ResumePickerModal";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { humanizeProfile, humanizeProfileChange } from "../utils/profileLabel";
 import { cleanUserText } from "../utils/cleanUserText";
+import { isMockGeneratedBy } from "../utils/agentError";
 import { getResumes } from "../../api/resumes";
 import type { Resume } from "../../types";
 
@@ -184,6 +186,11 @@ export function ResumeComparisonPage() {
     try {
       const vm = await loadCompareV2ViewModel({ fromResumeId: fromId, toResumeId: toId, comparisonMode: mode, generationTier: "quality", targetDirection: dir, jobId: jobId ?? undefined }, abort.signal);
       setDeepResult(vm); setDeepBackendDone(true);
+      // Dev-Reboot-Fix-C: if backend returned mock, show error state
+      if (isMockGeneratedBy(vm.generatedBy) || vm.fallback) {
+        setPhase("deep_error");
+        setDeepErrMsg("AI 模型连接失败，当前显示的不是AI生成结果。");
+      }
     } catch {
       setPhase("deep_error");
       setDeepErrMsg("深度对比生成失败，当前快速对比结果仍可参考。");
