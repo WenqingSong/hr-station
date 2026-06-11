@@ -3,6 +3,7 @@ import { Navbar } from "./components/Navbar";
 import { GlobalFooter } from "./components/GlobalFooter";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import { RouteProgressBar } from "./components/common/RouteProgressBar";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { JobListPage } from "./pages/JobListPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { JobRecommendationPage } from "./pages/JobRecommendationPage";
@@ -15,6 +16,15 @@ import { ResumeDetailPage } from "./pages/ResumeDetailPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+
+/**
+ * K13-Stability-A: 为四个核心页面包裹 ErrorBoundary。
+ * 防止运行时异常导致整个页面白屏。
+ * 异常时显示友好错误提示和返回按钮，不破坏 Navbar/Footer 结构。
+ */
+function CorePageWrapper({ children }: { children: React.ReactNode }) {
+  return <ErrorBoundary fallbackPath="/resumes">{children}</ErrorBoundary>;
+}
 
 function RootLayout() {
   return (
@@ -38,15 +48,15 @@ export const router = createBrowserRouter([
       { path: "jobs", Component: JobListPage },
       // ── P0 核心路由（5-3.2 已规范统一） ──
       { path: "jobs/:id", Component: JobDetailPage },
-      // ── P0 AI 模块（K8-5-16-D：RequireAuth 保护） ──
-      { path: "recommend", element: <RequireAuth><JobRecommendationPage /></RequireAuth> },
-      { path: "match", element: <RequireAuth><JobMatchAnalysisPage /></RequireAuth> },
-      { path: "resume-optimization", element: <RequireAuth><ResumeOptimizationPage /></RequireAuth> },
-      // ── P1 简历模块（K8-5-16-C：RequireAuth 保护） ──
+      // ── P0 AI 模块（K8-5-16-D：RequireAuth 保护 + K13 ErrorBoundary） ──
+      { path: "recommend", element: <RequireAuth><CorePageWrapper><JobRecommendationPage /></CorePageWrapper></RequireAuth> },
+      { path: "match", element: <RequireAuth><CorePageWrapper><JobMatchAnalysisPage /></CorePageWrapper></RequireAuth> },
+      { path: "resume-optimization", element: <RequireAuth><CorePageWrapper><ResumeOptimizationPage /></CorePageWrapper></RequireAuth> },
+      // ── P1 简历模块（K8-5-16-C：RequireAuth 保护 + K13 ErrorBoundary） ──
       { path: "resumes", element: <RequireAuth><ResumeManagementPage /></RequireAuth> },
       { path: "resumes/edit", element: <RequireAuth><MyResumesPage /></RequireAuth> },
       { path: "resumes/new", element: <RequireAuth><MyResumesPage /></RequireAuth> },
-      { path: "resumes/compare", element: <RequireAuth><ResumeComparisonPage /></RequireAuth> },
+      { path: "resumes/compare", element: <RequireAuth><CorePageWrapper><ResumeComparisonPage /></CorePageWrapper></RequireAuth> },
       { path: "resumes/detail/:id", element: <RequireAuth><ResumeDetailPage /></RequireAuth> },
       // ── Auth 页面（8-2 新增） ──
       { path: "login", Component: LoginPage },

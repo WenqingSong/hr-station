@@ -57,7 +57,7 @@ func DefaultConfig() Config {
 		Model:            "",
 		Temperature:      0.2,
 		MaxOutputTokens:  8192,
-		TimeoutSeconds:   30,
+		TimeoutSeconds:   120,
 		RepairEnable:     true,
 		RepairMaxAttempts: 1,
 		FallbackEnable:   true,

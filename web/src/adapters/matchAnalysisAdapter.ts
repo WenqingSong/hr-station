@@ -59,11 +59,11 @@ export function toMatchAnalysisPageViewModel(
     fitPoints: result.fit_points || result.match_highlights || [],
     resumeEvidence: result.resume_evidence || [],
     jobRequirements: result.job_requirements || [],
-    gapPoints: result.gap_points || result.match_highlights?.slice(0, 2) || [],
+    gapPoints: result.gap_points || (Array.isArray(result.match_highlights) ? result.match_highlights.slice(0, 2) : []),
     riskPoints: result.risk_points || result.risk_items || [],
     interviewTalkingPoints: result.interview_talking_points || result.interview_questions || [],
     deliveryStrategy: typeof result.delivery_strategy === 'string' ? result.delivery_strategy : "",
-    improvementSuggestions: result.improvement_suggestions || result.match_highlights?.map((_, i) => ({ priority: i === 0 ? "P0" : "P1", title: _, reason: "", action: _ })) || [],
+    improvementSuggestions: result.improvement_suggestions || (Array.isArray(result.match_highlights) ? result.match_highlights.map((_, i) => ({ priority: i === 0 ? "P0" : "P1", title: _, reason: "", action: _ })) : []),
     profileDominantProfile: result.profile_dominant_profile || "",
   };
 }

@@ -18,8 +18,10 @@ import type { Resume } from "../../types";
 
 // ─── Text safety ────────────────────────────────────────────────────────
 
+/** K13-Stability-A: Safe against non-string types. */
 function cleanText(value?: string | null): string {
   if (!value) return "";
+  if (typeof value !== "string") return "";
   // Step 1: sanitize control chars
   const sanitized = value
     .replace(/\uFFFD/g, "")

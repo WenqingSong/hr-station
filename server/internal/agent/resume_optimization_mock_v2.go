@@ -150,7 +150,8 @@ func (a *ResumeOptimizationMockAgentV2) OptimizeV2(
 		structure = nil; content = nil; keyword = nil; evidence = nil
 		if len(examples) > 1 { examples = examples[:1] }
 		if len(longTerm) > 1 { longTerm = longTerm[:1] }
-		if len(focus) > 80 { focus = string([]rune(focus)[:80]) + "..." }
+		// K13-Stability-A: use rune count to safely trim UTF-8 text
+		if runes := []rune(focus); len(runes) > 80 { focus = string(runes[:80]) + "..." }
 	} else {
 		// K9-3-C-Fix: quality must have >= 2 rewrite examples
 		if len(examples) < 2 {

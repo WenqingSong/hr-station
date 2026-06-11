@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -158,11 +159,25 @@ func (r *Runner) validateRequest(req RunRequest) error {
 // ---------------------------------------------------------------------------
 
 func (r *Runner) callLLM(ctx context.Context, req RunRequest, renderedPrompt string, start time.Time) (*llm.ChatResponse, *RunResult) {
+	systemMsg := "你是 Offer捕手 AI Agent，只输出严格 JSON，不要输出 Markdown、解释性前后缀或代码块。"
+	systemChars := len(systemMsg)
+	userChars := len(renderedPrompt)
+	schemaChars := 0
+	if schemaDoc, err := r.schemaLoader.Load(req.SchemaName); err == nil {
+		schemaChars = len(schemaDoc.Content)
+	}
+
+	// K13-Fix-1.6: Diagnostic log - request body characteristics only, no content
+	log.Printf("[LLMRequest] agent=%s prompt=%s schema=%s target=%s max_tokens=%d temperature=0.2 messages=2 system_chars=%d user_chars=%d schema_chars=%d repair=%v",
+		req.AgentName, string(req.PromptName), string(req.SchemaName), string(req.TargetOutputType),
+		8192,
+		systemChars, userChars, schemaChars, r.repairAgent != nil)
+
 	chatReq := llm.ChatRequest{
 		Messages: []llm.Message{
 			{
 				Role:    llm.RoleSystem,
-				Content: "你是 Offer捕手 AI Agent，只输出严格 JSON，不要输出 Markdown、解释性前后缀或代码块。",
+				Content: systemMsg,
 			},
 			{
 				Role:    llm.RoleUser,

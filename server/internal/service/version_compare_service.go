@@ -38,6 +38,8 @@ type VersionCompareService struct {
 	fastRunner    agent.PipelineRunner
 	qualityRunner agent.PipelineRunner
 	llmEnabled    bool
+	fallbackEnable bool
+	enableMockAgent bool
 	profileSvc    *ResumeProfileService
 }
 
@@ -50,6 +52,8 @@ func NewVersionCompareService(
 	fastRunner agent.PipelineRunner,
 	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
+	fallbackEnable bool,
+	enableMockAgent bool,
 	profileSvc *ResumeProfileService,
 ) *VersionCompareService {
 	return &VersionCompareService{
@@ -60,6 +64,8 @@ func NewVersionCompareService(
 		fastRunner:    fastRunner,
 		qualityRunner: qualityRunner,
 		llmEnabled:    llmEnabled,
+		fallbackEnable: fallbackEnable,
+		enableMockAgent: enableMockAgent,
 		profileSvc:    profileSvc,
 	}
 }
@@ -109,6 +115,7 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 
 	// Try LLM Pipeline first if enabled
 	if s.llmEnabled && runner != nil {
+		log.Printf("[VersionCompareService] use_llm=true tier=%s", string(req.GenerationTier))
 		llmAgent := agent.NewVersionCompareLLMAgent(runner)
 		result, fallbackErr := llmAgent.Compare(fromVersion, toVersion)
 		if fallbackErr == nil {
@@ -121,9 +128,22 @@ func (s *VersionCompareService) Compare(ctx context.Context, userID uint64, req 
 			return resp, nil
 		}
 		log.Printf("[VersionCompareService] LLM pipeline fallback: %v", fallbackErr)
+
+		// K13-Fix-1: Check fallback enable flag
+		if !s.fallbackEnable {
+			reason := "llm_failed"
+			if fbErr, ok := fallbackErr.(*agent.VersionCompareFallbackError); ok {
+				reason = fbErr.FallbackReason
+			}
+			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", reason), 500)
+		}
+	} else if !s.enableMockAgent {
+		// LLM disabled — check if mock is allowed
+		return nil, apperror.New(apperror.CodeInternal, "LLM is disabled and ENABLE_MOCK_AGENT=false, no generation path available", 500)
 	}
 
 	// Fall back to Mock Agent
+	log.Printf("[VersionCompareService] use_llm=false use_mock=true tier=%s", string(req.GenerationTier))
 	return s.compareWithMock(ctx, userID, fromVersion, toVersion)
 }
 
@@ -225,7 +245,34 @@ func (s *VersionCompareService) CompareV2(ctx context.Context, userID uint64, re
 		if toP != nil { toProf = toP.DominantProfile }
 	}
 
+	// K13-Fix-1: Try LLM pipeline first for quality tier
+	genTier := string(tier)
+	runner := s.selectRunner(tier)
+	if s.llmEnabled && runner != nil && qualityMode {
+		log.Printf("[VersionCompareService] CompareV2 use_llm=true tier=%s", genTier)
+		llmAgent := agent.NewVersionCompareLLMAgent(runner)
+		llmResult, fbErr := llmAgent.Compare(fromVer, toVer)
+		if fbErr == nil {
+			// Map LLM result to V2 format
+			result := mapLLMResultToV2(llmResult, req.FromResumeID, req.ToResumeID, mode, req.TargetDirection, req.JobID, qualityMode, fromProf, toProf, genTier)
+			if result != nil {
+				// Save to DB
+				if err := s.saveCompareV2(ctx, userID, result, mode, string(tier), req.TargetDirection, req.JobID); err != nil {
+					log.Printf("[VersionCompareService] failed to save LLM V2 compare: %v", err)
+				}
+				return result, nil
+			}
+			log.Printf("[VersionCompareService] LLM mapping to V2 format failed, falling back to mock")
+		} else {
+			log.Printf("[VersionCompareService] CompareV2 LLM fallback: %v", fbErr)
+			if !s.fallbackEnable {
+				return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %v", fbErr), 500)
+			}
+		}
+	}
+
 	// Run mock agent
+	log.Printf("[VersionCompareService] CompareV2 use_llm=false use_mock=true tier=%s", genTier)
 	result := s.mockAgent.CompareV2(fromVer, toVer, mode, req.TargetDirection, req.JobID, qualityMode, fromProf, toProf)
 	result.FromResumeID = req.FromResumeID
 	result.ToResumeID = req.ToResumeID
@@ -234,25 +281,34 @@ func (s *VersionCompareService) CompareV2(ctx context.Context, userID uint64, re
 	if mode == "target_job" { var jid = req.JobID; result.JobID = &jid }
 
 	// Save to DB
+	if err := s.saveCompareV2(ctx, userID, result, mode, string(tier), req.TargetDirection, req.JobID); err != nil {
+		log.Printf("[VersionCompareService] failed to save V2 compare: %v", err)
+	}
+
+	return result, nil
+}
+
+// saveCompareV2 persists the compare result.
+func (s *VersionCompareService) saveCompareV2(ctx context.Context, userID uint64, result *model.CompareResponseV2, mode, tier, targetDir string, jobID uint64) error {
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal compare result: %w", err)
+		return fmt.Errorf("failed to marshal compare result: %w", err)
 	}
 
 	var jobIDPtr *uint64
-	if mode == "target_job" { jobIDPtr = &req.JobID }
-	targetDir := ""
-	if mode == "target_direction" { targetDir = req.TargetDirection }
+	if mode == "target_job" { jobIDPtr = &jobID }
+	targetDirection := ""
+	if mode == "target_direction" { targetDirection = targetDir }
 
 	dbResult := &model.ResumeCompareResultV2{
 		UserID:                     userID,
-		FromResumeID:               req.FromResumeID,
-		ToResumeID:                 req.ToResumeID,
+		FromResumeID:               result.FromResumeID,
+		ToResumeID:                 result.ToResumeID,
 		ComparisonMode:             mode,
-		GenerationTier:             string(tier),
+		GenerationTier:             tier,
 		GeneratedBy:                result.GeneratedBy,
 		Status:                     "ready",
-		TargetDirection:            targetDir,
+		TargetDirection:            targetDirection,
 		JobID:                      jobIDPtr,
 		FromProfileType:            result.FromProfileType,
 		FromProfileDominantProfile: result.FromProfileDominantProfile,
@@ -262,12 +318,41 @@ func (s *VersionCompareService) CompareV2(ctx context.Context, userID uint64, re
 	}
 
 	if err := s.compareRepo.CreateV2(ctx, dbResult); err != nil {
-		log.Printf("[VersionCompareService] failed to save V2 compare: %v", err)
-	} else {
-		result.CompareID = dbResult.ID
+		return err
 	}
+	result.CompareID = dbResult.ID
+	return nil
+}
 
-	return result, nil
+// mapLLMResultToV2 maps a V1 VersionCompareAnalysis to V2 CompareResponseV2.
+func mapLLMResultToV2(llm *model.VersionCompareAnalysis, fromID, toID uint64, mode, targetDir string, jobID uint64, qualityMode bool, fromProf, toProf, genTier string) *model.CompareResponseV2 {
+	result := &model.CompareResponseV2{
+		FromResumeID:               fromID,
+		ToResumeID:                 toID,
+		ComparisonMode:             mode,
+		GenerationTier:             genTier,
+		GeneratedBy:                llm.GeneratedBy,
+		Status:                     "ready",
+		FromProfileType:            genTier,
+		ToProfileType:              genTier,
+		FromProfileDominantProfile: fromProf,
+		ToProfileDominantProfile:   toProf,
+		CompareScore:               llm.ScoreAfter,
+		CompareLevel:               llm.OverallChange,
+		WinnerResumeID:             toID, // default to "to" version
+		WinnerLabel:                llm.OverallChange,
+		OneSentenceSummary:         llm.Summary,
+		FromStrengths:              nil,
+		ToStrengths:                nil,
+		FromRisks:                  llm.RemainingRisks,
+		ToRisks:                    nil,
+		KeyDifferences:             llm.KeyImprovements,
+		MergeSuggestions:           nil,
+		DeliveryAdvice:             llm.Recommendation,
+	}
+	if mode == "target_direction" { result.TargetDirection = targetDir }
+	if mode == "target_job" { var jid = jobID; result.JobID = &jid }
+	return result
 }
 
 // ── K9-4-D: GetLatestCompareV2 ─────────────────────────────────────────────

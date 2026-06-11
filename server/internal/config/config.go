@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 // Config holds all application configuration.
@@ -113,7 +115,27 @@ type LogConfig struct {
 }
 
 // Load reads configuration from environment variables with defaults.
+// K13-Fix-1: Auto-load .env file from project root if it exists.
+// This ensures LLM_ENABLE and other .env vars are available when started
+// outside of the Makefile/scripts pipeline (e.g., direct go run).
 func Load() *Config {
+	// K13-Fix-1: Auto-load .env file, trying multiple relative paths.
+	// The compiled binary may run from various working directories.
+	// The server source is at <project>/server/ so .env is at <project>/.env.
+	envPaths := []string{".env", "../.env", "../../.env", "../../../.env"}
+	loaded := false
+	for _, p := range envPaths {
+		if _, err := os.Stat(p); err == nil {
+			if err := godotenv.Load(p); err == nil {
+				loaded = true
+				break
+			}
+		}
+	}
+	if !loaded {
+		log.Println("[config] WARNING: .env file not found, using OS environment only")
+	}
+
 	cfg := &Config{
 		// Structured sub-configs
 		App: AppConfig{
@@ -163,7 +185,7 @@ func Load() *Config {
 			DefaultTier:       getEnv("LLM_DEFAULT_TIER", "fast"),
 			Temperature:       getEnvAsFloat64("LLM_TEMPERATURE", 0.2),
 			MaxOutputTokens:   getEnvAsInt("LLM_MAX_OUTPUT_TOKENS", 8192),
-			TimeoutSeconds:    getEnvAsInt("LLM_TIMEOUT_SECONDS", 30),
+			TimeoutSeconds:    getEnvAsInt("LLM_TIMEOUT_SECONDS", 120),
 			RepairEnable:      getEnvAsBool("LLM_REPAIR_ENABLE", true),
 			RepairMaxAttempts: getEnvAsInt("LLM_REPAIR_MAX_ATTEMPTS", 1),
 			FallbackEnable:    getEnvAsBool("LLM_FALLBACK_ENABLE", true),

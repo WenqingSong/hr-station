@@ -22,9 +22,10 @@ import { Sparkles, RefreshCw, Loader2, Target, Info, FileEdit, AlertTriangle, Ar
 
 // ─── Text Safety ───────────────────────────────────────────────────────
 
-/** Sanitize display text: remove U+FFFD, control chars, normalize whitespace */
-function cleanText(value?: string | null): string {
+/** K13-Stability-A: Sanitize display text. Safe against non-string types. */
+function cleanText(value?: string | null | unknown): string {
   if (!value) return "";
+  if (typeof value !== "string") return "";
   const sanitized = value
     .replace(/\uFFFD/g, "")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")

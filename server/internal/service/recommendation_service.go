@@ -58,6 +58,8 @@ type RecommendationService struct {
 	fastRunner         agent.PipelineRunner
 	qualityRunner      agent.PipelineRunner
 	llmEnabled         bool
+	fallbackEnable     bool
+	enableMockAgent    bool
 	profileSvc         *ResumeProfileService
 }
 
@@ -70,6 +72,8 @@ func NewRecommendationService(
 	fastRunner agent.PipelineRunner,
 	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
+	fallbackEnable bool,
+	enableMockAgent bool,
 	profileSvc *ResumeProfileService,
 ) *RecommendationService {
 	return &RecommendationService{
@@ -80,6 +84,8 @@ func NewRecommendationService(
 		fastRunner:         fastRunner,
 		qualityRunner:      qualityRunner,
 		llmEnabled:         llmEnabled,
+		fallbackEnable:     fallbackEnable,
+		enableMockAgent:    enableMockAgent,
 		profileSvc:         profileSvc,
 	}
 }
@@ -181,15 +187,28 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 
 	// Try LLM Pipeline
 	if s.llmEnabled && runner != nil {
+		log.Printf("[RecommendationService] use_llm=true tier=%s", string(req.GenerationTier))
 		resp, fallbackErr := s.recommendWithLLM(ctx, userID, resume, jobs, req.Limit, runner)
 		if fallbackErr == nil {
 			s.fillProfileFields(resp, profileType, profileDominant, profileSource)
 			return resp, nil
 		}
 		log.Printf("[RecommendationService] LLM pipeline fallback: %v", fallbackErr)
+
+		// K13-Fix-1: Check fallback enable flag
+		if !s.fallbackEnable {
+			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
+		}
+
 		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, false, profileType, profileDominant, profileSource)
 	}
 
+	// LLM disabled — check if mock is allowed
+	if !s.enableMockAgent {
+		return nil, apperror.New(apperror.CodeInternal, "LLM is disabled and ENABLE_MOCK_AGENT=false, no generation path available", 500)
+	}
+
+	log.Printf("[RecommendationService] use_llm=false use_mock=true tier=%s", string(req.GenerationTier))
 	qualityMode := req.GenerationTier == model.GenerationTierQuality
 	return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, nil, qualityMode, profileType, profileDominant, profileSource)
 }

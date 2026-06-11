@@ -149,8 +149,8 @@ func main() {
 		fastRunner = pipeline.NewRunner(fastClient, promptLoader, schemaLoader, validator, repairAgent)
 		qualityRunner = pipeline.NewRunner(qualityClient, promptLoader, schemaLoader, validator, repairAgent)
 
-		log.Printf("[offer-catcher-server] LLM pipeline initialized (fast=%s quality=%s)",
-			cfg.LLM.FastModel, cfg.LLM.QualityModel)
+		log.Printf("[offer-catcher-server] LLM pipeline initialized (fast=%s quality=%s timeout_seconds=%d)",
+			cfg.LLM.FastModel, cfg.LLM.QualityModel, cfg.LLM.TimeoutSeconds)
 	} else {
 		log.Println("[offer-catcher-server] LLM disabled, using Mock Agent only")
 	}
@@ -164,18 +164,23 @@ func main() {
 		log.Println("[offer-catcher-server] ProfileAgent disabled (LLM off), quality profiles use rule fallback")
 	}
 
-	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, fastRunner, qualityRunner, llmEnabled)
+	// K13-Fix-1: Read fallback/mock flags from config
+	fallbackEnabled := cfg.LLM.FallbackEnable
+	mockAgentEnabled := cfg.Feature.EnableMockAgent
+	log.Printf("[offer-catcher-server] fallback_enable=%v enable_mock_agent=%v", fallbackEnabled, mockAgentEnabled)
+
+	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled)
 	matchHandler := httpserver.NewMatchHandler(matchService)
 
 	// Initialize recommendation service with both runners (tier selected per request)
-	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, qualityRunner, llmEnabled, resumeProfileService)
+	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, resumeProfileService)
 	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
 
 	// Initialize version compare module with both runners (tier selected per request)
 	versionCompareRepo := repository.NewResumeCompareRepository(mysqlDB.DB)
 	versionCompareMockAgent := agent.NewVersionCompareMockAgent()
 	versionCompareMockAgent.SetProfileProvider(resumeProfileService)
-	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, jobRepo, versionCompareMockAgent, fastRunner, qualityRunner, llmEnabled, resumeProfileService)
+	versionCompareService := service.NewVersionCompareService(resumeRepo, versionCompareRepo, jobRepo, versionCompareMockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, resumeProfileService)
 	versionCompareHandler := httpserver.NewVersionCompareHandler(versionCompareService)
 
 	// Initialize resume optimization module with both runners (tier selected per request)
@@ -186,7 +191,7 @@ func main() {
 		ma, _ := matchRepo.FindLatestByResumeAndJob(ctx, userID, resumeID, jobID)
 		return ma
 	})
-	resumeOptimizationService := service.NewResumeOptimizationService(resumeRepo, jobRepo, resumeOptimizationRepo, resumeOptimizationMockAgentV2, fastRunner, qualityRunner, llmEnabled)
+	resumeOptimizationService := service.NewResumeOptimizationService(resumeRepo, jobRepo, resumeOptimizationRepo, resumeOptimizationMockAgentV2, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled)
 	resumeOptimizationHandler := httpserver.NewResumeOptimizationHandler(resumeOptimizationService)
 	resumeHandler.SetOptimizationV2Handler(http.HandlerFunc(resumeOptimizationHandler.OptimizeV2))
 	resumeHandler.SetOptimizationLatestHandler(http.HandlerFunc(resumeOptimizationHandler.LatestV2))

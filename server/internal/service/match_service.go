@@ -40,10 +40,13 @@ type MatchService struct {
 	fastRunner    agent.PipelineRunner
 	qualityRunner agent.PipelineRunner
 	llmEnabled    bool
+	fallbackEnable bool
+	enableMockAgent bool
 }
 
 // NewMatchService creates a new MatchService.
-// If both runners are nil or llmEnabled is false, it falls back to Mock Agent only.
+// If both runners are nil or llmEnabled is false, it falls back to Mock Agent only
+// (unless enableMockAgent is false, in which case it returns an error).
 func NewMatchService(
 	resumeRepo *repository.ResumeRepository,
 	jobRepo *repository.JobRepository,
@@ -52,6 +55,8 @@ func NewMatchService(
 	fastRunner agent.PipelineRunner,
 	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
+	fallbackEnable bool,
+	enableMockAgent bool,
 ) *MatchService {
 	return &MatchService{
 		resumeRepo:    resumeRepo,
@@ -61,6 +66,8 @@ func NewMatchService(
 		fastRunner:    fastRunner,
 		qualityRunner: qualityRunner,
 		llmEnabled:    llmEnabled,
+		fallbackEnable: fallbackEnable,
+		enableMockAgent: enableMockAgent,
 	}
 }
 
@@ -102,6 +109,7 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 		genTier = "fast"
 	}
 	if s.llmEnabled && runner != nil {
+		log.Printf("[MatchService] use_llm=true tier=%s", genTier)
 		resp, fallbackErr := s.analyzeWithLLM(ctx, resume, job, runner)
 		if fallbackErr == nil {
 			return resp, nil
@@ -110,11 +118,22 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 		// Log the fallback reason
 		log.Printf("[MatchService] LLM pipeline fallback: %v", fallbackErr)
 
+		// K13-Fix-1: Check fallback enable flag
+		if !s.fallbackEnable {
+			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
+		}
+
 		// Fall back to Mock Agent
 		return s.analyzeWithMock(ctx, userID, resume, job, fallbackErr, genTier)
 	}
 
+	// LLM disabled — check if mock is allowed
+	if !s.enableMockAgent {
+		return nil, apperror.New(apperror.CodeInternal, "LLM is disabled and ENABLE_MOCK_AGENT=false, no generation path available", 500)
+	}
+
 	// LLM disabled — use Mock Agent directly
+	log.Printf("[MatchService] use_llm=false use_mock=true tier=%s", genTier)
 	return s.analyzeWithMock(ctx, userID, resume, job, nil, genTier)
 }
 

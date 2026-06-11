@@ -48,6 +48,8 @@ type ResumeOptimizationService struct {
 	fastRunner       agent.PipelineRunner
 	qualityRunner    agent.PipelineRunner
 	llmEnabled       bool
+	fallbackEnable   bool
+	enableMockAgent  bool
 }
 
 // NewResumeOptimizationService creates a new ResumeOptimizationService.
@@ -60,6 +62,8 @@ func NewResumeOptimizationService(
 	fastRunner agent.PipelineRunner,
 	qualityRunner agent.PipelineRunner,
 	llmEnabled bool,
+	fallbackEnable bool,
+	enableMockAgent bool,
 ) *ResumeOptimizationService {
 	return &ResumeOptimizationService{
 		resumeRepo:       resumeRepo,
@@ -69,6 +73,8 @@ func NewResumeOptimizationService(
 		fastRunner:       fastRunner,
 		qualityRunner:    qualityRunner,
 		llmEnabled:       llmEnabled,
+		fallbackEnable:   fallbackEnable,
+		enableMockAgent:  enableMockAgent,
 	}
 }
 
@@ -136,6 +142,7 @@ func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64,
 
 	// Try LLM Pipeline if enabled
 	if s.llmEnabled && runner != nil {
+		log.Printf("[ResumeOptimizationService] use_llm=true tier=%s", string(req.GenerationTier))
 		resp, fallbackErr := s.optimizeWithLLM(ctx, userID, input, req, runner)
 		if fallbackErr == nil {
 			return resp, nil
@@ -144,11 +151,22 @@ func (s *ResumeOptimizationService) Optimize(ctx context.Context, userID uint64,
 		// Log the fallback reason
 		log.Printf("[ResumeOptimizationService] LLM pipeline fallback: %v", fallbackErr)
 
+		// K13-Fix-1: Check fallback enable flag
+		if !s.fallbackEnable {
+			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
+		}
+
 		// Fall back to Mock Agent
 		return s.optimizeWithMock(ctx, userID, input, req, fallbackErr)
 	}
 
+	// LLM disabled — check if mock is allowed
+	if !s.enableMockAgent {
+		return nil, apperror.New(apperror.CodeInternal, "LLM is disabled and ENABLE_MOCK_AGENT=false, no generation path available", 500)
+	}
+
 	// LLM disabled — use Mock Agent directly
+	log.Printf("[ResumeOptimizationService] use_llm=false use_mock=true tier=%s", string(req.GenerationTier))
 	return s.optimizeWithMock(ctx, userID, input, req, nil)
 }
 
@@ -343,9 +361,17 @@ func (s *ResumeOptimizationService) optimizeCore(ctx context.Context, userID uin
 			}, nil
 		}
 		log.Printf("[optimizeCore] LLM fallback: %v", fbErr)
+
+		// K13-Fix-1: Check fallback enable flag
+		if !s.fallbackEnable {
+			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("Core LLM failed and fallback disabled: %v", fbErr), 500)
+		}
+	} else if !s.enableMockAgent {
+		return nil, apperror.New(apperror.CodeInternal, "LLM is disabled and ENABLE_MOCK_AGENT=false, no generation path available", 500)
 	}
 
 	// Fallback to Core Mock
+	log.Printf("[optimizeCore] use_llm=false use_mock=true")
 	mockResult := agent.NewCoreMockAgent().Optimize(input)
 	return &ResumeOptimizationResponse{
 		GeneratedBy: "mock_agent",
@@ -463,10 +489,51 @@ func (s *ResumeOptimizationService) OptimizeV2(ctx context.Context, userID, resu
 	genTier := string(req.GenerationTier)
 	if genTier == "" { genTier = "fast" }
 
+	// K13-Fix-1: Try LLM pipeline for quality tier
+	qualityMode := req.GenerationTier == model.GenerationTierQuality
+	runner := s.selectRunner(req.GenerationTier)
+	if s.llmEnabled && runner != nil && qualityMode {
+		log.Printf("[OptimizeV2] use_llm=true tier=%s resume_id=%d", genTier, resumeID)
+		input := &agent.OptimizeInput{ResumeText: resume.RawText}
+		if job != nil {
+			input.JobTitle = job.Title
+			input.JDText = job.Description
+		}
+		llmAgent := agent.NewResumeOptimizationAgent(runner)
+		llmResult, fbErr := llmAgent.Optimize(ctx, input)
+		if fbErr == nil {
+			// Map V1 LLM result to V2 format
+			result := mapOptimizeV1ToV2(llmResult, resumeID, mode, req.TargetDirection, req.JobID, genTier)
+			// Save to DB
+			resultJSON, _ := json.Marshal(result)
+			opt := &model.ResumeOptimizationSnapshot{
+				UserID: userID, ResumeID: resumeID, JobID: req.JobID,
+				OptimizationMode: mode, GenerationTier: genTier,
+				GeneratedBy: result.GeneratedBy, Status: "ready",
+				ProfileType: result.ProfileType,
+				ProfileDominantProfile: result.ProfileDominantProfile,
+				TargetDirection: req.TargetDirection, ResultJSON: resultJSON,
+			}
+			if createErr := s.optimizationRepo.CreateV2(ctx, opt); createErr != nil {
+				log.Printf("[OptimizeV2] failed to save snapshot: %v", createErr)
+			}
+			result.OptimizationID = opt.ID
+			return result, nil
+		}
+		log.Printf("[OptimizeV2] LLM fallback: %v", fbErr)
+		if !s.fallbackEnable {
+			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %v", fbErr), 500)
+		}
+	} else if qualityMode && !s.enableMockAgent {
+		return nil, apperror.New(apperror.CodeInternal, "quality mode requested but LLM disabled and ENABLE_MOCK_AGENT=false", 500)
+	}
+
+	// Run mock agent (V2 mock agent)
+	log.Printf("[OptimizeV2] use_llm=false use_mock=true tier=%s resume_id=%d", genTier, resumeID)
+
 	// Get V2 agent
 	v2Agent, ok := s.mockAgent.(*agent.ResumeOptimizationMockAgentV2)
 	if !ok {
-		// Fallback to old result mapper
 		return nil, fmt.Errorf("v2 optimization agent not available")
 	}
 
@@ -500,6 +567,33 @@ func (s *ResumeOptimizationService) OptimizeV2(ctx context.Context, userID, resu
 	result.OptimizationID = opt.ID
 
 	return result, nil
+}
+
+// mapOptimizeV1ToV2 maps V1 LLM result to V2 optimization format.
+func mapOptimizeV1ToV2(v1 *model.ResumeOptimizationResult, resumeID uint64, mode, targetDir string, jobID uint64, genTier string) *model.OptimizationResultV2 {
+	result := &model.OptimizationResultV2{
+		ResumeID:               resumeID,
+		OptimizationMode:       mode,
+		GenerationTier:         genTier,
+		GeneratedBy:            v1.GeneratedBy,
+		Status:                 "ready",
+		ProfileType:            genTier,
+		ProfileDominantProfile: genTier,
+		OptimizationScore:      0,
+		OptimizationLevel:      v1.ApplyReadiness,
+		OneSentenceSummary:     v1.Summary,
+	}
+	// Map fix items
+	for _, f := range v1.TopFixItems {
+		result.QuickFixItems = append(result.QuickFixItems, model.OptimizationFixItem{
+			Section: "修复项",
+			Issue:   f.Issue,
+			Action:  f.Action,
+		})
+	}
+	if mode == "target_direction" { result.TargetDirection = targetDir }
+	if mode == "target_job" { result.JobID = jobID }
+	return result
 }
 
 // GetLatestOptimizationV2 returns the latest ready optimization for user+resume+mode.
