@@ -1,0 +1,59 @@
+# ============================================================
+# Offer捕手 - Docker 构建忽略文件
+# ============================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+web/node_modules
+web/dist
+web/.vite
+
+# Go
+server/tmp
+server/logs
+
+# Runtime
+.logs
+.run
+*.log
+
+# Environment (禁止打入镜像）
+.env
+.env.local
+.env.*.local
+
+# IDE
+.DS_Store
+.idea
+.vscode
+*.swp
+*.swo
+
+# Test
+coverage
+*.test
+*.out
+
+# Docs (large, not needed in image)
+docs/*.md
+docs/00-项目总览
+docs/01-前端设计
+docs/02-后端设计
+docs/03-数据库设计
+docs/04-*
+docs/05-*
+docs/07-*
+docs/08-*
+docs/09-*
+docs/10-*
+docs/11-*
+
+# Backups
+backups
+
+# Resources (not needed at runtime)
+resources

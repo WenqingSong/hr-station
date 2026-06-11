@@ -1,0 +1,126 @@
+# ============================================================
+# Offer捕手 - 生产环境 Docker Compose
+#
+# 架构:
+#   用户浏览器 → web(Nginx:80) → /api/* → server(Go:8080)
+#                                     → mysql(3306)
+#                                     → redis(6379)
+#
+# 上线命令:
+#   cp .env.prod.example .env.prod   # 修改密钥后执行
+#   docker compose -f docker-compose.prod.yml up -d --build
+# ============================================================
+
+services:
+  # ── MySQL 数据库 ──
+  mysql:
+    image: mysql:8.0
+    container_name: offer-catcher-mysql-prod
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      TZ: Asia/Shanghai
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./server/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - offer-catcher-prod
+
+  # ── Redis 缓存 ──
+  redis:
+    image: redis:7-alpine
+    container_name: offer-catcher-redis-prod
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - offer-catcher-prod
+
+  # ── Go 后端 ──
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    image: offer-catcher-server:prod
+    container_name: offer-catcher-server-prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      # 强制覆盖容器内连接地址
+      APP_ENV: production
+      SERVER_PORT: "8080"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -f http://127.0.0.1:8080/healthz || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - offer-catcher-prod
+
+  # ── 前端 Nginx ──
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    image: offer-catcher-web:prod
+    container_name: offer-catcher-web-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - offer-catcher-prod
+
+# ── Volumes ──
+volumes:
+  mysql_data:
+  redis_data:
+
+# ── Networks ──
+networks:
+  offer-catcher-prod:
+    driver: bridge
