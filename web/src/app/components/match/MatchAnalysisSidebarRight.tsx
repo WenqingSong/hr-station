@@ -37,7 +37,7 @@ export function MatchAnalysisSidebarRight({ resume, resumeSource = "当前简历
         <div className="mb-4">
           <h3 className="font-bold text-gray-900 text-[16px] mb-3">{resumeVm.name}</h3>
           <div className="flex flex-wrap gap-1.5">
-            {[resumeVm.directionLabel, ...resumeVm.skillTags.slice(0, 4)].map((tag) => (
+            {[resumeVm.directionLabel, ...resumeVm.skillTags].filter(Boolean).slice(0, 5).map((tag) => (
               <Badge key={tag} variant="outline" className="text-[11px] px-1.5 text-gray-600 bg-gray-50 font-normal">
                 {tag}
               </Badge>

@@ -92,8 +92,10 @@ export function AIDecisionWorkspace() {
             <div className="mb-2.5">
               <h4 className="font-semibold text-gray-900 text-[13px] mb-1.5">{resumeVm.name}</h4>
               <div className="flex flex-wrap gap-1">
-                <Badge variant="secondary" className="text-[10px] px-1.5">{resumeVm.directionLabel}</Badge>
-                {(Array.isArray(resumeVm.skillTags) ? resumeVm.skillTags : []).slice(0, 3).map((skill) => (
+                {resumeVm.directionLabel ? (
+                  <Badge variant="secondary" className="text-[10px] px-1.5">{resumeVm.directionLabel}</Badge>
+                ) : null}
+                {(Array.isArray(resumeVm.skillTags) ? resumeVm.skillTags : []).filter(Boolean).slice(0, 3).map((skill) => (
                   <Badge key={skill} variant="secondary" className="text-[10px] px-1.5">{skill}</Badge>
                 ))}
               </div>

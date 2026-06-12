@@ -158,23 +158,31 @@ export function JobDetailAIDecision() {
             当前简历
           </div>
           <button
-            className="text-[11px] text-[#0052D9] hover:underline"
+            className="rounded-full px-3 py-1 text-[11px] font-medium text-[#0052D9] hover:bg-blue-50 transition-colors"
             onClick={() => setModalAction("match")}
           >
             切换简历
           </button>
         </div>
         <div className="mb-3">
-          <h3 className="font-semibold text-gray-900 text-[13px] mb-2">{resumeVm?.name || ""}</h3>
+          <h3 className="font-semibold text-gray-900 text-[13px] mb-2 line-clamp-2">{resumeVm?.name || ""}</h3>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{resumeVm?.directionLabel || ""}</Badge>
-            {(resumeVm?.skillTags ?? []).slice(0, 4).map((skill) => (
+            {resumeVm?.directionLabel ? (
+              <Badge variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{resumeVm.directionLabel}</Badge>
+            ) : null}
+            {(resumeVm?.skillTags ?? []).filter(Boolean).slice(0, 4).map((skill) => (
               <Badge key={skill} variant="outline" className="text-[10px] px-1.5 text-gray-600 bg-gray-50 font-normal">{skill}</Badge>
             ))}
           </div>
         </div>
         <p className="text-[11px] text-gray-400">
-          包含 {resumeVm?.projectCount ?? 0} 个项目经历，最近更新：{resumeVm?.updatedAt || ""}
+          {resumeVm?.projectCount != null && resumeVm.projectCount > 0 ? (
+            <span>包含 {resumeVm.projectCount} 个项目经历{resumeVm?.updatedAt ? ` · 最近更新：${resumeVm.updatedAt.slice(0, 10)}` : ""}</span>
+          ) : resumeVm?.updatedAt ? (
+            <span>最近更新：{resumeVm.updatedAt.slice(0, 10)}</span>
+          ) : (
+            <span>简历信息待完善</span>
+          )}
         </p>
       </div>
 

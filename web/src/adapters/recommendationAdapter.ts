@@ -9,6 +9,7 @@ import {
   type EvidenceItemViewModel,
   type AgentMetaViewModel,
 } from './agentAdapter';
+import { humanizeOneSentenceReason, humanizeMatchHighlights, humanizeRiskPoints } from './tagLabelMap';
 
 // ─── ViewModel 类型 ────────────────────────────────────────────────────────────
 
@@ -161,9 +162,9 @@ function toRecommendedJobViewModel(
     priority,
     priorityText: priorityText(priority),
     priorityTone: priority as RecommendationPriorityTone,
-    oneSentenceReason: job.recommendation_reason || "该岗位与当前简历存在一定匹配度，可进一步查看岗位要求。",
-    matchHighlights: (job.match_highlights && job.match_highlights.length > 0) ? job.match_highlights : ["岗位方向与简历背景存在基础匹配"],
-    riskPoints: (job.risk_points && job.risk_points.length > 0) ? job.risk_points : ["建议进一步补充与该岗位相关的项目细节"],
+    oneSentenceReason: humanizeOneSentenceReason(job.recommendation_reason || ""),
+    matchHighlights: humanizeMatchHighlights(job.match_highlights || []),
+    riskPoints: humanizeRiskPoints(job.risk_points || []),
     suggestedAction: job.suggested_action || "建议先查看岗位详情，再进行岗位匹配分析。",
     source,
     sourceLabel: getSourceLabel(source, generatedBy, isQuality),
