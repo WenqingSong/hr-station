@@ -16,7 +16,7 @@ import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { humanizeProfile } from "../utils/profileLabel";
 import { cleanUserText } from "../utils/cleanUserText";
-import { PageLoading } from "../components/PageState";
+import { PageLoading, PageError } from "../components/PageState";
 import { AgentStepLoadingOverlay } from "../components/common/AgentStepLoadingOverlay";
 import { BulletList } from "../components/common/BulletList";
 import { OptimizationEntryModal } from "../components/OptimizationEntryModal";
@@ -180,11 +180,14 @@ export function ResumeOptimizationPage() {
   // ── URL validation errors ──
   if (!parsedResumeId) {
     return (
-      <div className="max-w-[1280px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">缺少有效的简历 ID</p>
-        <p className="text-gray-400 text-xs mb-4">请通过简历管理页面选择一份简历后再进行优化。</p>
-        <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1280px]" contentClassName="pb-12">
+        <PageError
+          title="缺少有效的简历 ID"
+          description="请通过简历管理页面选择一份简历后再进行优化。"
+        >
+          <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
@@ -336,11 +339,14 @@ export function ResumeOptimizationPage() {
 
   if (resumeOptions.length === 0 || !selectedOption) {
     return (
-      <div className="max-w-[1280px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">你还没有可用于优化的简历</p>
-        <p className="text-gray-400 text-xs mb-4">请先创建一份简历，系统会基于你的简历内容给出优化建议。</p>
-        <Link to="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1280px]" contentClassName="pb-12">
+        <PageError
+          title="你还没有可用于优化的简历"
+          description="请先创建一份简历，系统会基于你的简历内容给出优化建议。"
+        >
+          <Link to="/resumes/new" className="text-[#0052D9] text-sm underline">去添加简历</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
@@ -350,10 +356,11 @@ export function ResumeOptimizationPage() {
 
   if (resumeDetailError) {
     return (
-      <div className="max-w-[1280px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">{resumeDetailError}</p>
-        <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1280px]" contentClassName="pb-12">
+        <PageError title="简历详情加载失败" description={resumeDetailError}>
+          <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
@@ -363,10 +370,14 @@ export function ResumeOptimizationPage() {
 
   if (phase === "fast_error" && !activeResult) {
     return (
-      <div className="max-w-[1280px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">{optError || "优化接口暂时不可用"}</p>
-        <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1280px]" contentClassName="pb-12">
+        <PageError
+          title="优化生成失败"
+          description={optError || "优化接口暂时不可用"}
+        >
+          <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 

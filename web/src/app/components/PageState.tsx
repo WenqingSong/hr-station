@@ -39,6 +39,8 @@ interface PageErrorProps {
   description?: string;
   maxWidth?: string;
   className?: string;
+  /** 重试按钮回调，传入后显示"重新尝试"按钮 */
+  onRetry?: () => void;
   children?: React.ReactNode;
 }
 
@@ -47,14 +49,26 @@ export function PageError({
   description = "请稍后重试。",
   maxWidth = "max-w-[1440px]",
   className = "",
+  onRetry,
   children,
 }: PageErrorProps) {
   return (
-    <div className={`${maxWidth} mx-auto px-6 py-16 text-center ${className}`}>
-      <AlertCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-      <p className="text-gray-500 text-sm mb-1">{title}</p>
-      {description && <p className="text-gray-400 text-xs mb-4">{description}</p>}
-      {children}
+    <div className={`${maxWidth} mx-auto px-6 py-16 ${className}`}>
+      <div className="max-w-lg mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+        <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-red-50 flex items-center justify-center">
+          <AlertCircle className="w-6 h-6 text-red-400" />
+        </div>
+        <h2 className="text-base font-semibold text-slate-900 mb-2">{title}</h2>
+        {description && <p className="text-sm text-slate-500 mb-6 leading-relaxed">{description}</p>}
+        <div className="flex items-center justify-center gap-3">
+          {onRetry && (
+            <button onClick={onRetry} className="px-5 py-2 bg-[#0052D9] text-white text-sm font-medium rounded-lg hover:bg-[#003DA5] transition-colors">
+              重新尝试
+            </button>
+          )}
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
@@ -62,13 +76,17 @@ export function PageError({
 // ─── PageEmpty ──────────────────────────────────────────────────────────────
 //
 // 统一的页面级空状态（无数据）。
-// 替代各页面的“暂无数据”内联块。
+// 替代各页面的"暂无数据"内联块。
 
 interface PageEmptyProps {
   title?: string;
   description?: string;
   maxWidth?: string;
   className?: string;
+  /** 主操作按钮文案 */
+  actionLabel?: string;
+  /** 主操作按钮回调 */
+  onAction?: () => void;
   children?: React.ReactNode;
 }
 
@@ -77,14 +95,27 @@ export function PageEmpty({
   description,
   maxWidth = "max-w-[1440px]",
   className = "",
+  actionLabel,
+  onAction,
   children,
 }: PageEmptyProps) {
   return (
-    <div className={`${maxWidth} mx-auto px-6 py-16 text-center ${className}`}>
-      <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-      <p className="text-gray-500 text-sm mb-1">{title}</p>
-      {description && <p className="text-gray-400 text-xs mb-4">{description}</p>}
-      {children}
+    <div className={`${maxWidth} mx-auto px-6 py-16 ${className}`}>
+      <div className="max-w-lg mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+        <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-blue-50 flex items-center justify-center">
+          <FileText className="w-6 h-6 text-blue-400" />
+        </div>
+        <h2 className="text-base font-semibold text-slate-900 mb-2">{title}</h2>
+        {description && <p className="text-sm text-slate-500 mb-6 leading-relaxed">{description}</p>}
+        <div className="flex items-center justify-center gap-3">
+          {onAction && actionLabel && (
+            <button onClick={onAction} className="px-5 py-2 bg-[#0052D9] text-white text-sm font-medium rounded-lg hover:bg-[#003DA5] transition-colors">
+              {actionLabel}
+            </button>
+          )}
+          {children}
+        </div>
+      </div>
     </div>
   );
 }

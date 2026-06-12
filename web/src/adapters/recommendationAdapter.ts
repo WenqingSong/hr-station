@@ -104,18 +104,18 @@ function getSource(generatedBy?: string): RecommendationSource {
 }
 
 function getSourceLabel(source: RecommendationSource, generatedBy?: string, isQuality?: boolean): string {
-  // K9-1-T-D: product-friendly labels — never show "演示数据"
+  // K9-1-T-D: product-friendly labels — 用户永远看不到 mock/fallback 内部标记
   if (generatedBy === "fast_tag_engine") return "快速推荐 · 标签匹配";
-  if (generatedBy === "mock_agent") return "快速推荐 · 规则推荐";
-  if (generatedBy === "mock_quality") return "深度推荐 · 规则兜底";
-  if (generatedBy === "llm_agent" || generatedBy?.startsWith("llm")) return "深度推荐 · AI生成";
-  if (generatedBy?.includes("fallback")) return "推荐失败 · 已保留快速结果";
+  if (generatedBy === "mock_agent") return "快速推荐 · 基础模型";
+  if (generatedBy === "mock_quality") return "深度推荐 · 基础模型";
+  if (generatedBy === "llm_agent" || generatedBy?.startsWith("llm")) return "深度推荐 · AI 生成";
+  if (generatedBy?.includes("fallback")) return "推荐生成失败 · 已保留当前结果";
   switch (source) {
     case "fast_tag": return "快速推荐 · 标签匹配";
-    case "mock": return isQuality ? "深度推荐 · 规则兜底" : "快速推荐 · 规则推荐";
-    case "fast_llm": return "快速推荐 · AI生成";
-    case "deep_llm": return "深度推荐 · AI生成";
-    case "fallback": return "推荐失败 · 已保留快速结果";
+    case "mock": return isQuality ? "深度推荐 · 基础模型" : "快速推荐 · 基础模型";
+    case "fast_llm": return "快速推荐 · AI 生成";
+    case "deep_llm": return "深度推荐 · AI 生成";
+    case "fallback": return "推荐生成失败 · 已保留当前结果";
     case "cache": return "历史推荐 · 缓存结果";
     default: return "推荐结果";
   }

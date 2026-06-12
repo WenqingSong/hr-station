@@ -34,12 +34,12 @@ export function formatAgentSourceLabel(meta?: AgentResponseMeta): StatusBadge {
   if (generated_by === 'llm_agent' && (agent_status === 'success' || agent_status === 'verified')) {
     return { label: 'AI 分析完成', tone: 'blue' };
   }
-  // Mock / fallback
+  // Mock / fallback — Dev-Reboot-Fix-C: 用户永远看不到内部技术标记
   if (generated_by === 'mock_agent' || generated_by === 'mock_quality') {
-    return { label: '规则兜底', tone: 'orange' };
+    return { label: '基础模型', tone: 'orange' };
   }
   if (agent_status === 'fallback') {
-    return { label: '分析异常 - 已降级', tone: 'red' };
+    return { label: '分析结果降级', tone: 'orange' };
   }
   if (agent_status === 'error') {
     return { label: '分析异常', tone: 'red' };

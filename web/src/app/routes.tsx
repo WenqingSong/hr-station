@@ -28,7 +28,7 @@ function CorePageWrapper({ children }: { children: React.ReactNode }) {
 
 function RootLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-[#F5F7FA] font-sans text-slate-900">
+    <div className="flex min-h-screen flex-col bg-[#F5F7FB] font-sans text-slate-900">
       <RouteProgressBar />
       <Navbar />
       <main className="flex-1">

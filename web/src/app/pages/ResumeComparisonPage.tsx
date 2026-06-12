@@ -189,7 +189,7 @@ export function ResumeComparisonPage() {
       // Dev-Reboot-Fix-C: if backend returned mock, show error state
       if (isMockGeneratedBy(vm.generatedBy) || vm.fallback) {
         setPhase("deep_error");
-        setDeepErrMsg("AI 模型连接失败，当前显示的不是AI生成结果。");
+        setDeepErrMsg("AI 模型连接失败，当前显示的不是 AI 生成结果。");
       }
     } catch {
       setPhase("deep_error");
@@ -240,11 +240,29 @@ export function ResumeComparisonPage() {
 
   // ── Error guards ──
   if (loadingResumes) return <PageLoading message="正在加载简历信息…" />;
-  if (fromId === toId) return <PageError title="不能对比相同的简历" description="请选择两份不同的简历。"><Link to="/resumes" className="text-[#0052D9] text-sm underline">返回我的简历</Link></PageError>;
+  if (fromId === toId) return (
+    <ContentPageShell maxWidthClassName="max-w-[1280px]" contentClassName="pb-12">
+      <PageError title="不能对比相同的简历" description="请选择两份不同的简历。">
+        <Link to="/resumes" className="text-[#0052D9] text-sm underline">返回我的简历</Link>
+      </PageError>
+    </ContentPageShell>
+  );
   if (phase === "loading_latest") return <PageLoading message="正在读取对比结果…" />;
-  if (phase === "fast_loading") return <div className="max-w-[1280px] mx-auto px-6 py-32 text-center"><Loader2 className="w-10 h-10 animate-spin text-[#0052D9] mx-auto mb-4" /><h2 className="text-lg font-bold text-gray-900 mb-2">正在生成快速对比</h2><p className="text-sm text-gray-500 max-w-md mx-auto">系统正在对比两份简历的结构、方向和关键差异。</p></div>;
-  if (phase === "fast_error") return <div className="max-w-[1280px] mx-auto px-6 py-12 text-center"><p className="text-gray-500 text-sm mb-3">{errorMsg}</p><button onClick={generateFast} className="text-[#0052D9] text-sm underline">重新尝试</button></div>;
-  if (!activeResult) return <div className="max-w-[1280px] mx-auto px-6 py-12 text-center"><p className="text-gray-500 text-sm mb-3">暂无对比结果</p><Link to="/resumes" className="text-[#0052D9] text-sm underline">返回我的简历</Link></div>;
+  if (phase === "fast_loading") return <PageLoading message="正在生成快速对比，系统正在对比两份简历的结构、方向和关键差异…" />;
+  if (phase === "fast_error") return (
+    <ContentPageShell maxWidthClassName="max-w-[1280px]" contentClassName="pb-12">
+      <PageError title="对比生成失败" description={errorMsg || "快速对比生成失败，请稍后重试。"}>
+        <button onClick={generateFast} className="text-[#0052D9] text-sm underline">重新尝试</button>
+      </PageError>
+    </ContentPageShell>
+  );
+  if (!activeResult) return (
+    <ContentPageShell maxWidthClassName="max-w-[1280px]" contentClassName="pb-12">
+      <PageError title="暂无对比结果" description="当前未找到有效的对比结果，请返回简历列表重新选择。">
+        <Link to="/resumes" className="text-[#0052D9] text-sm underline">返回我的简历</Link>
+      </PageError>
+    </ContentPageShell>
+  );
 
   const V = activeResult;
   const winnerLabel = V.winnerResumeId === fromId ? fromLabel : toLabel;

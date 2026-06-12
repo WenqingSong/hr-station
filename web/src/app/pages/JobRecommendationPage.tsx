@@ -3,7 +3,7 @@ import { Link, useSearchParams, useNavigate, useLocation } from "react-router";
 import { Sparkles, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { loadRecommendationViewModel, loadResumeOptionViewModelsFromApi, loadLatestRecommendationViewModel } from "../../api";
 import type { RecommendationPageViewModel, ResumeOptionViewModel, RecommendedJobViewModel, RecommendationPriorityTone } from "../../adapters";
-import { PageLoading, PageEmpty } from "../components/PageState";
+import { PageLoading, PageEmpty, PageError } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { AgentStepLoadingOverlay, type AgentLoadingStep } from "../components/common/AgentStepLoadingOverlay";
 import AgentErrorState from "../components/common/AgentErrorState";
@@ -184,7 +184,7 @@ export function JobRecommendationPage() {
           setActiveGeneratedBy(genBy);
           // Dev-Reboot-Fix-C: if backend returned mock, show error state
           if (isMockGeneratedBy(genBy) || vm.meta?.fallback) {
-            setPhase("deep_error"); setDeepErrorMessage("AI 模型连接失败，当前显示的不是AI生成结果。");
+            setPhase("deep_error"); setDeepErrorMessage("AI 模型连接失败，当前显示的不是 AI 生成结果。");
             return;
           }
           if (vm.recommendedJobs.length > 0) setSelJobId(vm.recommendedJobs[0].jobId);
@@ -211,63 +211,70 @@ export function JobRecommendationPage() {
   // User has resumes but the URL resumeId doesn't belong to them
   if (urlResumeNotFound) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
-        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">简历不存在或不属于当前账号</h2>
-        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-          当前链接中的简历无法访问。请从你的简历列表中选择一份简历后再生成岗位推荐。
-        </p>
-        <div className="flex justify-center gap-3">
-          <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">返回我的简历</Link>
-        </div>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageError
+          title="简历不存在或不属于当前账号"
+          description="当前链接中的简历无法访问。请从你的简历列表中选择一份简历后再生成岗位推荐。"
+        >
+          <div className="flex justify-center gap-3">
+            <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">返回我的简历</Link>
+          </div>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
   // No resumes at all — show empty state with CTA
   if (resumeOptions.length === 0) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
-        <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-4" />
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">你还没有可用于推荐的简历</h2>
-        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-          请先创建或导入一份简历，Offer捕手才能基于你的经历推荐合适岗位。
-        </p>
-        <div className="flex justify-center gap-3">
-          <Link to="/resumes/new" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">去创建简历</Link>
-          <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">管理我的简历</Link>
-        </div>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageEmpty
+          title="你还没有可用于推荐的简历"
+          description="请先创建或导入一份简历，Offer捕手才能基于你的经历推荐合适岗位。"
+        >
+          <div className="flex justify-center gap-3">
+            <Link to="/resumes/new" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">去创建简历</Link>
+            <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">管理我的简历</Link>
+          </div>
+        </PageEmpty>
+      </ContentPageShell>
     );
   }
 
   if (!selectedOption) {
-    return (<PageEmpty title="无法选择简历" description="请返回简历列表重新选择。" />);
+    return (
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageError title="无法选择简历" description="请返回简历列表重新选择。" />
+      </ContentPageShell>
+    );
   }
 
   if (phase === "loading_latest") return <PageLoading message="正在读取推荐结果…" />;
   if (phase === "fast_loading") {
-    return (<div className="max-w-[1440px] mx-auto px-6 py-32 text-center"><Loader2 className="w-10 h-10 animate-spin text-[#0052D9] mx-auto mb-4" /><h2 className="text-lg font-bold text-gray-900 mb-2">正在生成快速推荐</h2><p className="text-sm text-gray-500 max-w-md mx-auto">系统正在提取你的教育、项目、实习经历和技能关键词进行快速岗位推荐。</p></div>);
+    return <PageLoading message="正在生成快速推荐，系统正在提取你的教育、项目、实习经历和技能关键词…" />;
   }
   if (phase === "fast_error" || phase === "profile_failed") {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
-        <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-3" />
-        <p className="text-gray-500 text-sm mb-3">{errorMessage}</p>
-        <p className="text-xs text-gray-400 mb-4">请确认网络连接正常、服务器运行中，或尝试切换简历后重试。</p>
-        <div className="flex justify-center gap-3">
-          <button onClick={() => setSelectedOption({ ...selectedOption })} className="text-[#0052D9] text-sm underline">重新尝试</button>
-          <Link to="/resumes" className="text-gray-500 text-sm underline">返回我的简历</Link>
-        </div>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageError
+          title={errorMessage || "推荐结果加载失败"}
+          description="请确认网络连接正常、服务器运行中，或尝试切换简历后重试。"
+        >
+          <div className="flex justify-center gap-3">
+            <button onClick={() => setSelectedOption({ ...selectedOption })} className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">重新尝试</button>
+            <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">返回我的简历</Link>
+          </div>
+        </PageError>
+      </ContentPageShell>
     );
   }
   if (!activeResult || jobs.length === 0) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-4">暂无推荐结果。</p>
-        <Link to="/resumes" className="text-[#0052D9] text-sm underline">切换简历</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageEmpty title="暂无推荐结果" description="当前简历暂未匹配到合适的岗位，请尝试切换简历后重新推荐。">
+          <Link to="/resumes" className="text-[#0052D9] text-sm underline">切换简历</Link>
+        </PageEmpty>
+      </ContentPageShell>
     );
   }
 
@@ -280,12 +287,12 @@ export function JobRecommendationPage() {
       case "deep_loading": return "智能体正在深度分析";
       case "deep_profile_pending": return "正在生成深度分析";
       case "deep_done": {
-        const base = activeGeneratedBy?.startsWith("llm") ? "深度推荐 · AI生成" : "深度推荐 · 规则兜底";
+        const base = activeGeneratedBy?.startsWith("llm") ? "深度推荐 · AI 生成" : "深度推荐 · 基础模型";
         return `${base}（${actualCount} 个岗位）`;
       }
       case "deep_timeout": return "深度分析生成较慢 · 已保留当前结果";
       case "deep_error": return "深度推荐生成失败 · 已保留当前结果";
-      default: return `快速推荐 · 规则推荐（${actualCount} 个岗位）`;
+      default: return `快速推荐 · 基础模型（${actualCount} 个岗位）`;
     }
   }
   const isDeepDisplay = phase === "deep_done";

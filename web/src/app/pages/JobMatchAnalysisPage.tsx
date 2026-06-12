@@ -12,7 +12,7 @@ import type { Resume } from "../../types";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
 import { humanizeProfile } from "../utils/profileLabel";
-import { PageLoading } from "../components/PageState";
+import { PageLoading, PageError, PageEmpty } from "../components/PageState";
 import { AgentStepLoadingOverlay } from "../components/common/AgentStepLoadingOverlay";
 import AgentErrorState from "../components/common/AgentErrorState";
 import { BulletList } from "../components/common/BulletList";
@@ -225,28 +225,28 @@ export function JobMatchAnalysisPage() {
   // Missing jobId
   if (!jobId) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
-        <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-4" />
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">缺少目标岗位</h2>
-        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-          请先从岗位列表选择一个岗位，再进行匹配分析。
-        </p>
-        <Link to="/jobs" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">返回岗位列表</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageError
+          title="缺少目标岗位"
+          description="请先从岗位列表选择一个目标岗位，再进行匹配分析。"
+        >
+          <Link to="/jobs" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">返回岗位列表</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
   // Job not found or load failed
   if (!loadingJob && jobNotFound) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
-        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">岗位不存在或已下线</h2>
-        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-          当前链接中的岗位（ID: {jobId}）无法访问。请返回岗位列表重新选择。
-        </p>
-        <Link to="/jobs" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">返回岗位列表</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageError
+          title="岗位不存在或已下线"
+          description={`当前链接中的岗位（ID: ${jobId}）无法访问。请返回岗位列表重新选择。`}
+        >
+          <Link to="/jobs" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">返回岗位列表</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
@@ -257,40 +257,41 @@ export function JobMatchAnalysisPage() {
   // URL resumeId doesn't belong to current user
   if (urlResumeNotFound) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
-        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-4" />
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">简历不存在或不属于当前账号</h2>
-        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-          当前链接中的简历无法访问。请从你的简历列表中选择一份简历后再进行岗位匹配分析。
-        </p>
-        <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">返回我的简历</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageError
+          title="简历不存在或不属于当前账号"
+          description="当前链接中的简历无法访问。请从你的简历列表中选择一份简历后再进行岗位匹配分析。"
+        >
+          <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">返回我的简历</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
   // No resumes at all
   if (resumeOptions.length === 0) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-16 text-center">
-        <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-4" />
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">你还没有可用于匹配的简历</h2>
-        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-          请先创建或导入一份简历，Offer捕手才能基于你的经历分析岗位匹配度。
-        </p>
-        <div className="flex justify-center gap-3">
-          <Link to="/resumes/new" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">去创建简历</Link>
-          <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">管理我的简历</Link>
-        </div>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageEmpty
+          title="你还没有可用于匹配的简历"
+          description="请先创建或导入一份简历，Offer捕手才能基于你的经历分析岗位匹配度。"
+        >
+          <div className="flex justify-center gap-3">
+            <Link to="/resumes/new" className="px-4 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]">去创建简历</Link>
+            <Link to="/resumes" className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">管理我的简历</Link>
+          </div>
+        </PageEmpty>
+      </ContentPageShell>
     );
   }
 
   if (!selectedOption) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">无法选择简历</p>
-        <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageError title="无法选择简历" description="请返回简历列表重新选择。">
+          <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
@@ -300,10 +301,11 @@ export function JobMatchAnalysisPage() {
 
   if (resumeDetailError) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">{resumeDetailError}</p>
-        <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageError title="简历详情加载失败" description={resumeDetailError}>
+          <Link to="/resumes" className="text-[#0052D9] text-sm underline">管理我的简历</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
@@ -313,10 +315,14 @@ export function JobMatchAnalysisPage() {
 
   if (phase === "fast_error" && !activeResult) {
     return (
-      <div className="max-w-[1440px] mx-auto px-6 py-12 text-center">
-        <p className="text-gray-500 text-sm mb-3">{matchError || "匹配分析接口暂时不可用"}</p>
-        <Link to={`/jobs/${jobId}`} className="text-[#0052D9] text-sm underline">返回岗位详情</Link>
-      </div>
+      <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
+        <PageError
+          title="匹配分析生成失败"
+          description={matchError || "匹配分析接口暂时不可用"}
+        >
+          <Link to={`/jobs/${jobId}`} className="text-[#0052D9] text-sm underline">返回岗位详情</Link>
+        </PageError>
+      </ContentPageShell>
     );
   }
 
