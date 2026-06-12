@@ -56,10 +56,13 @@ export interface LatestRecommendationResponse {
 
 /**
  * 获取最新推荐结果。
- * GET /api/jobs/recommend/latest?resume_id=X
+ * GET /api/jobs/recommend/latest?resume_id=X[&generation_tier=Y]
+ * If tier is omitted, returns most recent non-mock result regardless of tier.
  */
-export async function getLatestRecommendation(resumeId: number): Promise<LatestRecommendationResponse> {
-  return get<LatestRecommendationResponse>(`/jobs/recommend/latest?resume_id=${resumeId}`);
+export async function getLatestRecommendation(resumeId: number, tier?: string): Promise<LatestRecommendationResponse> {
+  let url = `/jobs/recommend/latest?resume_id=${resumeId}`;
+  if (tier) url += `&generation_tier=${tier}`;
+  return get<LatestRecommendationResponse>(url);
 }
 
 /**

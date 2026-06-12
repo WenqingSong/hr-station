@@ -178,9 +178,15 @@ func (g *SemanticProfileGate) ensureProfile(ctx context.Context, targetType stri
 	}, nil
 }
 
+// truncateStr truncates a string to maxLen runes (not bytes), adding "..." if truncated.
+// Uses []rune to avoid cutting multi-byte UTF-8 characters (e.g. Chinese) mid-byte.
 func truncateStr(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	if maxLen <= 0 {
+		return ""
+	}
+	r := []rune(s)
+	if len(r) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "..."
+	return string(r[:maxLen]) + "..."
 }

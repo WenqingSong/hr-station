@@ -30,7 +30,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("[ErrorBoundary] Caught render error:", error, errorInfo);
+    console.groupCollapsed("[ErrorBoundary] Render error");
+    console.error("error:", error);
+    console.info("componentStack:", errorInfo?.componentStack);
+    console.groupEnd();
   }
 
   handleRetry = () => {
@@ -46,10 +49,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <AlertTriangle className="w-7 h-7 text-amber-600" />
             </div>
             <h2 className="text-lg font-semibold text-slate-800 mb-2">
-              页面加载异常
+              页面渲染异常
             </h2>
             <p className="text-sm text-slate-500 mb-2 leading-relaxed">
-              当前结果生成失败，请稍后重试或返回我的简历。
+              页面在渲染过程中出现异常。你可以重试，或返回我的简历后重新进入推荐页。
             </p>
             {this.state.error && (
               <p className="text-xs text-slate-400 mb-6 font-mono truncate max-w-full">

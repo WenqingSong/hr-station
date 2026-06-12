@@ -290,14 +290,18 @@ export interface LatestRecommendationViewModel {
   result?: RecommendationPageViewModel;
 }
 
-export async function loadLatestRecommendationViewModel(resumeId: number): Promise<LatestRecommendationViewModel> {
-  const raw: LatestRecommendationResponse = await getLatestRecommendation(resumeId);
+export async function loadLatestRecommendationViewModel(resumeId: number, tier?: string): Promise<LatestRecommendationViewModel> {
+  const raw: LatestRecommendationResponse = await getLatestRecommendation(resumeId, tier);
   if (!raw.has_result) {
     return { hasResult: false };
   }
   // Reuse existing adapter for result
-  const result = raw.result
-    ? toRecommendationPageViewModel(raw.result, undefined, {
+  // J2: latest API may return result as a raw array of job objects (persisted from recommendDeepCascade)
+  const resultObj: any = Array.isArray(raw.result)
+    ? { recommended_jobs: raw.result }
+    : raw.result;
+  const result = resultObj
+    ? toRecommendationPageViewModel(resultObj, undefined, {
         profileStatus: raw.status ?? "ready",
         profileType: raw.profile_type ?? "fast",
         profileDominantProfile: raw.profile_dominant_profile ?? "",

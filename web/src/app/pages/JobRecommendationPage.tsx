@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams, useNavigate, useLocation } from "react-router";
-import { Sparkles, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle, RefreshCw, CheckCircle2 } from "lucide-react";
 import { loadRecommendationViewModel, loadResumeOptionViewModelsFromApi, loadLatestRecommendationViewModel } from "../../api";
 import type { RecommendationPageViewModel, ResumeOptionViewModel, RecommendedJobViewModel, RecommendationPriorityTone } from "../../adapters";
 import { PageLoading, PageEmpty, PageError } from "../components/PageState";
@@ -23,8 +23,35 @@ function parseResumeIdFromQuery(resumeId: string | null): number | null {
 type RecPhase =
   | "loading_latest"
   | "fast_loading" | "fast_done" | "fast_error"
-  | "deep_loading" | "deep_profile_pending" | "deep_done" | "deep_error" | "deep_timeout"
+  | "deep_loading" | "deep_profile_pending" | "deep_done" | "deep_error" | "deep_timeout" | "deep_unavailable"
   | "profile_failed";
+
+/** M4: error classification */
+type DeepErrorType = "LLM_UNAVAILABLE" | "GENERATION_FAILED" | "NETWORK_ERROR" | "UNKNOWN";
+
+function classifyDeepError(err: any): DeepErrorType {
+  const msg = JSON.stringify(err).toLowerCase();
+  if (/503|模型未启用|大模型服务|服务未配置|深度推荐需要|llm unavailable|not available/i.test(msg)) return "LLM_UNAVAILABLE";
+  if (/401|unauthorized|token/i.test(msg)) return "UNKNOWN";
+  if (/timeout|fetch failed|network/i.test(msg)) return "NETWORK_ERROR";
+  return "GENERATION_FAILED";
+}
+
+/** M4: human-readable generated_by label */
+function sourceLabel(genBy?: string, agentStatus?: string): string {
+  if (!genBy) return "";
+  if (genBy === "fast_tag_engine") return "快速推荐引擎";
+  if (genBy === "llm_agent") return "深度推荐智能体";
+  if (genBy.includes("mock")) return ""; // never show mock
+  return genBy;
+}
+
+function agentStatusLabel(s?: string): string {
+  if (!s) return "";
+  if (s === "cascade_verified") return "已完成候选发现、语义重排、逐岗分析和全局校准";
+  if (s === "cascade_repaired") return "系统已自动修复少量格式问题";
+  return "";
+}
 
 /** Current display tier */
 type DisplayTier = "fast" | "quality";
@@ -50,6 +77,11 @@ export function JobRecommendationPage() {
   const [deepResult, setDeepResult] = useState<RecommendationPageViewModel | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [deepErrorMessage, setDeepErrorMessage] = useState("");
+  // J2: tracks incomplete Deep history separately from transient errors
+  const [deepHistoryIncomplete, setDeepHistoryIncomplete] = useState(false);
+  const [deepHistoryIncompleteCount, setDeepHistoryIncompleteCount] = useState(0);
+  // L2: guards empty state from flashing before latest load completes
+  const [isLatestLoading, setIsLatestLoading] = useState(false);
 
   // K9-1-U-D: track which tier is currently displayed
   const [activeTier, setActiveTier] = useState<DisplayTier>("fast");
@@ -59,11 +91,18 @@ export function JobRecommendationPage() {
   const [deepBackendDone, setDeepBackendDone] = useState(false);
 
   const deepSteps: AgentLoadingStep[] = [
-    { key: "resume-profile", label: "读取简历定位与技能信息" },
-    { key: "job-tags", label: "匹配岗位需求矩阵" },
-    { key: "reasoning", label: "生成推荐理由和风险点" },
-    { key: "judge", label: "审查推荐结果一致性" },
+    { key: "0_gate", label: "准备语义画像", description: "正在检查简历画像与岗位画像是否可复用" },
+    { key: "1_discovery", label: "候选岗位发现", description: "正在从岗位池中筛选可能适配的候选岗位" },
+    { key: "2_rerank", label: "语义重排", description: "正在比较岗位要求、简历证据与风险信号，筛选 Top 岗位" },
+    { key: "3_synthesis", label: "逐岗深度分析", description: "正在为每个候选岗位生成推荐理由、证据和风险点" },
+    { key: "4_calibration", label: "全局一致性校准", description: "正在校准排序、评分、风险表达和投递策略" },
   ];
+
+  const DEEP_ESTIMATED_TIME = "预计耗时约 1-3 分钟；首次构建岗位画像时可能更久。";
+
+  // L3: elapsed seconds timer for deep loading
+  const [deepElapsedSec, setDeepElapsedSec] = useState(0);
+  const deepElapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fastPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qualityPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -72,7 +111,10 @@ export function JobRecommendationPage() {
   const MAX_FAST_POLL = 8;
   const MAX_QUALITY_POLL = 10;
 
-  useEffect(() => { return () => { if (fastPollRef.current) clearTimeout(fastPollRef.current); if (qualityPollRef.current) clearTimeout(qualityPollRef.current); }; }, []);
+  useEffect(() => { return () => { if (fastPollRef.current) clearTimeout(fastPollRef.current); if (qualityPollRef.current) clearTimeout(qualityPollRef.current); if (deepElapsedRef.current) clearInterval(deepElapsedRef.current); }; }, []);
+
+  // N2: parse resumeId from URL once via useMemo — avoid useEffect+StrictMode hook crash
+  const parsedUrlResumeId = useMemo(() => parseResumeIdFromQuery(resumeId), [resumeId]);
 
   // ── Load resume options ──────────────────────────────────────────────────
   const [urlResumeNotFound, setUrlResumeNotFound] = useState(false);
@@ -81,70 +123,104 @@ export function JobRecommendationPage() {
     loadResumeOptionViewModelsFromApi()
       .then((opts) => {
         setResumeOptions(opts);
-        // No resumes at all — but check if URL had a specific resumeId
         if (opts.length === 0) {
-          const target = parseResumeIdFromQuery(resumeId);
-          if (target) {
-            setUrlResumeNotFound(true);
-          }
+          if (parsedUrlResumeId) setUrlResumeNotFound(true);
           setSelectedOption(null); setLoadingOptions(false); return;
         }
-        const target = parseResumeIdFromQuery(resumeId);
-        if (target) {
-          const found = opts.find((o) => o.id === target);
+        if (parsedUrlResumeId) {
+          const found = opts.find((o) => o.id === parsedUrlResumeId);
           if (!found) {
-            // URL resumeId doesn't belong to current user
             setUrlResumeNotFound(true);
             setSelectedOption(null);
             setLoadingOptions(false);
             return;
           }
           setSelectedOption(found);
-          // Update URL to the resolved resumeId
-          navigate(`/recommend?resumeId=${found.id}`, { replace: true });
         } else {
-          // No resumeId in URL — pick current or first
+          // L2: no resumeId in URL — redirect to URL with current resumeId
           const cur = opts.find((o) => o.isCurrent) ?? opts[0];
-          setSelectedOption(cur);
-          navigate(`/recommend?resumeId=${cur.id}`, { replace: true });
+          if (cur) {
+            navigate(`/recommend?resumeId=${cur.id}`, { replace: true });
+            setLoadingOptions(false);
+            return;
+          }
+          setSelectedOption(null);
+          setLoadingOptions(false);
+          return;
         }
         setLoadingOptions(false);
       })
       .catch((err) => { const r = getAuthRedirectIf401(err, location.pathname, location.search); if (r) { navigate(r, { replace: true }); return; } setLoadingOptions(false); });
-  }, []);
+  }, [parsedUrlResumeId]);
 
-  // ── K9-1-U-D: Entry flow — try latest first, generate Fast if none ────────
+  // ── I2+J2+L2: Quality-first entry — try latest quality, fallback to fast ─
   useEffect(() => {
     if (!selectedOption) return;
     const rid = selectedOption.id;
     if (!rid || isNaN(rid)) return;
     setPhase("loading_latest"); setErrorMessage("");
+    setIsLatestLoading(true);
 
-    loadLatestRecommendationViewModel(rid)
+    // 1. Try latest quality first
+    loadLatestRecommendationViewModel(rid, "quality")
       .then((latest) => {
-        // Dev-Reboot: discard old mock-cached results, generate fresh real data
         const genBy = latest.generatedBy ?? "";
         if (latest.hasResult && latest.result && latest.result.recommendedJobs.length > 0
             && !isMockGeneratedBy(genBy)) {
-          const tier = (latest.generationTier === "quality") ? "quality" : "fast";
-          setActiveTier(tier);
-          setActiveGeneratedBy(genBy);
-          if (tier === "quality") {
+          const count = latest.result.recommendedJobs.length;
+          if (count >= 5) {
+            // Complete Deep quality result — show as Deep
             setDeepResult(latest.result);
+            setActiveTier("quality");
+            setActiveGeneratedBy(genBy);
             setPhase("deep_done");
-          } else {
-            setFastResult(latest.result);
-            setPhase("fast_done");
+            setIsLatestLoading(false);
+            setSelJobId(latest.result.recommendedJobs[0].jobId);
+            return;
           }
-          setSelJobId(latest.result.recommendedJobs[0].jobId);
-          return;
+          // Incomplete quality (1-4 jobs) — save for reference, set persistent warning
+          setDeepResult(latest.result);
+          setPhase("deep_done");
+          setDeepHistoryIncomplete(true);
+          setDeepHistoryIncompleteCount(count);
         }
-        // No saved result → generate Fast
-        generateFast(rid);
+        // 2. Fallback: try latest fast
+        loadLatestRecommendationViewModel(rid, "fast")
+          .then((fastLatest) => {
+            const fGen = fastLatest.generatedBy ?? "";
+            if (fastLatest.hasResult && fastLatest.result && fastLatest.result.recommendedJobs.length > 0
+                && !isMockGeneratedBy(fGen)) {
+              setFastResult(fastLatest.result);
+              setActiveTier("fast");
+              setActiveGeneratedBy(fGen);
+              setPhase("fast_done");
+              setIsLatestLoading(false);
+              setSelJobId(fastLatest.result.recommendedJobs[0].jobId);
+              return;
+            }
+            // No cached fast result → generate fresh Fast
+            generateFast(rid);
+          })
+          .catch(() => generateFast(rid));
       })
       .catch(() => {
-        // Latest API failed → fallback to generating Fast
-        generateFast(rid);
+        // Quality latest failed → try fast latest
+        loadLatestRecommendationViewModel(rid, "fast")
+          .then((fastLatest) => {
+            const fGen = fastLatest.generatedBy ?? "";
+            if (fastLatest.hasResult && fastLatest.result && fastLatest.result.recommendedJobs.length > 0
+                && !isMockGeneratedBy(fGen)) {
+              setFastResult(fastLatest.result);
+              setActiveTier("fast");
+              setActiveGeneratedBy(fGen);
+              setPhase("fast_done");
+              setIsLatestLoading(false);
+              setSelJobId(fastLatest.result.recommendedJobs[0].jobId);
+              return;
+            }
+            generateFast(rid);
+          })
+          .catch(() => generateFast(rid));
       });
   }, [selectedOption]);
 
@@ -153,13 +229,17 @@ export function JobRecommendationPage() {
     const pollFast = () => {
       loadRecommendationViewModel({ resume_id: rid, limit: 5, generation_tier: "fast" as any })
         .then((vm) => {
-          if (vm.profileStatus === "ready") { setFastResult(vm); setActiveTier("fast"); setPhase("fast_done"); if (vm.recommendedJobs.length > 0) setSelJobId(vm.recommendedJobs[0].jobId); return; }
-          if (vm.profileStatus === "failed") { setPhase("profile_failed"); setErrorMessage(vm.profileMessage || "简历信息分析失败，请稍后重试。"); return; }
+          if (vm.profileStatus === "ready") { setFastResult(vm); setActiveTier("fast"); setPhase("fast_done"); setIsLatestLoading(false); if (vm.recommendedJobs.length > 0) setSelJobId(vm.recommendedJobs[0].jobId); return; }
+          if (vm.profileStatus === "failed") { setPhase("profile_failed"); setIsLatestLoading(false); setErrorMessage(vm.profileMessage || "简历信息分析失败，请稍后重试。"); return; }
           fastAttemptsRef.current++;
           if (fastAttemptsRef.current >= MAX_FAST_POLL) { setPhase("fast_error"); setErrorMessage("简历分析时间较长，可稍后重试。"); return; }
           fastPollRef.current = setTimeout(pollFast, 1800);
         })
         .catch((err) => {
+          console.groupCollapsed("[RecommendPage] Fast API failed");
+          console.error(err);
+          console.info("context", { action: "generateFast", resumeId: rid, tier: "fast" });
+          console.groupEnd();
           if (err instanceof ContractError) {
             setPhase("fast_error"); setErrorMessage("数据解析失败，请刷新页面后重试。");
           } else {
@@ -174,12 +254,18 @@ export function JobRecommendationPage() {
   async function handleDeepRecommendation() {
     if (!selectedOption) return;
     setPhase("deep_loading"); setDeepErrorMessage(""); setDeepBackendDone(false); qualityAttemptsRef.current = 0;
+    // L3: start elapsed timer
+    setDeepElapsedSec(0);
+    if (deepElapsedRef.current) clearInterval(deepElapsedRef.current);
+    deepElapsedRef.current = setInterval(() => setDeepElapsedSec((s) => s + 1), 1000);
 
     const pollQuality = async () => {
       try {
         const vm = await loadRecommendationViewModel({ resume_id: selectedOption.id, limit: 5, generation_tier: "quality" as any });
         if (vm.profileStatus === "ready" && vm.recommendedJobs.length > 0) {
+          if (deepElapsedRef.current) { clearInterval(deepElapsedRef.current); deepElapsedRef.current = null; }
           setDeepBackendDone(true); setDeepResult(vm); setActiveTier("quality");
+          setDeepHistoryIncomplete(false); setDeepHistoryIncompleteCount(0);
           const genBy = vm.meta?.generated_by ?? "";
           setActiveGeneratedBy(genBy);
           // Dev-Reboot-Fix-C: if backend returned mock, show error state
@@ -195,15 +281,34 @@ export function JobRecommendationPage() {
         qualityAttemptsRef.current++;
         if (qualityAttemptsRef.current >= MAX_QUALITY_POLL) { setPhase("deep_timeout"); return; }
         qualityPollRef.current = setTimeout(pollQuality, 2000);
-      } catch { setPhase("deep_error"); setDeepErrorMessage("深度分析暂时生成失败，当前结果仍可参考。"); }
+      } catch (caught: any) {
+        if (deepElapsedRef.current) { clearInterval(deepElapsedRef.current); deepElapsedRef.current = null; }
+        console.groupCollapsed("[RecommendPage] Deep API failed");
+        console.error(caught);
+        console.info("context", { action: "generateDeep", resumeId: selectedOption?.id, tier: "quality" });
+        console.groupEnd();
+        const errType = classifyDeepError(caught);
+        if (errType === "LLM_UNAVAILABLE") {
+          setPhase("deep_unavailable"); setDeepErrorMessage("深度推荐需要调用大模型服务，当前服务未连接成功。你仍可使用快速推荐结果。");
+        } else {
+          setPhase("deep_error"); setDeepErrorMessage("深度分析暂时生成失败，当前结果仍可参考。");
+        }
+      }
     };
     if (qualityPollRef.current) clearTimeout(qualityPollRef.current);
     pollQuality();
   }
 
-  const activeResult = phase === "deep_done" && deepResult ? deepResult : fastResult;
+  // L2: Deep-first activeResult — prefer deepResult when it has enough jobs, regardless of phase
+  const deepJobs = deepResult?.recommendedJobs ?? [];
+  const fastJobs = fastResult?.recommendedJobs ?? [];
+  const deepReady = deepJobs.length >= 5;
+  const fastReady = fastJobs.length > 0;
+  const activeResult = deepReady ? deepResult
+    : fastReady ? fastResult
+    : deepResult ?? fastResult;
   const jobs = activeResult?.recommendedJobs ?? [];
-  const selectedJob = selJobId ? jobs.find((j) => j.jobId === selJobId) ?? jobs[0] : jobs[0];
+  const selectedJob = selJobId ? (jobs.find((j) => j.jobId === selJobId) ?? jobs[0]) : jobs[0];
 
   // ── Loading states ───────────────────────────────────────────────────────
   if (loadingOptions) return <PageLoading message="正在加载简历信息…" />;
@@ -268,10 +373,12 @@ export function JobRecommendationPage() {
       </ContentPageShell>
     );
   }
+  // L2: only show empty after latest load completes (guard against flash)
+  if (isLatestLoading) return <PageLoading message="正在恢复推荐结果…" />;
   if (!activeResult || jobs.length === 0) {
     return (
       <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
-        <PageEmpty title="暂无推荐结果" description="当前简历暂未匹配到合适的岗位，请尝试切换简历后重新推荐。">
+        <PageEmpty title="暂无推荐结果" description="当前简历还没有可展示的推荐结果，你可以先生成快速推荐，或生成深度推荐。">
           <Link to="/resumes" className="text-[#0052D9] text-sm underline">切换简历</Link>
         </PageEmpty>
       </ContentPageShell>
@@ -292,132 +399,382 @@ export function JobRecommendationPage() {
       }
       case "deep_timeout": return "深度分析生成较慢 · 已保留当前结果";
       case "deep_error": return "深度推荐生成失败 · 已保留当前结果";
-      default: return `快速推荐 · 基础模型（${actualCount} 个岗位）`;
+      case "deep_unavailable": return "深度推荐服务暂不可用 · 快速推荐仍可使用";
+      default: return sourceLabel(activeGeneratedBy) || `快速推荐 · 基础模型（${actualCount} 个岗位）`;
     }
   }
-  const isDeepDisplay = phase === "deep_done";
+  const isDeepDisplay = activeResult === deepResult && deepReady;
+  const isDeepUnavailable = phase === "deep_unavailable";
   const actualCount = jobs.length;
   const headerLabel = getHeaderLabel();
 
   return (
     <ContentPageShell maxWidthClassName="max-w-[1440px]" contentClassName="pb-12">
-      {/* Header */}
+      {/* L4: Top Insight Card */}
       <div className="mb-6">
-        <h1 className="text-[22px] font-semibold text-gray-900 flex items-center gap-2"><Sparkles className="w-5 h-5 text-[#0052D9]" />Offer捕手岗位推荐</h1>
-        <p className="mt-1.5 text-sm text-gray-500">基于简历 <span className="font-medium text-gray-700">{displayName}</span>（ID:{selectedOption.id}），从岗位池中推荐 {actualCount} 个{isDeepDisplay ? "高可信" : ""}岗位。</p>
-        <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-gray-500">
+        <h1 className="text-[22px] font-semibold text-slate-800 flex items-center gap-2 mb-1">
+          <Sparkles className="w-5 h-5 text-[#0052D9]" />Offer捕手岗位推荐
+        </h1>
+        <p className="text-sm text-slate-500">
+          基于 <span className="font-medium text-slate-700">{displayName}</span> 的简历画像，为您推荐 {actualCount} 个{isDeepDisplay ? "深度分析" : "快速匹配"}岗位
+        </p>
+        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-400">
           <span className="flex items-center gap-1.5 text-[#0052D9] font-medium">{headerLabel}</span>
-          <span className="text-gray-300">|</span><span>生成时间：{nowStr}</span>
-          {activeResult.profileDominantProfile && (<><span className="text-gray-300">|</span><span className="text-[#0052D9]">简历定位：{humanizeProfile(activeResult.profileDominantProfile)}</span></>)}
+          <span className="text-slate-300">|</span><span>{nowStr}</span>
+          {activeResult.profileDominantProfile && (<><span className="text-slate-300">|</span><span className="text-[#0052D9]">{humanizeProfile(activeResult.profileDominantProfile)}</span></>)}
         </div>
+
+        {/* L4: AI Insight Card (replaces old blue gradient) */}
+        {isDeepDisplay && (activeResult.globalSummary || activeResult.candidatePositioning) && (
+          <div className="mt-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-[#0052D9]" />
+              <span className="text-sm font-semibold text-slate-800">AI 推荐洞察</span>
+              {activeResult.qualityStatus && (
+                <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full ml-auto">
+                  级联管线已完成
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+              {activeResult.candidatePositioning && (
+                <>
+                  <span className="text-xs font-medium text-slate-400 whitespace-nowrap pt-0.5">候选人定位</span>
+                  <p className="text-[13px] text-slate-700 leading-relaxed">{activeResult.candidatePositioning}</p>
+                </>
+              )}
+              {activeResult.globalSummary && (
+                <>
+                  <span className="text-xs font-medium text-slate-400 whitespace-nowrap pt-0.5">推荐洞察</span>
+                  <p className="text-[13px] text-slate-700 leading-relaxed">{activeResult.globalSummary}</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* J2: Incomplete Deep history warning — survives Fast fallback */}
+        {deepHistoryIncomplete && (
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[13px] font-medium text-amber-800">深度推荐历史不完整</p>
+                <p className="text-[12px] text-amber-600 mt-0.5">
+                  之前保存的深度推荐仅有 {deepHistoryIncompleteCount} 个岗位（不足 5 个），建议重新生成以获取完整的岗位推荐分析。
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Fast mode hint */}
-        {!isDeepDisplay && (<p className="mt-2 text-[11px] text-gray-400">这是快速推荐结果，点击"生成深度推荐"可获取更完整的岗位匹配解释。</p>)}
-        {/* Deep Cascade: global summary + pipeline badge */}
-        {isDeepDisplay && activeResult.globalSummary && (
-          <div className="mt-3 p-3 bg-gradient-to-r from-[#F4F8FF] to-white border border-blue-100 rounded-lg">
-            <p className="text-[13px] text-gray-700 leading-relaxed">{activeResult.globalSummary}</p>
-            {activeResult.qualityStatus && (
-              <span className="inline-block mt-2 text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                深度分析已完成 · 级联管线验证
-              </span>
-            )}
+        {!isDeepDisplay && (
+          <div className="mt-4 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
+                <Sparkles className="w-4 h-4 text-[#0052D9]" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-slate-700">快速推荐</p>
+                <p className="text-[12px] text-slate-400 mt-0.5">基于简历画像和岗位画像进行快速排序，适合先了解方向。想获得更完整的证据、风险和投递策略，可以生成深度推荐。</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       <div className="flex gap-6 items-start">
-        {/* ── Left cards ────────────────────────────────────────────────── */}
-        <div className="w-[380px] shrink-0 flex flex-col gap-3">
+        {/* ── Left: Top5 Ranking ─────────────────────────────────────────── */}
+        <div className="w-[370px] shrink-0 flex flex-col gap-3">
+          <div className="flex items-center justify-between px-1 mb-1">
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">推荐榜单</span>
+            <span className="text-[10px] text-slate-300">{isDeepDisplay ? "Deep" : "Fast"} · Top {actualCount}</span>
+          </div>
           {jobs.map((job) => {
             const isSel = selectedJob && job.jobId === selectedJob.jobId;
             const badgeVar = priorityBadgeVariant(job.priorityTone);
-            const evidence = isDeepDisplay ? job.resumeEvidence.slice(0, 2) : job.resumeEvidence.slice(0, 1);
+            const showTags = job.displayTags.slice(0, 3);
+            const rankLabel = job.rank === 1 ? "最优先" : job.rank === 2 ? "推荐" : job.rank === 3 ? "推荐" : job.rank === 4 ? "可考虑" : "备选";
+            const rankTone = job.rank <= 2 ? "text-[#0052D9]" : job.rank <= 3 ? "text-slate-500" : "text-slate-400";
             return (
               <div key={job.jobId} onClick={() => setSelJobId(job.jobId)}
-                className={`relative p-4 bg-white border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${isSel ? "border-[#0052D9] bg-[#F4F8FF]" : "border-gray-200 hover:border-[#0052D9]"}`}>
-                {isSel && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#0052D9] rounded-l-lg" />}
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant={badgeVar} className="text-[11px] font-medium px-2">{job.priorityText}</Badge>
-                  <span className={`text-[11px] text-gray-400 ${isSel ? "text-[#0052D9]" : ""}`}>{job.score}分</span>
+                className={`group relative p-4 bg-white border rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-md ${
+                  isSel ? "border-[#0052D9] bg-blue-50/40 shadow-sm" : "border-slate-200 hover:border-slate-300"}`}>
+                {isSel && <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-[#0052D9] rounded-full" />}
+                {/* Rank + Score row */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-bold ${rankTone} bg-white border ${isSel ? "border-[#0052D9]/20" : "border-slate-200"} rounded-full w-6 h-6 flex items-center justify-center`}>{job.rank}</span>
+                    <span className={`text-[11px] font-medium ${rankTone}`}>{rankLabel}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[13px] font-bold ${isSel ? "text-[#0052D9]" : "text-slate-700"}`}>{job.score}</span>
+                    <span className="text-[10px] text-slate-400">分</span>
+                  </div>
                 </div>
-                <h3 className={`font-bold text-[14px] truncate mb-1 ${isSel ? "text-[#0052D9]" : "text-gray-900"}`}><span className="text-xs text-gray-400 mr-1">#{job.rank}</span>{job.title}</h3>
-                <div className="flex flex-wrap items-center gap-1.5 mb-2 text-[11px] text-gray-500"><span>{job.city}</span><span className="text-gray-300">·</span><span>{job.category}</span><span className="text-gray-300">·</span><span>{job.department}</span></div>
-                {(job.whyRankedHere || job.oneSentenceReason) && (<p className="text-[12px] text-gray-600 line-clamp-2 leading-relaxed mb-2">{job.whyRankedHere || job.oneSentenceReason}</p>)}
-                {evidence.length > 0 && (<div className="flex flex-wrap gap-1 mb-1.5">{evidence.map((e, i) => (<Badge key={i} variant="outline" className="text-[10px] font-normal px-1.5 py-0 bg-blue-50/30 text-blue-700 border-blue-100">{e}</Badge>))}</div>)}
-                {job.displayTags.length > 0 && (<div className="flex flex-wrap gap-1 mb-1.5">{job.displayTags.map((t, i) => (<Badge key={i} variant="outline" className="text-[10px] font-normal px-1.5 py-0 bg-gray-50 text-gray-600 border-gray-200">{t}</Badge>))}</div>)}
-                {isDeepDisplay && job.jobSpecificRisks[0] && (<p className="text-[10px] text-amber-600 line-clamp-1">{job.jobSpecificRisks[0]}</p>)}
+                {/* Title + location */}
+                <h3 className={`font-bold text-[14px] truncate mb-1 ${isSel ? "text-[#0052D9]" : "text-slate-800"}`}>{job.title}</h3>
+                <div className="text-[11px] text-slate-400 mb-2">{job.city} · {job.department}</div>
+                {/* Core strength or one-sentence reason */}
+                {(job.candidateCoreStrength || job.oneSentenceReason) && (
+                  <p className="text-[12px] text-slate-500 line-clamp-2 leading-relaxed mb-2">
+                    {job.candidateCoreStrength || job.oneSentenceReason}
+                  </p>
+                )}
+                {/* Tags */}
+                {showTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {showTags.map((t, i) => (
+                      <span key={i} className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">{t}</span>
+                    ))}
+                    {job.displayTags.length > 3 && <span className="text-[10px] text-slate-300 self-center">+{job.displayTags.length - 3}</span>}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* ── Center detail ─────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 max-w-[680px] bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        {/* ── Center: Assessment Report ─────────────────────────────────── */}
+        <div className="flex-1 min-w-0 max-w-[700px] bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           {selectedJob && (<>
-            <div className="bg-[#F4F8FF] p-5 border-b border-blue-100">
-              <div className="text-[12px] text-gray-400 mb-1">当前选中岗位</div>
-              <h2 className="text-lg font-bold text-gray-900 mb-3">{selectedJob.title}</h2>
-              <div className="flex flex-wrap items-center gap-2 mb-3 text-xs text-gray-500"><span>{selectedJob.city}</span><span className="text-gray-300">·</span><span>{selectedJob.category}</span><span className="text-gray-300">·</span><span>{selectedJob.department}</span></div>
-              <div className="bg-white rounded-md p-3 border border-blue-50"><span className="text-xs font-semibold text-gray-900">一句话总结：</span><span className="text-sm text-gray-700">{selectedJob.whyRankedHere || selectedJob.oneSentenceReason}</span></div>
+            {/* Job header */}
+            <div className="px-6 py-5 border-b border-slate-100">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-lg font-bold text-slate-800">{selectedJob.title}</h2>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[22px] font-bold text-[#0052D9]">{selectedJob.score}</span>
+                  <span className="text-[11px] text-slate-400">分</span>
+                </div>
+              </div>
+              <div className="text-[12px] text-slate-400">{selectedJob.city} · {selectedJob.category} · {selectedJob.department}</div>
             </div>
-            <div className="p-5 space-y-5">
-              {/* Deep: full explanation */}
-              {isDeepDisplay && selectedJob.jobSpecificReason && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />为什么推荐这个岗位</h3><p className="text-[13px] text-gray-700 leading-relaxed">{selectedJob.jobSpecificReason}</p></section>)}
-              {isDeepDisplay && selectedJob.resumeEvidence.length > 0 && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-green-500 rounded-full" />简历匹配证据</h3><div className="flex flex-wrap gap-1.5">{selectedJob.resumeEvidence.map((e, i) => (<Badge key={i} variant="outline" className="text-[11px] font-normal px-2 py-0.5 bg-green-50/50 text-green-800 border-green-200">{e}</Badge>))}</div></section>)}
-              {/* Fast: simplified highlights */}
-              {!isDeepDisplay && selectedJob.matchHighlights.length > 0 && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-blue-400 rounded-full" />核心匹配点</h3><BulletList items={selectedJob.matchHighlights.slice(0, 2).map(h => h)} tone="green" /></section>)}
-              {/* Risks */}
-              {selectedJob.jobSpecificRisks.length > 0 && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-amber-400 rounded-full" />主要风险</h3><div className="bg-amber-50/30 border border-amber-100/50 rounded-md p-3"><BulletList items={(isDeepDisplay ? selectedJob.jobSpecificRisks : selectedJob.jobSpecificRisks.slice(0, 2)).map(r => r)} tone="amber" size="sm" /></div></section>)}
-              {/* Deep: improvement */}
-              {isDeepDisplay && selectedJob.suggestedImprovement && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />补强建议</h3><div className="bg-blue-50/30 border border-blue-100/50 rounded-md p-3"><p className="text-[13px] text-blue-800 leading-relaxed">{selectedJob.suggestedImprovement}</p></div></section>)}
-              {/* Deep: Application Strategy */}
-              {isDeepDisplay && selectedJob.applicationStrategy && selectedJob.applicationStrategy !== selectedJob.suggestedAction && (
-                <section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />投递策略</h3><div className="bg-blue-50/30 border border-blue-100/50 rounded-md p-3"><p className="text-[13px] text-blue-800 leading-relaxed">{selectedJob.applicationStrategy}</p></div></section>
-              )}
-              {/* Action */}
-              <section className="bg-gray-50 rounded-md p-4 border border-gray-100">
-                <div className="text-[13px] text-gray-700 leading-relaxed mb-3"><span className="font-medium text-gray-900">下一步建议：</span>{selectedJob.suggestedAction}</div>
-                <div className="flex gap-3">
-                  <Link to={`/jobs/${selectedJob.jobId}`} className="flex-1 text-center px-3 py-2 bg-[#0052D9] text-white text-xs rounded-lg hover:bg-[#0047BD]">进入岗位详情</Link>
-                  <Link to={`/match?jobId=${selectedJob.jobId}&resumeId=${selectedOption.id}`} className="flex-1 text-center px-3 py-2 border border-[#0052D9] text-[#0052D9] text-xs rounded-lg hover:bg-blue-50">进行匹配分析</Link>
+
+            <div className="p-6 space-y-6">
+              {/* Core Judgement */}
+              <section>
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">核心判断</h3>
+                <div className="bg-blue-50/60 border border-blue-100/60 rounded-xl p-4">
+                  <p className="text-[13px] text-slate-700 leading-relaxed">{selectedJob.oneSentenceReason || selectedJob.jobSpecificReason}</p>
+                  {selectedJob.fitConfidenceReason && (
+                    <p className="text-[11px] text-slate-400 mt-1.5">{selectedJob.fitConfidenceReason}</p>
+                  )}
                 </div>
               </section>
+
+              {/* Why Recommended (Deep only) */}
+              {isDeepDisplay && selectedJob.jobSpecificReason && (
+                <section>
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">推荐依据</h3>
+                  <p className="text-[13px] text-slate-600 leading-relaxed">{selectedJob.jobSpecificReason}</p>
+                </section>
+              )}
+
+              {/* Evidence */}
+              {(isDeepDisplay ? selectedJob.resumeEvidence.length > 0 : selectedJob.matchHighlights.length > 0) && (
+                <section>
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">匹配证据</h3>
+                  <div className="bg-emerald-50/40 border border-emerald-100/40 rounded-xl p-4">
+                    <ul className="space-y-1.5">
+                      {(isDeepDisplay ? selectedJob.resumeEvidence : selectedJob.matchHighlights).slice(0, 3).map((e, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[13px] text-slate-700">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                          {e}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </section>
+              )}
+
+              {/* Risks */}
+              {selectedJob.jobSpecificRisks.length > 0 && (
+                <section>
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">主要风险</h3>
+                  <div className="bg-amber-50/40 border border-amber-100/40 rounded-xl p-4">
+                    <ul className="space-y-1.5">
+                      {selectedJob.jobSpecificRisks.slice(0, 3).map((r, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[13px] text-amber-800">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </section>
+              )}
+
+              {/* Strategy + Improvement */}
+              {isDeepDisplay && (selectedJob.applicationStrategy || selectedJob.suggestedImprovement) && (
+                <section>
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">行动建议</h3>
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
+                    {selectedJob.applicationStrategy && (
+                      <div>
+                        <span className="text-[11px] font-medium text-slate-500">投递策略</span>
+                        <p className="text-[13px] text-slate-700 mt-0.5">{selectedJob.applicationStrategy}</p>
+                      </div>
+                    )}
+                    {selectedJob.suggestedImprovement && (
+                      <div>
+                        <span className="text-[11px] font-medium text-slate-500">简历补强</span>
+                        <p className="text-[13px] text-slate-700 mt-0.5">{selectedJob.suggestedImprovement}</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* Next action */}
+              <div className="flex gap-3 pt-2">
+                <Link to={`/jobs/${selectedJob.jobId}`} className="flex-1 text-center h-10 flex items-center justify-center bg-[#0052D9] text-white text-[13px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium">进入岗位详情</Link>
+                <Link to={`/match?jobId=${selectedJob.jobId}&resumeId=${selectedOption.id}`} className="flex-1 text-center h-10 flex items-center justify-center border border-slate-200 text-slate-600 text-[13px] rounded-xl hover:bg-slate-50 transition-colors">匹配分析</Link>
+              </div>
             </div>
           </>)}
         </div>
 
-        {/* ── Right sidebar ─────────────────────────────────────────────── */}
-        <aside className="w-[300px] shrink-0 flex flex-col gap-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-[13px] font-medium text-gray-500 mb-2">当前简历</h3>
-            <p className="text-sm font-bold text-gray-900 mb-1">{selectedOption.name}</p>
-            <p className="text-[11px] text-gray-400">Resume ID: {selectedOption.id}</p>
-            {activeResult.profileDominantProfile && (<p className="text-[11px] text-[#0052D9] mt-1">简历定位：{humanizeProfile(activeResult.profileDominantProfile)}</p>)}
+        {/* ── Right: Analysis Console ────────────────────────────────────── */}
+        <aside className="w-[310px] shrink-0 flex flex-col gap-4">
+          {/* Resume card */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">当前简历</h3>
+            <p className="text-sm font-bold text-slate-800">{selectedOption.name}</p>
+            {activeResult.profileDominantProfile && (
+              <p className="text-[12px] text-slate-500 mt-1">{humanizeProfile(activeResult.profileDominantProfile)}</p>
+            )}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-[13px] font-medium text-gray-500 mb-2">深度推荐</h3>
-            <p className="text-[11px] text-gray-400 mb-3">基于当前简历定位和岗位需求生成更完整的匹配解释。</p>
-            {phase === "deep_loading" || phase === "deep_profile_pending" ? (
-              <div className="flex items-center gap-2 text-xs text-gray-500"><Loader2 className="w-3.5 h-3.5 animate-spin" /> {phase === "deep_profile_pending" ? "正在生成深度分析" : "智能体深度分析中…"}</div>
-            ) : phase === "deep_done" ? (
-              <div className="text-xs text-green-700 flex items-center gap-1.5"><RefreshCw className="w-3 h-3" /> 深度分析已完成{actualCount > 0 ? `，生成 ${actualCount} 个高可信岗位` : ""}<button onClick={handleDeepRecommendation} className="ml-1 text-[#0052D9] hover:underline">重新生成</button></div>
-            ) : phase === "deep_error" || phase === "deep_timeout" ? (
-              <button onClick={handleDeepRecommendation} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]"><RefreshCw className="w-3.5 h-3.5" /> 重试深度推荐</button>
-            ) : (
-              <button onClick={handleDeepRecommendation} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-[#0052D9] text-white text-sm rounded-lg hover:bg-[#0047BD]"><Sparkles className="w-3.5 h-3.5" /> 生成深度推荐</button>
+          {/* M4: Analysis Console with capability status */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">智能分析</h3>
+
+            {/* Capability status */}
+            <div className="space-y-1.5 mb-4 text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                <span className="text-slate-500">快速推荐：可用</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`w-1.5 h-1.5 rounded-full ${phase === "deep_unavailable" ? "bg-amber-400" : "bg-emerald-400"}`} />
+                <span className="text-slate-500">
+                  深度推荐：{phase === "deep_unavailable" ? "暂不可用" : isDeepDisplay || deepResult ? "可用" : "未检测"}
+                </span>
+              </div>
+            </div>
+
+            {/* Deep unavailable state */}
+            {phase === "deep_unavailable" && (
+              <div className="mb-4 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px]">
+                <p className="font-medium text-amber-700">深度推荐服务暂不可用</p>
+                <p className="text-amber-500 mt-0.5">{deepErrorMessage || "快速推荐仍可使用。"}</p>
+              </div>
             )}
+
+            {/* Mode indicator */}
+            {phase !== "deep_unavailable" && (
+              <div className="flex items-center gap-2 mb-4">
+                <span className={`w-2 h-2 rounded-full ${isDeepDisplay ? "bg-emerald-500" : "bg-blue-400"}`} />
+                <span className="text-[13px] font-medium text-slate-700">{isDeepDisplay ? "深度推荐" : "快速推荐"}</span>
+                {activeResult && activeGeneratedBy && (
+                  <span className="text-[10px] text-slate-400 ml-auto">{sourceLabel(activeGeneratedBy)}</span>
+                )}
+              </div>
+            )}
+
+            {/* Status (Deep done) */}
+            {phase === "deep_done" && (
+              <div className="space-y-2 mb-4 text-[11px] text-slate-500">
+                <p className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-500" />深度分析已完成</p>
+                {activeResult.agentStatus && agentStatusLabel(activeResult.agentStatus) && (
+                  <p className="text-slate-400 pl-5">{agentStatusLabel(activeResult.agentStatus)}</p>
+                )}
+              </div>
+            )}
+
+            {/* J2: Incomplete Deep history hint — visible even when showing Fast */}
+            {deepHistoryIncomplete && (
+              <div className="mb-4 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px]">
+                <p className="font-medium text-amber-700">深度推荐历史不完整</p>
+                <p className="text-amber-500 mt-0.5">仅 {deepHistoryIncompleteCount} 个岗位，建议重新生成。</p>
+              </div>
+            )}
+
+            {/* Status (loading) */}
+            {phase === "deep_loading" && (
+              <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />深度分析进行中…
+              </div>
+            )}
+
+            {/* Status (error) */}
+            {(phase === "deep_error" || phase === "deep_timeout") && (
+              <div className="mb-4 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-700">
+                <p className="font-medium">{phase === "deep_timeout" ? "生成时间较长" : "暂时生成失败"}</p>
+                <p className="text-amber-500 mt-0.5">{deepErrorMessage || "快速推荐结果仍可参考。"}</p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="space-y-2">
+              {phase === "deep_done" ? (
+                <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 border border-[#0052D9] text-[#0052D9] text-[12px] rounded-xl hover:bg-blue-50 transition-colors font-medium">
+                  <RefreshCw className="w-3 h-3" />重新生成深度推荐
+                </button>
+              ) : phase === "deep_unavailable" ? (
+                <>
+                  <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-500 text-[12px] rounded-xl hover:bg-slate-50 transition-colors">
+                    <RefreshCw className="w-3 h-3" />稍后重试深度推荐
+                  </button>
+                  <button onClick={() => { if (fastResult) setPhase("fast_done"); }} className="w-full h-9 flex items-center justify-center gap-1.5 bg-[#0052D9] text-white text-[12px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium">
+                    查看快速推荐
+                  </button>
+                </>
+              ) : phase === "deep_error" || phase === "deep_timeout" ? (
+                <>
+                  <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 bg-[#0052D9] text-white text-[12px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium">
+                    <RefreshCw className="w-3 h-3" />重试深度推荐
+                  </button>
+                  <button onClick={() => { if (fastResult) setPhase("fast_done"); }} className="w-full h-9 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-500 text-[12px] rounded-xl hover:bg-slate-50 transition-colors">
+                    返回快速推荐
+                  </button>
+                </>
+              ) : phase === "deep_loading" ? (
+                <button onClick={() => { if (deepElapsedRef.current) clearInterval(deepElapsedRef.current); setPhase("fast_done"); }} className="w-full h-9 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-500 text-[12px] rounded-xl hover:bg-slate-50 transition-colors">
+                  返回快速推荐
+                </button>
+              ) : (
+                <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 bg-[#0052D9] text-white text-[12px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium">
+                  <Sparkles className="w-3 h-3" />生成深度推荐
+                </button>
+              )}
+            </div>
+
+            {/* Footer hint */}
+            <p className="text-[10px] text-slate-400 mt-3 text-center leading-relaxed">
+              {isDeepDisplay
+                ? "当前结果已完成多阶段 AI 分析，可重新生成获取最新推荐。"
+                : phase === "deep_unavailable"
+                ? "深度推荐需要大模型服务，当前服务未连接成功。快速推荐仍可使用。"
+                : "深度推荐会调用多阶段 AI 分析链路，通常需要 1-3 分钟。"}
+            </p>
           </div>
         </aside>
       </div>
 
       <AgentStepLoadingOverlay
         open={phase === "deep_loading"}
-        title="智能体正在深度分析岗位匹配"
-        description="系统正在结合你的候选人能力点、岗位需求和匹配证据，生成更高质量的推荐结果。"
+        title="深度推荐分析中"
+        description="系统正在基于简历画像和岗位画像进行多阶段分析，请保持页面打开。"
         steps={deepSteps}
         backendDone={deepBackendDone}
         onFinish={() => setPhase("deep_done")}
+        maxDurationMs={900000}
+        estimatedTimeText={DEEP_ESTIMATED_TIME}
+        elapsedSeconds={deepElapsedSec}
+        onCancel={() => { if (deepElapsedRef.current) clearInterval(deepElapsedRef.current); setPhase("fast_done"); setDeepErrorMessage("深度分析已取消，当前显示快速推荐结果。"); }}
+        cancelLabel="返回快速推荐结果"
       />
     </ContentPageShell>
   );

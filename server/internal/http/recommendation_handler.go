@@ -100,7 +100,8 @@ func (h *RecommendationHandler) Latest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	latest, err := h.recommendationService.GetLatestRecommendation(r.Context(), userID, resumeID)
+	tier := r.URL.Query().Get("generation_tier")
+	latest, err := h.recommendationService.GetLatestRecommendation(r.Context(), userID, resumeID, tier)
 	if err != nil {
 		if ae := apperror.AsAppError(err); ae != nil {
 			response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)

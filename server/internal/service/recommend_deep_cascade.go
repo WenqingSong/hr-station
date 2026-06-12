@@ -79,21 +79,31 @@ type DeepPerJobSynthesisOutput struct {
 	FinalScore            int      `json:"final_score"`
 	FitLevel              string   `json:"fit_level"`
 	OneSentenceConclusion string   `json:"one_sentence_conclusion"`
+	JobSpecificReason     string   `json:"job_specific_reason"`
 	WhyRecommended        []string `json:"why_recommended"`
 	ResumeEvidence        []string `json:"resume_evidence"`
 	JobRequirementMapping []string `json:"job_requirement_mapping"`
 	RiskPoints            []string `json:"risk_points"`
+	JobSpecificRisks      []string `json:"job_specific_risks"`
 	ApplicationStrategy   string   `json:"application_strategy"`
+	SuggestedAction       string   `json:"suggested_action"`
 	ResumeImprovementHint string   `json:"resume_improvement_hint"`
 	DisplayTags           []string `json:"display_tags"`
 	WhyRankedHere         string   `json:"why_ranked_here"`
+	CandidateCoreStrength string   `json:"candidate_core_strength"`
+	FitConfidenceReason   string   `json:"fit_confidence_reason"`
 }
 
 type DeepCalibrationOutput struct {
-	FinalOrder      []DeepCalibratedJob `json:"final_order"`
-	GlobalSummary   string              `json:"global_summary"`
-	QualityStatus   string              `json:"quality_status"`
-	QualityWarnings []string            `json:"quality_warnings,omitempty"`
+	FinalOrder            []DeepCalibratedJob `json:"final_order"`
+	GlobalSummary         string              `json:"global_summary"`
+	CandidatePositioning  string              `json:"candidate_positioning"`
+	TopRecommendationReason string            `json:"top_recommendation_reason"`
+	PortfolioRiskSummary  string              `json:"portfolio_risk_summary"`
+	DeliveryStrategy      string              `json:"delivery_strategy"`
+	QualityStatus         string              `json:"quality_status"`
+	QualityWarnings       []string            `json:"quality_warnings,omitempty"`
+	QualityNotes          []string            `json:"quality_notes,omitempty"`
 }
 
 type DeepCalibratedJob struct {
@@ -118,18 +128,18 @@ type DeepCascadeConfig struct {
 // ─── Deep Cascade Runner ────────────────────────────────────────────────────
 
 // RunDeepRecommendationCascade executes the full cascaded pipeline.
-func RunDeepRecommendationCascade(ctx context.Context, cfg *DeepCascadeConfig, resumeID int64, jobs []*model.Job, limit int) ([]*model.RecommendedJob, []DeepCascadeStep, string, error) {
+func RunDeepRecommendationCascade(ctx context.Context, cfg *DeepCascadeConfig, resumeID int64, jobs []*model.Job, limit int) ([]*model.RecommendedJob, *DeepCalibrationOutput, []DeepCascadeStep, string, error) {
 	var trace []DeepCascadeStep
 
 	// ── Layer 0: SemanticProfileGate ──
 	t0 := time.Now()
 	resumeResult, err := cfg.SemanticGate.EnsureResumeProfile(ctx, resumeID)
 	if err != nil || resumeResult == nil || resumeResult.Status != "verified" {
-		return nil, trace, "", fmt.Errorf("layer0: resume SEP not verified (status=%s err=%v)", gateStatus(resumeResult), err)
+		return nil, nil, trace, "", fmt.Errorf("layer0: resume SEP not verified (status=%s err=%v)", gateStatus(resumeResult), err)
 	}
 	resumeTags, err := cfg.SemanticRepo.ListTagsByProfileID(ctx, resumeResult.ProfileID)
 	if err != nil || len(resumeTags) < 3 {
-		return nil, trace, "", fmt.Errorf("layer0: resume tags insufficient (%d)", len(resumeTags))
+		return nil, nil, trace, "", fmt.Errorf("layer0: resume tags insufficient (%d)", len(resumeTags))
 	}
 
 	// Gate job SEPs
@@ -162,7 +172,7 @@ func RunDeepRecommendationCascade(ctx context.Context, cfg *DeepCascadeConfig, r
 		Detail: fmt.Sprintf("resume=%d tags=%d jobs_ready=%d skipped=%d", resumeID, len(resumeTags), len(jobSEP), skipped),
 	})
 	if len(jobSEP) < 5 {
-		return nil, trace, "", fmt.Errorf("layer0: only %d jobs have SEP profiles (need >=5)", len(jobSEP))
+		return nil, nil, trace, "", fmt.Errorf("layer0: only %d jobs have SEP profiles (need >=5)", len(jobSEP))
 	}
 	log.Printf("[DeepCascade] L0: resume=%d tags=%d jobs=%d/%d", resumeID, len(resumeTags), len(jobSEP), len(jobs))
 
@@ -170,18 +180,18 @@ func RunDeepRecommendationCascade(ctx context.Context, cfg *DeepCascadeConfig, r
 	l1Result, l1Trace, err := runLayer1Discovery(ctx, cfg, resumeID, resumeResult, resumeTags, jobSEP)
 	trace = append(trace, l1Trace)
 	if err != nil {
-		return nil, trace, "", fmt.Errorf("layer1: %w", err)
+		return nil, nil, trace, "", fmt.Errorf("layer1: %w", err)
 	}
 
 	// ── Layer 2: Semantic Rerank ──
 	l2Result, l2Trace, err := runLayer2Rerank(ctx, cfg, resumeID, resumeResult, resumeTags, l1Result, jobSEP)
 	trace = append(trace, l2Trace)
 	if err != nil {
-		return nil, trace, "", fmt.Errorf("layer2: %w", err)
+		return nil, nil, trace, "", fmt.Errorf("layer2: %w", err)
 	}
 	top5 := l2Result.TopJobs
 	if len(top5) < 5 {
-		return nil, trace, "", fmt.Errorf("layer2: only %d TopJobs (need 5)", len(top5))
+		return nil, nil, trace, "", fmt.Errorf("layer2: only %d TopJobs (need 5)", len(top5))
 	}
 
 	// ── Layer 3: Per-Job Deep Synthesis ×5 ──
@@ -201,7 +211,7 @@ func RunDeepRecommendationCascade(ctx context.Context, cfg *DeepCascadeConfig, r
 		l3Results = append(l3Results, l3o)
 	}
 	if len(l3Results) < 4 {
-		return nil, trace, "", fmt.Errorf("layer3: only %d successful syntheses (need >=4)", len(l3Results))
+		return nil, nil, trace, "", fmt.Errorf("layer3: only %d successful syntheses (need >=4)", len(l3Results))
 	}
 
 	// ── Layer 4: Cross-Job Calibration ──
@@ -216,7 +226,7 @@ func RunDeepRecommendationCascade(ctx context.Context, cfg *DeepCascadeConfig, r
 	globalSummary := ""
 	if l4Result != nil { globalSummary = l4Result.GlobalSummary }
 	if globalSummary == "" { globalSummary = resumeResult.Summary }
-	return jobs0, trace, globalSummary, nil
+	return jobs0, l4Result, trace, globalSummary, nil
 }
 
 // ─── Layer 1: Candidate Discovery ──────────────────────────────────────────
@@ -372,11 +382,6 @@ func buildRecommendedJobsFromCascade(l3Results []*DeepPerJobSynthesisOutput, l4R
 			calLookup[c.JobID] = c
 		}
 	}
-	// Build L3 lookup
-	l3Lookup := make(map[int64]*DeepPerJobSynthesisOutput)
-	for _, l3 := range l3Results {
-		l3Lookup[l3.JobID] = l3
-	}
 
 	var result []*model.RecommendedJob
 	for i, l3 := range l3Results {
@@ -389,12 +394,18 @@ func buildRecommendedJobsFromCascade(l3Results []*DeepPerJobSynthesisOutput, l4R
 			category = jsep.category
 		}
 		score := l3.FinalScore
-		whyRanked := fmt.Sprintf("深度分析排名第%d位：%s", i+1, l3.OneSentenceConclusion)
+		whyRanked := l3.WhyRankedHere
 		if cal, ok := calLookup[l3.JobID]; ok {
 			score = cal.CalibratedScore
-			whyRanked = cal.CalibrationReason
+			if cal.CalibrationReason != "" {
+				whyRanked = cal.CalibrationReason
+			}
+		}
+		if whyRanked == "" {
+			whyRanked = l3.OneSentenceConclusion
 		}
 
+		// L2: proper field separation — no more same-value reuse
 		rec := &model.RecommendedJob{
 			JobID:                uint64(l3.JobID),
 			Title:                title,
@@ -408,11 +419,16 @@ func buildRecommendedJobsFromCascade(l3Results []*DeepPerJobSynthesisOutput, l4R
 			RecommendationPriority: cascadeFitToPriority(l3.FitLevel),
 			MatchHighlights:      l3.WhyRecommended,
 			RiskPoints:           l3.RiskPoints,
-			SuggestedAction:      l3.ApplicationStrategy,
+			SuggestedAction:      l3.SuggestedAction,
 			WhyRankedHere:        whyRanked,
-			JobSpecificReason:    l3.OneSentenceConclusion,
-			JobSpecificRisks:     l3.RiskPoints,
+			JobSpecificReason:    l3.JobSpecificReason,
+			JobSpecificRisks:     l3.JobSpecificRisks,
 			ResumeEvidence:       l3.ResumeEvidence,
+			SuggestedImprovement: l3.ResumeImprovementHint,
+			DisplayTags:          l3.DisplayTags,
+			ApplicationStrategy:  l3.ApplicationStrategy,
+			CandidateCoreStrength: l3.CandidateCoreStrength,
+			FitConfidenceReason:   l3.FitConfidenceReason,
 			GeneratedBy:          "llm_agent",
 			AgentStatus:          "cascade_verified",
 			FallbackReason:       "none",

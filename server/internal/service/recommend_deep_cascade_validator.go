@@ -97,6 +97,9 @@ func validateLayer3(out *DeepPerJobSynthesisOutput) error {
 	if strings.TrimSpace(out.OneSentenceConclusion) == "" {
 		return fmt.Errorf("one_sentence_conclusion empty")
 	}
+	if strings.TrimSpace(out.JobSpecificReason) == "" {
+		return fmt.Errorf("job_specific_reason empty")
+	}
 	if len(out.WhyRecommended) < 3 {
 		return fmt.Errorf("why_recommended count %d < 3", len(out.WhyRecommended))
 	}
@@ -112,6 +115,9 @@ func validateLayer3(out *DeepPerJobSynthesisOutput) error {
 	if strings.TrimSpace(out.ApplicationStrategy) == "" {
 		return fmt.Errorf("application_strategy empty")
 	}
+	if strings.TrimSpace(out.SuggestedAction) == "" {
+		return fmt.Errorf("suggested_action empty")
+	}
 	if strings.TrimSpace(out.ResumeImprovementHint) == "" {
 		return fmt.Errorf("resume_improvement_hint empty")
 	}
@@ -121,6 +127,47 @@ func validateLayer3(out *DeepPerJobSynthesisOutput) error {
 	if strings.TrimSpace(out.WhyRankedHere) == "" {
 		return fmt.Errorf("why_ranked_here empty")
 	}
+	if strings.TrimSpace(out.CandidateCoreStrength) == "" {
+		return fmt.Errorf("candidate_core_strength empty")
+	}
+
+	// ── L2: duplicate detection ──
+	if sameText(out.OneSentenceConclusion, out.JobSpecificReason) {
+		return fmt.Errorf("one_sentence_conclusion and job_specific_reason are identical: %q", truncateStr(out.OneSentenceConclusion, 60))
+	}
+	if sameText(out.ApplicationStrategy, out.SuggestedAction) {
+		return fmt.Errorf("application_strategy and suggested_action are identical: %q", truncateStr(out.ApplicationStrategy, 60))
+	}
+	if sameText(out.ApplicationStrategy, out.ResumeImprovementHint) {
+		return fmt.Errorf("application_strategy and resume_improvement_hint are identical: %q", truncateStr(out.ApplicationStrategy, 60))
+	}
+	if sameText(out.SuggestedAction, out.ResumeImprovementHint) {
+		return fmt.Errorf("suggested_action and resume_improvement_hint are identical: %q", truncateStr(out.SuggestedAction, 60))
+	}
+	if strListsEqual(out.RiskPoints, out.JobSpecificRisks) && len(out.JobSpecificRisks) > 0 {
+		return fmt.Errorf("risk_points and job_specific_risks are identical")
+	}
+
+	// ── L2: boilerplate/generic text detection ──
+	boilerplateStrs := []string{
+		out.OneSentenceConclusion, out.JobSpecificReason, out.ApplicationStrategy, out.SuggestedAction, out.ResumeImprovementHint, out.CandidateCoreStrength, out.FitConfidenceReason,
+	}
+	for _, s := range boilerplateStrs {
+		if isBoilerplateText(s) {
+			return fmt.Errorf("boilerplate/generic text detected: %q", truncateStr(s, 60))
+		}
+	}
+
+	// ── L2: raw code / tag in display_tags ──
+	for _, t := range out.DisplayTags {
+		if model.IsBlacklistedRawCode(t) {
+			return fmt.Errorf("display_tags contains raw code: %q", t)
+		}
+		if isBoilerplateText(t) {
+			return fmt.Errorf("display_tags contains boilerplate: %q", t)
+		}
+	}
+
 	return nil
 }
 
@@ -152,6 +199,18 @@ func validateLayer4(out *DeepCalibrationOutput, l3Results []*DeepPerJobSynthesis
 	if !isValidQualityStatus(out.QualityStatus) {
 		return fmt.Errorf("invalid quality_status %q", out.QualityStatus)
 	}
+
+	// ── L2: global_summary must be meaningful ──
+	if strings.TrimSpace(out.GlobalSummary) == "" {
+		return fmt.Errorf("global_summary empty")
+	}
+	if isBoilerplateText(out.GlobalSummary) {
+		return fmt.Errorf("global_summary is boilerplate: %q", truncateStr(out.GlobalSummary, 60))
+	}
+	if len([]rune(out.GlobalSummary)) > 250 {
+		return fmt.Errorf("global_summary too long (%d chars, max 250)", len([]rune(out.GlobalSummary)))
+	}
+
 	return nil
 }
 
@@ -178,13 +237,18 @@ func isValidQualityStatus(s string) bool {
 func sanitizeCascadeOutputs(outputs []*DeepPerJobSynthesisOutput) {
 	for _, o := range outputs {
 		o.OneSentenceConclusion = sanitizeStr(o.OneSentenceConclusion)
+		o.JobSpecificReason = sanitizeStr(o.JobSpecificReason)
 		o.WhyRankedHere = sanitizeStr(o.WhyRankedHere)
 		o.ApplicationStrategy = sanitizeStr(o.ApplicationStrategy)
+		o.SuggestedAction = sanitizeStr(o.SuggestedAction)
 		o.ResumeImprovementHint = sanitizeStr(o.ResumeImprovementHint)
+		o.CandidateCoreStrength = sanitizeStr(o.CandidateCoreStrength)
+		o.FitConfidenceReason = sanitizeStr(o.FitConfidenceReason)
 		o.DisplayTags = sanitizeStrList(o.DisplayTags)
 		o.WhyRecommended = sanitizeStrList(o.WhyRecommended)
 		o.ResumeEvidence = sanitizeStrList(o.ResumeEvidence)
 		o.RiskPoints = sanitizeStrList(o.RiskPoints)
+		o.JobSpecificRisks = sanitizeStrList(o.JobSpecificRisks)
 	}
 }
 
@@ -200,4 +264,36 @@ func sanitizeStrList(items []string) []string {
 		if item != "" { r = append(r, item) }
 	}
 	return r
+}
+
+// ─── L2: Validation Helpers ──────────────────────────────────────────────────
+
+func sameText(a, b string) bool {
+	na := strings.TrimSpace(strings.ReplaceAll(a, " ", ""))
+	nb := strings.TrimSpace(strings.ReplaceAll(b, " ", ""))
+	return na == nb
+}
+
+func strListsEqual(a, b []string) bool {
+	if len(a) != len(b) || len(a) == 0 { return false }
+	for i := range a {
+		if !sameText(a[i], b[i]) { return false }
+	}
+	return true
+}
+
+func isBoilerplateText(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" { return false }
+	boilerplates := []string{
+		"存在一定关联", "建议进一步确认", "具备一定基础",
+		"可考虑投递相关岗位", "适合投递相关岗位",
+		"该岗位与当前简历存在一定关联", "具备岗位所需能力",
+		"需要提升综合能力", "建议进一步补充",
+		"标签匹配", "缺失标签", "建议进一步优化",
+	}
+	for _, b := range boilerplates {
+		if strings.Contains(s, b) { return true }
+	}
+	return false
 }

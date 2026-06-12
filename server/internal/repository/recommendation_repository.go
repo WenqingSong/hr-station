@@ -64,21 +64,29 @@ func (r *RecommendationRepository) GetLatestByUserID(ctx context.Context, userID
 }
 
 // FindLatestByResumeID returns the most recent ready recommendation for the given user+resume.
-func (r *RecommendationRepository) FindLatestByResumeID(ctx context.Context, userID, resumeID uint64) (*model.RecommendationResult, error) {
+// If tier is non-empty, filter by generation_tier; otherwise return most recent non-mock regardless of tier.
+func (r *RecommendationRepository) FindLatestByResumeID(ctx context.Context, userID, resumeID uint64, tier string) (*model.RecommendationResult, error) {
 	var result model.RecommendationResult
 	var resultJSON sql.NullString
 	var profileType, profileDominant sql.NullString
 	var updatedAt sql.NullTime
 
-	err := r.db.QueryRowContext(ctx,
-		`SELECT id, user_id, resume_id, generation_tier, generated_by, status,
+	query := `SELECT id, user_id, resume_id, generation_tier, generated_by, status,
 		        profile_type, profile_dominant_profile, result_json, created_at, updated_at
 		 FROM recommendation_results
 		 WHERE user_id = ? AND resume_id = ? AND status = 'ready'
-		 ORDER BY created_at DESC, id DESC
-		 LIMIT 1`,
-		userID, resumeID,
-	).Scan(&result.ID, &result.UserID, &result.ResumeID,
+		   AND generated_by NOT IN ('mock_agent', 'mock_quality')`
+	args := []interface{}{userID, resumeID}
+
+	if tier != "" {
+		query += ` AND generation_tier = ?`
+		args = append(args, tier)
+	}
+
+	query += ` ORDER BY created_at DESC, id DESC LIMIT 1`
+
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(
+		&result.ID, &result.UserID, &result.ResumeID,
 		&result.GenerationTier, &result.GeneratedBy, &result.Status,
 		&profileType, &profileDominant, &resultJSON,
 		&result.CreatedAt, &updatedAt)

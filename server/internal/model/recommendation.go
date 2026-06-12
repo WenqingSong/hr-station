@@ -70,6 +70,12 @@ type RecommendedJob struct {
 	JobSpecificReason    string   `json:"job_specific_reason,omitempty"`
 	JobSpecificRisks     []string `json:"job_specific_risks,omitempty"`
 	SuggestedImprovement string   `json:"suggested_improvement,omitempty"`
+	DisplayTags          []string `json:"display_tags,omitempty"`
+	ApplicationStrategy  string   `json:"application_strategy,omitempty"`
+
+	// ── L2: Deep Cascade quality fields ──
+	CandidateCoreStrength string `json:"candidate_core_strength,omitempty"`
+	FitConfidenceReason   string `json:"fit_confidence_reason,omitempty"`
 
 	GeneratedBy    string `json:"generated_by,omitempty"`
 	AgentStatus    string `json:"agent_status,omitempty"`

@@ -52,6 +52,8 @@ export interface RecommendedJobViewModel {
   // Deep Cascade fields
   displayTags: string[];
   applicationStrategy: string;
+  candidateCoreStrength: string;
+  fitConfidenceReason: string;
 }
 
 export interface RecommendationEvidenceRow {
@@ -79,6 +81,7 @@ export interface RecommendationPageViewModel {
   // Deep Cascade / quality fields
   agentStatus: string;
   qualityStatus: string;
+  candidatePositioning: string;
 
   // K9-1-I: profile status fields
   profileStatus: string;
@@ -89,6 +92,43 @@ export interface RecommendationPageViewModel {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** 规范化字符串：trim + 统一全角/半角空格 */
+function normalizeText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value !== "string") return String(value);
+  return value.replace(/[\u3000]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** 判断两个规范化后的文本是否相同（忽略空白差异） */
+function isSameText(a?: string, b?: string): boolean {
+  return normalizeText(a) === normalizeText(b);
+}
+
+/** 对字符串数组去重（规范化后比较） */
+function dedupeTextList(values: unknown[]): string[] {
+  if (!Array.isArray(values)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const v of values) {
+    const norm = normalizeText(v);
+    if (norm.length > 0 && !seen.has(norm)) {
+      seen.add(norm);
+      result.push(norm);
+    }
+  }
+  return result;
+}
+
+/** 判断是否有意义的文本（非空、非模板残骸） */
+function isMeaningfulText(value: unknown): boolean {
+  const s = normalizeText(value);
+  if (s.length === 0) return false;
+  if (s === "null" || s === "undefined" || s === "NaN") return false;
+  // 过滤模板残留
+  if (/^(标签匹配|缺失标签|建议进一步)/.test(s)) return false;
+  return true;
+}
 
 function getLevel(score: number): RecommendationLevel {
   if (score >= 80) return "high";
@@ -145,23 +185,60 @@ function toRecommendedJobViewModel(
   const priority = job.recommendation_priority || defaultPriority(score);
   const label = job.recommendation_label || defaultLabel(priority);
 
+  // ── Field deduplication ──
+  const rawRecommendationReason = job.recommendation_reason || "";
+  const rawJobSpecificReason = job.job_specific_reason || "";
+
   // K9-1-T-D: new explanation fields with safe fallbacks
-  const whyRankedHere = job.why_ranked_here || humanizeOneSentenceReason(job.recommendation_reason || "");
+  const whyRankedHere = job.why_ranked_here || humanizeOneSentenceReason(rawRecommendationReason);
   const resumeEvidence = humanizeTagList(
     (Array.isArray(job.resume_evidence) && job.resume_evidence.length > 0)
       ? job.resume_evidence
       : []
   );
-  const jobSpecificReason = humanizeOneSentenceReason(job.job_specific_reason || job.recommendation_reason || "");
+
+  // jobSpecificReason: if same as recommendation_reason, keep only the humanized version
+  let jobSpecificReason = rawJobSpecificReason ? humanizeOneSentenceReason(rawJobSpecificReason) : humanizeOneSentenceReason(rawRecommendationReason);
+
   const rawRisks = (Array.isArray(job.job_specific_risks) && job.job_specific_risks.length > 0)
     ? job.job_specific_risks
     : (Array.isArray(job.risk_points) ? job.risk_points : []);
   const jobSpecificRisks = humanizeRiskPoints(rawRisks);
-  const suggestedImprovement = job.suggested_improvement || job.suggested_action || "";
-  const applicationStrategy = job.suggested_action || suggestedImprovement || "";
+
+  const rawSuggestedAction = job.suggested_action || "";
+  const rawSuggestedImprovement = job.suggested_improvement || "";
+
+  // L1-fix: prioritize suggested_improvement over suggested_action for the "补强建议" slot
+  const suggestedImprovement = isMeaningfulText(rawSuggestedImprovement) && !isSameText(rawSuggestedImprovement, rawSuggestedAction)
+    ? rawSuggestedImprovement
+    : "";
+
+  // applicationStrategy: if identical to suggestedAction, show only one
+  const applicationStrategy = isMeaningfulText(rawSuggestedAction)
+    ? rawSuggestedAction
+    : (isMeaningfulText(suggestedImprovement) ? suggestedImprovement : "");
+
   const displayTags = humanizeTagList(
     (Array.isArray(job.display_tags) && job.display_tags.length > 0) ? job.display_tags : []
   );
+
+  // L1-fix: oneSentenceReason — only from recommendation_reason
+  const oneSentenceReason = humanizeOneSentenceReason(rawRecommendationReason);
+
+  // L1-fix: if jobSpecificReason === oneSentenceReason after humanize, suppress duplicate
+  if (isSameText(jobSpecificReason, oneSentenceReason)) {
+    jobSpecificReason = "";
+  }
+
+  // L1-fix: riskPoints — only from risk_points, not duplicating jobSpecificRisks
+  const rawRiskPoints = Array.isArray(job.risk_points) ? job.risk_points : [];
+  const riskPoints = humanizeRiskPoints(rawRiskPoints);
+
+  // L1-fix: if riskPoints all appear in jobSpecificRisks, clear riskPoints
+  const riskSet = new Set(riskPoints.map(normalizeText));
+  const allRisksCovered = jobSpecificRisks.length > 0 && riskPoints.length > 0
+    && jobSpecificRisks.every((r) => riskSet.has(normalizeText(r)));
+  const effectiveRiskPoints = allRisksCovered ? [] : riskPoints;
 
   return {
     rank,
@@ -178,21 +255,23 @@ function toRecommendedJobViewModel(
     priority,
     priorityText: priorityText(priority),
     priorityTone: priority as RecommendationPriorityTone,
-    oneSentenceReason: humanizeOneSentenceReason(job.recommendation_reason || ""),
+    oneSentenceReason,
     matchHighlights: humanizeMatchHighlights(job.match_highlights || []),
-    riskPoints: humanizeRiskPoints(job.risk_points || []),
+    riskPoints: effectiveRiskPoints,
     suggestedAction: job.suggested_action || "建议先查看岗位详情，再进行岗位匹配分析。",
     source,
     sourceLabel: getSourceLabel(source, generatedBy, isQuality),
-    // K9-1-T-D: new fields
+    // K9-1-T-D: new fields (L1-dedup)
     whyRankedHere,
     resumeEvidence,
     jobSpecificReason,
     jobSpecificRisks,
     suggestedImprovement,
-    // Deep Cascade fields
+    // Deep Cascade fields (L1-dedup)
     displayTags,
     applicationStrategy,
+    candidateCoreStrength: job.candidate_core_strength || "",
+    fitConfidenceReason: job.fit_confidence_reason || "",
   };
 }
 
@@ -231,13 +310,15 @@ export function toRecommendationPageViewModel(
   const isQuality = firstJob?.generated_by === "mock_quality" || firstJob?.generated_by === "llm_agent";
   const mode: "fast" | "deep" = isQuality ? "deep" : "fast";
 
-  // Deep Cascade: extract global_summary, agent_status, quality_status
-  const globalSummary = (result as any).result?.summary
+  // Deep Cascade: extract global_summary, agent_status, quality_status, candidate_positioning
+  const globalSummary = (result as any).result?.global_summary
+    || (result as any).result?.summary
     || (result as any).global_summary
     || result.recommendation_summary
     || "";
   const qualityStatus = (result as any).result?.quality_status || "";
   const agentStatus = firstJob?.agent_status ?? (result as any).meta?.agent_status ?? "";
+  const candidatePositioning = (result as any).result?.candidate_positioning || "";
 
   return {
     mode,
@@ -254,6 +335,7 @@ export function toRecommendationPageViewModel(
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
     agentStatus,
     qualityStatus,
+    candidatePositioning,
     profileStatus: profileExtras?.profileStatus ?? "ready",
     profileType: profileExtras?.profileType ?? "fast",
     profileSource: profileExtras?.profileSource ?? "rule",

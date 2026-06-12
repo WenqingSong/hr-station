@@ -90,10 +90,40 @@ func buildLayer2RerankPrompt(resumeID int64, resumeSummary string, resumeTags []
 // ─── Layer 3: Per-Job Deep Synthesis Prompt ───────────────────────────────
 
 func buildLayer3SynthesisPrompt(resumeID int64, resumeSummary string, resumeTags []*model.SemanticProfileTag, job DeepRerankedJob, jsep *gateJobSep) (string, string) {
-	sys := `你是校园招聘求职顾问和岗位匹配专家（岗位级深度分析阶段）。
-你要针对一个具体岗位，判断这名学生为什么适合、风险在哪里、如何投递、简历应该怎么强化。
-必须基于简历和 JD 证据，不能虚构经历，不能把岗位要求当成候选人已具备能力。
-输出严格 JSON 格式。`
+	sys := `你是校园招聘投递前岗位适配判断专家（逐岗位深度分析阶段）。
+你不是在生成通用推荐文案，而是在做"这个岗位值不值得投、怎么投、风险多大"的专业判断。
+
+必须遵守的规则：
+1. 只基于简历事实和岗位要求判断，不虚构经历。
+2. 不把岗位要求写成候选人已具备能力。
+3. 每个字段承担不同作用，不允许复制粘贴同一段话到多个字段。
+4. one_sentence_conclusion 不超过 45 字，是一句有判断的结论。
+5. job_specific_reason 必须包含"岗位要求-简历证据"对应关系，比 one_sentence_conclusion 更具体，不能相同。
+6. resume_evidence 每条必须是候选人简历中的真实事实，不能用岗位要求代替。
+7. risk_points 必须具体说明"为什么会成为风险"，禁止"经验不足""需提升"等空话。
+8. job_specific_risks 是比 risk_points 更细的岗位级风险；如果没有额外风险，可为空数组但不能和 risk_points 完全相同。
+9. application_strategy 必须告诉用户"如何投递该岗位"（80-150字），不能只说"建议投递"。
+10. suggested_action 是"马上做什么"的短句（≤25字），如"优先投递""补充项目描述后投递"。
+11. application_strategy 和 suggested_action 不能相同。
+12. resume_improvement_hint 必须具体到简历模块或表达方式（80-150字），不能和 application_strategy 相同。
+13. why_ranked_here 必须说明相对于其他 Top5 岗位的排序原因。
+14. candidate_core_strength 是该岗位下候选人最核心的竞争力（≤40字）。
+15. fit_confidence_reason 说明为什么给这个分数（≤60字）。
+16. display_tags 必须是 3-5 个中文短语，禁止 raw tag code（如 redis/golang/degree_bachelor）。
+17. 所有输出为中文。
+
+禁止输出以下内容：
+- "该岗位与当前简历存在一定关联"
+- "建议进一步确认匹配度"
+- "候选人具备岗位所需能力"（除非简历证据明确支持）
+- "需要提升综合能力"
+- "适合投递相关岗位"
+- "该岗位可考虑投递"
+- "建议进一步补充"（必须说明补充什么）
+- 任何 raw tag code（redis/golang/mysql/docker_k8s/skill_0 等）
+- "标签匹配""缺失标签"
+
+输出严格 JSON 格式，不允许 markdown 代码块包裹。`
 
 	resume := fmt.Sprintf("## 候选人简历\n%s\n\n简历语义标签：\n", resumeSummary)
 	for _, t := range resumeTags {
@@ -115,17 +145,22 @@ func buildLayer3SynthesisPrompt(resumeID int64, resumeSummary string, resumeTags
   "job_id": 10001,
   "final_score": 85,
   "fit_level": "优先投递",
-  "one_sentence_conclusion": "30-90字，明确是否值得投递",
-  "why_recommended": ["3-5条，完整中文句，结合岗位要求和简历证据"],
-  "resume_evidence": ["2-4条，来自简历事实"],
-  "job_requirement_mapping": ["2-4条，岗位要求与简历能力对应"],
-  "risk_points": ["1-3条，具体谨慎，不绝对化"],
-  "application_strategy": "80-180字投递策略",
-  "resume_improvement_hint": "80-180字简历优化建议",
+  "one_sentence_conclusion": "≤45字，明确是否值得投递",
+  "job_specific_reason": "100-200字，包含岗位要求与简历证据对应关系，比 conclusion 更具体",
+  "why_recommended": ["3-5条完整中文句，结合岗位要求和简历证据"],
+  "resume_evidence": ["2-4条简历真实事实"],
+  "job_requirement_mapping": ["2-4条，格式：岗位要求：xxx；简历证据：xxx；判断：强匹配/部分匹配/待补充"],
+  "risk_points": ["1-3条具体风险，说明为什么是风险"],
+  "job_specific_risks": ["0-2条比risk_points更细的风险，不能完全相同；如无额外风险可为空数组"],
+  "application_strategy": "80-150字，如何投递该岗位",
+  "suggested_action": "≤25字马上做什么",
+  "resume_improvement_hint": "80-150字简历具体补哪块",
   "display_tags": ["3-5个中文短语"],
-  "why_ranked_here": "40-120字说明该岗位在Top5中的位置"
+  "why_ranked_here": "40-120字相对Top5其他岗位的排序原因",
+  "candidate_core_strength": "≤40字核心竞争",
+  "fit_confidence_reason": "≤60字为什么给这个分数"
 }
-要求：所有字段非空，中文完整句，不虚构证据。`
+要求：所有字符串字段非空（job_specific_risks可为空数组）；one_sentence_conclusion≠job_specific_reason；application_strategy≠suggested_action≠resume_improvement_hint。`
 
 	return sys, fmt.Sprintf("%s\n\n%s\n\n%s", resume, jd, outputFmt)
 }
@@ -133,19 +168,46 @@ func buildLayer3SynthesisPrompt(resumeID int64, resumeSummary string, resumeTags
 // ─── Layer 4: Cross-Job Calibration Prompt ─────────────────────────────────
 
 func buildLayer4CalibrationPrompt(resumeID int64, resumeSummary string, l2 *DeepSemanticRerankOutput, l3Results []*DeepPerJobSynthesisOutput) (string, string) {
-	sys := `你是推荐结果质量校准专家。
-检查 5 个岗位推荐结果是否排序合理、分数一致、风险表述一致，是否存在过度承诺或证据不足。
-只能在已有 5 个岗位内调整排序和分数，不能新增岗位，不能编造经历。
-输出严格 JSON 格式。`
+	sys := `你是推荐结果质量校准专家，不是总结器。
+
+你的核心任务：
+1. 检查 Top5 排序是否合理（分数是否和推荐理由一致）。
+2. 检查每个岗位的风险是否被低估。
+3. 检查是否有把岗位要求误写成候选人能力的情况。
+4. 给出全局投递策略。
+5. 给出候选人整体定位。
+
+必须遵守：
+- 只能在已有 5 个岗位内调整排序和分数，不能新增或删除岗位。
+- global_summary 必须包含：候选人最适合方向、Top1 为什么排第一、Top5 分布特点、最大共性风险、推荐策略。控制在 150 字以内。
+- candidate_positioning 是候选人的全局定位（≤60字）。
+- top_recommendation_reason 是 Top1 排第一的核心原因（≤80字）。
+- portfolio_risk_summary 是 Top5 共同风险总结（≤100字）。
+- delivery_strategy 是整体投递策略（≤120字）。
+- quality_notes 是内部校准说明。
+- 所有输出为中文，禁止 raw tag code。
+
+global_summary 不允许：
+- 泛泛说"候选人与多个岗位匹配"
+- 只重复 Top5 岗位名称
+- 超过 200 字
+- 像系统日志
+
+合格示例：
+"候选人当前最适合后台开发方向，其中「软件开发-后台开发方向」排序第一，原因是简历中的后端接口、MySQL/Redis、项目联调和部署经验与岗位核心要求重合度最高。Top5 整体偏向工程开发类岗位；主要短板是大规模系统、高并发和云原生生产经验表达不足，建议投递前补强项目指标和技术边界描述。"
+
+输出严格 JSON 格式，不允许 markdown 代码块包裹。`
 
 	profile := fmt.Sprintf("候选人：%s\n", resumeSummary)
 
 	jobs := "5个岗位推荐结果：\n"
 	for _, l3 := range l3Results {
-		jobs += fmt.Sprintf("---\njob_id=%d fit=%s score=%d\n结论:%s\n推荐理由:%s\n风险:%s\n投递策略:%s\n优化建议:%s\n",
+		jobs += fmt.Sprintf("---\njob_id=%d fit=%s score=%d\n结论:%s\n岗位详细理由:%s\n推荐理由:%s\n简历证据:%s\n风险:%s\n投递策略:%s\n优化建议:%s\n",
 			l3.JobID, l3.FitLevel, l3.FinalScore,
 			l3.OneSentenceConclusion,
+			l3.JobSpecificReason,
 			strings.Join(l3.WhyRecommended, "；"),
+			strings.Join(l3.ResumeEvidence, "；"),
 			strings.Join(l3.RiskPoints, "；"),
 			l3.ApplicationStrategy,
 			l3.ResumeImprovementHint,
@@ -155,14 +217,22 @@ func buildLayer4CalibrationPrompt(resumeID int64, resumeSummary string, l2 *Deep
 	outputFmt := `请输出 JSON：
 {
   "final_order": [
-    {"job_id":10001,"final_rank":1,"calibrated_score":88,"calibration_reason":"调整原因"},
-    ...
+    {"job_id":10001,"final_rank":1,"calibrated_score":88,"calibration_reason":"排名调整原因"},
+    {"job_id":10002,"final_rank":2,"calibrated_score":82,"calibration_reason":"排名调整原因"},
+    {"job_id":10003,"final_rank":3,"calibrated_score":80,"calibration_reason":"排名调整原因"},
+    {"job_id":10004,"final_rank":4,"calibrated_score":75,"calibration_reason":"排名调整原因"},
+    {"job_id":10005,"final_rank":5,"calibrated_score":72,"calibration_reason":"排名调整原因"}
   ],
-  "global_summary": "80-200字全局推荐总结",
+  "global_summary": "120-180字全局推荐总结（含方向、Top1原因、分布、共性风险和策略）",
+  "candidate_positioning": "≤60字候选人全局定位",
+  "top_recommendation_reason": "≤80字Top1核心原因",
+  "portfolio_risk_summary": "≤100字Top5共同风险",
+  "delivery_strategy": "≤120字整体投递策略",
   "quality_status": "verified",
-  "quality_warnings": []
+  "quality_warnings": [],
+  "quality_notes": ["校准说明1","校准说明2"]
 }
-要求：final_order 必须正好 5 个，quality_status 使用 verified/repaired/failed。`
+要求：final_order 必须正好 5 个；quality_status 使用 verified/repaired/failed；所有文本字段非空。`
 
 	return sys, fmt.Sprintf("%s\n%s\n%s", profile, jobs, outputFmt)
 }

@@ -39,6 +39,14 @@ const replacementRules: Array<[RegExp, string]> = [
   // mock_agent / mock_quality should never be user-visible
   [/mock_agent/g, ""],
   [/mock_quality/g, ""],
+  // I2: safety net — Unicode replacement char, bad runtime values
+  [/\ufffd/g, ""],
+  [/\uFFFD/g, ""],
+  [/undefined/g, ""],
+  [/NaN/g, ""],
+  [/\[object Object\]/g, ""],
+  // Collapse multiple spaces after cleaning
+  [/\s{3,}/g, " "],
 ];
 
 /**

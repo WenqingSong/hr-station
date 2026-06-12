@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Loader2, CheckCircle2, XCircle, Circle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Circle, Clock } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -28,11 +28,18 @@ export interface AgentStepLoadingOverlayProps {
   finishStepIntervalMs?: number;
   /** Hold time after all steps done (ms) */
   successHoldMs?: number;
-  /** K13-Stability-A: max total duration before auto-finish (ms). Default 90s to stay under backend's 120s LLM timeout. */
+  /** K13-Stability-A: max total duration before auto-finish (ms). Default 15min for Deep Cascade. */
   maxDurationMs?: number;
+  /** Estimated time text displayed to user */
+  estimatedTimeText?: string;
   /** Error state — shows error icon and text */
   error?: boolean;
   errorText?: string;
+  /** Cancel callback — shows cancel link below steps */
+  onCancel?: () => void;
+  cancelLabel?: string;
+  /** L3: externally-supplied elapsed seconds */
+  elapsedSeconds?: number;
 
   // ── @deprecated: kept for backward compat ──
   status?: "loading" | "success" | "error";
@@ -46,7 +53,7 @@ const DEFAULT_STEP_INTERVAL = 650;
 const DEFAULT_FINISH_STEP_INTERVAL = 260;
 const DEFAULT_MIN_VISIBLE = 1800;
 const DEFAULT_SUCCESS_HOLD = 420;
-const DEFAULT_MAX_DURATION_MS = 90000; // 90s — under backend LLM_TIMEOUT_SECONDS=120
+const DEFAULT_MAX_DURATION_MS = 900000; // 15 min — 覆盖 Deep Cascade 全链路（Layer 0-4）
 
 // ─── Component ─────────────────────────────────────────────────────────
 
@@ -62,8 +69,12 @@ export function AgentStepLoadingOverlay({
   finishStepIntervalMs: finishStepIntervalMsProp,
   successHoldMs: successHoldMsProp,
   maxDurationMs = DEFAULT_MAX_DURATION_MS,
+  estimatedTimeText,
   error,
   errorText,
+  onCancel,
+  cancelLabel,
+  elapsedSeconds: externalElapsed,
 
   // @deprecated compat
   status: legacyStatus,
@@ -75,6 +86,8 @@ export function AgentStepLoadingOverlay({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startedAtRef = useRef(0);
   const backendDoneDoneRef = useRef(false);
+  // L3: display elapsed — state must be declared before any early return (Hook rules)
+  const [displayElapsed, setDisplayElapsed] = useState(0);
 
   const stepIntervalMs = stepIntervalMsProp ?? DEFAULT_STEP_INTERVAL;
   const finishStepIntervalMs = finishStepIntervalMsProp ?? DEFAULT_FINISH_STEP_INTERVAL;
@@ -186,9 +199,42 @@ export function AgentStepLoadingOverlay({
     };
   }, []);
 
+  // L3: tick elapsed every second (needs to be above early return for Hook rules)
+  useEffect(() => {
+    const elapsed = externalElapsed ?? (startedAtRef.current ? Math.floor((Date.now() - startedAtRef.current) / 1000) : 0);
+    setDisplayElapsed(elapsed);
+    if (!open || finished) return;
+    const ticker = setInterval(() => {
+      setDisplayElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(ticker);
+  }, [open, finished, externalElapsed]);
+
   if (!open) return null;
 
   const effectiveError = isLegacy ? legacyStatus === "error" : (error ?? false);
+
+  // L3: computed elapsed time (external or internal)
+  const elapsedSec = externalElapsed ?? (startedAtRef.current ? Math.floor((Date.now() - startedAtRef.current) / 1000) : 0);
+
+  // L3: progress percentage (0-96% auto, 100% on done)
+  const progressPct = finished ? 100 : backendDone ? 98 : Math.min(96, Math.floor((displayElapsed / 150) * 96));
+  const displayPct = Math.min(progressPct, finished ? 100 : 96);
+
+  // L3: long-wait prompt
+  function getWaitHint(): string {
+    if (displayElapsed > 180) return "本次分析耗时较长，可能正在进行首次画像构建或模型响应较慢。";
+    if (displayElapsed > 60) return "深度推荐需要逐岗生成证据和风险点，请继续等待…";
+    return "";
+  }
+  const waitHint = !finished && !backendDone ? getWaitHint() : "";
+
+  function formatTime(sec: number): string {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    if (m > 0) return `${m}:${s.toString().padStart(2, "0")}`;
+    return `0:${s.toString().padStart(2, "0")}`;
+  }
 
   function stepStatus(idx: number): StepStatus {
     if (effectiveError && idx === activeIdx) return "error";
@@ -213,9 +259,9 @@ export function AgentStepLoadingOverlay({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/20 backdrop-blur-md flex items-center justify-center">
-      <div className="bg-white/95 rounded-2xl shadow-xl border border-white/60 p-8 max-w-md w-[380px] mx-4">
+      <div className="bg-white/95 rounded-2xl shadow-xl border border-white/60 p-8 max-w-md w-[420px] mx-4">
         {/* Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-5">
           {finished ? (
             <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
           ) : (
@@ -227,8 +273,24 @@ export function AgentStepLoadingOverlay({
           )}
         </div>
 
+        {/* L3: Progress bar */}
+        {!finished && !effectiveError && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+              <span className="flex items-center gap-1"><Clock className="w-3 h-3" />已用 {formatTime(displayElapsed)}</span>
+              <span>{displayPct}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-full bg-[#0052D9] rounded-full transition-all duration-1000 ease-out" style={{ width: `${displayPct}%` }} />
+            </div>
+            {estimatedTimeText && (
+              <p className="text-[10px] text-slate-400 text-center mt-1.5">{estimatedTimeText}</p>
+            )}
+          </div>
+        )}
+
         {/* Steps */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {steps.map((step, idx) => {
             const s = stepStatus(idx);
             const isActive = s === "active";
@@ -260,11 +322,24 @@ export function AgentStepLoadingOverlay({
           </div>
         )}
 
-        {/* Footer hint */}
+        {/* Footer: wait hint + progress note + cancel */}
         {!finished && !effectiveError && (
-          <p className="text-xs text-slate-400 text-center mt-5">
-            深度生成正在进行中…
-          </p>
+          <div className="mt-5 text-center space-y-2">
+            {waitHint && (
+              <p className="text-[11px] text-amber-600 bg-amber-50/50 rounded-lg px-3 py-1.5">{waitHint}</p>
+            )}
+            <p className="text-[10px] text-slate-400">
+              当前为预估进度，最终结果以分析完成后为准
+            </p>
+            {onCancel && (
+              <button
+                onClick={onCancel}
+                className="text-xs text-slate-400 hover:text-slate-600 underline transition-colors mt-1"
+              >
+                {cancelLabel || "返回快速推荐结果"}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

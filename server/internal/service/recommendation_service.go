@@ -53,6 +53,13 @@ type RecommendationBusinessResult struct {
 	Summary         string                  `json:"summary,omitempty"`
 	QualityStatus   string                  `json:"quality_status,omitempty"`
 	PipelineTrace   string                  `json:"pipeline_trace,omitempty"`
+
+	// ── L2: Deep Cascade calibration fields ──
+	GlobalSummary          string `json:"global_summary,omitempty"`
+	CandidatePositioning   string `json:"candidate_positioning,omitempty"`
+	TopRecommendationReason string `json:"top_recommendation_reason,omitempty"`
+	PortfolioRiskSummary   string `json:"portfolio_risk_summary,omitempty"`
+	DeliveryStrategy       string `json:"delivery_strategy,omitempty"`
 }
 
 // RecommendationService handles job recommendation business logic.
@@ -233,9 +240,16 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 		log.Printf("[RecommendationService] fast tag engine failed: %v, falling back to mock", err)
 	}
 
-	// K13-Fix-B: Deep/Quality tier uses LLM pipeline
+	// M3: LLM Capability Gate — quality tier requires LLM to be available
 	runner := s.selectRunner(req.GenerationTier)
 	isQuality := req.GenerationTier == model.GenerationTierQuality
+
+	if isQuality && !s.llmEnabled {
+		return nil, apperror.New(apperror.CodeInternal, "深度推荐需要大模型服务，当前模型未启用。你仍可使用快速推荐。", 503)
+	}
+	if isQuality && s.qualityClient == nil {
+		return nil, apperror.New(apperror.CodeInternal, "深度推荐需要连接大模型服务，当前服务未配置。你仍可使用快速推荐。", 503)
+	}
 
 	if isQuality && s.llmEnabled && runner != nil {
 		// Deep/Quality tier → Cascaded Deep Recommendation Pipeline
@@ -339,7 +353,7 @@ func (s *RecommendationService) recommendDeepCascade(ctx context.Context, userID
 	}
 
 	resumeID := int64(resume.ID)
-	recommendedJobs, trace, globalSummary, err := RunDeepRecommendationCascade(ctx, cfg, resumeID, jobs, limit)
+	recommendedJobs, l4Result, trace, globalSummary, err := RunDeepRecommendationCascade(ctx, cfg, resumeID, jobs, limit)
 	if err != nil {
 		return nil, fmt.Errorf("deep cascade: %w", err)
 	}
@@ -354,6 +368,11 @@ func (s *RecommendationService) recommendDeepCascade(ctx context.Context, userID
 		rec.JobSpecificReason = sanitizeStr(rec.JobSpecificReason)
 		rec.JobSpecificRisks = sanitizeStrList(rec.JobSpecificRisks)
 		rec.ResumeEvidence = sanitizeStrList(rec.ResumeEvidence)
+		rec.SuggestedImprovement = sanitizeStr(rec.SuggestedImprovement)
+		rec.ApplicationStrategy = sanitizeStr(rec.ApplicationStrategy)
+		rec.DisplayTags = sanitizeStrList(rec.DisplayTags)
+		rec.CandidateCoreStrength = sanitizeStr(rec.CandidateCoreStrength)
+		rec.FitConfidenceReason = sanitizeStr(rec.FitConfidenceReason)
 	}
 
 	// Build trace bytes
@@ -371,12 +390,23 @@ func (s *RecommendationService) recommendDeepCascade(ctx context.Context, userID
 		SchemaValid:    true,
 	}
 
+	// L2: extract L4 calibration fields
+	var l4GlobalSummary, candidatePos, topRecReason, portfolioRisk, deliveryStrat string
+	if l4Result != nil {
+		l4GlobalSummary = l4Result.GlobalSummary
+		candidatePos = l4Result.CandidatePositioning
+		topRecReason = l4Result.TopRecommendationReason
+		portfolioRisk = l4Result.PortfolioRiskSummary
+		deliveryStrat = l4Result.DeliveryStrategy
+	}
+	if l4GlobalSummary == "" { l4GlobalSummary = globalSummary }
+
 	resp := &RecommendationResponse{
 		ResumeVersionID:       resume.ID,
 		ResumeID:              resume.ID,
 		GeneratedBy:           "llm_agent",
 		RecommendedJobs:       recommendedJobs,
-		Summary:               globalSummary,
+		Summary:               l4GlobalSummary,
 		CreatedAt:             now,
 		Meta:                  meta,
 		GenerationTier:        "deep",
@@ -386,14 +416,41 @@ func (s *RecommendationService) recommendDeepCascade(ctx context.Context, userID
 		ProfileSource:         profileSource,
 		ProfileDominantProfile: profileDominant,
 		Result:                &RecommendationBusinessResult{
-			RecommendedJobs: recommendedJobs,
-			Summary:         globalSummary,
-			QualityStatus:   agentStatus,
-			PipelineTrace:   string(traceBytes),
+			RecommendedJobs:        recommendedJobs,
+			Summary:                l4GlobalSummary,
+			QualityStatus:          agentStatus,
+			PipelineTrace:          string(traceBytes),
+			GlobalSummary:          l4GlobalSummary,
+			CandidatePositioning:   candidatePos,
+			TopRecommendationReason: topRecReason,
+			PortfolioRiskSummary:   portfolioRisk,
+			DeliveryStrategy:       deliveryStrat,
 		},
 	}
 
 	s.fillProfileFields(resp, profileType, profileDominant, profileSource)
+
+	// J2: Persist Deep Cascade result to recommendation_results as full recommendedJobs array
+	if len(recommendedJobs) > 0 {
+		resultJSON, marshalErr := json.Marshal(recommendedJobs)
+		if marshalErr == nil {
+			recResult := &model.RecommendationResult{
+				UserID:                 userID,
+				ResumeID:               resume.ID,
+				GenerationTier:         "quality",
+				GeneratedBy:            "llm_agent",
+				Status:                 "ready",
+				ProfileType:            profileType,
+				ProfileDominantProfile: profileDominant,
+				ResultJSON:             resultJSON,
+			}
+			if createErr := s.recommendationRepo.Create(ctx, recResult); createErr == nil {
+				resp.ResultID = recResult.ID
+				resp.GenerationTier = "quality"
+			}
+		}
+	}
+
 	return resp, nil
 }
 
@@ -644,7 +701,8 @@ func stringsJoin(ss []string, sep string) string {
 }
 
 // GetLatestRecommendation returns the latest ready recommendation result for the given user+resume.
-func (s *RecommendationService) GetLatestRecommendation(ctx context.Context, userID, resumeID uint64) (*model.RecommendationLatestResult, error) {
+// If tier is non-empty, filter by generation_tier; otherwise return most recent non-mock.
+func (s *RecommendationService) GetLatestRecommendation(ctx context.Context, userID, resumeID uint64, tier string) (*model.RecommendationLatestResult, error) {
 	if resumeID <= 0 {
 		return nil, fmt.Errorf("invalid resume_id")
 	}
@@ -657,7 +715,7 @@ func (s *RecommendationService) GetLatestRecommendation(ctx context.Context, use
 		return nil, apperror.ErrResumeNotFound
 	}
 
-	latest, err := s.recommendationRepo.FindLatestByResumeID(ctx, userID, resumeID)
+	latest, err := s.recommendationRepo.FindLatestByResumeID(ctx, userID, resumeID, tier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest recommendation: %w", err)
 	}
@@ -882,9 +940,10 @@ func (s *RecommendationService) fastRecommendWithSEP(ctx context.Context, userID
 			RecommendationLabel:  sepScoreLabel(score.Score),
 			RecommendationPriority: sepScorePriority(score.Score),
 			MatchHighlights:      buildSEPMatchHighlights(score),
-			RiskPoints:           buildSEPRiskSummaries(score),
+			RiskPoints:           buildSEPRiskSummaries(score, title),
 			SuggestedAction:      sepScoreAction(score.Score),
 			WhyRankedHere:        score.RankReason,
+			DisplayTags:          score.DisplayTags,
 			GeneratedBy:          "fast_tag_engine",
 			AgentStatus:          "success",
 			FallbackReason:       "none",
@@ -964,14 +1023,22 @@ func buildSEPMatchHighlights(s *SEPMatchScore) []string {
 	return result
 }
 
-func buildSEPRiskSummaries(s *SEPMatchScore) []string {
+func buildSEPRiskSummaries(s *SEPMatchScore, jobTitle string) []string {
+	// M2: de-template — generate specific risk descriptions
 	if len(s.RiskTags) == 0 {
+		if s.RoleMatch == 0 {
+			return []string{"当前岗位方向与简历主方向存在差异，建议优先关注方向匹配度更高的岗位。"}
+		}
 		return []string{"当前未发现明显硬性风险，仍建议结合岗位详情进一步确认。"}
 	}
 	var result []string
 	for _, r := range s.RiskTags {
 		if len(result) >= 2 { break }
-		result = append(result, fmt.Sprintf("岗位关注「%s」，建议在简历中补充相关证据或经历。", r))
+		risk := fmt.Sprintf("岗位要求关注「%s」，当前简历在该方面的体现较弱，可能会降低面试机会。", r)
+		if s.RoleMatch == 0 {
+			risk += fmt.Sprintf(" 结合岗位类型（%s），建议优先确认方向匹配后再投递。", jobTitle)
+		}
+		result = append(result, risk)
 	}
 	return result
 }

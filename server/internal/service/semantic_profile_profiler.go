@@ -309,7 +309,11 @@ func extractJSONFromContent(raw string) string {
 	return strings.TrimSpace(raw)
 }
 
+// truncate truncates a string to maxLen runes (not bytes), adding "..." if truncated.
+// Uses []rune to avoid cutting multi-byte UTF-8 characters mid-byte.
 func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen { return s }
-	return s[:maxLen] + "..."
+	if maxLen <= 0 { return "" }
+	r := []rune(s)
+	if len(r) <= maxLen { return s }
+	return string(r[:maxLen]) + "..."
 }

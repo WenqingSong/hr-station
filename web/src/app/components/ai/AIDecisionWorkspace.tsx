@@ -112,7 +112,7 @@ export function AIDecisionWorkspace() {
             <h4 className="font-semibold text-gray-800 text-[13px] mb-2.5">下一步</h4>
             <Button
               className="w-full text-[13px]"
-              onClick={() => navigate("/recommend")}
+              onClick={() => navigate(`/recommend?resumeId=${resumeVm.id}`)}
             >
               推荐适合的岗位
               <ArrowRight className="ml-2 h-3.5 w-3.5" />
