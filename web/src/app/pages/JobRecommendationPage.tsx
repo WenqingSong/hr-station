@@ -312,6 +312,17 @@ export function JobRecommendationPage() {
         </div>
         {/* Fast mode hint */}
         {!isDeepDisplay && (<p className="mt-2 text-[11px] text-gray-400">这是快速推荐结果，点击"生成深度推荐"可获取更完整的岗位匹配解释。</p>)}
+        {/* Deep Cascade: global summary + pipeline badge */}
+        {isDeepDisplay && activeResult.globalSummary && (
+          <div className="mt-3 p-3 bg-gradient-to-r from-[#F4F8FF] to-white border border-blue-100 rounded-lg">
+            <p className="text-[13px] text-gray-700 leading-relaxed">{activeResult.globalSummary}</p>
+            {activeResult.qualityStatus && (
+              <span className="inline-block mt-2 text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                深度分析已完成 · 级联管线验证
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-6 items-start">
@@ -333,6 +344,7 @@ export function JobRecommendationPage() {
                 <div className="flex flex-wrap items-center gap-1.5 mb-2 text-[11px] text-gray-500"><span>{job.city}</span><span className="text-gray-300">·</span><span>{job.category}</span><span className="text-gray-300">·</span><span>{job.department}</span></div>
                 {(job.whyRankedHere || job.oneSentenceReason) && (<p className="text-[12px] text-gray-600 line-clamp-2 leading-relaxed mb-2">{job.whyRankedHere || job.oneSentenceReason}</p>)}
                 {evidence.length > 0 && (<div className="flex flex-wrap gap-1 mb-1.5">{evidence.map((e, i) => (<Badge key={i} variant="outline" className="text-[10px] font-normal px-1.5 py-0 bg-blue-50/30 text-blue-700 border-blue-100">{e}</Badge>))}</div>)}
+                {job.displayTags.length > 0 && (<div className="flex flex-wrap gap-1 mb-1.5">{job.displayTags.map((t, i) => (<Badge key={i} variant="outline" className="text-[10px] font-normal px-1.5 py-0 bg-gray-50 text-gray-600 border-gray-200">{t}</Badge>))}</div>)}
                 {isDeepDisplay && job.jobSpecificRisks[0] && (<p className="text-[10px] text-amber-600 line-clamp-1">{job.jobSpecificRisks[0]}</p>)}
               </div>
             );
@@ -358,6 +370,10 @@ export function JobRecommendationPage() {
               {selectedJob.jobSpecificRisks.length > 0 && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-amber-400 rounded-full" />主要风险</h3><div className="bg-amber-50/30 border border-amber-100/50 rounded-md p-3"><BulletList items={(isDeepDisplay ? selectedJob.jobSpecificRisks : selectedJob.jobSpecificRisks.slice(0, 2)).map(r => r)} tone="amber" size="sm" /></div></section>)}
               {/* Deep: improvement */}
               {isDeepDisplay && selectedJob.suggestedImprovement && (<section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />补强建议</h3><div className="bg-blue-50/30 border border-blue-100/50 rounded-md p-3"><p className="text-[13px] text-blue-800 leading-relaxed">{selectedJob.suggestedImprovement}</p></div></section>)}
+              {/* Deep: Application Strategy */}
+              {isDeepDisplay && selectedJob.applicationStrategy && selectedJob.applicationStrategy !== selectedJob.suggestedAction && (
+                <section><h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5"><span className="w-1 h-3.5 bg-[#0052D9] rounded-full" />投递策略</h3><div className="bg-blue-50/30 border border-blue-100/50 rounded-md p-3"><p className="text-[13px] text-blue-800 leading-relaxed">{selectedJob.applicationStrategy}</p></div></section>
+              )}
               {/* Action */}
               <section className="bg-gray-50 rounded-md p-4 border border-gray-100">
                 <div className="text-[13px] text-gray-700 leading-relaxed mb-3"><span className="font-medium text-gray-900">下一步建议：</span>{selectedJob.suggestedAction}</div>

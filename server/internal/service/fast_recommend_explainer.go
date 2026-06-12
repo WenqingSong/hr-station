@@ -75,16 +75,46 @@ var fastRiskMessages = map[string]string{
 
 // ─── Explainer Entry ────────────────────────────────────────────────────────
 
-// buildFastRecommendReasonExplainer replaces buildFastRecommendReason.
-// Generates a user-readable one-sentence recommendation reason.
+// buildFastRecommendReasonExplainer generates the why-ranked-here explanation.
+// Uses the same logic as buildFastOneSentenceReason but framed for ranking context.
 func buildFastRecommendReasonExplainer(c model.JobCandidate) string {
-	if len(c.MatchedTags) > 0 {
-		labels := tagCodesToLabels(c.MatchedTags, 3)
-		if len(labels) > 0 {
-			return fmt.Sprintf("标签匹配：%s", strings.Join(labels, "、"))
+	matchedLabels := tagCodesToLabels(c.MatchedTags, 2)
+	coreMatch := strings.Join(matchedLabels, "、")
+	if coreMatch == "" {
+		coreMatch = "基础技能背景"
+	}
+	scaledScore := clampScore(70 + c.TagScore*0.5)
+	switch {
+	case scaledScore >= 85:
+		return fmt.Sprintf("基于 %s 等方面的匹配，该岗位与你的简历重合度较高，在候选岗位中排名靠前。", coreMatch)
+	case scaledScore >= 70:
+		return fmt.Sprintf("基于 %s 的匹配情况，该岗位与你的简历存在较明确的能力交集。", coreMatch)
+	default:
+		return fmt.Sprintf("该岗位在 %s 上与当前简历存在一定关联，建议进一步通过匹配分析确认。", coreMatch)
+	}
+}
+
+// buildFastDisplayTags converts matched tag codes into short Chinese display phrases.
+func buildFastDisplayTags(c model.JobCandidate) []string {
+	labels := tagCodesToLabels(c.MatchedTags, 4)
+	if len(labels) == 0 {
+		return []string{"基础匹配"}
+	}
+	// Deduplicate
+	seen := map[string]bool{}
+	var result []string
+	for _, l := range labels {
+		if !seen[l] {
+			seen[l] = true
+			result = append(result, l)
 		}
 	}
-	return "该岗位可能与你的简历方向存在潜在匹配"
+	return result
+}
+
+// clampScore limits score to [70, 95] range for display purposes.
+func clampScore(s float64) int {
+	return int(math.Min(95, math.Max(70, s)))
 }
 
 // buildFastHighlights converts matched tag codes into readable highlight sentences.

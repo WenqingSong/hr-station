@@ -37,6 +37,9 @@ func (s *ResumeProfileService) EnsureProfile(ctx context.Context, userID, resume
 	if err != nil {
 		return nil, "", fmt.Errorf("ensure profile: %w", err)
 	}
+	if resume == nil {
+		return nil, "", fmt.Errorf("ensure profile: resume %d not found for user %d", resumeID, userID)
+	}
 
 	profile, err := s.profileRepo.FindByResumeIDAndType(ctx, resumeID, profileType)
 	if err != nil {
@@ -106,6 +109,9 @@ func (s *ResumeProfileService) GenerateFastProfile(ctx context.Context, userID, 
 }
 
 func (s *ResumeProfileService) generateFast(ctx context.Context, userID, resumeID uint64, resume *model.Resume) (*model.ResumeProfile, error) {
+	if resume == nil {
+		return nil, fmt.Errorf("generate fast: resume is nil for resume_id=%d", resumeID)
+	}
 	// Create pending
 	_, created, err := s.profileRepo.CreatePendingIfMissing(ctx, userID, resumeID, model.ProfileTypeFast)
 	if err != nil {

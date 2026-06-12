@@ -9,7 +9,7 @@ import {
   type EvidenceItemViewModel,
   type AgentMetaViewModel,
 } from './agentAdapter';
-import { humanizeOneSentenceReason, humanizeMatchHighlights, humanizeRiskPoints } from './tagLabelMap';
+import { humanizeOneSentenceReason, humanizeMatchHighlights, humanizeRiskPoints, humanizeTagList, isRawTagCode } from './tagLabelMap';
 
 // ─── ViewModel 类型 ────────────────────────────────────────────────────────────
 
@@ -49,6 +49,9 @@ export interface RecommendedJobViewModel {
   jobSpecificReason: string;
   jobSpecificRisks: string[];
   suggestedImprovement: string;
+  // Deep Cascade fields
+  displayTags: string[];
+  applicationStrategy: string;
 }
 
 export interface RecommendationEvidenceRow {
@@ -59,7 +62,9 @@ export interface RecommendationEvidenceRow {
 }
 
 export interface RecommendationPageViewModel {
+  mode: "fast" | "deep";
   recommendedJobs: RecommendedJobViewModel[];
+  globalSummary: string;
   summary: string;
   applyReadiness: string;
   optimizationStopSignal: string;
@@ -70,6 +75,10 @@ export interface RecommendationPageViewModel {
 
   sourceLabel: string;
   meta?: AgentMetaViewModel;
+
+  // Deep Cascade / quality fields
+  agentStatus: string;
+  qualityStatus: string;
 
   // K9-1-I: profile status fields
   profileStatus: string;
@@ -137,15 +146,22 @@ function toRecommendedJobViewModel(
   const label = job.recommendation_label || defaultLabel(priority);
 
   // K9-1-T-D: new explanation fields with safe fallbacks
-  const whyRankedHere = job.why_ranked_here || job.recommendation_reason || "";
-  const resumeEvidence = (Array.isArray(job.resume_evidence) && job.resume_evidence.length > 0)
-    ? job.resume_evidence
-    : [];
-  const jobSpecificReason = job.job_specific_reason || job.recommendation_reason || "";
-  const jobSpecificRisks = (Array.isArray(job.job_specific_risks) && job.job_specific_risks.length > 0)
+  const whyRankedHere = job.why_ranked_here || humanizeOneSentenceReason(job.recommendation_reason || "");
+  const resumeEvidence = humanizeTagList(
+    (Array.isArray(job.resume_evidence) && job.resume_evidence.length > 0)
+      ? job.resume_evidence
+      : []
+  );
+  const jobSpecificReason = humanizeOneSentenceReason(job.job_specific_reason || job.recommendation_reason || "");
+  const rawRisks = (Array.isArray(job.job_specific_risks) && job.job_specific_risks.length > 0)
     ? job.job_specific_risks
     : (Array.isArray(job.risk_points) ? job.risk_points : []);
+  const jobSpecificRisks = humanizeRiskPoints(rawRisks);
   const suggestedImprovement = job.suggested_improvement || job.suggested_action || "";
+  const applicationStrategy = job.suggested_action || suggestedImprovement || "";
+  const displayTags = humanizeTagList(
+    (Array.isArray(job.display_tags) && job.display_tags.length > 0) ? job.display_tags : []
+  );
 
   return {
     rank,
@@ -174,6 +190,9 @@ function toRecommendedJobViewModel(
     jobSpecificReason,
     jobSpecificRisks,
     suggestedImprovement,
+    // Deep Cascade fields
+    displayTags,
+    applicationStrategy,
   };
 }
 
@@ -210,9 +229,20 @@ export function toRecommendationPageViewModel(
   const firstSource = recommendedJobs[0]?.source ?? "unknown";
   const firstJob = jobs[0];
   const isQuality = firstJob?.generated_by === "mock_quality" || firstJob?.generated_by === "llm_agent";
+  const mode: "fast" | "deep" = isQuality ? "deep" : "fast";
+
+  // Deep Cascade: extract global_summary, agent_status, quality_status
+  const globalSummary = (result as any).result?.summary
+    || (result as any).global_summary
+    || result.recommendation_summary
+    || "";
+  const qualityStatus = (result as any).result?.quality_status || "";
+  const agentStatus = firstJob?.agent_status ?? (result as any).meta?.agent_status ?? "";
 
   return {
+    mode,
     recommendedJobs,
+    globalSummary,
     summary: result.recommendation_summary ?? "",
     applyReadiness: result.apply_readiness ?? "",
     optimizationStopSignal: result.optimization_stop_signal ?? "",
@@ -222,6 +252,8 @@ export function toRecommendationPageViewModel(
     nextActions: Array.isArray(result.next_actions) ? result.next_actions : [],
     sourceLabel: getSourceLabel(firstSource, firstJob?.generated_by ?? "", isQuality),
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
+    agentStatus,
+    qualityStatus,
     profileStatus: profileExtras?.profileStatus ?? "ready",
     profileType: profileExtras?.profileType ?? "fast",
     profileSource: profileExtras?.profileSource ?? "rule",

@@ -99,6 +99,10 @@ func main() {
 
 	// K14-Hy3: Provider factory — create LLM client based on LLM_PROVIDER config
 	var fastRunner, qualityRunner *pipeline.Runner
+	var sepSemanticGate *service.SemanticProfileGate
+	var sepSemanticRepo *repository.SemanticProfileRepository
+	var qualityClient llm.Client
+	var qualityModelName string
 	llmEnabled := cfg.LLM.Enable
 	if llmEnabled {
 		provider := cfg.LLM.Provider
@@ -128,7 +132,8 @@ func main() {
 		// Quality client
 		qualityCfg := fastCfg
 		qualityCfg.Model = cfg.LLM.QualityModel
-		qualityClient := newLLMClient(qualityCfg, provider)
+		qualityClient = newLLMClient(qualityCfg, provider)
+		qualityModelName = qualityCfg.Model
 
 		promptLoader := prompt.NewLoader(fastCfg.PromptDir)
 		schemaLoader := schema.NewLoader(fastCfg.SchemaDir)
@@ -142,6 +147,13 @@ func main() {
 
 		log.Printf("[offer-catcher-server] LLM pipeline initialized (provider=%s fast=%s quality=%s timeout_seconds=%d max_tokens=%d)",
 			provider, cfg.LLM.FastModel, cfg.LLM.QualityModel, cfg.LLM.TimeoutSeconds, maxTok)
+
+		// SEP Semantic Profile Gate for Fast recommendation
+		sepSemanticRepo = repository.NewSemanticProfileRepository(mysqlDB.DB)
+		sepSemanticSvc := service.NewSemanticProfileService(mysqlDB.DB, sepSemanticRepo, resumeRepo, jobRepo)
+		sepProfiler := service.NewSemanticProfileProfiler(sepSemanticSvc, resumeRepo, jobRepo, qualityClient, qualityModelName)
+		sepSemanticGate = service.NewSemanticProfileGate(sepSemanticSvc, sepProfiler)
+		log.Printf("[offer-catcher-server] SEP semantic profile gate enabled (model=%s)", qualityModelName)
 	} else {
 		log.Println("[offer-catcher-server] LLM disabled, using Mock Agent only")
 	}
@@ -199,7 +211,7 @@ func main() {
 	matchHandler := httpserver.NewMatchHandler(matchService)
 
 	// K13-Fix-B: RecommendationService with TagEvidenceService for Fast tier
-	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, resumeProfileService, tagEvidenceService)
+	recommendationService := service.NewRecommendationService(resumeRepo, jobRepo, recommendationRepo, mockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, resumeProfileService, tagEvidenceService, sepSemanticGate, sepSemanticRepo, qualityClient, qualityModelName)
 	recommendationHandler := httpserver.NewRecommendationHandler(recommendationService)
 
 	// Initialize version compare module with both runners (tier selected per request)
