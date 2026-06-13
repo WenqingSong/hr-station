@@ -303,6 +303,7 @@ func analyzeDirectionFit(ctx *MatchSEPContext) DirectionFitResult {
 func checkHardGate(direction DirectionFitResult, resumeTags, jobTags []*model.SemanticProfileTag) HardGateResult {
 	gate := HardGateResult{Status: "passed", ScoreCap: 100}
 
+	// ─── Cap 1: Direction mismatch ────────────────────────────────────
 	if direction.Level == "mismatch" {
 		gate.Status = "blocked"
 		gate.ScoreCap = 60
@@ -311,11 +312,11 @@ func checkHardGate(direction DirectionFitResult, resumeTags, jobTags []*model.Se
 	}
 	if direction.Level == "weak" {
 		gate.Status = "warning"
-		gate.ScoreCap = 68
-		gate.Warnings = append(gate.Warnings, "方向匹配偏弱，建议确认岗位适配性")
+		gate.ScoreCap = 65
+		gate.Warnings = append(gate.Warnings, "方向匹配偏弱，建议确认岗位适配性，分数上限65")
 	}
 
-	// Check must_have coverage (heuristic: job tags with high confidence)
+	// ─── Cap 2: Missing core must-have skills ─────────────────────────
 	missedCore := 0
 	jSet := normalizeTermSet(jobTags)
 	rSet := normalizeTermSet(resumeTags)
@@ -327,36 +328,69 @@ func checkHardGate(direction DirectionFitResult, resumeTags, jobTags []*model.Se
 		}
 	}
 	if missedCore >= 3 {
-		gate.Status = "warning"
+		if gate.Status == "passed" { gate.Status = "warning" }
 		if gate.ScoreCap > 75 {
 			gate.ScoreCap = 75
 		}
 		gate.Warnings = append(gate.Warnings, fmt.Sprintf("缺少%d个核心要求标签，分数上限75", missedCore))
 	}
 
-	// Check evidence
-	hasEvidence := false
-	hasProject := false
+	// ─── Cap 3/4/5: Evidence strength ─────────────────────────────────
+	hasProjectEvidence := false
+	hasInternshipEvidence := false
+	hasAnyEvidence := false
+	hasStrongExpression := false
 	for _, t := range resumeTags {
 		if t.EvidenceText != "" {
-			hasEvidence = true
-			if strings.Contains(strings.ToLower(t.EvidenceText), "项目") || strings.Contains(strings.ToLower(t.EvidenceText), "实习") || strings.Contains(strings.ToLower(t.Category), "experience") {
-				hasProject = true
+			hasAnyEvidence = true
+			evLow := strings.ToLower(t.EvidenceText)
+			// "实习" and "项目" are both project-level evidence
+			if strings.Contains(evLow, "项目") || strings.Contains(evLow, "实习") ||
+				strings.Contains(strings.ToLower(t.Category), "experience") {
+				hasProjectEvidence = true
+			}
+			if strings.Contains(evLow, "实习") || strings.Contains(evLow, "公司") || strings.Contains(evLow, "上线") {
+				hasInternshipEvidence = true
+			}
+			if t.Confidence >= 0.85 && len(t.EvidenceText) > 15 {
+				hasStrongExpression = true
 			}
 		}
 	}
-	if !hasEvidence {
-		gate.Status = "warning"
+	if !hasAnyEvidence {
+		if gate.Status == "passed" { gate.Status = "warning" }
 		if gate.ScoreCap > 72 {
 			gate.ScoreCap = 72
 		}
 		gate.Warnings = append(gate.Warnings, "仅技能列表命中，无项目/实习证据，分数上限72")
 	}
-	if !hasProject && hasEvidence {
+	if !hasProjectEvidence && hasAnyEvidence {
 		if gate.ScoreCap > 70 {
 			gate.ScoreCap = 70
 		}
-		gate.Warnings = append(gate.Warnings, "无项目/实习相关证据，分数上限70")
+		gate.Warnings = append(gate.Warnings, "无相关项目证据，分数上限70")
+	}
+
+	// ─── Cap 5: No internship but job may depend on it ─────────────────
+	// Heuristic: if job description contains intern/experience keywords
+	jobTitleLow := ""  // inferred from context; use direction
+	_ = jobTitleLow
+	if !hasInternshipEvidence && hasProjectEvidence {
+		// Not blocking, just logging. Full internship check needs JD text.
+	}
+
+	// ─── Cap 6: Evidence exists but weak expression ────────────────────
+	if hasAnyEvidence && !hasStrongExpression {
+		if gate.ScoreCap > 85 {
+			gate.ScoreCap = 85
+		}
+		gate.Warnings = append(gate.Warnings, "证据表达偏弱，建议补充STAR法则和量化结果，分数上限85")
+	}
+
+	// ─── Cap 8: Strong match allow 90+ ─────────────────────────────────
+	if direction.Level == "strong" && hasInternshipEvidence && gate.ScoreCap >= 90 {
+		gate.ScoreCap = 95
+		gate.Warnings = append(gate.Warnings, "方向强一致且有实习证据，允许90+高分")
 	}
 
 	return gate
@@ -377,11 +411,25 @@ func buildRequirementCoverage(ctx *MatchSEPContext) []RequirementCoverageItem {
 	result := []RequirementCoverageItem{}
 	resumeSet := normalizeTermSet(ctx.ResumeTags)
 
-	// Classify job tags into requirement types
+	// Pre-build evidence level map for status determination
+	evLevels := map[string]int{}
+	for _, t := range ctx.ResumeTags {
+		norm := normalizeTerm(t.TagLabel)
+		lvl := 2
+		if t.EvidenceText != "" {
+			lvl = 3
+			evLow := strings.ToLower(t.EvidenceText)
+			if strings.Contains(evLow, "实习") || strings.Contains(evLow, "公司") { lvl = 4 }
+			if strings.Contains(evLow, "生产") || strings.Contains(evLow, "上线") { lvl = 5 }
+		}
+		if evLevels[norm] < lvl { evLevels[norm] = lvl }
+	}
+
 	for _, jt := range ctx.JobTags {
 		reqType := classifyRequirementType(jt.Category, jt.TagLabel)
 		normKey := normalizeTerm(jt.TagLabel)
-		_, matched := resumeSet[normKey]
+		resumeLabel, matched := resumeSet[normKey]
+		evLvl := evLevels[normKey]
 
 		status := "missing"
 		score := 0
@@ -390,16 +438,60 @@ func buildRequirementCoverage(ctx *MatchSEPContext) []RequirementCoverageItem {
 		evidence := []string{}
 
 		if matched {
-			status = "partial"
-			score = 60
-			gap = ""
-			if jt.EvidenceText != "" {
+			if evLvl >= 4 {
+				// Level 4+ evidence → strong
 				status = "strong"
 				score = 85
-				evidence = append(evidence, resumeSet[normKey])
+				if evLvl >= 5 {
+					score = 95
+				}
+				evidence = append(evidence, resumeLabel)
+				gap = ""
+				suggestion = ""
+			} else if evLvl >= 3 {
+				// Level 3: evidence exists (text non-empty) → partial
+				status = "partial"
+				score = 65
+				evidence = append(evidence, resumeLabel)
+				gap = fmt.Sprintf("%s证据不够充分", jt.TagLabel)
+				suggestion = fmt.Sprintf("强化%s相关经历的细节表达", jt.TagLabel)
+			} else if evLvl >= 2 {
+				// Only skill list → weak
+				status = "weak"
+				score = 40
+				gap = fmt.Sprintf("%s仅出现在技能列表中，缺乏项目证据", jt.TagLabel)
+				suggestion = fmt.Sprintf("为%s补充项目经历或实习经验", jt.TagLabel)
+			} else {
+				status = "weak"
+				score = 30
+				evidence = append(evidence, resumeLabel)
+				suggestion = fmt.Sprintf("进一步加强%s的能力表达", jt.TagLabel)
 			}
-			if jt.Confidence >= 0.9 && jt.EvidenceText != "" {
-				score = 95
+		} else {
+			// Not directly matched — check for adjacent/transferable skills
+			transferableFound := false
+			normJobTag := normalizeTerm(jt.TagLabel)
+			for normResumeTag := range resumeSet {
+				if hasCommonPrefix(normJobTag, normResumeTag, 3) || hasCommonPrefix(normResumeTag, normJobTag, 3) {
+					status = "transferable"
+					score = 35
+					transferableFound = true
+					gap = fmt.Sprintf("无%s直接证据，但有相邻%s能力", jt.TagLabel, resumeSet[normResumeTag])
+					suggestion = fmt.Sprintf("强调%s与%s的关联性，展示可迁移能力", resumeSet[normResumeTag], jt.TagLabel)
+					break
+				}
+			}
+			if !transferableFound {
+				// Check if truly unknown (resume data insufficient)
+				if jt.Confidence < 0.6 {
+					status = "unknown"
+					score = 20
+					gap = "简历信息不足以判断此要求"
+					suggestion = fmt.Sprintf("建议在简历中明确提及%s相关经验", jt.TagLabel)
+				} else {
+					status = "missing"
+					score = 0
+				}
 			}
 		}
 
@@ -415,9 +507,14 @@ func buildRequirementCoverage(ctx *MatchSEPContext) []RequirementCoverageItem {
 	}
 
 	if len(result) > 8 {
-		result = result[:8] // cap at 8 items
+		result = result[:8]
 	}
 	return result
+}
+
+func hasCommonPrefix(a, b string, minLen int) bool {
+	if len(a) < minLen || len(b) < minLen { return false }
+	return a[:minLen] == b[:minLen]
 }
 
 func classifyRequirementType(category, label string) string {
@@ -443,6 +540,33 @@ func classifyRequirementType(category, label string) string {
 
 // ─── Evidence Mapper ──────────────────────────────────────────────────────
 
+// humanizeRequirementCategory maps raw SEP tag categories to user-facing Chinese labels.
+func humanizeRequirementCategory(category string) string {
+	cat := strings.ToLower(strings.TrimSpace(category))
+	switch {
+	case strings.Contains(cat, "technical_skill") || strings.Contains(cat, "tech_skill") || strings.Contains(cat, "skill"):
+		return "技术能力要求"
+	case strings.Contains(cat, "role_direction") || strings.Contains(cat, "direction"):
+		return "岗位方向要求"
+	case strings.Contains(cat, "project_exp") || strings.Contains(cat, "project_experience"):
+		return "项目经验要求"
+	case strings.Contains(cat, "experience_signal") || strings.Contains(cat, "internship"):
+		return "实践经验要求"
+	case strings.Contains(cat, "education") || strings.Contains(cat, "degree"):
+		return "学历与专业要求"
+	case strings.Contains(cat, "tool") || strings.Contains(cat, "devops") || strings.Contains(cat, "engineering"):
+		return "工程工具能力"
+	case strings.Contains(cat, "domain") || strings.Contains(cat, "context"):
+		return "业务领域能力"
+	case strings.Contains(cat, "risk_signal"):
+		return "风险关注项"
+	case strings.Contains(cat, "preference"):
+		return "偏好匹配要求"
+	default:
+		return "岗位要求"
+	}
+}
+
 func mapResumeEvidence(ctx *MatchSEPContext) []ResumeEvidenceItem {
 	result := []ResumeEvidenceItem{}
 	for _, t := range ctx.ResumeTags {
@@ -463,10 +587,19 @@ func mapResumeEvidence(ctx *MatchSEPContext) []ResumeEvidenceItem {
 		if strings.Contains(strings.ToLower(t.Category), "project") {
 			sourceType = "project"
 		}
+		if strings.Contains(strings.ToLower(t.EvidenceText), "实习") || strings.Contains(strings.ToLower(t.EvidenceText), "公司") {
+			sourceType = "internship"
+		}
 
 		confidence := "medium"
 		if t.Confidence >= 0.9 { confidence = "high" }
 		if t.Confidence < 0.8 { confidence = "low" }
+
+		// H18-D: Humanize SupportsRequirement, never leak raw Category codes
+		supportsReq := humanizeRequirementCategory(t.Category)
+		if t.Explanation != "" {
+			supportsReq = t.Explanation
+		}
 
 		result = append(result, ResumeEvidenceItem{
 			EvidenceName:  t.TagLabel,
@@ -474,7 +607,7 @@ func mapResumeEvidence(ctx *MatchSEPContext) []ResumeEvidenceItem {
 			SourceType:    sourceType,
 			SourceTitle:   t.TagLabel,
 			EvidenceText:  t.EvidenceText,
-			SupportsRequirement: t.Category,
+			SupportsRequirement: supportsReq,
 			Confidence:    confidence,
 		})
 	}
@@ -559,23 +692,25 @@ func calibrateFastMatchScore(
 	evidence []ResumeEvidenceItem,
 	risks []MatchRiskPoint,
 ) (int, string, ScoreBreakdownResult) {
-	// Direction fit score (25%)
-	dirScore := int(float64(direction.Score) * 0.25)
+	// ─── Direction fit (25%) ──────────────────────────────────────────
+	dirScore := clamp(direction.Score, 0, 100)
 
-	// Must-have coverage (30%)
+	// ─── Must-have coverage (30%) ──────────────────────────────────────
+	mustCount := 0
 	mustTotal := 0
-	mustScore := 0
 	for _, c := range coverage {
-		mustTotal++
-		mustScore += c.CoverageScore
+		if c.RequirementType == "must_have" || c.RequirementType == "should_have" {
+			mustCount++
+			mustTotal += c.CoverageScore
+		}
 	}
 	avgCoverage := 0
-	if mustTotal > 0 {
-		avgCoverage = mustScore / mustTotal
+	if mustCount > 0 {
+		avgCoverage = mustTotal / mustCount
 	}
-	covScore := int(float64(avgCoverage) * 0.30)
+	covScore := clamp(avgCoverage, 0, 100)
 
-	// Evidence strength (25%)
+	// ─── Evidence strength (25%) ───────────────────────────────────────
 	avgEvLevel := 0.0
 	evCount := 0
 	for _, e := range evidence {
@@ -587,44 +722,71 @@ func calibrateFastMatchScore(
 	if evCount > 0 {
 		avgEvLevel = avgEvLevel / float64(evCount)
 	}
-	evScore := int((avgEvLevel / 5.0) * 100.0 * 0.25)
+	// Map 0-5 evidence level to 0-100
+	evScore := clamp(int(avgEvLevel*20), 0, 100)
 
-	// Experience relevance (10%)
+	// ─── Experience relevance (10%) ────────────────────────────────────
 	expScore := 50
-	hasExperience := false
-	for _, t := range ctxJustTags(direction) {
-		if strings.Contains(strings.ToLower(t.Category), "experience") {
-			hasExperience = true
-			break
+	hasProject := false
+	hasInternship := false
+	for _, e := range evidence {
+		if e.EvidenceLevel >= 4 {
+			if e.SourceType == "internship" || strings.Contains(strings.ToLower(e.EvidenceText), "实习") {
+				hasInternship = true
+			}
+			hasProject = true
 		}
 	}
-	if hasExperience {
-		expScore = 85
+	if hasInternship {
+		expScore = 90
+	} else if hasProject {
+		expScore = 75
+	} else if evCount > 0 {
+		expScore = 60
 	}
-	expContrib := int(float64(expScore) * 0.10)
+	expScore = clamp(expScore, 0, 100)
 
-	// Risk control (10%)
-	riskScore := 80
-	highRisks := 0
+	// ─── Risk control (10%) ────────────────────────────────────────────
+	highCount := 0
+	medCount := 0
+	lowCount := 0
 	for _, r := range risks {
-		if r.RiskLevel == "high" {
-			highRisks++
+		switch r.RiskLevel {
+		case "high":
+			highCount++
+		case "medium":
+			medCount++
+		case "low":
+			lowCount++
 		}
 	}
-	if highRisks >= 2 {
-		riskScore = 30
-	} else if highRisks == 1 {
+	riskScore := 90
+	if highCount >= 2 {
+		riskScore = 40
+	} else if highCount == 1 {
 		riskScore = 55
+	} else if medCount >= 2 {
+		riskScore = 65
+	} else if medCount == 1 {
+		riskScore = 75
+	} else if lowCount > 0 {
+		riskScore = 82
 	}
-	riskContrib := int(float64(riskScore) * 0.10)
+	riskScore = clamp(riskScore, 0, 100)
 
-	rawScore := dirScore + covScore + evScore + expContrib + riskContrib
+	// ─── Weighted composite ─────────────────────────────────────────────
+	rawScore := int(float64(dirScore)*0.25 +
+		float64(covScore)*0.30 +
+		float64(evScore)*0.25 +
+		float64(expScore)*0.10 +
+		float64(riskScore)*0.10)
+
 	breakdown := ScoreBreakdownResult{
-		DirectionFit:       int(float64(direction.Score) * 0.25 * 4),
-		MustHaveCoverage:   int(float64(avgCoverage) * 0.30 * 100.0 / 30.0),
-		EvidenceStrength:   int((avgEvLevel / 5.0) * 100.0),
+		DirectionFit:        dirScore,
+		MustHaveCoverage:    covScore,
+		EvidenceStrength:    evScore,
 		ExperienceRelevance: expScore,
-		RiskControl:        riskScore,
+		RiskControl:         riskScore,
 	}
 
 	// Apply hard gate cap
@@ -632,31 +794,34 @@ func calibrateFastMatchScore(
 	if finalScore > gate.ScoreCap {
 		finalScore = gate.ScoreCap
 	}
-	if finalScore < 0 { finalScore = 0 }
-	if finalScore > 100 { finalScore = 100 }
+	finalScore = clamp(finalScore, 0, 100)
 
 	level := matchLevel(finalScore)
 
 	return finalScore, level, breakdown
 }
 
-func ctxJustTags(dir DirectionFitResult) []*model.SemanticProfileTag {
-	// stub — used by calibrator
-	return nil
+func clamp(v, lo, hi int) int {
+	if v < lo { return lo }
+	if v > hi { return hi }
+	return v
 }
 
+// ─── Score Level ─────────────────────────────────────────────────────────
+
+// matchLevel maps a 0-100 score to the unified 5-level semantic per H18-B contract.
 func matchLevel(score int) string {
 	switch {
-	case score >= 80:
+	case score >= 90:
 		return "高度匹配"
-	case score >= 65:
+	case score >= 80:
 		return "较高匹配"
-	case score >= 50:
+	case score >= 70:
 		return "中等匹配"
-	case score >= 35:
+	case score >= 60:
 		return "弱匹配"
 	default:
-		return "不推荐"
+		return "不建议投递"
 	}
 }
 
@@ -706,6 +871,9 @@ func buildConclusion(score int, level string, direction DirectionFitResult, gate
 	if gate.Status == "warning" || gate.Status == "blocked" {
 		detail = "，但简历证据不足导致分数受限"
 	}
+	if score >= 90 {
+		return fmt.Sprintf("%s%s，匹配度%d分（%s），建议优先投递", base, detail, score, level)
+	}
 	if score >= 80 {
 		return fmt.Sprintf("%s%s，匹配度%d分（%s），建议投递", base, detail, score, level)
 	}
@@ -731,49 +899,66 @@ func assembleFastMatchResult(
 ) *model.MatchAnalysisResult {
 	conclusion := buildConclusion(score, level, direction, gate, risks)
 
-	// Build core advantages from matched coverage
+	// ─── Core advantages: strong/partial coverage items, evidence-backed ──
 	coreAd := []string{}
 	for _, c := range coverage {
-		if c.CoverageStatus == "strong" || c.CoverageStatus == "partial" {
-			prefix := ""
-			if c.CoverageStatus == "strong" { prefix = "✅ " } else { prefix = "🔹 " }
-			coreAd = append(coreAd, prefix + c.RequirementName)
+		if c.CoverageStatus == "strong" {
+			coreAd = append(coreAd, fmt.Sprintf("✅ %s：有明确项目经验支撑", c.RequirementName))
+		} else if c.CoverageStatus == "partial" {
+			coreAd = append(coreAd, fmt.Sprintf("🔹 %s：有相关经历", c.RequirementName))
 		}
 	}
+	if len(coreAd) == 0 {
+		coreAd = append(coreAd, "简历方向与岗位基本匹配")
+	}
+	if len(coreAd) > 4 {
+		coreAd = coreAd[:4]
+	}
 
-	// Build main gaps
+	// ─── Main gaps: missing/weak/transferable, specific and actionable ────
 	mainGaps := []string{}
 	for _, c := range coverage {
-		if c.CoverageStatus == "missing" || c.CoverageStatus == "weak" {
-			mainGaps = append(mainGaps, c.RequirementName)
+		if c.CoverageStatus == "missing" {
+			mainGaps = append(mainGaps, fmt.Sprintf("缺少%s：%s", c.RequirementName, c.Suggestion))
+		} else if c.CoverageStatus == "weak" || c.CoverageStatus == "transferable" {
+			mainGaps = append(mainGaps, fmt.Sprintf("%s不足：%s", c.RequirementName, c.Gap))
 		}
 	}
+	if len(mainGaps) == 0 {
+		mainGaps = append(mainGaps, "当前未发现明显技能短板")
+	}
+	if len(mainGaps) > 5 {
+		mainGaps = mainGaps[:5]
+	}
 
-	// Build action suggestions
-	actions := []string{}
+	// ─── Action suggestions: from risk fix_suggestion + coverage suggestion ─
+	actionSugs := []string{}
 	for _, r := range risks {
 		if r.FixSuggestion != "" {
-			actions = append(actions, r.FixSuggestion)
+			actionSugs = append(actionSugs, r.FixSuggestion)
 		}
 	}
-	if len(actions) == 0 {
-		actions = append(actions, "针对缺失标签补充对应经历或技能描述")
+	if len(actionSugs) == 0 {
+		actionSugs = append(actionSugs, "针对缺失标签补充对应经历或技能描述")
+	}
+	if len(actionSugs) > 5 {
+		actionSugs = actionSugs[:5]
 	}
 
-	// Compat fill
+	// ─── Legacy compat fills ────────────────────────────────────────────────
 	screeningResult := "pass"
 	if gate.Status == "blocked" { screeningResult = "warning" }
 	if gate.Status == "warning" { screeningResult = "weak_pass" }
 
-	// Convert risks to legacy risk_points strings for backward compat
+	// Legacy risk_points as string[] (backward compat)
 	riskStrs := []string{}
 	for _, r := range risks {
 		riskStrs = append(riskStrs, r.RiskName)
 	}
 
-	// Build legacy optimization suggestions
+	// Legacy optimization suggestions
 	opts := []model.MatchSuggestion{}
-	for i, a := range actions {
+	for i, a := range actionSugs {
 		p := "P1"
 		if i == 0 { p = "P0" }
 		opts = append(opts, model.MatchSuggestion{
@@ -784,6 +969,7 @@ func assembleFastMatchResult(
 		})
 	}
 
+	// Legacy match highlights
 	matchHighlights := []string{}
 	for _, c := range coverage {
 		if c.CoverageStatus != "missing" {
@@ -801,17 +987,26 @@ func assembleFastMatchResult(
 		GapPoints:               mainGaps,
 		RiskPoints:              riskStrs,
 		OptimizationSuggestions: opts,
-		NextSteps:               actions,
+		NextSteps:               actionSugs,
 		GeneratedBy:             "fast_sep_match_engine",
 		AgentStatus:             "success",
 		FallbackReason:          "none",
 		RepairApplied:           false,
 		DataQuality:             "sep",
 		Summary:                 conclusion,
-		// H18-D new fields stored in Summary for now (will be structured in future)
-		FitPoints:        append([]string{}, coreAd...),
-		ResumeEvidence:   collectEvidenceNames(evidence),
-		JobRequirements:  requirementNames(coverage),
+		FitPoints:               append([]string{}, coreAd...),
+		ResumeEvidence:          collectEvidenceNames(evidence),
+		JobRequirements:         requirementNames(coverage),
+
+		// H18-D: New structured fields
+		StructuredRisks:   risks,
+		ScoreBreakdownObj: breakdown,
+		HardGateObj:       gate,
+		CoreAdvantages:    coreAd,
+		MainGaps:          mainGaps,
+		ActionSuggestions: actionSugs,
+		DecisionLabel:     decisionLabel,
+		ApplicationDecision: decision,
 	}
 }
 

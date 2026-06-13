@@ -30,9 +30,36 @@ type MatchResponse struct {
 	Meta          model.AgentResponseMeta    `json:"meta"`
 }
 
+// ─── H18-C: Fast Match SEP Context Types ──────────────────────────────────
+
+// FastMatchSEPContextStatus describes the SEP readiness for Fast Match.
+type FastMatchSEPContextStatus string
+
+const (
+	FastMatchSEPContextReady    FastMatchSEPContextStatus = "ready"
+	FastMatchSEPContextMissing  FastMatchSEPContextStatus = "missing"
+	FastMatchSEPContextBuilding FastMatchSEPContextStatus = "building"
+	FastMatchSEPContextInvalid  FastMatchSEPContextStatus = "invalid"
+)
+
+// FastMatchSEPReadiness holds the SEP context readiness check result.
+type FastMatchSEPReadiness struct {
+	ResumeID int64
+	JobID    int64
+
+	ResumeProfileReady bool
+	JobProfileReady    bool
+
+	ResumeProfileStatus string
+	JobProfileStatus    string
+
+	Status FastMatchSEPContextStatus
+	Reason string
+}
+
 // MatchService handles job match analysis business logic.
 // K13-Fix-B: Fast tier uses TagEvidenceService (no LLM); Deep tier uses LLM pipeline.
-// H18-C: Fast tier prefers SEP profile context.
+// H18-C: Fast tier SEP context gate — tag fallback removed from Fast primary path.
 type MatchService struct {
 	resumeRepo    *repository.ResumeRepository
 	jobRepo       *repository.JobRepository
@@ -85,10 +112,82 @@ func (s *MatchService) selectRunner(tier model.GenerationTier) agent.PipelineRun
 	return s.fastRunner
 }
 
+// ─── H18-C: Fast Match SEP Context Gate ──────────────────────────────────
+
+// checkFastSEPContext checks whether both resume and job SEP profiles are ready for Fast Match.
+// Returns readiness status and the reason if not ready.
+func (s *MatchService) checkFastSEPContext(ctx context.Context, resumeID, jobID int64) *FastMatchSEPReadiness {
+	result := &FastMatchSEPReadiness{
+		ResumeID: resumeID,
+		JobID:    jobID,
+		Status:   FastMatchSEPContextReady,
+	}
+
+	if s.semanticRepo == nil {
+		result.Status = FastMatchSEPContextMissing
+		result.Reason = "semantic profile repository not available"
+		return result
+	}
+
+	// Check resume SEP profile
+	rp, rerr := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetResume, resumeID)
+	if rerr != nil || rp == nil {
+		result.ResumeProfileStatus = "missing"
+		result.Status = FastMatchSEPContextMissing
+		result.Reason = fmt.Sprintf("resume SEP profile not found: resume=%d", resumeID)
+		return result
+	}
+	result.ResumeProfileStatus = rp.Status
+
+	switch rp.Status {
+	case model.SemanticProfileStatusVerified:
+		result.ResumeProfileReady = true
+	case model.SemanticProfileStatusPending, model.SemanticProfileStatusProcessing:
+		result.Status = FastMatchSEPContextBuilding
+		result.Reason = fmt.Sprintf("resume SEP profile still %s: resume=%d", rp.Status, resumeID)
+		return result
+	case model.SemanticProfileStatusFailed, model.SemanticProfileStatusStale:
+		result.Status = FastMatchSEPContextInvalid
+		result.Reason = fmt.Sprintf("resume SEP profile status=%s: resume=%d", rp.Status, resumeID)
+		return result
+	default:
+		result.Status = FastMatchSEPContextMissing
+		result.Reason = fmt.Sprintf("resume SEP profile status=%s: resume=%d", rp.Status, resumeID)
+		return result
+	}
+
+	// Check job SEP profile
+	jp, jerr := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetJob, jobID)
+	if jerr != nil || jp == nil {
+		result.JobProfileStatus = "missing"
+		result.Status = FastMatchSEPContextMissing
+		result.Reason = fmt.Sprintf("job SEP profile not found: job=%d", jobID)
+		return result
+	}
+	result.JobProfileStatus = jp.Status
+
+	switch jp.Status {
+	case model.SemanticProfileStatusVerified:
+		result.JobProfileReady = true
+	case model.SemanticProfileStatusPending, model.SemanticProfileStatusProcessing:
+		result.Status = FastMatchSEPContextBuilding
+		result.Reason = fmt.Sprintf("job SEP profile still %s: job=%d", jp.Status, jobID)
+		return result
+	case model.SemanticProfileStatusFailed, model.SemanticProfileStatusStale:
+		result.Status = FastMatchSEPContextInvalid
+		result.Reason = fmt.Sprintf("job SEP profile status=%s: job=%d", jp.Status, jobID)
+		return result
+	default:
+		result.Status = FastMatchSEPContextMissing
+		result.Reason = fmt.Sprintf("job SEP profile status=%s: job=%d", jp.Status, jobID)
+		return result
+	}
+
+	return result
+}
+
 // Analyze generates a match analysis for the given user and job.
-// When LLM is enabled and Pipeline Runner is available, it uses the LLM Pipeline
-// first. If the Pipeline returns fallback_required or mapping fails, it falls
-// back to the Mock Agent. When LLM is disabled, it uses the Mock Agent directly.
+// H18-C: Fast tier primary path uses SEP only — tag fallback removed.
 func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64, req MatchRequest) (*MatchResponse, error) {
 	log.Printf("[MatchService] generation_tier=%s", string(req.GenerationTier))
 
@@ -112,49 +211,50 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 		return nil, apperror.ErrJobNotFound
 	}
 
-	// H18-C: Fast tier — try SEP profile first, fallback to tag engine
+	// H18-C: Fast tier — SEP is the only data source, no tag fallback
 	isFast := genTier == "fast" || req.GenerationTier != model.GenerationTierQuality
-	if isFast && s.tagEvidence != nil {
-		// Try SEP-based match first
-		if s.semanticRepo != nil {
+	if isFast {
+		sepCtx := s.checkFastSEPContext(ctx, int64(resume.ID), int64(job.ID))
+		if sepCtx.Status == FastMatchSEPContextReady {
 			sepResp, sepErr := s.fastMatchWithSEP(ctx, userID, resume, job)
 			if sepErr == nil {
 				return sepResp, nil
 			}
-			log.Printf("[MatchService] SEP fast match unavailable: %v, falling back to tag engine", sepErr)
+			log.Printf("[MatchService] SEP fast match eng error despite ready context: %v, returning profile_missing", sepErr)
 		}
-		// Fallback to tag engine
-		log.Printf("[MatchService] use_fast_tag_fallback tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
-		resp, err := s.fastMatchWithTags(ctx, userID, resume, job)
-		if err == nil {
-			// H18-C: sanitize fallback output
-			sanitizeFallbackResult(resp)
-			return resp, nil
-		}
-		log.Printf("[MatchService] fast tag match failed: %v, falling back to mock", err)
+		// SEP not ready → return profile_pending, no tag fallback
+		log.Printf("[MatchService] fast_sep_profile_pending status=%s reason=%s resume=%d job=%d",
+			sepCtx.Status, sepCtx.Reason, resume.ID, job.ID)
+		return s.buildFastSEPPendingResponse(resume.ID, job.ID, sepCtx), nil
 	}
 
-	// H19-B: Deep/Quality tier — new SEP-based Deep Match Agent
+	// H19-B: Deep/Quality tier — V3 SEP + Fast Result pipeline
 	runner := s.selectRunner(req.GenerationTier)
 	isQuality := genTier == "quality" || req.GenerationTier == model.GenerationTierQuality
 	if isQuality && s.llmEnabled && runner != nil {
-		// Try H19-B Deep Match SEP Agent
-		log.Printf("[MatchService] use_deep_sep_agent tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
-		resp, errDeep := s.runDeepMatchSEP(ctx, userID, resume, job, runner)
-		if errDeep == nil {
-			return resp, nil
+		// Try H19-B Deep Match V3 (SEP + Fast Result, no TagEvidenceService)
+		log.Printf("[MatchService] use_deep_v3 tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
+		v3resp, v3err := s.runDeepMatchV3Entry(ctx, userID, resume, job)
+		if v3err == nil {
+			return v3resp, nil
 		}
-		log.Printf("[MatchService] deep SEP agent failed: %v, trying 3-agent fallback", errDeep)
-		// Fallback to old 3-agent
+		log.Printf("[MatchService] deep v3 failed: %v, trying legacy 3-agent fallback", v3err)
+		// Legacy: 3-agent fallback (uses TagEvidenceService — marked as legacy)
 		if s.tagEvidence != nil {
 			resp, err3a := s.matchWith3Agents(ctx, userID, resume, job, runner)
-			if err3a == nil { return resp, nil }
+			if err3a == nil {
+				markLegacyFallback(resp)
+				return resp, nil
+			}
 			log.Printf("[MatchService] 3-agent match failed: %v", err3a)
 		}
-		// Fallback to single-agent LLM
+		// Legacy: single-agent LLM fallback
 		log.Printf("[MatchService] use_deep_llm tier=%s", genTier)
 		resp, fallbackErr := s.analyzeWithLLM(ctx, resume, job, runner)
-		if fallbackErr == nil { return resp, nil }
+		if fallbackErr == nil {
+			markLegacyFallback(resp)
+			return resp, nil
+		}
 		log.Printf("[MatchService] LLM pipeline fallback: %v", fallbackErr)
 		if !s.fallbackEnable {
 			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
@@ -440,7 +540,68 @@ func (s *MatchService) fastMatchWithSEP(ctx context.Context, userID uint64, resu
 	}, nil
 }
 
-// ─── K13-Fix-B: Fast Match via TagEvidenceService ─────────────────────────
+// ─── H18-C: Fast SEP Profile Pending Response ─────────────────────────────
+
+// buildFastSEPPendingResponse constructs a profile_pending response when SEP profiles are not ready.
+// No tag-based score fallback — returns score 0 with "待分析" level.
+func (s *MatchService) buildFastSEPPendingResponse(resumeID, jobID uint64, sepCtx *FastMatchSEPReadiness) *MatchResponse {
+	result := &model.MatchAnalysisResult{
+		MatchScore:              0,
+		MatchLevel:              "待分析",
+		MatchLabel:              "待分析",
+		ScreeningResult:         "profile_pending",
+		EvidenceChain:           []model.MatchEvidence{},
+		MatchHighlights:         []string{},
+		GapPoints:               []string{},
+		RiskPoints:              []string{},
+		OptimizationSuggestions: []model.MatchSuggestion{},
+		NextSteps:               []string{"等待语义画像生成完成后重新分析"},
+		FitPoints:               []string{},
+		ResumeEvidence:          []string{},
+		JobRequirements:         []string{},
+		GeneratedBy:             "fast_sep_profile_pending",
+		AgentStatus:             "profile_missing",
+		FallbackReason:          "resume_or_job_sep_profile_not_ready",
+		RepairApplied:           false,
+		DataQuality:             "sep",
+		Summary:                 "语义画像尚未准备完成，暂不能给出可靠的岗位匹配分。请稍后重新生成。",
+	}
+
+	agentStatus := "profile_missing"
+	switch sepCtx.Status {
+	case FastMatchSEPContextBuilding:
+		agentStatus = "profile_building"
+	case FastMatchSEPContextInvalid:
+		agentStatus = "profile_invalid"
+	}
+	result.AgentStatus = agentStatus
+
+	meta := model.AgentResponseMeta{
+		AgentName:      "FastSEPMatchEngine",
+		GeneratedBy:    "fast_sep_profile_pending",
+		AgentStatus:    agentStatus,
+		FallbackReason: "resume_or_job_sep_profile_not_ready",
+		RepairApplied:  false,
+		SchemaValid:    true,
+	}
+
+	return &MatchResponse{
+		AnalysisID:  0,
+		GeneratedBy: "fast_sep_profile_pending",
+		Result:      result,
+		AnalysisBasis: &model.AnalysisBasis{
+			JobDescriptionUsed:  false,
+			JobRequirementsUsed: false,
+			DataQuality:         "pending",
+		},
+		CreatedAt: time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		Meta:      meta,
+	}
+}
+
+// ─── Legacy: Fast Match via TagEvidenceService ────────────────────────────
+// H18-C: Fast primary path no longer calls this. Kept for Deep 3-agent fallback (matchWith3Agents).
+// Will be removed in H19 when Deep migrates away from TagEvidenceService.
 
 // fastMatchWithTags generates Fast-tier match analysis using TagEvidenceService.
 // No LLM call — compares resume tags + job tags + evidence.
@@ -507,7 +668,175 @@ func (s *MatchService) fastMatchWithTags(ctx context.Context, userID uint64, res
 	}, nil
 }
 
-// H18-C: sanitizeFallbackResult ensures fallback output has no null arrays or raw tag codes.
+// ─── H19-B: Deep Match V3 Entry ───────────────────────────────────────────
+
+// runDeepMatchV3Entry builds context, runs v3 pipeline, converts to MatchResponse.
+func (s *MatchService) runDeepMatchV3Entry(
+	ctx context.Context, userID uint64, resume *model.ResumeVersion, job *model.Job,
+) (*MatchResponse, error) {
+	v3ctx, err := s.buildDeepMatchContextV3(ctx, userID, resume, job)
+	if err != nil && v3ctx == nil {
+		return nil, err
+	}
+	// If SEP missing, return profile_pending
+	if v3ctx.Status != "ready" {
+		result := &model.MatchAnalysisResult{
+			MatchScore:      0,
+			MatchLevel:      "待分析",
+			ScreeningResult: "profile_pending",
+			GeneratedBy:     "deep_match_profile_pending",
+			AgentStatus:     "profile_missing",
+			FallbackReason:  "resume_or_job_sep_profile_not_ready",
+			Summary:         "语义画像尚未准备完成，暂不能给出深度匹配分析。请稍后重新生成。",
+			MatchHighlights: []string{},
+			GapPoints:       []string{},
+			RiskPoints:      []string{},
+			NextSteps:       []string{"等待语义画像生成完成后重新分析"},
+			FitPoints:       []string{},
+			EvidenceChain:   []model.MatchEvidence{},
+		}
+		return &MatchResponse{
+			GeneratedBy: "deep_match_profile_pending",
+			Result:      result,
+			CreatedAt:   time.Now().Format("2006-01-02T15:04:05Z07:00"),
+			Meta: model.AgentResponseMeta{
+				AgentName: "DeepMatchAgent", GeneratedBy: "deep_match_profile_pending",
+				AgentStatus: "profile_missing", FallbackReason: "resume_or_job_sep_profile_not_ready",
+			},
+		}, nil
+	}
+
+	report := runDeepMatchV3(v3ctx)
+	return deepV3ReportToResponse(report, userID, resume, job), nil
+}
+
+// deepV3ReportToResponse converts DeepMatchV3Report to MatchResponse + fills legacy model fields.
+func deepV3ReportToResponse(report *DeepMatchV3Report, userID uint64, resume *model.ResumeVersion, job *model.Job) *MatchResponse {
+	result := &model.MatchAnalysisResult{
+		MatchScore:              report.MatchScore,
+		MatchLevel:              report.MatchLevel,
+		MatchLabel:              report.MatchLevel,
+		ScreeningResult:         "pass",
+		GeneratedBy:             report.GeneratedBy,
+		AgentStatus:             report.AgentStatus,
+		FallbackReason:          "none",
+		RepairApplied:           false,
+		Summary:                 report.OneSentenceConclusion,
+		ReportVersion:           report.ReportVersion,
+		ApplicationDecision:     report.ApplicationDecision,
+		DecisionLabel:           report.DecisionLabel,
+		OneSentenceConclusion:   report.OneSentenceConclusion,
+		JobUnderstanding:        report.JobUnderstanding,
+		RequirementCoverage:     report.RequirementCoverage,
+		ResumeEvidenceMapping:   report.ResumeEvidenceMapping,
+		CoreMatchPoints:         report.CoreMatchPoints,
+		KeyRisks:                report.KeyRisks,
+		ResumeRewriteStrategy:   report.ResumeRewriteStrategy,
+		InterviewRiskQuestions:  report.InterviewRiskQuestions,
+		ActionPlan:              report.ActionPlan,
+		AgentTrace:              report.AgentTrace,
+		ScoreBreakdownObj:       report.ScoreBreakdown,
+		StructuredRisks:         convertV3RisksToMatchRiskPoints(report.KeyRisks),
+		EvidenceChain:           []model.MatchEvidence{},
+		MatchHighlights:         []string{},
+		GapPoints:               []string{},
+		RiskPoints:              []string{},
+		OptimizationSuggestions: []model.MatchSuggestion{},
+		NextSteps:               flattenActionPlan(report.ActionPlan),
+		FitPoints:               []string{},
+		ResumeEvidence:          []string{},
+		DataQuality:             "sep",
+	}
+
+	// Fill legacy arrays
+	for _, cp := range report.CoreMatchPoints {
+		result.MatchHighlights = append(result.MatchHighlights, cp.PointName)
+	}
+	for _, r := range report.KeyRisks {
+		result.RiskPoints = append(result.RiskPoints, r.RiskName)
+	}
+	for _, ev := range report.ResumeEvidenceMapping {
+		result.ResumeEvidence = append(result.ResumeEvidence, ev.EvidenceText)
+	}
+
+	meta := model.AgentResponseMeta{
+		AgentName:      "DeepMatchAgent",
+		GeneratedBy:    report.GeneratedBy,
+		AgentStatus:    report.AgentStatus,
+		FallbackReason: "none",
+		RepairApplied:  false,
+		SchemaValid:    true,
+	}
+
+	return &MatchResponse{
+		AnalysisID:  0,
+		GeneratedBy: report.GeneratedBy,
+		Result:      result,
+		CreatedAt:   time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		Meta:        meta,
+	}
+}
+
+func convertV3RisksToMatchRiskPoints(risks []DeepKeyRisk) []MatchRiskPoint {
+	out := make([]MatchRiskPoint, len(risks))
+	for i, r := range risks {
+		out[i] = MatchRiskPoint{
+			RiskName:      r.RiskName,
+			RiskLevel:     r.RiskLevel,
+			WhyItMatters:  r.WhyItMatters,
+			EvidenceGap:   r.EvidenceGap,
+			FixSuggestion: r.FixSuggestion,
+		}
+	}
+	return out
+}
+
+func flattenActionPlan(plan []map[string]any) []string {
+	out := []string{}
+	for _, p := range plan {
+		if s, ok := p["step"].(string); ok {
+			out = append(out, s)
+		}
+	}
+	if len(out) == 0 {
+		out = append(out, "基于深度分析结果优化简历后再投递")
+	}
+	return out
+}
+
+// ─── H19-B: Legacy Fallback Marking ────────────────────────────────────────
+
+// markLegacyFallback marks a response as legacy fallback (not deep_match_agent verified).
+func markLegacyFallback(resp *MatchResponse) {
+	resp.GeneratedBy = "deep_match_legacy_fallback"
+	resp.Meta.GeneratedBy = "deep_match_legacy_fallback"
+	resp.Meta.AgentStatus = "legacy_fallback"
+	if resp.Result != nil {
+		resp.Result.GeneratedBy = "deep_match_legacy_fallback"
+		resp.Result.AgentStatus = "legacy_fallback"
+		resp.Result.FallbackReason = "deep_match_v3_failed"
+		resp.Result.ReportVersion = "deep_match_legacy"
+	}
+}
+
+// ─── H19-B: Legacy Sanitize (avoid overwriting fallback markers) ──────────
+
+// sanitizeDeepResponseLegacy only sanitizes null arrays, does NOT overwrite generated_by.
+func sanitizeDeepResponseLegacy(resp *MatchResponse) *MatchResponse {
+	if resp == nil || resp.Result == nil { return resp }
+	r := resp.Result
+	if r.MatchHighlights == nil { r.MatchHighlights = []string{} }
+	if r.GapPoints == nil { r.GapPoints = []string{} }
+	if r.RiskPoints == nil { r.RiskPoints = []string{} }
+	if r.EvidenceChain == nil { r.EvidenceChain = []model.MatchEvidence{} }
+	if r.NextSteps == nil { r.NextSteps = []string{} }
+	if r.OptimizationSuggestions == nil { r.OptimizationSuggestions = []model.MatchSuggestion{} }
+	if r.FitPoints == nil { r.FitPoints = []string{} }
+	if r.ResumeEvidence == nil { r.ResumeEvidence = []string{} }
+	return resp
+}
+
+// ─── Legacy: sanitizeFallbackResult (H18-C: kept for remaining legacy callers, not called from Fast primary path) ──
 func sanitizeFallbackResult(resp *MatchResponse) {
 	if resp == nil || resp.Result == nil {
 		return

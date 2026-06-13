@@ -103,6 +103,15 @@ type MatchAnalysisResult struct {
 	ApplicationDecision    string `json:"application_decision,omitempty"`
 	OneSentenceConclusion  string `json:"one_sentence_conclusion,omitempty"`
 
+	// H18-D: Fast structured match fields
+	StructuredRisks   any      `json:"structured_risks,omitempty"`
+	ScoreBreakdownObj any      `json:"score_breakdown,omitempty"`
+	HardGateObj       any      `json:"hard_gate,omitempty"`
+	CoreAdvantages    []string `json:"core_advantages,omitempty"`
+	MainGaps          []string `json:"main_gaps,omitempty"`
+	ActionSuggestions []string `json:"action_suggestions,omitempty"`
+	DecisionLabel     string   `json:"decision_label,omitempty"`
+
 	ProfileType            string `json:"profile_type,omitempty"`
 	ProfileDominantProfile string `json:"profile_dominant_profile,omitempty"`
 

@@ -1,11 +1,11 @@
-// ─── H19-B: Deep Match Report Schema ─────────────────────────────────────
-// 8-layer Agent architecture output schema
+// ─── H19-B: Deep Match V3 Schema ──────────────────────────────────────────
+// 8-layer Agent architecture output schema with score_alignment + quality_checks
 
 package service
 
 import "offer-catcher/server/internal/model"
 
-// ─── DeepMatchReport ─────────────────────────────────────────────────────
+// ─── DeepMatchReport (legacy v2, kept for backward compat) ────────────────
 
 type DeepMatchReport struct {
 	GenerationTier string `json:"generation_tier"`
@@ -120,4 +120,90 @@ type DeepScoreDeltaExplanation struct {
 	DeepScore int    `json:"deep_score"`
 	Delta     int    `json:"delta"`
 	Reason    string `json:"reason"`
+}
+
+// ─── H19-B: Deep Match V3 Output Types ────────────────────────────────────
+
+// DeepMatchV3Report is the full deep_match_v3 output.
+type DeepMatchV3Report struct {
+	GenerationTier  string `json:"generation_tier"`
+	GeneratedBy     string `json:"generated_by"`
+	AgentStatus     string `json:"agent_status"`
+	ReportVersion   string `json:"report_version"`
+
+	MatchScore            int    `json:"match_score"`
+	MatchLevel            string `json:"match_level"`
+	ApplicationDecision   string `json:"application_decision"`
+	DecisionLabel         string `json:"decision_label"`
+	OneSentenceConclusion string `json:"one_sentence_conclusion"`
+
+	ScoreBreakdown     ScoreBreakdownResultV3    `json:"score_breakdown"`
+	ScoreAlignment     ScoreAlignmentResult      `json:"score_alignment"`
+	JobUnderstanding   DeepJobUnderstanding      `json:"job_understanding"`
+	RequirementCoverage []RequirementCoverageItem `json:"requirement_coverage"`
+	ResumeEvidenceMapping []ResumeEvidenceItem    `json:"resume_evidence_mapping"`
+	CoreMatchPoints    []DeepCoreMatchPoint      `json:"core_match_points"`
+	KeyRisks           []DeepKeyRisk             `json:"key_risks"`
+
+	ResumeRewriteStrategy DeepResumeRewriteStrategy `json:"resume_rewrite_strategy"`
+	ApplicationStrategy   DeepApplicationStrategy   `json:"application_strategy"`
+	InterviewRiskQuestions []DeepInterviewQuestion    `json:"interview_risk_questions"`
+	ActionPlan             []map[string]any          `json:"action_plan"`
+	AgentTrace             []DeepAgentTrace          `json:"agent_trace"`
+
+	QualityChecks QualityChecksResult `json:"quality_checks"`
+}
+
+// ScoreBreakdownResultV3 extends ScoreBreakdownResult with jd_competitiveness.
+type ScoreBreakdownResultV3 struct {
+	DirectionFit        int `json:"direction_fit"`
+	MustHaveCoverage    int `json:"must_have_coverage"`
+	EvidenceStrength    int `json:"evidence_strength"`
+	ExperienceRelevance int `json:"experience_relevance"`
+	RiskControl         int `json:"risk_control"`
+	JDCompetitiveness   int `json:"jd_competitiveness"`
+}
+
+// ScoreAlignmentResult compares Fast vs Deep scores.
+type ScoreAlignmentResult struct {
+	FastScore    int    `json:"fast_score"`
+	DeepScore    int    `json:"deep_score"`
+	ScoreDelta   int    `json:"score_delta"`
+	IsConsistent bool   `json:"is_consistent"`
+	DeltaReason  string `json:"delta_reason"`
+}
+
+// QualityChecksResult provides field-level completeness audit.
+type QualityChecksResult struct {
+	HasJDUnderstanding      bool `json:"has_jd_understanding"`
+	HasResumeEvidence       bool `json:"has_resume_evidence"`
+	HasRequirementCoverage  bool `json:"has_requirement_coverage"`
+	HasStructuredRisks      bool `json:"has_structured_risks"`
+	HasRewriteStrategy      bool `json:"has_rewrite_strategy"`
+	HasInterviewQuestions   bool `json:"has_interview_questions"`
+	HasScoreAlignment       bool `json:"has_score_alignment"`
+	NoNullArrays            bool `json:"no_null_arrays"`
+	NoRawTagCode            bool `json:"no_raw_tag_code"`
+}
+
+// DeepMatchContextV3 holds all inputs for the v3 pipeline.
+type DeepMatchContextV3 struct {
+	ResumeID int64
+	JobID    int64
+
+	ResumeRaw string
+	JobRaw    string
+
+	ResumeSEPTags []*model.SemanticProfileTag
+	JobSEPTags    []*model.SemanticProfileTag
+
+	FastResult          *model.MatchAnalysisResult
+	FastScoreBreakdown  ScoreBreakdownResult
+	FastHardGate        HardGateResult
+	FastRequirementCoverage []RequirementCoverageItem
+	FastResumeEvidence  []ResumeEvidenceItem
+	FastStructuredRisks []MatchRiskPoint
+
+	Status string
+	Reason string
 }

@@ -70,6 +70,8 @@ export interface MatchAnalysisPageViewModel {
   meta?: AgentMetaViewModel;
   generatedBy?: string;
   fallback?: boolean;
+  isProfilePending: boolean;
+  profilePendingReason: string;
 
   // H18-B: New unified Fast match fields
   scoreBreakdown?: MatchScoreBreakdown;
@@ -95,6 +97,15 @@ export interface MatchAnalysisPageViewModel {
   interviewRiskQuestions: any[];
   actionPlan: any[];
   agentTrace: any[];
+
+  // H19-B: deep_match_v3 fields
+  scoreAlignment?: { fastScore: number; deepScore: number; scoreDelta: number; isConsistent: boolean; deltaReason: string } | null;
+  qualityChecks?: Record<string, boolean> | null;
+  applicationStrategyObj?: Record<string, any> | null;
+  isDeepV3: boolean;
+  isDeepLegacyFallback: boolean;
+  isDeepProfilePending: boolean;
+  isDeepMockFallback: boolean;
 
   // Legacy compat
   fitPoints?: string[];
@@ -124,13 +135,20 @@ export function toMatchAnalysisPageViewModel(
   result: MatchAnalysisResult,
   meta?: AgentResponseMeta,
 ): MatchAnalysisPageViewModel {
-  // H18-B: extract structured fields from raw result
   const raw = result as any;
 
+  // H18-C: detect profile_pending state
+  const genBy = meta?.generated_by || raw?.generated_by || "";
+  const agentStatus = meta?.agent_status || raw?.agent_status || "";
+  const isPending = genBy === "fast_sep_profile_pending" ||
+    agentStatus === "profile_missing" ||
+    agentStatus === "profile_building" ||
+    agentStatus === "profile_invalid";
+
   return {
-    matchScore: result.match_score,
-    matchLevel: result.match_level || "",
-    summary: result.summary || "",
+    matchScore: isPending ? 0 : result.match_score,
+    matchLevel: isPending ? "待分析" : (result.match_level || ""),
+    summary: isPending ? "语义画像尚未准备完成，暂不能给出可靠的岗位匹配分。请稍后重新生成。" : (result.summary || ""),
     applyReadiness: typeof result.apply_readiness === 'string' ? result.apply_readiness : "",
     optimizationStopSignal: typeof result.optimization_stop_signal === 'string' ? result.optimization_stop_signal : "",
     topFixItems: toTopFixItemViewModels(result.top_fix_items),
@@ -139,8 +157,13 @@ export function toMatchAnalysisPageViewModel(
     riskItems: result.risk_items || result.risk_points || [],
     nextActions: result.next_actions || [],
     meta: meta ? toAgentMetaViewModel(meta) : undefined,
-    generatedBy: meta?.generated_by || raw?.generated_by || "",
+    generatedBy: genBy,
     fallback: (meta as any)?.fallback || raw?.fallback,
+    isProfilePending: isPending,
+    profilePendingReason: isPending
+      ? (agentStatus === "profile_building" ? "语义画像正在构建中" :
+         agentStatus === "profile_invalid" ? "语义画像状态异常" : "语义画像尚未准备")
+      : "",
 
     // H18-B: New structured fields with fallbacks
     scoreBreakdown: raw?.score_breakdown || undefined,
@@ -166,6 +189,15 @@ export function toMatchAnalysisPageViewModel(
     interviewRiskQuestions: safeArr(raw?.interview_risk_questions, []),
     actionPlan: safeArr(raw?.action_plan, []),
     agentTrace: safeArr(raw?.agent_trace, []),
+
+    // H19-B: deep_match_v3 state detection
+    scoreAlignment: raw?.score_alignment || null,
+    qualityChecks: raw?.quality_checks || null,
+    applicationStrategyObj: raw?.application_strategy || null,
+    isDeepV3: safeStr(raw?.report_version, "") === "deep_match_v3" || safeStr(raw?.report_version, "") === "deep_match_v2",
+    isDeepLegacyFallback: genBy === "deep_match_legacy_fallback" || agentStatus === "legacy_fallback",
+    isDeepProfilePending: genBy === "deep_match_profile_pending" || (agentStatus || "").startsWith("profile_"),
+    isDeepMockFallback: genBy === "mock_quality" || agentStatus === "mock_fallback",
 
     // Legacy compat
     fitPoints: result.fit_points || result.match_highlights || [],
