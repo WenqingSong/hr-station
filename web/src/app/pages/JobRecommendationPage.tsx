@@ -176,11 +176,10 @@ export function JobRecommendationPage() {
             setSelJobId(latest.result.recommendedJobs[0].jobId);
             return;
           }
-          // Incomplete quality (1-4 jobs) — save for reference, set persistent warning
-          setDeepResult(latest.result);
-          setPhase("deep_done");
+          // H21-F: Incomplete quality (1-4 jobs) — record only, do NOT pollute deepResult
           setDeepHistoryIncomplete(true);
           setDeepHistoryIncompleteCount(count);
+          // deepResult stays null; phase will be overwritten by Fast fallback below
         }
         // 2. Fallback: try latest fast
         loadLatestRecommendationViewModel(rid, "fast")
@@ -486,8 +485,8 @@ export function JobRecommendationPage() {
           </div>
         )}
 
-        {/* J2: Incomplete Deep history warning — survives Fast fallback */}
-        {deepHistoryIncomplete && (
+        {/* J2: Incomplete Deep history warning — H21-F: gated to Deep display only */}
+        {isDeepDisplay && deepHistoryIncomplete && (
           <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
@@ -683,8 +682,39 @@ export function JobRecommendationPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">智能分析</h3>
 
-            {/* ── State 1: Fast only (no Deep result, not loading) ── */}
-            {!isDeepDisplay && !deepResult && phase !== "deep_loading" && phase !== "deep_unavailable" && (
+            {/* ── H21-F: State 1a — Fast ready + Deep history incomplete ── */}
+            {!isDeepDisplay && !deepResult && deepHistoryIncomplete && phase !== "deep_loading" && phase !== "deep_unavailable" && (
+              <>
+                <div className="space-y-1.5 mb-4 text-[11px]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <span className="text-slate-500">快速推荐：可用</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <span className="text-slate-500">深度推荐：历史不完整</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  <span className="text-[13px] font-medium text-slate-700">快速推荐</span>
+                </div>
+                <div className="mb-4 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px]">
+                  <p className="text-amber-700">历史深度推荐仅有 {deepHistoryIncompleteCount} 个岗位，建议重新生成完整分析。</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDeepRecommendation}
+                  className="w-full h-9 flex items-center justify-center gap-1.5 bg-[#0052D9] text-white text-[12px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  重新生成完整深度推荐
+                </button>
+              </>
+            )}
+
+            {/* ── State 1b: Fast only (no Deep result, not loading, not incomplete) ── */}
+            {!isDeepDisplay && !deepResult && !deepHistoryIncomplete && phase !== "deep_loading" && phase !== "deep_unavailable" && (
               <>
                 <div className="space-y-1.5 mb-4 text-[11px]">
                   <div className="flex items-center gap-2">

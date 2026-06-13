@@ -87,6 +87,22 @@ type MatchAnalysisResult struct {
 	ImprovementSuggestions []MatchSuggestion `json:"improvement_suggestions,omitempty"`
 	Summary               string             `json:"summary,omitempty"`
 
+	// H22-D: DeepMatchReport fields for API pass-through
+	ReportVersion          string `json:"report_version,omitempty"`
+	ScoreExplanation       string `json:"score_explanation,omitempty"`
+	Confidence             float64 `json:"confidence,omitempty"`
+	JobUnderstanding       any    `json:"job_understanding,omitempty"`
+	RequirementCoverage    any    `json:"requirement_coverage,omitempty"`
+	ResumeEvidenceMapping  any    `json:"resume_evidence_mapping,omitempty"`
+	CoreMatchPoints        any    `json:"core_match_points,omitempty"`
+	KeyRisks               any    `json:"key_risks,omitempty"`
+	ResumeRewriteStrategy  any    `json:"resume_rewrite_strategy,omitempty"`
+	InterviewRiskQuestions any    `json:"interview_risk_questions,omitempty"`
+	ActionPlan             any    `json:"action_plan,omitempty"`
+	AgentTrace             any    `json:"agent_trace,omitempty"`
+	ApplicationDecision    string `json:"application_decision,omitempty"`
+	OneSentenceConclusion  string `json:"one_sentence_conclusion,omitempty"`
+
 	ProfileType            string `json:"profile_type,omitempty"`
 	ProfileDominantProfile string `json:"profile_dominant_profile,omitempty"`
 

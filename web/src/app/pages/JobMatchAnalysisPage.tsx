@@ -63,6 +63,16 @@ function getHeaderLabel(phase: MatchPhase, tier: string | undefined, genBy: stri
   return "";
 }
 
+// ─── H23-B: Score-to-Level mapping ──────────────────────────────────────
+
+function matchLevelLabel(score: number): string {
+  if (score >= 90) return "高度匹配";
+  if (score >= 80) return "较高匹配";
+  if (score >= 70) return "中等匹配";
+  if (score >= 60) return "弱匹配";
+  return "边缘匹配";
+}
+
 // ─── Component ─────────────────────────────────────────────────────────
 
 export function JobMatchAnalysisPage() {
@@ -382,13 +392,13 @@ export function JobMatchAnalysisPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-[15px] font-bold text-slate-800">{activeResult.matchLevel}</span>
+                      <span className="text-[15px] font-bold text-slate-800">{matchLevelLabel(activeResult.matchScore)}</span>
                       {activeResult.decisionLabel && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{activeResult.decisionLabel}</span>
                       )}
                     </div>
                     <p className="text-[13px] text-slate-600 leading-relaxed">{activeResult.summary || "暂无匹配结论"}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">基于语义画像快速分析</p>
+                    <p className="text-[10px] text-slate-400 mt-1">{activeResult.matchScore >= 60 ? "基于语义画像快速分析" : "当前匹配度较低，建议针对性补强后再投递"}</p>
                   </div>
                 </div>
               </div>
@@ -539,7 +549,7 @@ export function JobMatchAnalysisPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-[16px] font-bold text-slate-800">{activeResult.matchLevel}</span>
+                      <span className="text-[16px] font-bold text-slate-800">{matchLevelLabel(activeResult.matchScore)}</span>
                     </div>
                     <p className="text-[13px] text-slate-600 leading-relaxed">{activeResult.summary || "深度分析完成"}</p>
                     <p className="text-[10px] text-slate-400 mt-1">基于语义画像多 Agent 深度分析</p>
@@ -563,21 +573,42 @@ export function JobMatchAnalysisPage() {
                 )}
               </div>
 
-              {/* Card 3: Evidence Map */}
+              {/* Card 3: Evidence Map — H22-E: use DeepMatchReport resume_evidence_mapping */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                 <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">简历证据映射</h3>
-                {activeResult.evidenceChain && activeResult.evidenceChain.length > 0 ? (
+                {(activeResult.resumeEvidenceMapping && activeResult.resumeEvidenceMapping.length > 0) ? (
+                  <div className="space-y-2">
+                    {activeResult.resumeEvidenceMapping.slice(0, 6).map((ev: any, i: number) => (
+                      <div key={i} className="border border-slate-100 rounded-xl p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${(ev.evidence_level || ev.evidenceLevel) >= 4 ? "bg-emerald-50 text-emerald-600" : (ev.evidence_level || ev.evidenceLevel) >= 3 ? "bg-blue-50 text-blue-600" : "bg-slate-50 text-slate-500"}`}>
+                            L{ev.evidence_level || ev.evidenceLevel || "?"}
+                          </span>
+                          <span className="text-[12px] font-medium text-slate-700">
+                            {ev.evidence_name || ev.evidenceName || ev.source_title || ev.sourceTitle}
+                          </span>
+                          {ev.source_type && (
+                            <span className="text-[10px] text-slate-400 ml-auto">{ev.source_type || ev.sourceType}</span>
+                          )}
+                        </div>
+                        {ev.evidence_text && (
+                          <p className="text-[11px] text-slate-600 leading-relaxed">{ev.evidence_text || ev.evidenceText}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : activeResult.evidenceChain && activeResult.evidenceChain.length > 0 ? (
                   <div className="space-y-2">
                     {activeResult.evidenceChain.slice(0, 5).map((ev, i) => (
                       <div key={i} className="flex items-center gap-2 text-[11px]">
                         <span className="w-24 shrink-0 text-slate-400 truncate">{ev.jdRequirement || ev.requirement}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${ev.evidenceStrengthLabel === "匹配" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>{ev.evidenceStrengthLabel === "匹配" ? "已匹配" : "部分"}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${(ev as any).evidenceStrengthLabel === "匹配" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>{(ev as any).evidenceStrengthLabel === "匹配" ? "已匹配" : "部分"}</span>
                         <span className="flex-1 text-slate-600 truncate">{ev.resumeEvidence || ev.resumePoint}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-slate-400">当前未返回结构化证据映射，建议重新生成深度分析。</p>
+                  <p className="text-[11px] text-slate-400">本次分析未返回结构化证据，建议重新生成深度报告获取完整证据映射。</p>
                 )}
               </div>
 
@@ -659,6 +690,60 @@ export function JobMatchAnalysisPage() {
                       <div key={i} className="flex items-start gap-2 bg-purple-50/30 px-3 py-2 rounded-lg border border-purple-100/30">
                         <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
                         <p className="text-[12px] text-slate-700">{pt}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* H22-G: Requirement Coverage Card */}
+              {activeResult.requirementCoverage && activeResult.requirementCoverage.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">岗位要求覆盖</h3>
+                  <div className="space-y-2">
+                    {(activeResult.requirementCoverage as any[]).slice(0, 8).map((c: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-[11px] border-b border-slate-50 pb-2">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
+                          c.requirement_type === "must_have" ? "bg-red-50 text-red-600" :
+                          c.requirement_type === "should_have" ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-500"
+                        }`}>{c.requirement_type === "must_have" ? "必备" : c.requirement_type === "should_have" ? "重要" : "加分"}</span>
+                        <span className="flex-1 text-slate-700 truncate">{c.requirement_name || c.requirementName}</span>
+                        <span className={`shrink-0 font-mono text-[10px] ${
+                          (c.coverage_status || c.coverageStatus) === "matched" ? "text-emerald-600" :
+                          (c.coverage_status || c.coverageStatus) === "partially_matched" ? "text-blue-600" : "text-slate-400"
+                        }`}>{c.coverage_score || c.coverageScore || "-"}</span>
+                        <span className="text-[10px] text-slate-400 w-16 text-right shrink-0">{
+                          (c.coverage_status || c.coverageStatus) === "matched" ? "已覆盖" :
+                          (c.coverage_status || c.coverageStatus) === "partially_matched" ? "部分" : "缺失"
+                        }</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* H22-G: Interview Risk Questions Card */}
+              {activeResult.interviewRiskQuestions && activeResult.interviewRiskQuestions.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">面试追问预测</h3>
+                  <div className="space-y-2">
+                    {(activeResult.interviewRiskQuestions as any[]).slice(0, 5).map((q: any, i: number) => (
+                      <div key={i} className="border border-purple-100 rounded-xl p-3 bg-purple-50/20">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                          <span className="text-[12px] font-medium text-slate-800">{q.question || q.Question}</span>
+                          {q.riskLevel && (
+                            <span className={`text-[9px] px-1 py-0.5 rounded ml-auto ${q.riskLevel === "high" ? "bg-red-50 text-red-500" : "bg-amber-50 text-amber-500"}`}>
+                              {q.riskLevel === "high" ? "高风险" : "中风险"}
+                            </span>
+                          )}
+                        </div>
+                        {(q.whyAsked || q.why_asked) && (
+                          <p className="text-[10px] text-slate-400 ml-6">为什么问：{q.whyAsked || q.why_asked}</p>
+                        )}
+                        {(q.answerStrategy || q.answer_strategy) && (
+                          <p className="text-[10px] text-blue-600 ml-6 mt-0.5">回答方向：{q.answerStrategy || q.answer_strategy}</p>
+                        )}
                       </div>
                     ))}
                   </div>

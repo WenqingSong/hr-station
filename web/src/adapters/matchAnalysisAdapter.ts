@@ -83,6 +83,19 @@ export interface MatchAnalysisPageViewModel {
   applicationDecision?: string;
   decisionLabel?: string;
 
+  // H22-E: DeepMatchReport new fields
+  reportVersion?: string;
+  oneSentenceConclusion?: string;
+  jobUnderstanding?: Record<string, any>;
+  deepRequirementCoverage?: MatchRequirementCoverage[];
+  resumeEvidenceMapping: any[];
+  coreMatchPoints: any[];
+  keyRisks: any[];
+  resumeRewriteStrategy?: Record<string, any>;
+  interviewRiskQuestions: any[];
+  actionPlan: any[];
+  agentTrace: any[];
+
   // Legacy compat
   fitPoints?: string[];
   resumeEvidence?: string[];
@@ -140,6 +153,19 @@ export function toMatchAnalysisPageViewModel(
     actionSuggestions: safeArr(raw?.action_suggestions, result.next_actions || []),
     applicationDecision: safeStr(raw?.application_decision || raw?.decision, ""),
     decisionLabel: safeStr(raw?.decision_label || raw?.application_decision, ""),
+
+    // H22-E: DeepMatchReport new fields
+    reportVersion: safeStr(raw?.report_version, ""),
+    oneSentenceConclusion: safeStr(raw?.one_sentence_conclusion || result.summary, ""),
+    jobUnderstanding: raw?.job_understanding || undefined,
+    deepRequirementCoverage: safeArr(raw?.requirement_coverage, []),
+    resumeEvidenceMapping: safeArr(raw?.resume_evidence_mapping || raw?.resume_evidence, []),
+    coreMatchPoints: safeArr(raw?.core_match_points, []),
+    keyRisks: safeArr(raw?.key_risks, []),
+    resumeRewriteStrategy: raw?.resume_rewrite_strategy || undefined,
+    interviewRiskQuestions: safeArr(raw?.interview_risk_questions, []),
+    actionPlan: safeArr(raw?.action_plan, []),
+    agentTrace: safeArr(raw?.agent_trace, []),
 
     // Legacy compat
     fitPoints: result.fit_points || result.match_highlights || [],

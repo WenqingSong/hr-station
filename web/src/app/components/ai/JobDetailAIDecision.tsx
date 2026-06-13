@@ -197,9 +197,10 @@ export function JobDetailAIDecision() {
             className="w-full bg-[#0052D9] hover:bg-[#0040A8] text-white text-[13px]"
             onClick={() => setModalAction("match")}
           >
-            分析岗位匹配度
+            岗位匹配
             <ArrowRight className="ml-2 h-3.5 w-3.5" />
           </Button>
+          <p className="text-[10px] text-gray-400 -mt-1">分析当前简历与该岗位的匹配度</p>
           <Button
             variant="outline"
             className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 text-[13px]"
