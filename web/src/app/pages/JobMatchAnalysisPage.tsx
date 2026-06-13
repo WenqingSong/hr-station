@@ -800,7 +800,7 @@ export function JobMatchAnalysisPage() {
             {activeResult?.resumeEvidence && activeResult.resumeEvidence.length > 0 && (
               <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <h3 className="text-[13px] font-medium text-gray-500 mb-2">相关简历证据</h3>
-                <BulletList items={activeResult.resumeEvidence.slice(0, 4).map(ev => ev)} tone="green" size="sm" />
+                <BulletList items={activeResult.resumeEvidence.slice(0, 4).map(ev => typeof ev === 'string' ? ev : (ev as any).evidence_name || (ev as any).evidence_text || (ev as any).source_title || '')} tone="green" size="sm" />
               </div>
             )}
 
