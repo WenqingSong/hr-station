@@ -497,12 +497,12 @@ func (r *ResumeRepository) ExistsByName(ctx context.Context, userID uint64, name
 func (r *ResumeRepository) FindByID(ctx context.Context, id uint64) (*model.ResumeVersion, error) {
 	res, err := r.GetByID(ctx, id, id)
 	if res == nil || err != nil { return nil, err }
-	return &model.ResumeVersion{ID: res.ID, UserID: res.UserID, Name: res.Name}, nil
+	return &model.ResumeVersion{ID: res.ID, UserID: res.UserID, Name: res.Name, RawText: res.RawText}, nil
 }
 func (r *ResumeRepository) FindByUserIDAndID(ctx context.Context, userID, id uint64) (*model.ResumeVersion, error) {
 	res, err := r.GetByID(ctx, userID, id)
 	if res == nil || err != nil { return nil, err }
-	return &model.ResumeVersion{ID: res.ID, UserID: res.UserID, Name: res.Name}, nil
+	return &model.ResumeVersion{ID: res.ID, UserID: res.UserID, Name: res.Name, RawText: res.RawText}, nil
 }
 func (r *ResumeRepository) CreateVersion(ctx context.Context, rv *model.ResumeVersion) error {
 rr := &model.Resume{UserID: rv.UserID, Name: rv.Name, RealName: rv.Name}

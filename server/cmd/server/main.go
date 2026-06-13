@@ -207,7 +207,7 @@ func main() {
 	mockAgentEnabled := cfg.Feature.EnableMockAgent
 	log.Printf("[offer-catcher-server] fallback_enable=%v enable_mock_agent=%v", fallbackEnabled, mockAgentEnabled)
 
-	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, tagEvidenceService, sepSemanticRepo)
+	matchService := service.NewMatchService(resumeRepo, jobRepo, matchRepo, matchMockAgent, fastRunner, qualityRunner, llmEnabled, fallbackEnabled, mockAgentEnabled, tagEvidenceService, sepSemanticRepo, qualityClient)
 	matchHandler := httpserver.NewMatchHandler(matchService)
 
 	// K13-Fix-B: RecommendationService with TagEvidenceService for Fast tier

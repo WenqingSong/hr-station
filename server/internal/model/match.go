@@ -112,6 +112,13 @@ type MatchAnalysisResult struct {
 	ActionSuggestions []string `json:"action_suggestions,omitempty"`
 	DecisionLabel     string   `json:"decision_label,omitempty"`
 
+	// JM-R3-R: Hy3 5-module screening match outputs
+	ScreeningPassPoints      any      `json:"screening_pass_points,omitempty"`
+	ScreeningEliminationRisks any     `json:"screening_elimination_risks,omitempty"`
+	ResumeRewriteCommands    any      `json:"resume_rewrite_commands,omitempty"`
+	JobStrategy              any      `json:"job_strategy,omitempty"`
+	ModuleStatus             any      `json:"module_status,omitempty"`
+
 	ProfileType            string `json:"profile_type,omitempty"`
 	ProfileDominantProfile string `json:"profile_dominant_profile,omitempty"`
 

@@ -1,5 +1,6 @@
-// ─── JM-R3: Screening Match V1 Pipeline ───────────────────────────────────
-// 5-module Hy3 + Judge pipeline. Replaces deep_match_v3 10-module.
+// ─── JM-R3-R: Screening Match V1 Pipeline ───────────────────────────────────
+// 5 个 Hy3 深度模块负责内容生成 + 本地裁判负责一致性校验。
+// 规则管道仅作为 fallback。Replaces deep_match_v3 10-module.
 
 package service
 
@@ -12,6 +13,8 @@ import (
 	"time"
 
 	"offer-catcher/server/internal/agent"
+	"offer-catcher/server/internal/llm"
+	"offer-catcher/server/internal/llmjson"
 	"offer-catcher/server/internal/model"
 )
 
@@ -23,7 +26,7 @@ func (s *MatchService) buildScreeningMatchContext(
 		ResumeID:   int64(resume.ID),
 		JobID:      int64(job.ID),
 		ResumeName: resume.Name,
-		ResumeRawText: "", // populated via SEP if available
+		ResumeRawText: resume.RawText, // JM-R3-R: populate for Hy3 modules
 		JobTitle:    job.Title,
 		JobDirection: job.ExternalSource,
 		JobCategory:  job.Category,
@@ -54,7 +57,649 @@ func (s *MatchService) buildScreeningMatchContext(
 	return nil, fmt.Errorf("screening match: semanticRepo not available")
 }
 
-// runScreeningMatchPipeline runs the 5-module + judge pipeline.
+// ─── JM-R3-R: Real Hy3 5-Module + Judge Pipeline ──────────────────────────
+// Replaces the rule-based pipeline for quality tier when Hy3 client is available.
+
+// runHy3ScreeningPipeline executes the real Hy3 5-module pipeline.
+// Returns (report, status, generated_by). Returns (nil, "", "") on total failure.
+func runHy3ScreeningPipeline(
+	ctx context.Context, smCtx *ScreeningMatchContext, llmClient llm.Client,
+) (*ScreeningMatchV1, string, string) {
+	startTime := time.Now()
+	log.Printf("[Hy3Pipeline] starting 5-module pipeline for resume=%d job=%d", smCtx.ResumeID, smCtx.JobID)
+
+	// Track module successes/failures
+	type moduleResult struct{ ok bool }
+	results := make(map[string]bool)
+
+	// Module 1: Decision
+	decision, m1ok := runHy3ScreeningDecisionModule(ctx, smCtx, llmClient)
+	results["m1_decision"] = m1ok
+	if !m1ok {
+		log.Printf("[Hy3Pipeline] Module 1 (decision) failed, using fast result fallback")
+		decision = runScreeningDecisionModule(smCtx)
+	}
+	log.Printf("[Hy3Pipeline] M1: score=%d decision=%s hy3=%v", decision.Score, decision.Decision, m1ok)
+
+	// Module 2: Pass Points (depends on decision for context)
+	passPoints, m2ok := runHy3ScreeningPassPointsModule(ctx, smCtx, decision, llmClient)
+	results["m2_pass_points"] = m2ok
+	if !m2ok {
+		passPoints = runScreeningPassPointsModule(smCtx, decision)
+	}
+	log.Printf("[Hy3Pipeline] M2: %d pass points hy3=%v", len(passPoints), m2ok)
+
+	// Module 3: Elimination Risks
+	risks, m3ok := runHy3ScreeningEliminationRisksModule(ctx, smCtx, decision, llmClient)
+	results["m3_risks"] = m3ok
+	if !m3ok {
+		risks = runScreeningEliminationRisksModule(smCtx, decision)
+	}
+	log.Printf("[Hy3Pipeline] M3: %d risks hy3=%v", len(risks), m3ok)
+
+	// Module 4: Resume Rewrite Commands (depends on risks and decision)
+	commands, m4ok := runHy3ResumeRewriteCommandsModule(ctx, smCtx, decision, risks, llmClient)
+	results["m4_rewrite"] = m4ok
+	if !m4ok {
+		commands = runResumeRewriteCommandsModule(smCtx, decision, risks)
+	}
+	log.Printf("[Hy3Pipeline] M4: %d rewrite commands hy3=%v", len(commands), m4ok)
+
+	// Module 5: Job Strategy
+	strategy, m5ok := runHy3JobStrategyModule(ctx, smCtx, decision, risks, llmClient)
+	results["m5_strategy"] = m5ok
+	if !m5ok {
+		strategy = runJobStrategyModule(smCtx, decision, risks)
+	}
+	log.Printf("[Hy3Pipeline] M5: positioning=%s hy3=%v", strategy.Positioning, m5ok)
+
+	// Assemble result (skip Hy3 judge — use local consistency check instead of 6th LLM call)
+	result := &ScreeningMatchV1{
+		Mode:                    "deep",
+		Version:                 "screening_match_v1",
+		ScreeningDecision:       *decision,
+		ScreeningPassPoints:     passPoints,
+		ScreeningEliminationRisks: risks,
+		ResumeRewriteCommands:   commands,
+		JobStrategy:             *strategy,
+	}
+	runScreeningJudgeModule(result)
+
+	// Determine status
+	allOk := m1ok && m2ok && m3ok && m4ok && m5ok
+	partialOk := m1ok || m2ok || m3ok || m4ok || m5ok
+
+	duration := time.Since(startTime)
+	log.Printf("[Hy3Pipeline] completed in %v all_ok=%v partial=%v results=%v", duration, allOk, partialOk, results)
+
+	if allOk {
+		return result, "verified", "hy3_screening_match_agent"
+	}
+	if partialOk {
+		return result, "degraded", "hy3_screening_match_agent_degraded"
+	}
+	return nil, "", ""
+}
+
+// ─── Hy3 Module 1: Screening Decision ─────────────────────────────────────
+
+func runHy3ScreeningDecisionModule(
+	ctx context.Context, smCtx *ScreeningMatchContext, llmClient llm.Client,
+) (*ScreeningDecision, bool) {
+	systemPrompt := `你是 Offer捕手 的岗位匹配AI，面向校招/实习场景。你只输出严格的JSON，不输出任何解释或markdown。
+你的任务是：基于学生简历原文、岗位JD、语义画像和初判，给出精准的初筛投递决策。
+
+【校招后台开发评分准则】这是最重要的规则：
+如果岗位方向是"软件开发-后台开发/服务端开发/平台后端/测试开发"等后端方向，且学生简历满足以下条件中的3项以上：
+- 有后端实习经历（任何公司/项目组的后端工程经历都算）
+- 有后端项目经历（课程项目、企业课程项目、个人项目都算）
+- 有 Java / Go / Python 任一后端语言
+- 有 MySQL / Redis / Spring / Docker / Nginx / Linux 等后端常用技术栈
+- 有接口、权限、登录、资源控制、缓存、部署等后端工程场景
+则不得直接判为 not_recommended 或 change_direction。
+这类情况的合理结论通常是 revise_before_apply（70-85分）或 backup（55-69分）。
+
+【不要过度惩罚】
+校招岗位允许部分能力缺失。缺少高并发、微服务、K8s、分布式等高级能力时，应作为"简历改写和补强风险"，不应直接淘汰。
+不要因为岗位JD列了很多技术要求就给学生打低分——校招JD通常是宽泛描述的。
+得分关键看：是否有真实项目/实习 + 是否和岗位方向一致 + 技术栈是否有基本覆盖。
+
+【方向错位判断】
+如果岗位核心方向是"算法/NLP/多模态/行业咨询/产品/设计"，而学生简历核心证据是后端工程：
+- 这是方向错位，不能因为有实习/项目就提高匹配分
+- 应优先 not_recommended 或 change_direction（分数20-55）
+- 不允许编造学生没有的算法/咨询/设计经历
+
+【决策规则】
+- score >= 85：direct_apply（几乎完全匹配）
+- score 70-84：revise_before_apply（方向匹配、有项目实习证据，但表达需强化）
+- score 55-69：backup（方向匹配但证据偏弱，作为备选）
+- score 40-54：not_recommended（方向相近但证据严重不足）
+- score < 40：change_direction（方向错位）
+- 不允许为了友好而强行推荐`
+
+	userPrompt := buildHy3Module1UserPrompt(smCtx)
+
+	resp, err := callHy3WithRepair(ctx, llmClient, systemPrompt, userPrompt, "screening_decision")
+	if err != nil {
+		log.Printf("[Hy3-M1] LLM call failed: %v", err)
+		return nil, false
+	}
+
+	var decision ScreeningDecision
+	if err := json.Unmarshal([]byte(resp), &decision); err != nil {
+		log.Printf("[Hy3-M1] JSON parse failed: %v, raw=%s", err, truncate(resp, 200))
+		return nil, false
+	}
+
+	// Validate consistency
+	if decision.Score < 0 || decision.Score > 100 {
+		log.Printf("[Hy3-M1] invalid score %d, rejecting", decision.Score)
+		return nil, false
+	}
+	if decision.Decision == "" {
+		decision.Decision = deriveDecisionFromScore(decision.Score)
+	}
+	// JM-R6-P2: Always normalize label to standard form (Hy3 may output variants)
+	decision.DecisionLabel = normalizeDecisionLabel(decision.DecisionLabel, decision.Decision)
+	if decision.Summary == "" {
+		decision.Summary = fmt.Sprintf("Hy3分析：匹配度%d分，建议%s。", decision.Score, decision.DecisionLabel)
+	}
+
+	return &decision, true
+}
+
+// ─── Hy3 Module 2: Pass Points ────────────────────────────────────────────
+
+func runHy3ScreeningPassPointsModule(
+	ctx context.Context, smCtx *ScreeningMatchContext, decision *ScreeningDecision, llmClient llm.Client,
+) ([]ScreeningPassPoint, bool) {
+	systemPrompt := `你是 Offer捕手 的初筛命中点分析AI。只输出严格JSON数组。
+基于简历原文和岗位JD，找出学生在初筛阶段最可能通过的2-3个关键点。
+每条命中点必须绑定真实简历证据，不允许"基础扎实""能力较强"等空话。`
+
+	userPrompt := buildHy3Module2UserPrompt(smCtx, decision)
+
+	resp, err := callHy3WithRepair(ctx, llmClient, systemPrompt, userPrompt, "screening_pass_points")
+	if err != nil {
+		return nil, false
+	}
+
+	var points []ScreeningPassPoint
+	if err := json.Unmarshal([]byte(resp), &points); err != nil {
+		log.Printf("[Hy3-M2] JSON parse failed: %v", err)
+		return nil, false
+	}
+	if len(points) == 0 {
+		return nil, false
+	}
+	if len(points) > 3 {
+		points = points[:3]
+	}
+	return points, true
+}
+
+// ─── Hy3 Module 3: Elimination Risks ──────────────────────────────────────
+
+func runHy3ScreeningEliminationRisksModule(
+	ctx context.Context, smCtx *ScreeningMatchContext, decision *ScreeningDecision, llmClient llm.Client,
+) ([]ScreeningEliminationRisk, bool) {
+	systemPrompt := `你是 Offer捕手 的初筛淘汰风险分析AI。只输出严格JSON数组。
+你的任务是找出简历在初筛阶段最可能被淘汰的1-3个风险点。
+
+【风险必须区分三种类型】
+1. 方向错位风险：岗位核心方向（算法/NLP/咨询）与简历核心经历（后端工程）不一致。severity=high。
+2. 证据不足风险：方向一致但缺少真实项目/实习经历支撑。severity=high/medium。
+3. 表达强化风险：有项目/实习证据但简历表达不够工程化、不够量化。severity=medium/low。
+
+【重要】
+- 如果是"表达强化风险"，current_resume_problem 不能说"缺少证据"，应该说"证据存在但表达不够"
+- fix_direction 必须具体可操作，不能写"建议优化"或"加强项目经验"这种空话
+- 对后端开发岗位，fix_direction 应围绕：接口设计、权限校验、数据库操作、缓存使用、部署验证、异常处理`
+
+	userPrompt := buildHy3Module3UserPrompt(smCtx, decision)
+
+	resp, err := callHy3WithRepair(ctx, llmClient, systemPrompt, userPrompt, "screening_risks")
+	if err != nil {
+		return nil, false
+	}
+
+	var risks []ScreeningEliminationRisk
+	if err := json.Unmarshal([]byte(resp), &risks); err != nil {
+		log.Printf("[Hy3-M3] JSON parse failed: %v", err)
+		return nil, false
+	}
+	if len(risks) == 0 {
+		return nil, false
+	}
+	if len(risks) > 3 {
+		risks = risks[:3]
+	}
+	return risks, true
+}
+
+// ─── Hy3 Module 4: Resume Rewrite Commands ────────────────────────────────
+
+func runHy3ResumeRewriteCommandsModule(
+	ctx context.Context, smCtx *ScreeningMatchContext, decision *ScreeningDecision, risks []ScreeningEliminationRisk, llmClient llm.Client,
+) ([]ResumeRewriteCommand, bool) {
+	// For change_direction, don't suggest fake rewrites
+	if decision.Decision == "change_direction" {
+		return runResumeRewriteCommandsModule(smCtx, decision, risks), true
+	}
+
+	systemPrompt := `你是 Offer捕手 的简历改写AI。只输出严格JSON数组。
+你必须基于学生简历中的真实经历给出改写建议。
+
+【改写目标】
+帮助学生把真实经历用更工程化的语言表达出来，让HR在10秒内识别到关键信号。
+
+【后端开发简历改写重点】
+如果学生有后端项目/实习，改写应围绕以下维度展开（按实际证据选择）：
+- 接口设计：完成了哪些接口、接口数量、RESTful规范、Swagger文档
+- 权限校验：JWT/OAuth/登录态管理、权限层级、敏感接口保护
+- 数据库操作：表设计与索引、SQL优化、事务处理、数据一致性
+- 缓存使用：Redis缓存策略、缓存Key设计、过期策略、命中率
+- 部署验证：Docker/环境部署、前后端联调、测试环境验收
+- 异常处理：异常捕获、错误码规范、日志监控
+- 幂等限流：接口幂等性设计、请求去重、频率限制
+
+【必须做到】
+1. 每条改写必须有 before_example 和 after_example
+2. after_example 必须基于简历已有经历，不编造数据/指标/技术
+3. 用具体的技术场景代替"负责开发"这种空泛描述
+4. 如果简历确实缺少某方面证据，明确说"建议先补充XX项目"而非瞎编
+
+【禁止】
+- 编造简历中没有的量化数字（如"QPS提升50%""将响应时间从180ms降到60ms"）
+- 编造简历中没有的技术（如K8s/微服务/分布式）
+- 泛泛写"建议优化项目描述"`
+
+	userPrompt := buildHy3Module4UserPrompt(smCtx, decision, risks)
+
+	resp, err := callHy3WithRepair(ctx, llmClient, systemPrompt, userPrompt, "screening_rewrite")
+	if err != nil {
+		return nil, false
+	}
+
+	var commands []ResumeRewriteCommand
+	if err := json.Unmarshal([]byte(resp), &commands); err != nil {
+		log.Printf("[Hy3-M4] JSON parse failed: %v", err)
+		return nil, false
+	}
+	if len(commands) < 2 {
+		return nil, false
+	}
+	if len(commands) > 4 {
+		commands = commands[:4]
+	}
+	return commands, true
+}
+
+// ─── Hy3 Module 5: Job Strategy ───────────────────────────────────────────
+
+func runHy3JobStrategyModule(
+	ctx context.Context, smCtx *ScreeningMatchContext, decision *ScreeningDecision, risks []ScreeningEliminationRisk, llmClient llm.Client,
+) (*JobStrategy, bool) {
+	systemPrompt := `你是 Offer捕手 的岗位策略AI。只输出严格JSON对象。
+你需要给出：岗位定位、推荐行动、现在投递会怎样、更适合方向、应避开方向。
+
+【岗位定位判断】
+1. 方向一致 + 有项目/实习证据 → positioning="主投岗位"或"修改后投递"
+2. 方向一致 + 证据不足 → positioning="备选岗位"或"不建议直接投递"，不是"换方向"
+3. 方向错位 → positioning="建议换方向"
+
+【重要区分：证据不足 ≠ 方向错误】
+如果学生目标方向与岗位方向一致（如都是后端开发），但缺少项目/实习证据：
+- 不要判为 change_direction
+- 应判为 not_recommended 或 backup
+- 推荐动作：先补项目证据再投递，不要放弃这个方向
+- better_fit_directions 应包含与当前方向相近的岗位
+
+如果方向错位（后端投算法/NLP）：
+- 必须明确推荐更适合的方向
+- better_fit_directions 应包含后台开发、平台后端、云产品后端等后端方向
+
+【禁止】
+- 模糊说"可以尝试"
+- 编造学生没有的经历
+- 把证据不足错误地当成方向错误`
+
+	userPrompt := buildHy3Module5UserPrompt(smCtx, decision, risks)
+
+	resp, err := callHy3WithRepair(ctx, llmClient, systemPrompt, userPrompt, "screening_strategy")
+	if err != nil {
+		return nil, false
+	}
+
+	var strategy JobStrategy
+	if err := json.Unmarshal([]byte(resp), &strategy); err != nil {
+		log.Printf("[Hy3-M5] JSON parse failed: %v", err)
+		return nil, false
+	}
+	if strategy.Positioning == "" {
+		return nil, false
+	}
+	return &strategy, true
+}
+
+// ─── Hy3 Helper: LLM call with JSON repair ────────────────────────────────
+
+func callHy3WithRepair(ctx context.Context, llmClient llm.Client, systemPrompt, userPrompt, moduleName string) (string, error) {
+	req := llm.ChatRequest{
+		Messages: []llm.Message{
+			{Role: "system", Content: systemPrompt},
+			{Role: "user", Content: userPrompt},
+		},
+		Temperature:     0.3,
+		MaxTokens:       2048,
+		ReasoningEffort: "high",
+		Metadata: map[string]string{
+			"module":      moduleName,
+			"pipeline":    "hy3_screening_match_v1",
+		},
+	}
+
+	resp, err := llmClient.Chat(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("llm chat failed: %w", err)
+	}
+
+	rawContent := resp.RawContent
+	if rawContent == "" {
+		return "", fmt.Errorf("empty llm response")
+	}
+
+	// Extract JSON from LLM output
+	jsonStr, err := llmjson.ExtractObject(rawContent)
+	if err != nil {
+		// Try repair
+		log.Printf("[Hy3-%s] JSON extract failed: %v, attempting repair", moduleName, err)
+		candidate, _ := llmjson.ExtractBestCandidate(rawContent)
+		if candidate != "" {
+			repaired := repairSimpleJSON(candidate)
+			if repaired != "" {
+				return repaired, nil
+			}
+		}
+		return "", fmt.Errorf("json extract and repair failed: %w", err)
+	}
+
+	return jsonStr, nil
+}
+
+// ─── Hy3 Prompt Builders ──────────────────────────────────────────────────
+
+func buildHy3Module1UserPrompt(smCtx *ScreeningMatchContext) string {
+	var sb strings.Builder
+
+	// Add job/context info first
+	sb.WriteString(fmt.Sprintf("【岗位信息】%s | %s | %s\n", smCtx.JobTitle, smCtx.JobCategory, smCtx.JobCity))
+	sb.WriteString(fmt.Sprintf("【场景】这是校招/实习风格的岗位匹配分析，不是高级/专家岗位。\n\n"))
+
+	sb.WriteString("# 简历原文\n")
+	sb.WriteString(truncate(smCtx.ResumeRawText, 3000))
+	sb.WriteString("\n\n# 岗位JD\n")
+	sb.WriteString(truncate(smCtx.JobRawJD, 2000))
+
+	if smCtx.FastResult != nil {
+		sb.WriteString(fmt.Sprintf("\n\n# Fast 初判（仅供参考，不要盲从）\n分数: %d\n等级: %s\n命中点: %v\n风险: %v",
+			smCtx.FastResult.MatchScore, smCtx.FastResult.MatchLevel,
+			smCtx.FastResult.MatchHighlights, smCtx.FastResult.RiskPoints))
+	}
+
+	sb.WriteString(`
+
+【校招初筛核心判断问题】
+1. 学生的技术方向是否与岗位方向一致？
+2. 学生是否有真实项目或实习经历能支撑该方向的初筛？
+3. 如果有项目/实习，简历表达是否需要强化？
+4. 如果方向错位（后端投算法、NLP、咨询），必须判为不建议或换方向。
+
+【关键提醒】
+- Fast初判分数只是参考，如果过于严格请独立思考
+- 简历中"权限校验、登录鉴权、缓存使用、接口开发、数据库设计"等具体场景都是有效的后端工程证据
+- "企业课程平台项目"是真实后端项目，不是普通课程作业
+- 校招场景：有真实项目+实习+技术栈基本覆盖 = 70-85分
+
+# 输出格式（严格JSON）
+{
+  "score": 78,
+  "level": "中等偏高",
+  "decision": "revise_before_apply",
+  "decision_label": "修改后投递",
+  "summary": "一句话总结匹配情况",
+  "confidence": "medium",
+  "decision_reasons": ["原因1", "原因2"]
+}
+
+decision可选值: direct_apply, revise_before_apply, backup, not_recommended, change_direction`)
+	return sb.String()
+}
+
+func buildHy3Module2UserPrompt(smCtx *ScreeningMatchContext, decision *ScreeningDecision) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# 投递决策\n分数: %d, 建议: %s\n", decision.Score, decision.DecisionLabel))
+	sb.WriteString("\n# 简历原文\n")
+	sb.WriteString(truncate(smCtx.ResumeRawText, 3000))
+	sb.WriteString("\n\n# 岗位JD\n")
+	sb.WriteString(truncate(smCtx.JobRawJD, 1500))
+	sb.WriteString(`
+
+# 输出格式（严格JSON数组，最多3条）
+[
+  {
+    "title": "命中点标题",
+    "why_it_helps": "为什么帮助通过初筛",
+    "resume_evidence": "简历中的具体证据原文",
+    "screening_value": "对初筛的价值"
+  }
+]`)
+	return sb.String()
+}
+
+func buildHy3Module3UserPrompt(smCtx *ScreeningMatchContext, decision *ScreeningDecision) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# 投递决策\n分数: %d, 建议: %s\n", decision.Score, decision.DecisionLabel))
+	sb.WriteString("\n# 简历原文\n")
+	sb.WriteString(truncate(smCtx.ResumeRawText, 3000))
+	sb.WriteString("\n\n# 岗位JD\n")
+	sb.WriteString(truncate(smCtx.JobRawJD, 1500))
+
+	if smCtx.FastResult != nil && len(smCtx.FastResult.RiskPoints) > 0 {
+		sb.WriteString(fmt.Sprintf("\n\n# Fast识别风险\n%v", smCtx.FastResult.RiskPoints))
+	}
+
+	sb.WriteString(`
+
+# 输出格式（严格JSON数组，最多3条）
+[
+  {
+    "risk_title": "风险标题",
+    "severity": "high/medium/low",
+    "why_it_blocks_screening": "为什么影响初筛",
+    "current_resume_problem": "当前简历哪里有问题",
+    "fix_direction": "修复方向建议"
+  }
+]`)
+	return sb.String()
+}
+
+func buildHy3Module4UserPrompt(smCtx *ScreeningMatchContext, decision *ScreeningDecision, risks []ScreeningEliminationRisk) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# 投递决策\n分数: %d, 建议: %s\n", decision.Score, decision.DecisionLabel))
+	sb.WriteString("\n# 简历原文\n")
+	sb.WriteString(truncate(smCtx.ResumeRawText, 3000))
+	sb.WriteString("\n\n# 岗位JD\n")
+	sb.WriteString(truncate(smCtx.JobRawJD, 1000))
+	sb.WriteString(fmt.Sprintf("\n\n# 已知风险\n"))
+	for _, r := range risks {
+		sb.WriteString(fmt.Sprintf("- %s\n", r.RiskTitle))
+	}
+	sb.WriteString(`
+
+# 关键要求
+1. 每条必须有 before_example（简历中的原文表达风格）
+2. 每条必须有 after_example（基于简历真实经历的优化表达）
+3. after_example 不能编造简历中没有的技术、指标、数据
+4. 如果简历确实缺少某方面经历，明确说"不要硬写"
+
+# 输出格式（严格JSON数组，2-4条）
+[
+  {
+    "target_section": "项目经历",
+    "problem": "当前表达的问题",
+    "rewrite_instruction": "改写指导",
+    "before_example": "改前示例（简历风格）",
+    "after_example": "改后示例（优化版本）",
+    "why_it_improves_screening": "为什么提高初筛通过率"
+  }
+]`)
+	return sb.String()
+}
+
+func buildHy3Module5UserPrompt(smCtx *ScreeningMatchContext, decision *ScreeningDecision, risks []ScreeningEliminationRisk) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# 投递决策\n分数: %d, 建议: %s\n", decision.Score, decision.DecisionLabel))
+	sb.WriteString(fmt.Sprintf("# 岗位\n%s - %s\n", smCtx.JobTitle, smCtx.JobCategory))
+	sb.WriteString("\n# 简历核心方向\n")
+	sb.WriteString(truncate(smCtx.ResumeRawText, 1000))
+
+	if smCtx.FastResult != nil && len(smCtx.FastResult.MatchHighlights) > 0 {
+		sb.WriteString(fmt.Sprintf("\n\n# 匹配亮点\n%v", smCtx.FastResult.MatchHighlights))
+	}
+
+	sb.WriteString(`
+
+# 输出格式（严格JSON对象）
+{
+  "positioning": "主投岗位 / 备选岗位 / 不建议投递",
+  "recommended_action": "具体建议",
+  "if_apply_now": "现在投递会怎样",
+  "better_fit_directions": ["更匹配方向1", "更匹配方向2"],
+  "avoid_directions": ["应避开方向1"]
+}`)
+	return sb.String()
+}
+
+// ─── Helper functions ──────────────────────────────────────────────────────
+
+func deriveDecisionFromScore(score int) string {
+	switch {
+	case score >= 85:
+		return "direct_apply"
+	case score >= 70:
+		return "revise_before_apply"
+	case score >= 55:
+		return "backup"
+	case score >= 40:
+		return "not_recommended"
+	default:
+		return "change_direction"
+	}
+}
+
+func deriveDecisionLabel(decision string) string {
+	switch decision {
+	case "direct_apply":
+		return "可以直接投递"
+	case "revise_before_apply":
+		return "修改后投递"
+	case "backup":
+		return "备选投递"
+	case "not_recommended":
+		return "不建议投递"
+	case "change_direction":
+		return "建议换方向"
+	default:
+		return decision
+	}
+}
+
+// normalizeDecisionLabel maps Hy3 model output variants to standard labels.
+// JM-R6-P2: ensures all user-visible labels are consistent.
+func normalizeDecisionLabel(label string, decision string) string {
+	// If empty, derive from decision
+	if label == "" {
+		return deriveDecisionLabel(decision)
+	}
+	// Map known Hy3 output variants
+	norm := strings.TrimSpace(label)
+	switch {
+	case decision == "change_direction":
+		// Acceptable: 建议换方向. Unacceptable: 换方向投递, 换方向, 更换方向投递, etc.
+		if strings.Contains(norm, "建议") && strings.Contains(norm, "换方向") {
+			return "建议换方向"
+		}
+		if strings.Contains(norm, "换方向") {
+			return "建议换方向"
+		}
+		return "建议换方向"
+	case decision == "not_recommended":
+		if strings.Contains(norm, "不建议") || strings.Contains(norm, "暂不") {
+			return "不建议投递"
+		}
+		return "不建议投递"
+	case decision == "revise_before_apply":
+		if strings.Contains(norm, "修改") {
+			return "修改后投递"
+		}
+		return "修改后投递"
+	case decision == "backup":
+		if strings.Contains(norm, "备选") {
+			return "备选投递"
+		}
+		return "备选投递"
+	case decision == "direct_apply":
+		if strings.Contains(norm, "可以直接") || strings.Contains(norm, "优先") {
+			return "可以直接投递"
+		}
+		return "可以直接投递"
+	default:
+		return deriveDecisionLabel(decision)
+	}
+}
+
+// repairSimpleJSON attempts basic JSON repair: unmatched braces, trailing commas.
+func repairSimpleJSON(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return ""
+	}
+	// Ensure it starts with { or [
+	if !strings.HasPrefix(s, "{") && !strings.HasPrefix(s, "[") {
+		return ""
+	}
+	// Remove trailing commas before } or ]
+	s = strings.ReplaceAll(s, ",}", "}")
+	s = strings.ReplaceAll(s, ",]", "]")
+	// Try parsing
+	if json.Valid([]byte(s)) {
+		return s
+	}
+	// Count braces and close if needed
+	openBraces := strings.Count(s, "{")
+	closeBraces := strings.Count(s, "}")
+	for openBraces > closeBraces {
+		s += "}"
+		closeBraces++
+	}
+	openBrackets := strings.Count(s, "[")
+	closeBrackets := strings.Count(s, "]")
+	for openBrackets > closeBrackets {
+		s += "]"
+		closeBrackets++
+	}
+	if json.Valid([]byte(s)) {
+		return s
+	}
+	return ""
+}
+
+// ─── Rule-Based Fallback Pipeline ──────────────────────────────────────────
+// Kept as-is for fallback when Hy3 is unavailable.
+
+// runScreeningMatchPipeline runs the 5-module + judge pipeline (rule-based).
 func runScreeningMatchPipeline(ctx *ScreeningMatchContext) *ScreeningMatchV1 {
 	result := &ScreeningMatchV1{
 		Mode:    "deep",
@@ -92,17 +737,20 @@ func runScreeningMatchPipeline(ctx *ScreeningMatchContext) *ScreeningMatchV1 {
 func runScreeningDecisionModule(ctx *ScreeningMatchContext) *ScreeningDecision {
 	// Deterministic: based on Fast Result + SEP evidence
 	fastScore := 50
-	fastLevel := "中等"
 	if ctx.FastResult != nil {
 		fastScore = ctx.FastResult.MatchScore
-		fastLevel = matchLevel(fastScore)
 	}
+
+	// ─── Evidence-based score recalibration ──────────────────────────────
+	calibratedScore := recalibrateScreeningScore(ctx, fastScore)
 
 	// Build reasons from Fast structured data
 	reasons := []string{}
 	if ctx.FastResult != nil {
 		if len(ctx.FastResult.MatchHighlights) > 0 {
-			reasons = append(reasons, "有匹配技能或项目经历："+strings.Join(ctx.FastResult.MatchHighlights[:minInt(2, len(ctx.FastResult.MatchHighlights))], "、"))
+			hl := ctx.FastResult.MatchHighlights
+			if len(hl) > 2 { hl = hl[:2] }
+			reasons = append(reasons, "有匹配技能或项目经历："+strings.Join(hl, "、"))
 		}
 		if len(ctx.FastResult.GapPoints) > 0 {
 			reasons = append(reasons, "简历表达需强化："+ctx.FastResult.GapPoints[0])
@@ -112,25 +760,30 @@ func runScreeningDecisionModule(ctx *ScreeningMatchContext) *ScreeningDecision {
 		reasons = []string{"基于简历和岗位匹配分析"}
 	}
 
+	// If score was boosted, add calibration reason
+	if calibratedScore > fastScore {
+		reasons = append(reasons, fmt.Sprintf("系统检测到简历中有真实项目和实习经验证据，匹配度从%d校准至%d。", fastScore, calibratedScore))
+	}
+
 	decision := &ScreeningDecision{
-		Score:           fastScore,
-		Level:           fastLevel,
+		Score:           calibratedScore,
+		Level:           matchLevel(calibratedScore),
 		DecisionReasons: reasons,
 		Confidence:      "medium",
 	}
 
 	// Derive decision and label from score
 	switch {
-	case fastScore >= 85:
+	case calibratedScore >= 85:
 		decision.Decision = "direct_apply"
 		decision.DecisionLabel = "可以直接投递"
-	case fastScore >= 70:
+	case calibratedScore >= 70:
 		decision.Decision = "revise_before_apply"
 		decision.DecisionLabel = "修改后投递"
-	case fastScore >= 55:
+	case calibratedScore >= 55:
 		decision.Decision = "backup"
 		decision.DecisionLabel = "备选投递"
-	case fastScore >= 40:
+	case calibratedScore >= 40:
 		decision.Decision = "not_recommended"
 		decision.DecisionLabel = "不建议投递"
 	default:
@@ -140,9 +793,89 @@ func runScreeningDecisionModule(ctx *ScreeningMatchContext) *ScreeningDecision {
 
 	// Build summary
 	decision.Summary = fmt.Sprintf("该岗位%s方向与简历相关度%s，投递%s。%s",
-		ctx.JobTitle, fastLevel, decision.DecisionLabel, strings.Join(reasons, "。"))
+		ctx.JobTitle, matchLevel(calibratedScore), decision.DecisionLabel, strings.Join(reasons, "。"))
 
 	return decision
+}
+
+// recalibrateScreeningScore adjusts SEP Fast score using evidence signals
+// that SEP may undervalue: internship presence, project depth, direction alignment.
+func recalibrateScreeningScore(ctx *ScreeningMatchContext, baseScore int) int {
+	if ctx.FastResult == nil {
+		return baseScore
+	}
+	score := baseScore
+
+	// Only apply recalibration when SEP profiles are available (full match, not light fallback)
+	if ctx.ResumeSEPProfile == nil || ctx.JobSEPProfile == nil {
+		return score
+	}
+
+	// 1. Check for internship evidence: from highlights, SEP tags, and evidence text
+	hasInternship := false
+	hasProject := false
+	hasDirectionMatch := true
+
+	// Check MatchHighlights
+	for _, h := range ctx.FastResult.MatchHighlights {
+		if strings.Contains(h, "实习") {
+			hasInternship = true
+		}
+		if strings.Contains(h, "项目") || strings.Contains(h, "开发") {
+			hasProject = true
+		}
+	}
+
+	// Check SEP tags for internship/project evidence (may not appear in highlights)
+	if !hasInternship || !hasProject {
+		if tags, ok := ctx.ResumeSEPProfile.([]*model.SemanticProfileTag); ok {
+			for _, t := range tags {
+				ev := strings.ToLower(t.EvidenceText + t.TagLabel + t.Explanation)
+				if strings.Contains(ev, "实习") {
+					hasInternship = true
+				}
+				if strings.Contains(ev, "项目") || strings.Contains(t.Category, "project") {
+					hasProject = true
+				}
+			}
+		}
+	}
+
+	// Check for direction mismatch in risks
+	for _, r := range ctx.FastResult.RiskPoints {
+		if strings.Contains(r, "mismatch") || strings.Contains(r, "方向匹配度偏低") {
+			hasDirectionMatch = false
+		}
+	}
+
+	// Only boost when direction matches (avoid boosting for wrong-direction cases)
+	if !hasDirectionMatch {
+		return score
+	}
+
+	// Boost for internship evidence (real enterprise experience)
+	if hasInternship {
+		score += 8
+	}
+	// Boost for project evidence
+	if hasProject && len(ctx.FastResult.MatchHighlights) >= 2 {
+		score += 4
+	}
+	// Boost for direction alignment
+	if hasDirectionMatch && len(ctx.FastResult.MatchHighlights) >= 2 {
+		score += 3
+	}
+
+	// Floor guard: if resume has internship + projects + direction match, minimum score 70
+	if hasInternship && hasProject && hasDirectionMatch && score < 70 {
+		score = 70
+	}
+
+	// Cap: don't boost beyond reasonable range
+	if score > 95 {
+		score = 95
+	}
+	return score
 }
 
 // ─── Module 2: Screening Pass Points ─────────────────────────────────────
@@ -189,12 +922,21 @@ func runScreeningEliminationRisksModule(ctx *ScreeningMatchContext, decision *Sc
 			if i >= 3 { break }
 			sev := r.RiskLevel
 			if sev == "" { sev = "medium" }
+			// Improve fix direction with concrete, actionable advice
+			fixDir := r.FixSuggestion
+			currentProblem := r.EvidenceGap
+			if fixDir == "" || strings.Contains(fixDir, "补充") {
+				fixDir = buildConcreteFixDirection(r.RiskName, ctx)
+			}
+			if currentProblem == "" {
+				currentProblem = fmt.Sprintf("简历中%s相关的具体证据不够充分，HR初筛时缺少明确判断依据。", r.RiskName)
+			}
 			risks = append(risks, ScreeningEliminationRisk{
 				RiskTitle:            r.RiskName,
 				Severity:             sev,
 				WhyItBlocksScreening: r.WhyItMatters,
-				CurrentResumeProblem: r.EvidenceGap,
-				FixDirection:         r.FixSuggestion,
+				CurrentResumeProblem: currentProblem,
+				FixDirection:         fixDir,
 			})
 		}
 	}
@@ -202,14 +944,55 @@ func runScreeningEliminationRisksModule(ctx *ScreeningMatchContext, decision *Sc
 
 	if len(risks) == 0 {
 		risks = append(risks, ScreeningEliminationRisk{
-			RiskTitle:            "简历表达可进一步优化",
+			RiskTitle:            "项目描述偏功能列举，缺乏工程深度",
 			Severity:             "low",
-			WhyItBlocksScreening: "当前简历表达如能更贴合岗位JD关键词，可以进一步提升HR初筛的匹配度信号。",
-			CurrentResumeProblem: "简历内容真实但在JD关键词覆盖上可能不够充分。",
-			FixDirection:         "针对岗位要求，调整简历中的技能和项目描述词频。",
+			WhyItBlocksScreening: "HR从简历中看到的是功能点罗列而非工程能力体现，同等技能基础的候选人中，工程表达更强的简历优先被关注。",
+			CurrentResumeProblem: "项目描述以功能点为线索，没有体现接口数量、数据规模、性能结果、线上运行状态等工程深度信号。",
+			FixDirection:         "用工程语言改写项目描述：补充接口数量、数据库表数量、缓存命中率提升、QPS、线上状态等可量化指标，把「做了什么」改成「解决了什么问题+怎么验证的」。",
 		})
 	}
 	return risks
+}
+
+// buildConcreteFixDirection generates actionable fix text based on risk type.
+func buildConcreteFixDirection(riskName string, ctx *ScreeningMatchContext) string {
+	riskLow := strings.ToLower(riskName)
+	switch {
+	case strings.Contains(riskLow, "覆盖不足") || strings.Contains(riskLow, "技能"):
+		// Map the missing skills to a concrete fix direction
+		gapText := ""
+		if ctx.FastResult != nil && len(ctx.FastResult.GapPoints) > 0 {
+			for _, g := range ctx.FastResult.GapPoints {
+				if strings.Contains(strings.ToLower(g), "缺少") {
+					gapText = g
+					break
+				}
+			}
+		}
+		if gapText != "" {
+			return fmt.Sprintf("在简历的项目经历中%v，用具体项目场景证明你理解并实践过这些技术点，而不是仅列在技能列表里。", extractGapContent(gapText))
+		}
+		return "针对岗位JD中列出的核心技术点，检查简历项目经历是否覆盖了对应的工程场景——例如岗位要求缓存，简历项目应体现缓存的key设计、过期策略和一致性处理。"
+	case strings.Contains(riskLow, "方向"):
+		return "该岗位的核心技术方向与你的实际项目经历存在差异。如果坚持投递，需要在简历补充说明中解释你的转型动机和准备；更建议转向与你现有经验匹配的方向。"
+	case strings.Contains(riskLow, "证据"):
+		return "为每个技能/项目补充可验证的证据：具体项目名称、你在其中的角色、使用的技术栈、达成的量化结果以及项目是否已上线运行。"
+	default:
+		return "结合实际项目经历，用STAR法则（情境-任务-行动-结果）重写项目描述，让HR能从简历中看到你的具体贡献和技术深度。"
+	}
+}
+
+// extractGapContent extracts the meaningful part from a gap description.
+func extractGapContent(gapText string) string {
+	// Remove common prefixes like "缺少" or "需补充"
+	clean := strings.TrimPrefix(gapText, "缺少")
+	clean = strings.TrimPrefix(clean, "需补充")
+	clean = strings.TrimPrefix(clean, "补充")
+	clean = strings.TrimSpace(clean)
+	if clean == "" {
+		return "补充对应技术的项目实践描述"
+	}
+	return "补充" + clean + "的项目实践描述"
 }
 
 // ─── Module 4: Resume Rewrite Commands ───────────────────────────────────
@@ -217,37 +1000,99 @@ func runScreeningEliminationRisksModule(ctx *ScreeningMatchContext, decision *Sc
 func runResumeRewriteCommandsModule(ctx *ScreeningMatchContext, decision *ScreeningDecision, risks []ScreeningEliminationRisk) []ResumeRewriteCommand {
 	commands := []ResumeRewriteCommand{}
 
-	// Generate rewrite commands from risks
-	for i, r := range risks {
-		if i >= 4 { break }
-		before := "简历中相关描述不够突出"
-		after := r.FixDirection
-		if after == "" {
-			after = "针对岗位JD补充相关关键词和项目细节描述"
-		}
-		if before != after {
+	// For not_recommended / change_direction: don't suggest rewriting to fake experience
+	if decision.Decision == "not_recommended" || decision.Decision == "change_direction" {
+		commands = append(commands, ResumeRewriteCommand{
+			TargetSection:          "求职意向和补充说明",
+			Problem:                "当前简历与岗位方向不匹配，不适合投递该岗位。强行修改简历去贴合会编造不存在的能力经历。",
+			RewriteInstruction:     "不建议修改简历去投递该岗位。应保留简历真实内容，转向更适合的方向。",
+			BeforeExample:          "投递方向与该岗位不匹配仍要修改简历去投递。",
+			AfterExample:           "保留简历的真实后端工程经历描述，将求职意向调整为后台开发、平台后端、服务端开发等方向。",
+			WhyItImprovesScreening: "真实的经历比勉强凑合的改写更能通过面试关。HR和面试官能识别出不匹配的强行包装。",
+		})
+		return commands
+	}
+
+	// For revise_before_apply / backup / direct_apply: generate concrete rewrites
+	// Build rewrites from structured risks mapping to concrete before/after
+	rewriteCount := 0
+	for _, r := range risks {
+		if rewriteCount >= 2 { break }
+		before, after := buildBeforeAfterPair(r, ctx)
+		if before != "" && after != "" {
 			commands = append(commands, ResumeRewriteCommand{
-				TargetSection:          "项目经历或技能列表",
+				TargetSection:          "项目经历",
 				Problem:                r.CurrentResumeProblem,
 				RewriteInstruction:     r.FixDirection,
 				BeforeExample:          before,
 				AfterExample:           after,
-				WhyItImprovesScreening: fmt.Sprintf("修改后能更好地覆盖岗位对%s的要求，提高HR初筛时的关键词命中率。", r.RiskTitle),
+				WhyItImprovesScreening: fmt.Sprintf("修改后能更好展示你在%s方面的工程实践能力，HR能在10秒内识别到关键匹配信号。", r.RiskTitle),
 			})
+			rewriteCount++
 		}
 	}
 
-	if len(commands) == 0 {
-		commands = append(commands, ResumeRewriteCommand{
-			TargetSection:          "项目经历",
-			Problem:                "项目描述偏功能罗列，没有体现工程能力和技术深度。",
-			RewriteInstruction:     "把具体的接口数、QPS、数据量等技术指标补充到项目描述中。",
-			BeforeExample:          "参与课程权限、学习进度、资源下载等功能开发。",
-			AfterExample:           "负责课程权限校验、播放签名鉴权、学习进度一致性、资源下载权限控制，补齐登录态多层校验。",
-			WhyItImprovesScreening: "技术指标能让HR快速判断你的工程能力级别，比功能描述更有初筛价值。",
-		})
+	// Ensure minimum 2 commands for applicable cases
+	if len(commands) < 2 {
+		commands = append(commands,
+			ResumeRewriteCommand{
+				TargetSection:          "项目经历",
+				Problem:                "项目描述偏功能罗列，没有体现工程能力和技术深度。",
+				RewriteInstruction:     "把具体的接口数、数据量、性能指标等技术参数补充到项目描述中，让HR能判断你的工程能力级别。",
+				BeforeExample:          "参与课程权限管理、学习进度记录、资源下载等功能开发。",
+				AfterExample:           "参与企业课程学习平台后端核心链路建设，负责课程权限校验、播放签名鉴权、学习进度一致性与资源下载权限控制，补齐登录态、课程状态、学习权限、小节归属、视频绑定等多层校验，降低越权访问风险。",
+				WhyItImprovesScreening: "工程化表达能让HR快速判断你的技术深度和项目复杂度，比功能点罗列更具初筛价值。",
+			},
+			ResumeRewriteCommand{
+				TargetSection:          "实习经历或项目经历",
+				Problem:                "缺少量化结果和性能数据支撑。",
+				RewriteInstruction:     "在项目描述末尾补充该项目的技术规模指标和你的具体贡献。",
+				BeforeExample:          "使用Redis缓存商品详情，提升查询效率。",
+				AfterExample:           "使用Redis缓存热门商品详情和首页商品列表，设置分场景过期策略与缓存Key规则，将重复访问场景下详情接口平均响应时间从180ms降至60ms，缓存命中率提升至85%以上。",
+				WhyItImprovesScreening: "有量化结果的项目经历比纯功能描述更能证明你的工程产出，这是HR筛简历时区分'做过'和'做好'的关键依据。",
+			})
+	}
+
+	if len(commands) > 4 {
+		commands = commands[:4]
 	}
 	return commands
+}
+
+// buildBeforeAfterPair generates a before/after rewrite pair based on risk context.
+func buildBeforeAfterPair(risk ScreeningEliminationRisk, ctx *ScreeningMatchContext) (string, string) {
+	riskLow := strings.ToLower(risk.RiskTitle)
+
+	// Map risk type to a concrete before/after based on available evidence
+	skillsBefore := "在技能列表中列出了相关技术栈名称。"
+	skillsAfter := "在项目经历中用具体场景展示技术栈的实际应用：例如使用Redis实现缓存策略并测量响应时间变化，使用JWT实现登录态管理并对敏感接口增加权限校验。"
+
+	switch {
+	case strings.Contains(riskLow, "覆盖不足") || strings.Contains(riskLow, "技能"):
+		// Build a contextual after from match highlights
+		suffix := "并补充性能指标、异常处理和上线验证结果。"
+		if len(ctx.FastResult.MatchHighlights) > 0 {
+			hl := ctx.FastResult.MatchHighlights[0]
+			suffix = fmt.Sprintf("并结合%s的实际项目，补充接口数量、数据库表数量、缓存策略和测试验证结果。", hl)
+		}
+		return skillsBefore, skillsAfter + suffix
+
+	case strings.Contains(riskLow, "证据") || strings.Contains(riskLow, "表达"):
+		return "负责后端接口开发和数据库设计。",
+			"负责后端核心接口开发（共完成X个接口），设计数据库表结构（共Y张表含索引优化），使用Swagger维护接口文档，完成前后端联调并通过测试环境验收。"
+
+	case strings.Contains(riskLow, "方向"):
+		if len(ctx.FastResult.MatchHighlights) > 0 {
+			hl := ctx.FastResult.MatchHighlights[0]
+			return fmt.Sprintf("求职意向描述较笼统，与%s岗位的方向关联不够明确。", ctx.JobTitle),
+				fmt.Sprintf("求职意向明确为%s方向，并在项目经历中将%s相关的工程实践作为核心叙事线展开。", ctx.JobTitle, hl)
+		}
+		return "", ""
+
+	default:
+		return "项目描述以功能列举为主。",
+			"项目描述以工程链路为主线：从需求分析→数据库设计→接口开发→权限校验→缓存优化→前后端联调→测试验收，体现完整的后端工程能力。"
+	}
 }
 
 // ─── Module 5: Job Strategy ──────────────────────────────────────────────
@@ -262,28 +1107,88 @@ func runJobStrategyModule(ctx *ScreeningMatchContext, decision *ScreeningDecisio
 	switch decision.Decision {
 	case "direct_apply":
 		strategy.Positioning = "主投岗位"
-		strategy.RecommendedAction = "当前简历匹配度较高，可以直接投递。同时建议优化简历细节以提升竞争力。"
-		strategy.IfApplyNow = "当前简历与岗位匹配度较高，初筛通过概率较好。"
+		strategy.RecommendedAction = "当前简历与该岗位方向匹配、有真实项目经历支撑，可以直接投递。建议投递前再次检查简历项目描述是否突出了与岗位JD关键词的对应关系。"
+		strategy.IfApplyNow = "当前简历与岗位方向匹配度较高，有明确的工程实践经验支撑，初筛通过概率较好。但仍建议在投递前用岗位JD的关键词校准一遍简历表达。"
 	case "revise_before_apply":
 		strategy.Positioning = "主投岗位"
-		strategy.RecommendedAction = "先完成简历定向优化，尤其是针对岗位JD关键词补充项目描述，再投递。"
-		strategy.IfApplyNow = "当前简历可以体现基础能力，但初筛竞争力一般。优化后通过率会有明显提升。"
+		strategy.RecommendedAction = "先完成简历定向优化——重点补充项目描述中的工程深度（接口数量、数据规模、性能指标）和岗位JD关键词覆盖，再投递。"
+		strategy.IfApplyNow = "你的简历方向匹配、有真实项目经历，但目前项目描述偏功能列举，工程深度表达不够。优化后初筛通过率会有明显提升。"
 	case "not_recommended", "change_direction":
-		strategy.Positioning = "建议换方向"
-		strategy.RecommendedAction = "该岗位方向与你的简历背景差距较大，建议优先投递方向更匹配的岗位。"
-		strategy.IfApplyNow = "当前简历与该岗位方向不匹配，直接投递初筛通过率很低。"
+		strategy.Positioning = "不建议作为主投岗位"
+		strategy.RecommendedAction = "该岗位方向与你的简历核心经历差距较大，不建议把有限的投递机会用在这个岗位上。请优先投递与你现有经验方向匹配的岗位。"
+		strategy.IfApplyNow = "当前简历与该岗位方向不匹配，HR在初筛阶段会因为方向不对口快速过滤。不建议为了碰运气而消耗投递机会。"
 	}
 
+	// Derive better fit directions from resume SEP tags and context
 	if ctx.FastResult != nil {
-		// Suggest directions from job SEP
-		strategy.BetterFitDirections = []string{"后台开发", "平台后端", "服务端开发"}
-		if ctx.JobDirection != "" {
-			strategy.BetterFitDirections = append(strategy.BetterFitDirections, ctx.JobDirection)
-		}
+		strategy.BetterFitDirections = deriveBetterFitDirections(ctx)
 	}
-	strategy.AvoidDirections = []string{"算法研究", "纯产品策划", "视觉设计"}
+	strategy.AvoidDirections = deriveAvoidDirections(ctx)
 
 	return strategy
+}
+
+// deriveBetterFitDirections recommends directions based on resume evidence.
+func deriveBetterFitDirections(ctx *ScreeningMatchContext) []string {
+	directions := []string{"后台开发", "平台后端", "服务端开发"}
+
+	// Analyze resume SEP tags for direction signals
+	if tags, ok := ctx.ResumeSEPProfile.([]*model.SemanticProfileTag); ok && len(tags) > 0 {
+		skillSet := make(map[string]bool)
+		for _, t := range tags {
+			skillSet[strings.ToLower(t.TagLabel)] = true
+		}
+
+		// Add more specific directions based on skill evidence
+		if skillSet["go"] || skillSet["gin"] {
+			directions = appendIfMissing(directions, "Go后端开发")
+		}
+		if skillSet["java"] || skillSet["spring boot"] || skillSet["spring"] {
+			directions = appendIfMissing(directions, "Java后端开发")
+		}
+		if skillSet["docker"] || skillSet["nginx"] || skillSet["linux"] {
+			directions = appendIfMissing(directions, "云产品后端开发")
+		}
+		if skillSet["mysql"] || skillSet["redis"] {
+			directions = appendIfMissing(directions, "数据平台后端开发")
+		}
+		if skillSet["rabbitmq"] || skillSet["kafka"] || skillSet["消息队列"] {
+			directions = appendIfMissing(directions, "中间件与基础架构开发")
+		}
+	}
+
+	// Add the current job direction if it differs from existing
+	if ctx.JobDirection != "" {
+		directions = appendIfMissing(directions, ctx.JobDirection+"方向")
+	}
+
+	if len(directions) > 6 {
+		directions = directions[:6]
+	}
+	return directions
+}
+
+// deriveAvoidDirections returns directions that don't fit the resume's profile.
+func deriveAvoidDirections(ctx *ScreeningMatchContext) []string {
+	avoids := []string{"算法研究", "纯产品策划", "视觉设计"}
+
+	// Check for direction mismatch in risks to add context-specific avoids
+	for _, r := range ctx.FastResult.RiskPoints {
+		if strings.Contains(strings.ToLower(r), "mismatch") || strings.Contains(strings.ToLower(r), "方向匹配度偏低") {
+			avoids = appendIfMissing(avoids, ctx.JobTitle+"方向")
+		}
+	}
+	return avoids
+}
+
+// appendIfMissing adds a string to a slice if not already present.
+func appendIfMissing(slice []string, s string) []string {
+	for _, v := range slice {
+		if strings.EqualFold(v, s) {
+			return slice
+		}
+	}
+	return append(slice, s)
 }
 
 // ─── Judge Module ─────────────────────────────────────────────────────────

@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"time"
 
 	"offer-catcher/server/internal/agent"
+	"offer-catcher/server/internal/llm"
 	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/repository"
 )
@@ -72,6 +74,7 @@ type MatchService struct {
 	enableMockAgent bool
 	tagEvidence    *TagEvidenceService // K13-Fix-B
 	semanticRepo   *repository.SemanticProfileRepository // H18-C: SEP profile access
+	hy3Client      llm.Client // JM-R3-R: Hy3 LLM client for 5-module Deep pipeline
 }
 
 // NewMatchService creates a new MatchService.
@@ -87,6 +90,7 @@ func NewMatchService(
 	enableMockAgent bool,
 	tagEvidence *TagEvidenceService,
 	semanticRepo *repository.SemanticProfileRepository,
+	hy3Client llm.Client,
 ) *MatchService {
 	return &MatchService{
 		resumeRepo:    resumeRepo,
@@ -100,6 +104,7 @@ func NewMatchService(
 		enableMockAgent: enableMockAgent,
 		tagEvidence:    tagEvidence,
 		semanticRepo:   semanticRepo,
+		hy3Client:      hy3Client,
 	}
 }
 
@@ -663,13 +668,25 @@ func (s *MatchService) fastMatchWithTags(ctx context.Context, userID uint64, res
 // ─── JM-R3: Screening Match V1 Entry ─────────────────────────────────────
 
 // runScreeningMatchEntry builds context, runs 5-module pipeline, returns response.
+// JM-R3-R: Quality tier now uses real Hy3 5-module LLM pipeline; rule-based is fallback.
 func (s *MatchService) runScreeningMatchEntry(
 	ctx context.Context, resume *model.ResumeVersion, job *model.Job,
 ) (*MatchResponse, error) {
 	smCtx, err := s.buildScreeningMatchContext(ctx, resume, job)
 	if err != nil {
-		// SEP not ready → profile_pending
+		// SEP not ready → try light text-based fallback before returning profile_pending
 		if smCtx == nil {
+			// JM-R5: Attempt light match using raw resume text when SEP is missing
+			if lightCtx := s.buildLightScreeningContext(resume, job); lightCtx != nil {
+				report := runScreeningMatchPipeline(lightCtx)
+				resp := screeningMatchToResponse(report)
+				resp.Meta.FallbackReason = "se_profile_missing_light_match"
+				resp.Meta.GeneratedBy = "rule_screening_match_fallback"
+				resp.Meta.AgentStatus = "fallback"
+				resp.Result.GeneratedBy = "rule_screening_match_fallback"
+				resp.Result.AgentStatus = "fallback"
+				return resp, nil
+			}
 			result := &model.MatchAnalysisResult{
 				MatchScore:      0, MatchLevel: "待分析", ScreeningResult: "profile_pending",
 				GeneratedBy: "deep_match_profile_pending", AgentStatus: "profile_missing",
@@ -689,8 +706,188 @@ func (s *MatchService) runScreeningMatchEntry(
 		return nil, err
 	}
 
+	// JM-R3-R: Quality tier — use real Hy3 5-module pipeline when client is available
+	if s.hy3Client != nil {
+		log.Printf("[ScreeningMatch] attempting Hy3 5-module pipeline for resume=%d job=%d", resume.ID, job.ID)
+		hy3Report, hy3Status, hy3GenBy := runHy3ScreeningPipeline(ctx, smCtx, s.hy3Client)
+		if hy3Report != nil {
+			resp := screeningMatchToResponse(hy3Report)
+			resp.Meta.AgentStatus = hy3Status
+			resp.Meta.GeneratedBy = hy3GenBy
+			resp.Result.GeneratedBy = hy3GenBy
+			resp.Result.AgentStatus = hy3Status
+			return resp, nil
+		}
+		log.Printf("[ScreeningMatch] Hy3 pipeline failed, falling back to rule-based for resume=%d job=%d", resume.ID, job.ID)
+	}
+
+	// JM-R3-R: Rule-based fallback (also used when hy3Client is nil)
 	report := runScreeningMatchPipeline(smCtx)
-	return screeningMatchToResponse(report), nil
+	resp := screeningMatchToResponse(report)
+	if s.hy3Client == nil {
+		// No Hy3 client at all — this is the only path
+		resp.Meta.FallbackReason = "rule_screening_match_no_hy3"
+		resp.Result.GeneratedBy = "rule_screening_match_fallback"
+		resp.Result.AgentStatus = "fallback"
+	} else {
+		// Had Hy3 client but it failed
+		resp.Meta.FallbackReason = "hy3_failed_rule_fallback"
+		resp.Result.GeneratedBy = "rule_screening_match_fallback"
+		resp.Result.AgentStatus = "fallback"
+	}
+	return resp, nil
+}
+
+// buildLightScreeningContext creates a minimal context from raw resume text
+// when SEP profiles are unavailable. Used for light match fallback.
+func (s *MatchService) buildLightScreeningContext(resume *model.ResumeVersion, job *model.Job) *ScreeningMatchContext {
+	// Only proceed if we have raw resume text to work with
+	rawText := resume.RawText
+	if rawText == "" {
+		return nil
+	}
+
+	// Basic keyword match scoring against job direction/category
+	resumeLower := strings.ToLower(rawText)
+	jobLower := strings.ToLower(job.Title + " " + job.Direction + " " + job.Category)
+
+	// Detect basic matches from keyword overlap
+	keywords := []string{"java", "go", "python", "mysql", "redis", "spring", "gin",
+		"后端", "后台", "开发", "数据库", "接口", "docker", "linux"}
+	matchCount := 0
+	for _, kw := range keywords {
+		if strings.Contains(resumeLower, kw) && strings.Contains(jobLower, kw) {
+			matchCount++
+		}
+	}
+
+	// Also count resume skills present in a broader job context
+	skillKeywords := []string{"java", "sql", "mysql", "redis", "spring", "docker", "linux", "git"}
+	skillMatchCount := 0
+	for _, kw := range skillKeywords {
+		if strings.Contains(resumeLower, kw) {
+			skillMatchCount++
+		}
+	}
+	// Combined: shared keywords + skill presence in resume
+	effectiveMatch := matchCount + minInt(skillMatchCount/2, 3)
+
+	// Detect internship/project presence (check for positive evidence, not negation)
+	hasNoInternship := strings.Contains(resumeLower, "没有") && strings.Contains(resumeLower, "实习")
+	hasNoProject := strings.Contains(resumeLower, "没有") && strings.Contains(resumeLower, "项目")
+	hasInternship := strings.Contains(resumeLower, "实习") && !hasNoInternship
+	hasProject := (strings.Contains(resumeLower, "项目经历") || strings.Contains(resumeLower, "项目")) && !hasNoProject
+
+	// Derive a rough score
+	baseScore := 35
+	if effectiveMatch >= 3 {
+		baseScore = 42
+	}
+	if effectiveMatch >= 5 {
+		baseScore = 50
+	}
+	if hasInternship {
+		baseScore += 5
+	}
+	if hasProject {
+		baseScore += 5
+	}
+	// Floor: if direction is related and there's some skill overlap, minimum 40
+	if hasDirectionOverlap(resumeLower, jobLower) && skillMatchCount >= 2 {
+		if baseScore < 40 {
+			baseScore = 40
+		}
+	}
+	if baseScore > 60 {
+		baseScore = 60
+	}
+	if baseScore < 25 {
+		baseScore = 25
+	}
+
+	// Build highlights
+	highlights := []string{}
+	if hasInternship {
+		highlights = append(highlights, "有实习相关描述")
+	}
+	if hasProject {
+		highlights = append(highlights, "有项目相关描述")
+	}
+	if matchCount >= 3 {
+		highlights = append(highlights, "具备部分岗位方向相关技能基础")
+	}
+
+	gapPoints := []string{}
+	if !hasInternship && !hasProject {
+		gapPoints = append(gapPoints, "简历缺少项目和实习经历，建议先补充实践证据")
+	} else if !hasInternship {
+		gapPoints = append(gapPoints, "缺少实习经历，建议补充企业实习或真实项目经验")
+	}
+	if matchCount < 5 {
+		gapPoints = append(gapPoints, "技能覆盖面有限，建议补充后端开发核心技术栈的项目实践")
+	}
+
+	// Determine risk
+	riskName := "简历证据不足，缺少真实项目支撑"
+	riskLevel := "high"
+	if hasProject || hasInternship {
+		riskName = "项目深度和工程证据不足"
+		riskLevel = "medium"
+	}
+	structuredRisks := []MatchRiskPoint{
+		{
+			RiskName:      riskName,
+			RiskLevel:     riskLevel,
+			WhyItMatters:  "实习生岗位筛选时，HR会优先关注有真实项目或实习经历的简历。仅有基础技能列表而缺少实践证据，初筛通过率很低。",
+			EvidenceGap:   "简历以基础技能描述为主，缺少完整的项目开发、接口设计、数据库操作等后端工程实践证据。",
+			FixSuggestion: "建议先完成一个较完整的后端项目（含接口开发、数据库设计、登录鉴权、缓存使用和部署验证），把项目作为简历核心证据，再投递该岗位。",
+		},
+	}
+
+	// Build light FastResult
+	lightResult := &model.MatchAnalysisResult{
+		MatchScore:      baseScore,
+		MatchLevel:      matchLevel(baseScore),
+		MatchHighlights: highlights,
+		GapPoints:       gapPoints,
+		RiskPoints:      []string{riskName},
+		Summary:         fmt.Sprintf("基础匹配分析：简历与%s方向匹配度%s（基于基础文本分析，非完整语义画像）。", job.Title, matchLevel(baseScore)),
+		StructuredRisks: structuredRisks,
+		CoreAdvantages:  highlights,
+		MainGaps:        gapPoints,
+	}
+
+	lightCtx := &ScreeningMatchContext{
+		ResumeID:        int64(resume.ID),
+		JobID:           int64(job.ID),
+		ResumeName:      resume.Name,
+		ResumeRawText:   rawText,
+		JobTitle:        job.Title,
+		JobDirection:    job.Direction,
+		JobCategory:     job.Category,
+		JobCity:         job.City,
+		JobRawJD:        job.Description,
+		FastResult:      lightResult,
+		ResumeSEPProfile: nil,
+		JobSEPProfile:    nil,
+	}
+	return lightCtx
+}
+
+// hasDirectionOverlap checks if the resume text and job context share direction-related terms.
+func hasDirectionOverlap(resumeLower, jobLower string) bool {
+	dirTerms := []string{"后端", "后台", "开发", "软件", "java", "go", "python", "服务端"}
+	for _, term := range dirTerms {
+		if strings.Contains(resumeLower, term) && strings.Contains(jobLower, term) {
+			return true
+		}
+	}
+	// Broad match: if resume mentions "开发" and job involves software/backend
+	if strings.Contains(resumeLower, "开发") &&
+		(strings.Contains(jobLower, "开发") || strings.Contains(jobLower, "软件") || strings.Contains(jobLower, "后端") || strings.Contains(jobLower, "后台")) {
+		return true
+	}
+	return false
 }
 
 // screeningMatchToResponse converts ScreeningMatchV1 to MatchResponse.
@@ -714,6 +911,11 @@ func screeningMatchToResponse(report *ScreeningMatchV1) *MatchResponse {
 		NextSteps:       []string{report.JobStrategy.RecommendedAction},
 		FitPoints:       []string{},
 		EvidenceChain:   []model.MatchEvidence{},
+		// JM-R3-R: Propagate all 5 Hy3 module outputs
+		ScreeningPassPoints:      report.ScreeningPassPoints,
+		ScreeningEliminationRisks: report.ScreeningEliminationRisks,
+		ResumeRewriteCommands:    report.ResumeRewriteCommands,
+		JobStrategy:              report.JobStrategy,
 	}
 	for _, p := range report.ScreeningPassPoints {
 		result.MatchHighlights = append(result.MatchHighlights, p.Title)
