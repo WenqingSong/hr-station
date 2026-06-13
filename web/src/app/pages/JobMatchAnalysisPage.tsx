@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Link, useSearchParams, useNavigate, useLocation } from "react-router";
 import { MatchAnalysisHeader } from "../components/match/MatchAnalysisHeader";
 import { MatchAnalysisSidebarLeft } from "../components/match/MatchAnalysisSidebarLeft";
-import { MatchAnalysisDetail } from "../components/match/MatchAnalysisDetail";
 import { MatchAnalysisSidebarRight } from "../components/match/MatchAnalysisSidebarRight";
 import { loadMatchAnalysisViewModel, loadLatestMatchViewModel, loadResumeOptionViewModelsFromApi, loadResumeVersionDetail, type MatchLatestResponse } from "../../api";
 import { getJobDetail } from "../../api/jobs";
@@ -90,7 +89,7 @@ export function JobMatchAnalysisPage() {
   const [phase, setPhase] = useState<MatchPhase>("loading_latest");
   const [activeResult, setActiveResult] = useState<MatchAnalysisPageViewModel | null>(null);
   const [activeTier, setActiveTier] = useState<string>("fast");
-  const [activeGeneratedBy, setActiveGeneratedBy] = useState<string>("fast_tag_engine");
+  const [activeGeneratedBy, setActiveGeneratedBy] = useState<string>("fast_sep_match_engine");
   const [matchError, setMatchError] = useState<string | null>(null);
   const [deepBackendDone, setDeepBackendDone] = useState(false);
 
@@ -176,7 +175,7 @@ export function JobMatchAnalysisPage() {
             .then((r) => {
               setActiveResult(r);
               setActiveTier("fast");
-              setActiveGeneratedBy(r.generatedBy || "fast_tag_engine");
+              setActiveGeneratedBy(r.generatedBy || "fast_sep_match_engine");
               setPhase("fast_done");
             })
             .catch(() => {
@@ -373,60 +372,320 @@ export function JobMatchAnalysisPage() {
 
           {/* Center detail — Fast vs Deep */}
           {isFast ? (
-            /* ── Fast simplified ── */
-            <div className="flex-1 min-w-0 max-w-[680px] bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-              <div className="bg-[#F4F8FF] p-5 border-b border-blue-100">
-                <h2 className="text-lg font-bold text-gray-900 mb-2">匹配结论</h2>
-                <div className="flex items-center gap-3 mb-2">
-                  <Badge variant={activeResult.matchScore >= 80 ? "default" : activeResult.matchScore >= 70 ? "secondary" : "outline"} className="text-xs px-2">
-                    {activeResult.matchLevel || "待评估"}
-                  </Badge>
-                  <span className="text-sm font-semibold text-gray-700">{activeResult.matchScore || 0} 分</span>
+            /* ── H18-E Fast: 6-card modular report ── */
+            <div className="flex-1 min-w-0 max-w-[680px] flex flex-col gap-4">
+              {/* Card 1: Top Conclusion */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
+                    <span className="text-xl font-bold text-white">{activeResult.matchScore}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[15px] font-bold text-slate-800">{activeResult.matchLevel}</span>
+                      {activeResult.decisionLabel && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{activeResult.decisionLabel}</span>
+                      )}
+                    </div>
+                    <p className="text-[13px] text-slate-600 leading-relaxed">{activeResult.summary || "暂无匹配结论"}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">基于语义画像快速分析</p>
+                  </div>
                 </div>
-                {activeResult.summary && (
-                  <p className="text-sm text-gray-600">{activeResult.summary}</p>
+              </div>
+
+              {/* Card 2: Score Breakdown + Hard Gate */}
+              {activeResult.scoreBreakdown && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">分数拆解</h3>
+                  <div className="grid grid-cols-5 gap-2 text-center">
+                    {[
+                      { k: "方向", v: activeResult.scoreBreakdown.directionFit },
+                      { k: "覆盖", v: activeResult.scoreBreakdown.mustHaveCoverage },
+                      { k: "证据", v: activeResult.scoreBreakdown.evidenceStrength },
+                      { k: "经历", v: activeResult.scoreBreakdown.experienceRelevance },
+                      { k: "风险", v: activeResult.scoreBreakdown.riskControl },
+                    ].map(({ k, v }) => (
+                      <div key={k}>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mb-1">
+                          <div className="h-full bg-[#0052D9] rounded-full" style={{ width: `${v ?? 0}%` }} />
+                        </div>
+                        <span className="text-[10px] text-slate-500">{k}</span>
+                        <span className="text-[11px] font-mono text-slate-700 ml-1">{v ?? "-"}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {activeResult.hardGate && (
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <span className="text-slate-400">质量门槛：</span>
+                        <span className={`font-medium ${activeResult.hardGate.status === "passed" ? "text-emerald-600" : activeResult.hardGate.status === "blocked" ? "text-red-500" : "text-amber-600"}`}>
+                          {activeResult.hardGate.status === "passed" ? "通过" : activeResult.hardGate.status === "blocked" ? "不建议" : "受限"}
+                        </span>
+                        {activeResult.hardGate.scoreCap < 100 && (
+                          <span className="text-slate-400">· 分数上限 {activeResult.hardGate.scoreCap}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Card 3: Core Advantages + Main Gaps */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">核心优势</h3>
+                  {(activeResult.coreAdvantages?.length ?? 0) > 0 ? (
+                    <ul className="space-y-1.5">
+                      {activeResult.coreAdvantages.slice(0, 4).map((a, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-700">
+                          <span className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 shrink-0" />{a}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[11px] text-slate-400">当前简历暂未体现足够强的岗位匹配优势。</p>
+                  )}
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-amber-600 uppercase tracking-wide mb-2">主要短板</h3>
+                  <ul className="space-y-1.5">
+                    {activeResult.mainGaps.slice(0, 4).map((g, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-700">
+                        <span className="w-1 h-1 rounded-full bg-amber-400 mt-1.5 shrink-0" />{g}
+                      </li>
+                    ))}
+                    {activeResult.mainGaps.length === 0 && <li className="text-[11px] text-slate-400">未识别明显短板</li>}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Card 4: Risk Diagnosis */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">风险诊断</h3>
+                {activeResult.structuredRisks.length > 0 ? (
+                  <div className="space-y-3">
+                    {activeResult.structuredRisks.slice(0, 3).map((r, i) => (
+                      <div key={i} className="border border-slate-100 rounded-xl p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${r.riskLevel === "high" ? "bg-red-50 text-red-600" : r.riskLevel === "medium" ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-500"}`}>
+                            {r.riskLevel === "high" ? "高风险" : r.riskLevel === "medium" ? "中风险" : "低风险"}
+                          </span>
+                          <span className="text-[13px] font-medium text-slate-800">{r.riskName}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">{r.whyItMatters || r.evidenceGap}</p>
+                        {r.fixSuggestion && <p className="text-[11px] text-blue-600 mt-1">{r.fixSuggestion}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400">当前未识别明显高风险，但仍建议结合 JD 微调简历。</p>
                 )}
               </div>
-              <div className="p-5 space-y-4">
-                {/* Core advantages */}
-                {activeResult.matchHighlights && activeResult.matchHighlights.length > 0 && (
-                  <section>
-                    <h3 className="font-bold text-sm text-gray-900 mb-2">核心优势</h3>
-                    <BulletList items={activeResult.matchHighlights.slice(0, 2).map(a => a)} tone="green" />
-                  </section>
+
+              {/* Card 5: Requirement Coverage */}
+              {activeResult.requirementCoverage.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">要求覆盖</h3>
+                  <div className="space-y-2">
+                    {activeResult.requirementCoverage.slice(0, 6).map((c, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[11px]">
+                        <div className="w-16 shrink-0">
+                          <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${c.coverageStatus === "strong" ? "bg-emerald-500" : c.coverageStatus === "partial" ? "bg-blue-400" : "bg-slate-300"}`} style={{ width: `${c.coverageScore}%` }} />
+                          </div>
+                        </div>
+                        <span className="w-12 shrink-0 text-slate-400 text-[10px]">{c.requirementType === "must_have" ? "必备" : c.requirementType === "should_have" ? "重要" : "加分"}</span>
+                        <span className="flex-1 text-slate-700 truncate">{c.requirementName}</span>
+                        <span className={`shrink-0 ${c.coverageStatus === "strong" ? "text-emerald-600" : c.coverageStatus === "missing" ? "text-red-400" : "text-slate-400"}`}>{c.coverageScore}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Card 6: Action Suggestions + Deep upsell */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">下一步建议</h3>
+                {activeResult.actionSuggestions.length > 0 ? (
+                  <ul className="space-y-1.5 mb-3">
+                    {activeResult.actionSuggestions.slice(0, 4).map((s, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-700">
+                        <span className="text-[#0052D9] font-bold mt-0.5">{i + 1}.</span>{s}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[11px] text-slate-400 mb-3">建议优先补充与该岗位核心要求相关的项目证据，再进行投递。</p>
                 )}
-                {/* Main gap */}
-                {activeResult.gapPoints && activeResult.gapPoints.length > 0 && (
-                  <section>
-                    <h3 className="font-bold text-sm text-amber-600 mb-2">主要短板</h3>
-                    <p className="text-[13px] text-gray-700">{activeResult.gapPoints[0]}</p>
-                  </section>
-                )}
-                {/* Main risk */}
-                {activeResult.riskPoints && activeResult.riskPoints.length > 0 && (
-                  <section>
-                    <h3 className="font-bold text-sm text-amber-600 mb-2">风险提醒</h3>
-                    <p className="text-[13px] text-gray-700">{activeResult.riskPoints[0]}</p>
-                  </section>
-                )}
-                {/* Quick suggestion */}
-                {activeResult.improvementSuggestions && activeResult.improvementSuggestions.length > 0 && (
-                  <section>
-                    <h3 className="font-bold text-sm text-gray-900 mb-2">快速建议</h3>
-                    <p className="text-[13px] text-gray-700">{activeResult.improvementSuggestions[0]?.title || activeResult.improvementSuggestions[0]?.action}</p>
-                  </section>
-                )}
-                {/* Upsell to Deep */}
-                <div className="bg-blue-50/50 border border-blue-100 rounded-md p-3 mt-4">
-                  <p className="text-[12px] text-blue-700">
-                    点击右侧「生成深度匹配分析」，查看岗位要求拆解、简历证据对应、风险与补强建议、面试表达点和投递策略。
+                <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-3 mt-2">
+                  <p className="text-[11px] text-blue-700">
+                    想进一步查看 JD 解构、简历改写方向和面试追问预测，可生成深度匹配分析。
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            /* ── Deep complete ── */
-            <MatchAnalysisDetail currentJobId={jobId} currentResumeId={String(selectedOption.id)} data={activeResult} />
+            /* ── H19-C Deep: 10-module Agent Report ── */
+            <div className="flex-1 min-w-0 max-w-[720px] flex flex-col gap-4">
+              {/* Card 1: Top Conclusion */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-1 mb-3">
+                  <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">深度岗位顾问报告</span>
+                  {activeGeneratedBy === "deep_match_agent" && <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full">多 Agent 分析</span>}
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-400 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20">
+                    <span className="text-2xl font-bold text-white">{activeResult.matchScore}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[16px] font-bold text-slate-800">{activeResult.matchLevel}</span>
+                    </div>
+                    <p className="text-[13px] text-slate-600 leading-relaxed">{activeResult.summary || "深度分析完成"}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">基于语义画像多 Agent 深度分析</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: JD Requirements + Gaps */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">JD 要求与差距</h3>
+                {activeResult.gapPoints && activeResult.gapPoints.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {activeResult.gapPoints.slice(0, 8).map((g, i) => (
+                      <div key={i} className="flex items-start gap-1.5 text-[12px] text-slate-700">
+                        <span className={`w-1 h-1 rounded-full mt-1.5 shrink-0 ${i < 3 ? "bg-red-400" : "bg-amber-400"}`} />{g}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400">当前未返回结构化 JD 要求分析，建议重新生成深度分析。</p>
+                )}
+              </div>
+
+              {/* Card 3: Evidence Map */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">简历证据映射</h3>
+                {activeResult.evidenceChain && activeResult.evidenceChain.length > 0 ? (
+                  <div className="space-y-2">
+                    {activeResult.evidenceChain.slice(0, 5).map((ev, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[11px]">
+                        <span className="w-24 shrink-0 text-slate-400 truncate">{ev.jdRequirement || ev.requirement}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${ev.evidenceStrengthLabel === "匹配" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>{ev.evidenceStrengthLabel === "匹配" ? "已匹配" : "部分"}</span>
+                        <span className="flex-1 text-slate-600 truncate">{ev.resumeEvidence || ev.resumePoint}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400">当前未返回结构化证据映射，建议重新生成深度分析。</p>
+                )}
+              </div>
+
+              {/* Card 4: Core Match + Advantages */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">核心匹配点</h3>
+                  {activeResult.fitPoints && activeResult.fitPoints.length > 0 ? (
+                    <ul className="space-y-1.5">
+                      {activeResult.fitPoints.slice(0, 4).map((f, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-700">
+                          <span className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 shrink-0" />{f}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : activeResult.matchHighlights && activeResult.matchHighlights.length > 0 ? (
+                    <ul className="space-y-1.5">
+                      {activeResult.matchHighlights.slice(0, 4).map((h, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-700">
+                          <span className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 shrink-0" />{h}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[11px] text-slate-400">当前未识别明显匹配优势。</p>
+                  )}
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-amber-600 uppercase tracking-wide mb-2">主要短板</h3>
+                  {activeResult.gapPoints && activeResult.gapPoints.length > 0 ? (
+                    <ul className="space-y-1.5">
+                      {activeResult.gapPoints.slice(0, 4).map((g, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-700">
+                          <span className="w-1 h-1 rounded-full bg-amber-400 mt-1.5 shrink-0" />{g}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[11px] text-slate-400">未识别明显短板</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Card 5: Risk Diagnosis */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">风险诊断</h3>
+                {activeResult.riskPoints && activeResult.riskPoints.length > 0 ? (
+                  <div className="space-y-2">
+                    {activeResult.riskPoints.slice(0, 4).map((r, i) => (
+                      <div key={i} className="border border-slate-100 rounded-xl p-3 flex items-start gap-3">
+                        <span className={`mt-0.5 text-[10px] px-1.5 py-0.5 rounded-full ${typeof r === 'string' && r.length > 15 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-500"}`}>
+                          {typeof r === 'string' && r.length > 15 ? "中风险" : "高风险"}
+                        </span>
+                        <div>
+                          <span className="text-[12px] text-slate-700">{r}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400">当前未识别明显高风险。</p>
+                )}
+              </div>
+
+              {/* Card 6: Delivery Strategy */}
+              {activeResult.deliveryStrategy && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">投递策略</h3>
+                  <p className="text-[12px] text-slate-700 leading-relaxed">{activeResult.deliveryStrategy}</p>
+                </div>
+              )}
+
+              {/* Card 7: Interview Talking Points */}
+              {activeResult.interviewTalkingPoints && activeResult.interviewTalkingPoints.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">面试表达要点</h3>
+                  <div className="space-y-2">
+                    {activeResult.interviewTalkingPoints.slice(0, 6).map((pt, i) => (
+                      <div key={i} className="flex items-start gap-2 bg-purple-50/30 px-3 py-2 rounded-lg border border-purple-100/30">
+                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                        <p className="text-[12px] text-slate-700">{pt}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Card 8: Action + Rewrite suggestions */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">下一步行动建议</h3>
+                {activeResult.nextActions && activeResult.nextActions.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {activeResult.nextActions.slice(0, 5).map((a, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-[12px] text-slate-700">
+                        <span className="text-[#0052D9] font-bold mt-0.5">{i + 1}.</span>{a}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[11px] text-slate-400">建议优先补充与该岗位核心要求相关的项目证据。</p>
+                )}
+              </div>
+
+              {/* Card 9: Regenerate CTA */}
+              <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 text-center">
+                <p className="text-[11px] text-blue-700 mb-2">多 Agent 深度分析已完成。可重新生成获取最新分析结果。</p>
+              </div>
+            </div>
           )}
 
           {/* Right sidebar — resume details + deep button */}

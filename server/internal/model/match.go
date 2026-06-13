@@ -79,7 +79,7 @@ type MatchAnalysisResult struct {
 	TopFixItems            []TopFixItem `json:"top_fix_items,omitempty"`
 
 	// K9-2-Regression-B: Deep fields
-	FitPoints             []string           `json:"fit_points,omitempty"`
+	FitPoints             []string           `json:"fit_points"`
 	ResumeEvidence        []string           `json:"resume_evidence,omitempty"`
 	JobRequirements       []string           `json:"job_requirements,omitempty"`
 	InterviewTalkingPoints []string          `json:"interview_talking_points,omitempty"`

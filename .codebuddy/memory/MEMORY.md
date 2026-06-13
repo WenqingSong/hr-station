@@ -31,6 +31,16 @@
 - 中心 96px 呼吸环 + 横向 shimmer pill + breathing dot 岗位矩阵
 - 旧 AgentStepLoadingOverlay 保持不变，其他 3 个页面不受影响
 
+## H19-A Deep Match 架构冻结（已完成）
+- 当前 Deep: fit_points/evidence_chain=null, risk 为 bare strings, 缺 JD 解构
+- 冻结 8 层 Agent: L0 Gate→L8 Calibration, 12 模块输出, deep_match_agent
+- 关键新字段: job_understanding, core_match_points, key_risks(6字段), resume_rewrite_strategy, interview_risk_questions(≥5)
+- Deep/Fast 共享分数字义, 分差>15 须解释
+
+## H18-D Fast Match Engine（已完成）
+- match_sep_engine.go 830 行，8 模块（Normalization+Direction+Gate+Coverage+Evidence+Risk+Calibrator+Assembler）
+- 5 维度加权评分，API 实测 5 jobs 分数 29-49 有区分，<0.005s
+
 ## H17-D 状态整合（已完成）
 - 新增 runId guard（deepRunSeqRef + cancelledDeepRunRef）防止旧请求覆盖 + 取消后强制切换
 - isDeepDisplay = phase === "deep_done" && activeTier === "quality" && deepReady
@@ -43,4 +53,11 @@
 - Fast Match：`min(98, 60 + tagScore*0.8)`，highlights 可为 null，raw tag code 泄露
 - Deep Match：3-agent 但基于 TagProfile，非 SEP
 - match_analyses 表存在，SEP resume_profiles/job_profiles 已可用
-- 建议先修 Fast（接入 SEP + Hard Gate + Evidence），再修 Deep
+## H18-B 匹配契约冻结（已完成）
+- 统一分数字义：5 级 0-100（高/较高/中等/弱/不建议）+ 8 hard gate cap
+- 投递建议 5 枚举：priority_apply ~ not_recommended
+- 结构化 risk（5 字段）/ evidence（7 字段 0-5 级）/ coverage（7 字段 6 状态）
+- Fast 契约：fast_sep_match_engine 15 字段全 `[]` 禁止 null
+- Deep 契约：deep_match_agent 12 模块，比 Fast 多 JD 解构/改写/面试预测/投递策略/agent_trace
+- 后端不改 DB，复用 result_json
+- 后续 9 阶段：H18-C ~ H20-A，先 Fast 后 Deep，先 SEP 后算法

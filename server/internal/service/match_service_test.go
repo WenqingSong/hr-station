@@ -120,7 +120,7 @@ func TestMatchService_LLM_Success(t *testing.T) {
 		},
 	}
 
-	_ = NewMatchService(nil, nil, nil, agent.NewMatchMockAgent(), runner, runner, true, true, true, nil)
+	_ = NewMatchService(nil, nil, nil, agent.NewMatchMockAgent(), runner, runner, true, true, true, nil, nil)
 
 	// Test the LLM agent directly (Analyze requires DB repos for full service test)
 	llmAgent := agent.NewMatchAnalysisAgent(runner)
@@ -227,7 +227,7 @@ func TestMatchService_LLM_FallbackRequired(t *testing.T) {
 
 func TestMatchService_LLMDisabled_UseMock(t *testing.T) {
 	// When llmEnabled=false, pipelineRunner is nil and service goes directly to Mock
-	svc := NewMatchService(nil, nil, nil, agent.NewMatchMockAgent(), nil, nil, false, true, true, nil)
+	svc := NewMatchService(nil, nil, nil, agent.NewMatchMockAgent(), nil, nil, false, true, true, nil, nil)
 
 	// Verify that service is configured correctly for mock-only path
 	if svc.llmEnabled != false {
@@ -317,7 +317,7 @@ func TestMatchService_PipelineError_FallbackToMock(t *testing.T) {
 func TestMatchService_InvalidJobID(t *testing.T) {
 	// When jobID is 0 or invalid, the handler should return error before entering service
 	// This test verifies that the service layer expects valid jobID
-	svc := NewMatchService(nil, nil, nil, agent.NewMatchMockAgent(), nil, nil, false, true, true, nil)
+	svc := NewMatchService(nil, nil, nil, agent.NewMatchMockAgent(), nil, nil, false, true, true, nil, nil)
 
 	// We can't test Analyze without DB repos, but we verify the service setup
 	if svc == nil {
@@ -601,7 +601,7 @@ func TestMatchService_LLMFieldMapping_Complete(t *testing.T) {
 
 func TestMatchService_MockFallback_Metadata(t *testing.T) {
 	// Simulate: service falls back to mock after LLM failure
-	svc := NewMatchService(nil, nil, nil, agent.NewMatchMockAgent(), nil, nil, false, true, true, nil)
+	svc := NewMatchService(nil, nil, nil, agent.NewMatchMockAgent(), nil, nil, false, true, true, nil, nil)
 
 	result, err := svc.mockAgent.Analyze(context.Background(), svcTestResume(), svcTestJob())
 	if err != nil {

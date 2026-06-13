@@ -32,6 +32,7 @@ type MatchResponse struct {
 
 // MatchService handles job match analysis business logic.
 // K13-Fix-B: Fast tier uses TagEvidenceService (no LLM); Deep tier uses LLM pipeline.
+// H18-C: Fast tier prefers SEP profile context.
 type MatchService struct {
 	resumeRepo    *repository.ResumeRepository
 	jobRepo       *repository.JobRepository
@@ -43,6 +44,7 @@ type MatchService struct {
 	fallbackEnable bool
 	enableMockAgent bool
 	tagEvidence    *TagEvidenceService // K13-Fix-B
+	semanticRepo   *repository.SemanticProfileRepository // H18-C: SEP profile access
 }
 
 // NewMatchService creates a new MatchService.
@@ -57,6 +59,7 @@ func NewMatchService(
 	fallbackEnable bool,
 	enableMockAgent bool,
 	tagEvidence *TagEvidenceService,
+	semanticRepo *repository.SemanticProfileRepository,
 ) *MatchService {
 	return &MatchService{
 		resumeRepo:    resumeRepo,
@@ -69,6 +72,7 @@ func NewMatchService(
 		fallbackEnable: fallbackEnable,
 		enableMockAgent: enableMockAgent,
 		tagEvidence:    tagEvidence,
+		semanticRepo:   semanticRepo,
 	}
 }
 
@@ -108,36 +112,49 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 		return nil, apperror.ErrJobNotFound
 	}
 
-	// K13-Fix-B: Fast tier uses TagEvidenceService (no LLM)
+	// H18-C: Fast tier — try SEP profile first, fallback to tag engine
 	isFast := genTier == "fast" || req.GenerationTier != model.GenerationTierQuality
 	if isFast && s.tagEvidence != nil {
-		log.Printf("[MatchService] use_fast_tag_engine tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
+		// Try SEP-based match first
+		if s.semanticRepo != nil {
+			sepResp, sepErr := s.fastMatchWithSEP(ctx, userID, resume, job)
+			if sepErr == nil {
+				return sepResp, nil
+			}
+			log.Printf("[MatchService] SEP fast match unavailable: %v, falling back to tag engine", sepErr)
+		}
+		// Fallback to tag engine
+		log.Printf("[MatchService] use_fast_tag_fallback tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
 		resp, err := s.fastMatchWithTags(ctx, userID, resume, job)
 		if err == nil {
+			// H18-C: sanitize fallback output
+			sanitizeFallbackResult(resp)
 			return resp, nil
 		}
 		log.Printf("[MatchService] fast tag match failed: %v, falling back to mock", err)
 	}
 
-	// K13-Fix-C2: Deep/Quality tier — try 3-agent first, then fallback
+	// H19-B: Deep/Quality tier — new SEP-based Deep Match Agent
 	runner := s.selectRunner(req.GenerationTier)
 	isQuality := genTier == "quality" || req.GenerationTier == model.GenerationTierQuality
 	if isQuality && s.llmEnabled && runner != nil {
-		// Try C2 3-agent pipeline
-		if s.tagEvidence != nil {
-			log.Printf("[MatchService] use_deep_3agent tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
-			resp, err3a := s.matchWith3Agents(ctx, userID, resume, job, runner)
-			if err3a == nil {
-				return resp, nil
-			}
-			log.Printf("[MatchService] 3-agent match failed: %v, falling back to old LLM path", err3a)
-		}
-		// Fallback to old single-agent LLM
-		log.Printf("[MatchService] use_deep_llm tier=%s", genTier)
-		resp, fallbackErr := s.analyzeWithLLM(ctx, resume, job, runner)
-		if fallbackErr == nil {
+		// Try H19-B Deep Match SEP Agent
+		log.Printf("[MatchService] use_deep_sep_agent tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
+		resp, errDeep := s.runDeepMatchSEP(ctx, userID, resume, job, runner)
+		if errDeep == nil {
 			return resp, nil
 		}
+		log.Printf("[MatchService] deep SEP agent failed: %v, trying 3-agent fallback", errDeep)
+		// Fallback to old 3-agent
+		if s.tagEvidence != nil {
+			resp, err3a := s.matchWith3Agents(ctx, userID, resume, job, runner)
+			if err3a == nil { return resp, nil }
+			log.Printf("[MatchService] 3-agent match failed: %v", err3a)
+		}
+		// Fallback to single-agent LLM
+		log.Printf("[MatchService] use_deep_llm tier=%s", genTier)
+		resp, fallbackErr := s.analyzeWithLLM(ctx, resume, job, runner)
+		if fallbackErr == nil { return resp, nil }
 		log.Printf("[MatchService] LLM pipeline fallback: %v", fallbackErr)
 		if !s.fallbackEnable {
 			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
@@ -364,6 +381,65 @@ func (s *MatchService) GetLatestMatchAnalysis(ctx context.Context, userID, resum
 	}, nil
 }
 
+// ─── H18-C: Fast Match via SEP Profile ────────────────────────────────────
+
+// fastMatchWithSEP generates Fast-tier match using SEP profiles.
+// Reads resume + job semantic_profiles. Falls back to tag engine if profiles missing.
+func (s *MatchService) fastMatchWithSEP(ctx context.Context, userID uint64, resume *model.ResumeVersion, job *model.Job) (*MatchResponse, error) {
+	resumeID := int64(resume.ID)
+	jobID := int64(job.ID)
+
+	// Read resume SEP profile
+	rp, err := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetResume, resumeID)
+	if err != nil || rp == nil || rp.Status != "verified" {
+		return nil, fmt.Errorf("resume SEP not ready: resume=%d", resumeID)
+	}
+	// Read job SEP profile
+	jp, err := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetJob, jobID)
+	if err != nil || jp == nil || jp.Status != "verified" {
+		return nil, fmt.Errorf("job SEP not ready: job=%d", jobID)
+	}
+
+	// Read SEP tags
+	rtags, err := s.semanticRepo.ListTagsByProfileID(ctx, rp.ID)
+	if err != nil || len(rtags) < 3 {
+		return nil, fmt.Errorf("resume SEP tags insufficient: resume=%d count=%d", resumeID, len(rtags))
+	}
+	jtgs, err := s.semanticRepo.ListTagsByProfileID(ctx, jp.ID)
+	if err != nil || len(jtgs) < 3 {
+		return nil, fmt.Errorf("job SEP tags insufficient: job=%d count=%d", jobID, len(jtgs))
+	}
+
+	// H18-D: Full SEP Evidence-Grounded Fast Match Engine
+	sepCtx := &MatchSEPContext{
+		ResumeProfile: rp,
+		JobProfile:    jp,
+		ResumeTags:    rtags,
+		JobTags:       jtgs,
+		JobTitle:      job.Title,
+		ResumeID:      resumeID,
+		JobID:         jobID,
+	}
+	result := runFastSEPMatch(sepCtx)
+
+	meta := model.AgentResponseMeta{
+		AgentName:      "FastSEPMatchEngine",
+		GeneratedBy:    result.GeneratedBy,
+		AgentStatus:    result.AgentStatus,
+		FallbackReason: result.FallbackReason,
+		RepairApplied:  result.RepairApplied,
+		SchemaValid:    true,
+	}
+
+	return &MatchResponse{
+		AnalysisID:  0,
+		GeneratedBy: result.GeneratedBy,
+		Result:      result,
+		CreatedAt:   time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		Meta:        meta,
+	}, nil
+}
+
 // ─── K13-Fix-B: Fast Match via TagEvidenceService ─────────────────────────
 
 // fastMatchWithTags generates Fast-tier match analysis using TagEvidenceService.
@@ -405,9 +481,9 @@ func (s *MatchService) fastMatchWithTags(ctx context.Context, userID uint64, res
 		RiskPoints:              missing,
 		OptimizationSuggestions: []model.MatchSuggestion{{Priority: "P0", Title: "查漏补缺", Reason: "标签匹配发现缺口", Action: "针对缺失标签补充对应经历或技能描述"}},
 		NextSteps:               []string{"针对缺失标签补充对应经历或技能描述"},
-		GeneratedBy:             "fast_tag_engine",
+		GeneratedBy:             "fast_tag_fallback_engine",
 		AgentStatus:             "success",
-		FallbackReason:          "none",
+		FallbackReason:          "sep_not_ready",
 		RepairApplied:           false,
 		DataQuality:             "rule",
 		Summary:                 level,
@@ -415,20 +491,34 @@ func (s *MatchService) fastMatchWithTags(ctx context.Context, userID uint64, res
 
 	meta := model.AgentResponseMeta{
 		AgentName:      "FastMatchEngine",
-		GeneratedBy:    "fast_tag_engine",
+		GeneratedBy:    "fast_tag_fallback_engine",
 		AgentStatus:    "success",
-		FallbackReason: "none",
+		FallbackReason: "sep_not_ready",
 		RepairApplied:  false,
 		SchemaValid:    true,
 	}
 
 	return &MatchResponse{
 		AnalysisID:  0,
-		GeneratedBy: "fast_tag_engine",
+		GeneratedBy: "fast_tag_fallback_engine",
 		Result:      result,
 		CreatedAt:   time.Now().Format("2006-01-02T15:04:05Z07:00"),
 		Meta:        meta,
 	}, nil
+}
+
+// H18-C: sanitizeFallbackResult ensures fallback output has no null arrays or raw tag codes.
+func sanitizeFallbackResult(resp *MatchResponse) {
+	if resp == nil || resp.Result == nil {
+		return
+	}
+	r := resp.Result
+	if r.MatchHighlights == nil { r.MatchHighlights = []string{} }
+	if r.GapPoints == nil { r.GapPoints = []string{} }
+	if r.RiskPoints == nil { r.RiskPoints = []string{} }
+	if r.EvidenceChain == nil { r.EvidenceChain = []model.MatchEvidence{} }
+	if r.NextSteps == nil { r.NextSteps = []string{} }
+	if r.OptimizationSuggestions == nil { r.OptimizationSuggestions = []model.MatchSuggestion{} }
 }
 
 // ─── K13-Fix-C2: Deep Match with 3 Agents ───────────────────────────────
