@@ -77,7 +77,19 @@
 - analyzeWithLLM / mockAgent：最终兜底
 
 ### 后续阶段
-**全部完成** ✅ H18-C→F + H19-A→D + H20-A PASS
+H18-H20 **已完成** → **新周期 JM-R0 启动**
+
+## JM-R0 Job Match Core Rebuild Baseline Audit（已完成）
+
+### 核心发现
+- 当前 Deep v3 是规则引擎（无 LLM），内容浅、模板化
+- 页面把"字段完整"当成"产品有用" — 价值表达错误
+- 面试追问/Agent Trace/quality_checks 污染模块边界
+
+### 新方向
+- 岗位匹配 = 初筛通过率诊断 + 简历命中率提升方案
+- Fast = 3 字段极简初筛 / Deep = LLM 驱动 5 模块
+- JM-R1→R6 新周期：Schema→Prompt→生成→页面→校准→验收
 
 ## H20-A Job Match Full-Chain Final Acceptance（PASS — 可上线演示）
 

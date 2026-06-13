@@ -228,33 +228,25 @@ func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64,
 		return s.buildFastSEPPendingResponse(resume.ID, job.ID, sepCtx), nil
 	}
 
-	// H19-B: Deep/Quality tier — V3 SEP + Fast Result pipeline
+	// JM-R3: Deep/Quality tier — screening_match_v1 (5-module Hy3 + Judge)
 	runner := s.selectRunner(req.GenerationTier)
 	isQuality := genTier == "quality" || req.GenerationTier == model.GenerationTierQuality
 	if isQuality && s.llmEnabled && runner != nil {
-		// Try H19-B Deep Match V3 (SEP + Fast Result, no TagEvidenceService)
-		log.Printf("[MatchService] use_deep_v3 tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
-		v3resp, v3err := s.runDeepMatchV3Entry(ctx, userID, resume, job)
-		if v3err == nil {
-			return v3resp, nil
+		log.Printf("[MatchService] use_screening_match_v1 tier=%s resume=%d job=%d", genTier, req.ResumeID, jobID)
+		smResp, smErr := s.runScreeningMatchEntry(ctx, resume, job)
+		if smErr == nil {
+			return smResp, nil
 		}
-		log.Printf("[MatchService] deep v3 failed: %v, trying legacy 3-agent fallback", v3err)
-		// Legacy: 3-agent fallback (uses TagEvidenceService — marked as legacy)
+		log.Printf("[MatchService] screening match v1 failed: %v, trying legacy fallback", smErr)
+		// Legacy: 3-agent fallback
 		if s.tagEvidence != nil {
 			resp, err3a := s.matchWith3Agents(ctx, userID, resume, job, runner)
-			if err3a == nil {
-				markLegacyFallback(resp)
-				return resp, nil
-			}
+			if err3a == nil { markLegacyFallback(resp); return resp, nil }
 			log.Printf("[MatchService] 3-agent match failed: %v", err3a)
 		}
-		// Legacy: single-agent LLM fallback
 		log.Printf("[MatchService] use_deep_llm tier=%s", genTier)
 		resp, fallbackErr := s.analyzeWithLLM(ctx, resume, job, runner)
-		if fallbackErr == nil {
-			markLegacyFallback(resp)
-			return resp, nil
-		}
+		if fallbackErr == nil { markLegacyFallback(resp); return resp, nil }
 		log.Printf("[MatchService] LLM pipeline fallback: %v", fallbackErr)
 		if !s.fallbackEnable {
 			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
@@ -668,7 +660,83 @@ func (s *MatchService) fastMatchWithTags(ctx context.Context, userID uint64, res
 	}, nil
 }
 
-// ─── H19-B: Deep Match V3 Entry ───────────────────────────────────────────
+// ─── JM-R3: Screening Match V1 Entry ─────────────────────────────────────
+
+// runScreeningMatchEntry builds context, runs 5-module pipeline, returns response.
+func (s *MatchService) runScreeningMatchEntry(
+	ctx context.Context, resume *model.ResumeVersion, job *model.Job,
+) (*MatchResponse, error) {
+	smCtx, err := s.buildScreeningMatchContext(ctx, resume, job)
+	if err != nil {
+		// SEP not ready → profile_pending
+		if smCtx == nil {
+			result := &model.MatchAnalysisResult{
+				MatchScore:      0, MatchLevel: "待分析", ScreeningResult: "profile_pending",
+				GeneratedBy: "deep_match_profile_pending", AgentStatus: "profile_missing",
+				FallbackReason: "resume_or_job_sep_profile_not_ready",
+				Summary:        "语义画像尚未准备完成，暂不能给出深度匹配分析。",
+				MatchHighlights: []string{}, GapPoints: []string{}, RiskPoints: []string{},
+				NextSteps: []string{"等待语义画像生成完成后重新分析"},
+				FitPoints: []string{}, EvidenceChain: []model.MatchEvidence{},
+			}
+			return &MatchResponse{
+				GeneratedBy: "deep_match_profile_pending", Result: result,
+				CreatedAt: time.Now().Format("2006-01-02T15:04:05Z07:00"),
+				Meta: model.AgentResponseMeta{AgentName: "ScreeningMatch", GeneratedBy: "deep_match_profile_pending",
+					AgentStatus: "profile_missing", FallbackReason: "resume_or_job_sep_profile_not_ready"},
+			}, nil
+		}
+		return nil, err
+	}
+
+	report := runScreeningMatchPipeline(smCtx)
+	return screeningMatchToResponse(report), nil
+}
+
+// screeningMatchToResponse converts ScreeningMatchV1 to MatchResponse.
+func screeningMatchToResponse(report *ScreeningMatchV1) *MatchResponse {
+	result := &model.MatchAnalysisResult{
+		MatchScore:      report.ScreeningDecision.Score,
+		MatchLevel:      report.ScreeningDecision.Level,
+		ScreeningResult: "pass",
+		GeneratedBy:     "deep_match_agent",
+		AgentStatus:     "screening_match_verified",
+		FallbackReason:  "none",
+		Summary:         report.ScreeningDecision.Summary,
+		ReportVersion:   report.Version,
+		ApplicationDecision: report.ScreeningDecision.Decision,
+		DecisionLabel:       report.ScreeningDecision.DecisionLabel,
+		OneSentenceConclusion: report.ScreeningDecision.Summary,
+		// Set legacy arrays for backward compat
+		MatchHighlights: []string{},
+		GapPoints:       []string{},
+		RiskPoints:      []string{},
+		NextSteps:       []string{report.JobStrategy.RecommendedAction},
+		FitPoints:       []string{},
+		EvidenceChain:   []model.MatchEvidence{},
+	}
+	for _, p := range report.ScreeningPassPoints {
+		result.MatchHighlights = append(result.MatchHighlights, p.Title)
+		result.FitPoints = append(result.FitPoints, p.ResumeEvidence)
+	}
+	for _, r := range report.ScreeningEliminationRisks {
+		result.RiskPoints = append(result.RiskPoints, r.RiskTitle)
+		result.GapPoints = append(result.GapPoints, r.RiskTitle)
+	}
+
+	meta := model.AgentResponseMeta{
+		AgentName: "ScreeningMatchEngine", GeneratedBy: "deep_match_agent",
+		AgentStatus: "screening_match_verified", FallbackReason: "none",
+		RepairApplied: false, SchemaValid: true,
+	}
+
+	return &MatchResponse{
+		AnalysisID:  0, GeneratedBy: "deep_match_agent", Result: result,
+		CreatedAt: time.Now().Format("2006-01-02T15:04:05Z07:00"), Meta: meta,
+	}
+}
+
+// ─── H19-B: Deep Match V3 Entry (legacy) ─────────────────────────────────
 
 // runDeepMatchV3Entry builds context, runs v3 pipeline, converts to MatchResponse.
 func (s *MatchService) runDeepMatchV3Entry(

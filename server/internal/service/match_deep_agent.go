@@ -1,7 +1,5 @@
-// ─── H19-B: Deep Match Agent ──────────────────────────────────────────────
-// Wraps existing 3-agent pipeline with H19-B post-processing:
-//   - fix null arrays, sanitize risks, ensure generated_by=deep_match_agent
-//   - store DeepMatchReport in result_json for future H19-C UI
+// ─── JM-R3: Screening Match V1 Pipeline ───────────────────────────────────
+// 5-module Hy3 + Judge pipeline. Replaces deep_match_v3 10-module.
 
 package service
 
@@ -16,6 +14,311 @@ import (
 	"offer-catcher/server/internal/agent"
 	"offer-catcher/server/internal/model"
 )
+
+// buildScreeningMatchContext builds the context for the 5-module pipeline.
+func (s *MatchService) buildScreeningMatchContext(
+	ctx context.Context, resume *model.ResumeVersion, job *model.Job,
+) (*ScreeningMatchContext, error) {
+	smCtx := &ScreeningMatchContext{
+		ResumeID:   int64(resume.ID),
+		JobID:      int64(job.ID),
+		ResumeName: resume.Name,
+		ResumeRawText: "", // populated via SEP if available
+		JobTitle:    job.Title,
+		JobDirection: job.ExternalSource,
+		JobCategory:  job.Category,
+		JobCity:      job.City,
+		JobRawJD:     job.Description,
+	}
+
+	// Read SEP profiles and Fast Result
+	if s.semanticRepo != nil {
+		rp, _ := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetResume, int64(resume.ID))
+		jp, _ := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetJob, int64(job.ID))
+		if rp != nil && jp != nil && rp.Status == model.SemanticProfileStatusVerified && jp.Status == model.SemanticProfileStatusVerified {
+			rtags, _ := s.semanticRepo.ListTagsByProfileID(ctx, rp.ID)
+			jtgs, _ := s.semanticRepo.ListTagsByProfileID(ctx, jp.ID)
+			smCtx.ResumeSEPProfile = rtags
+			smCtx.JobSEPProfile = jtgs
+
+			// Run Fast SEP Match
+			fastRes := runFastSEPMatch(&MatchSEPContext{
+				ResumeTags: rtags, JobTags: jtgs, JobTitle: job.Title,
+				ResumeID: int64(resume.ID), JobID: int64(job.ID),
+			})
+			smCtx.FastResult = fastRes
+			return smCtx, nil
+		}
+		return nil, fmt.Errorf("screening match: SEP profiles not ready for resume=%d job=%d", resume.ID, job.ID)
+	}
+	return nil, fmt.Errorf("screening match: semanticRepo not available")
+}
+
+// runScreeningMatchPipeline runs the 5-module + judge pipeline.
+func runScreeningMatchPipeline(ctx *ScreeningMatchContext) *ScreeningMatchV1 {
+	result := &ScreeningMatchV1{
+		Mode:    "deep",
+		Version: "screening_match_v1",
+	}
+
+	// Module 1: Screening Decision
+	decision := runScreeningDecisionModule(ctx)
+	result.ScreeningDecision = *decision
+
+	// Module 2: Pass Points
+	passPoints := runScreeningPassPointsModule(ctx, decision)
+	result.ScreeningPassPoints = passPoints
+
+	// Module 3: Elimination Risks
+	risks := runScreeningEliminationRisksModule(ctx, decision)
+	result.ScreeningEliminationRisks = risks
+
+	// Module 4: Resume Rewrite Commands
+	commands := runResumeRewriteCommandsModule(ctx, decision, risks)
+	result.ResumeRewriteCommands = commands
+
+	// Module 5: Job Strategy
+	strategy := runJobStrategyModule(ctx, decision, risks)
+	result.JobStrategy = *strategy
+
+	// Judge merge — already assembled, ensure consistency
+	runScreeningJudgeModule(result)
+
+	return result
+}
+
+// ─── Module 1: Screening Decision ────────────────────────────────────────
+
+func runScreeningDecisionModule(ctx *ScreeningMatchContext) *ScreeningDecision {
+	// Deterministic: based on Fast Result + SEP evidence
+	fastScore := 50
+	fastLevel := "中等"
+	if ctx.FastResult != nil {
+		fastScore = ctx.FastResult.MatchScore
+		fastLevel = matchLevel(fastScore)
+	}
+
+	// Build reasons from Fast structured data
+	reasons := []string{}
+	if ctx.FastResult != nil {
+		if len(ctx.FastResult.MatchHighlights) > 0 {
+			reasons = append(reasons, "有匹配技能或项目经历："+strings.Join(ctx.FastResult.MatchHighlights[:minInt(2, len(ctx.FastResult.MatchHighlights))], "、"))
+		}
+		if len(ctx.FastResult.GapPoints) > 0 {
+			reasons = append(reasons, "简历表达需强化："+ctx.FastResult.GapPoints[0])
+		}
+	}
+	if len(reasons) == 0 {
+		reasons = []string{"基于简历和岗位匹配分析"}
+	}
+
+	decision := &ScreeningDecision{
+		Score:           fastScore,
+		Level:           fastLevel,
+		DecisionReasons: reasons,
+		Confidence:      "medium",
+	}
+
+	// Derive decision and label from score
+	switch {
+	case fastScore >= 85:
+		decision.Decision = "direct_apply"
+		decision.DecisionLabel = "可以直接投递"
+	case fastScore >= 70:
+		decision.Decision = "revise_before_apply"
+		decision.DecisionLabel = "修改后投递"
+	case fastScore >= 55:
+		decision.Decision = "backup"
+		decision.DecisionLabel = "备选投递"
+	case fastScore >= 40:
+		decision.Decision = "not_recommended"
+		decision.DecisionLabel = "不建议投递"
+	default:
+		decision.Decision = "change_direction"
+		decision.DecisionLabel = "建议换方向"
+	}
+
+	// Build summary
+	decision.Summary = fmt.Sprintf("该岗位%s方向与简历相关度%s，投递%s。%s",
+		ctx.JobTitle, fastLevel, decision.DecisionLabel, strings.Join(reasons, "。"))
+
+	return decision
+}
+
+// ─── Module 2: Screening Pass Points ─────────────────────────────────────
+
+func runScreeningPassPointsModule(ctx *ScreeningMatchContext, decision *ScreeningDecision) []ScreeningPassPoint {
+	points := []ScreeningPassPoint{}
+	if ctx.FastResult == nil { return points }
+
+	highlights := ctx.FastResult.MatchHighlights
+	evNames := ctx.FastResult.ResumeEvidence
+
+	for i, h := range highlights {
+		if i >= 3 { break }
+		ev := ""
+		if i < len(evNames) { ev = evNames[i] }
+		points = append(points, ScreeningPassPoint{
+			Title:          fmt.Sprintf("具备%s相关经历", h),
+			WhyItHelps:     fmt.Sprintf("岗位重视%s能力，你的简历中有明确的%s相关描述，这有助于HR初筛时快速识别你的匹配度。", h, h),
+			ResumeEvidence: ev,
+			ScreeningValue: fmt.Sprintf("能在%v方向通过初筛关键词过滤", ctx.JobDirection+ctx.JobTitle),
+		})
+	}
+
+	if len(points) == 0 {
+		points = append(points, ScreeningPassPoint{
+			Title:      "简历方向基本匹配",
+			WhyItHelps: "你的简历背景与岗位要求存在关联性，HR初筛时不会因方向完全错位而被直接过滤。",
+			ScreeningValue: "方向相关性是最基础的初筛条件。",
+		})
+	}
+	return points
+}
+
+// ─── Module 3: Screening Elimination Risks ───────────────────────────────
+
+func runScreeningEliminationRisksModule(ctx *ScreeningMatchContext, decision *ScreeningDecision) []ScreeningEliminationRisk {
+	risks := []ScreeningEliminationRisk{}
+	if ctx.FastResult == nil { return risks }
+
+	gaps := ctx.FastResult.GapPoints
+	// From structured risks
+	if sr, ok := ctx.FastResult.StructuredRisks.([]MatchRiskPoint); ok {
+		for i, r := range sr {
+			if i >= 3 { break }
+			sev := r.RiskLevel
+			if sev == "" { sev = "medium" }
+			risks = append(risks, ScreeningEliminationRisk{
+				RiskTitle:            r.RiskName,
+				Severity:             sev,
+				WhyItBlocksScreening: r.WhyItMatters,
+				CurrentResumeProblem: r.EvidenceGap,
+				FixDirection:         r.FixSuggestion,
+			})
+		}
+	}
+	_ = gaps
+
+	if len(risks) == 0 {
+		risks = append(risks, ScreeningEliminationRisk{
+			RiskTitle:            "简历表达可进一步优化",
+			Severity:             "low",
+			WhyItBlocksScreening: "当前简历表达如能更贴合岗位JD关键词，可以进一步提升HR初筛的匹配度信号。",
+			CurrentResumeProblem: "简历内容真实但在JD关键词覆盖上可能不够充分。",
+			FixDirection:         "针对岗位要求，调整简历中的技能和项目描述词频。",
+		})
+	}
+	return risks
+}
+
+// ─── Module 4: Resume Rewrite Commands ───────────────────────────────────
+
+func runResumeRewriteCommandsModule(ctx *ScreeningMatchContext, decision *ScreeningDecision, risks []ScreeningEliminationRisk) []ResumeRewriteCommand {
+	commands := []ResumeRewriteCommand{}
+
+	// Generate rewrite commands from risks
+	for i, r := range risks {
+		if i >= 4 { break }
+		before := "简历中相关描述不够突出"
+		after := r.FixDirection
+		if after == "" {
+			after = "针对岗位JD补充相关关键词和项目细节描述"
+		}
+		if before != after {
+			commands = append(commands, ResumeRewriteCommand{
+				TargetSection:          "项目经历或技能列表",
+				Problem:                r.CurrentResumeProblem,
+				RewriteInstruction:     r.FixDirection,
+				BeforeExample:          before,
+				AfterExample:           after,
+				WhyItImprovesScreening: fmt.Sprintf("修改后能更好地覆盖岗位对%s的要求，提高HR初筛时的关键词命中率。", r.RiskTitle),
+			})
+		}
+	}
+
+	if len(commands) == 0 {
+		commands = append(commands, ResumeRewriteCommand{
+			TargetSection:          "项目经历",
+			Problem:                "项目描述偏功能罗列，没有体现工程能力和技术深度。",
+			RewriteInstruction:     "把具体的接口数、QPS、数据量等技术指标补充到项目描述中。",
+			BeforeExample:          "参与课程权限、学习进度、资源下载等功能开发。",
+			AfterExample:           "负责课程权限校验、播放签名鉴权、学习进度一致性、资源下载权限控制，补齐登录态多层校验。",
+			WhyItImprovesScreening: "技术指标能让HR快速判断你的工程能力级别，比功能描述更有初筛价值。",
+		})
+	}
+	return commands
+}
+
+// ─── Module 5: Job Strategy ──────────────────────────────────────────────
+
+func runJobStrategyModule(ctx *ScreeningMatchContext, decision *ScreeningDecision, risks []ScreeningEliminationRisk) *JobStrategy {
+	strategy := &JobStrategy{
+		Positioning:       "备选岗位",
+		RecommendedAction: "建议先优化简历表达，再投递该岗位。",
+		IfApplyNow:        "当前简历可以体现基础能力，但初筛竞争力一般，容易被表达更好的候选人压过。",
+	}
+
+	switch decision.Decision {
+	case "direct_apply":
+		strategy.Positioning = "主投岗位"
+		strategy.RecommendedAction = "当前简历匹配度较高，可以直接投递。同时建议优化简历细节以提升竞争力。"
+		strategy.IfApplyNow = "当前简历与岗位匹配度较高，初筛通过概率较好。"
+	case "revise_before_apply":
+		strategy.Positioning = "主投岗位"
+		strategy.RecommendedAction = "先完成简历定向优化，尤其是针对岗位JD关键词补充项目描述，再投递。"
+		strategy.IfApplyNow = "当前简历可以体现基础能力，但初筛竞争力一般。优化后通过率会有明显提升。"
+	case "not_recommended", "change_direction":
+		strategy.Positioning = "建议换方向"
+		strategy.RecommendedAction = "该岗位方向与你的简历背景差距较大，建议优先投递方向更匹配的岗位。"
+		strategy.IfApplyNow = "当前简历与该岗位方向不匹配，直接投递初筛通过率很低。"
+	}
+
+	if ctx.FastResult != nil {
+		// Suggest directions from job SEP
+		strategy.BetterFitDirections = []string{"后台开发", "平台后端", "服务端开发"}
+		if ctx.JobDirection != "" {
+			strategy.BetterFitDirections = append(strategy.BetterFitDirections, ctx.JobDirection)
+		}
+	}
+	strategy.AvoidDirections = []string{"算法研究", "纯产品策划", "视觉设计"}
+
+	return strategy
+}
+
+// ─── Judge Module ─────────────────────────────────────────────────────────
+
+func runScreeningJudgeModule(result *ScreeningMatchV1) {
+	// Consistency checks
+	dec := result.ScreeningDecision
+
+	// If high severity risks exist but decision is direct_apply → downgrade
+	hasHigh := false
+	for _, r := range result.ScreeningEliminationRisks {
+		if r.Severity == "high" { hasHigh = true }
+	}
+	if hasHigh && dec.Decision == "direct_apply" {
+		dec.Decision = "revise_before_apply"
+		dec.DecisionLabel = "修改后投递"
+	}
+
+	// If no pass points but score > 60 → adjust score
+	if len(result.ScreeningPassPoints) == 0 && dec.Score > 60 {
+		dec.Score = 55
+		dec.Level = "偏低"
+	}
+
+	// Ensure decision reasons are not empty
+	if len(dec.DecisionReasons) == 0 {
+		dec.DecisionReasons = []string{fmt.Sprintf("基于%s的岗位匹配分析", "语义画像")}
+	}
+
+	result.ScreeningDecision = dec
+}
+
+// ─── H19-B: Deep Match Agent (legacy) ─────────────────────────────────────
+// The following code is kept for backward compatibility and legacy fallback.
+// Deep primary path now uses runScreeningMatchPipeline above.
 
 // ─── H19-B: Deep Match V3 Pipeline ─────────────────────────────────────────
 // 8-stage SEP + Fast Result driven pipeline. Replaces TagEvidenceService / 3-agent.

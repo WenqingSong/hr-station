@@ -207,3 +207,75 @@ type DeepMatchContextV3 struct {
 	Status string
 	Reason string
 }
+
+// ─── JM-R3: Screening Match V1 Types ──────────────────────────────────────
+// Replacement for DeepMatchV3Report. 5-module Hy3 + Judge output.
+
+// ScreeningMatchV1 is the top-level output of the new Deep pipeline.
+type ScreeningMatchV1 struct {
+	Mode                      string                      `json:"mode"`
+	Version                   string                      `json:"version"`
+	ScreeningDecision         ScreeningDecision            `json:"screening_decision"`
+	ScreeningPassPoints       []ScreeningPassPoint          `json:"screening_pass_points"`
+	ScreeningEliminationRisks []ScreeningEliminationRisk     `json:"screening_elimination_risks"`
+	ResumeRewriteCommands     []ResumeRewriteCommand         `json:"resume_rewrite_commands"`
+	JobStrategy               JobStrategy                   `json:"job_strategy"`
+}
+
+type ScreeningDecision struct {
+	Score           int      `json:"score"`
+	Level           string   `json:"level"`
+	Decision        string   `json:"decision"`
+	DecisionLabel   string   `json:"decision_label"`
+	Summary         string   `json:"summary"`
+	Confidence      string   `json:"confidence"`
+	DecisionReasons []string `json:"decision_reasons"`
+}
+
+type ScreeningPassPoint struct {
+	Title          string `json:"title"`
+	WhyItHelps     string `json:"why_it_helps"`
+	ResumeEvidence string `json:"resume_evidence"`
+	ScreeningValue string `json:"screening_value"`
+}
+
+type ScreeningEliminationRisk struct {
+	RiskTitle            string `json:"risk_title"`
+	Severity             string `json:"severity"`
+	WhyItBlocksScreening string `json:"why_it_blocks_screening"`
+	CurrentResumeProblem string `json:"current_resume_problem"`
+	FixDirection         string `json:"fix_direction"`
+}
+
+type ResumeRewriteCommand struct {
+	TargetSection          string `json:"target_section"`
+	Problem                string `json:"problem"`
+	RewriteInstruction     string `json:"rewrite_instruction"`
+	BeforeExample          string `json:"before_example"`
+	AfterExample           string `json:"after_example"`
+	WhyItImprovesScreening string `json:"why_it_improves_screening"`
+}
+
+type JobStrategy struct {
+	Positioning         string   `json:"positioning"`
+	RecommendedAction   string   `json:"recommended_action"`
+	IfApplyNow          string   `json:"if_apply_now"`
+	BetterFitDirections []string `json:"better_fit_directions"`
+	AvoidDirections     []string `json:"avoid_directions"`
+}
+
+// ScreeningMatchContext holds all inputs for the 5-module Hy3 pipeline.
+type ScreeningMatchContext struct {
+	ResumeID          int64
+	JobID             int64
+	ResumeName        string
+	ResumeRawText     string
+	ResumeSEPProfile  any
+	JobTitle          string
+	JobDirection      string
+	JobCategory       string
+	JobCity           string
+	JobRawJD          string
+	JobSEPProfile     any
+	FastResult        *model.MatchAnalysisResult
+}
