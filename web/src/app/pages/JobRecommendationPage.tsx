@@ -5,7 +5,7 @@ import { loadRecommendationViewModel, loadResumeOptionViewModelsFromApi, loadLat
 import type { RecommendationPageViewModel, ResumeOptionViewModel, RecommendedJobViewModel, RecommendationPriorityTone } from "../../adapters";
 import { PageLoading, PageEmpty, PageError } from "../components/PageState";
 import { ContentPageShell } from "../components/layout/ContentPageShell";
-import { AgentStepLoadingOverlay, type AgentLoadingStep } from "../components/common/AgentStepLoadingOverlay";
+import { DeepAgentLoadingOverlay } from "../components/common/DeepAgentLoadingOverlay";
 import AgentErrorState from "../components/common/AgentErrorState";
 import { BulletList } from "../components/common/BulletList";
 import { getAuthRedirectIf401 } from "../utils/authRedirect";
@@ -90,15 +90,13 @@ export function JobRecommendationPage() {
   const [selJobId, setSelJobId] = useState<number | null>(null);
   const [deepBackendDone, setDeepBackendDone] = useState(false);
 
-  const deepSteps: AgentLoadingStep[] = [
-    { key: "0_gate", label: "准备语义画像", description: "正在检查简历画像与岗位画像是否可复用" },
-    { key: "1_discovery", label: "候选岗位发现", description: "正在从岗位池中筛选可能适配的候选岗位" },
-    { key: "2_rerank", label: "语义重排", description: "正在比较岗位要求、简历证据与风险信号，筛选 Top 岗位" },
-    { key: "3_synthesis", label: "逐岗深度分析", description: "正在为每个候选岗位生成推荐理由、证据和风险点" },
-    { key: "4_calibration", label: "全局一致性校准", description: "正在校准排序、评分、风险表达和投递策略" },
-  ];
-
-  const DEEP_ESTIMATED_TIME = "预计耗时约 1-3 分钟；首次构建岗位画像时可能更久。";
+  // H17-D: Deep run guard — prevents stale requests from overwriting user choice
+  const deepRunSeqRef = useRef(0);
+  const cancelledDeepRunRef = useRef(0);
+  const [deepReadyInBackground, setDeepReadyInBackground] = useState(false);
+  // H17-D: phaseRef syncs latest phase for async closures
+  const phaseRef = useRef<RecPhase>(phase);
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   // L3: elapsed seconds timer for deep loading
   const [deepElapsedSec, setDeepElapsedSec] = useState(0);
@@ -253,6 +251,12 @@ export function JobRecommendationPage() {
   // ── Deep recommendation ──────────────────────────────────────────────────
   async function handleDeepRecommendation() {
     if (!selectedOption) return;
+
+    // H17-D: increment run sequence to guard against stale requests
+    const runId = ++deepRunSeqRef.current;
+    cancelledDeepRunRef.current = 0;
+    setDeepReadyInBackground(false);
+
     setPhase("deep_loading"); setDeepErrorMessage(""); setDeepBackendDone(false); qualityAttemptsRef.current = 0;
     // L3: start elapsed timer
     setDeepElapsedSec(0);
@@ -262,20 +266,38 @@ export function JobRecommendationPage() {
     const pollQuality = async () => {
       try {
         const vm = await loadRecommendationViewModel({ resume_id: selectedOption.id, limit: 5, generation_tier: "quality" as any });
+        // H17-D: discard stale request results
+        if (runId !== deepRunSeqRef.current) return;
+
         if (vm.profileStatus === "ready" && vm.recommendedJobs.length > 0) {
           if (deepElapsedRef.current) { clearInterval(deepElapsedRef.current); deepElapsedRef.current = null; }
-          setDeepBackendDone(true); setDeepResult(vm); setActiveTier("quality");
-          setDeepHistoryIncomplete(false); setDeepHistoryIncompleteCount(0);
-          const genBy = vm.meta?.generated_by ?? "";
+          // H17-D: check if user cancelled this specific run
+          const wasCancelled = cancelledDeepRunRef.current === runId;
+          const currentPhase = phaseRef.current;
+          setDeepBackendDone(true); setDeepResult(vm); setDeepHistoryIncomplete(false); setDeepHistoryIncompleteCount(0);
+          const metaRaw = vm.meta as any;
+          const genBy = metaRaw?.generated_by ?? "";
           setActiveGeneratedBy(genBy);
           // Dev-Reboot-Fix-C: if backend returned mock, show error state
-          if (isMockGeneratedBy(genBy) || vm.meta?.fallback) {
+          if (isMockGeneratedBy(genBy) || metaRaw?.fallback) {
             setPhase("deep_error"); setDeepErrorMessage("AI 模型连接失败，当前显示的不是 AI 生成结果。");
             return;
           }
           if (vm.recommendedJobs.length > 0) setSelJobId(vm.recommendedJobs[0].jobId);
+          // H17-D: if user returned to Fast, don't force-switch — show background complete entry
+          if (wasCancelled || currentPhase === "fast_done") {
+            setActiveTier("fast");
+            setPhase("fast_done");
+            setDeepReadyInBackground(true);
+            return;
+          }
+          setActiveTier("quality");
+          setPhase("deep_done");
           return;
         }
+        // H17-D: guard against stale poll results
+        if (runId !== deepRunSeqRef.current) return;
+
         if (vm.profileStatus === "pending") { setPhase("deep_profile_pending"); return; }
         if (vm.profileStatus === "failed") { setPhase("deep_error"); setDeepErrorMessage(vm.profileMessage || "深度分析生成失败，已保留当前结果。"); return; }
         qualityAttemptsRef.current++;
@@ -283,6 +305,8 @@ export function JobRecommendationPage() {
         qualityPollRef.current = setTimeout(pollQuality, 2000);
       } catch (caught: any) {
         if (deepElapsedRef.current) { clearInterval(deepElapsedRef.current); deepElapsedRef.current = null; }
+        // H17-D: discard errors from stale requests
+        if (runId !== deepRunSeqRef.current) return;
         console.groupCollapsed("[RecommendPage] Deep API failed");
         console.error(caught);
         console.info("context", { action: "generateDeep", resumeId: selectedOption?.id, tier: "quality" });
@@ -299,12 +323,22 @@ export function JobRecommendationPage() {
     pollQuality();
   }
 
-  // L2: Deep-first activeResult — prefer deepResult when it has enough jobs, regardless of phase
+  // H17-D: view Deep result when it completed in background
+  function handleViewDeepBackground() {
+    setActiveTier("quality");
+    setPhase("deep_done");
+    setDeepReadyInBackground(false);
+    if (deepResult?.recommendedJobs?.length) setSelJobId(deepResult.recommendedJobs[0].jobId);
+  }
+
+  // H17-D: activeResult respects user's tier choice — only show Deep when deep_done phase
   const deepJobs = deepResult?.recommendedJobs ?? [];
   const fastJobs = fastResult?.recommendedJobs ?? [];
   const deepReady = deepJobs.length >= 5;
   const fastReady = fastJobs.length > 0;
-  const activeResult = deepReady ? deepResult
+  // Show Deep when user explicitly chose it (deep_done phase + activeTier quality + deep ready)
+  const isDeepDisplay = (phase === "deep_done" && activeTier === "quality" && deepReady);
+  const activeResult = isDeepDisplay ? deepResult
     : fastReady ? fastResult
     : deepResult ?? fastResult;
   const jobs = activeResult?.recommendedJobs ?? [];
@@ -403,7 +437,6 @@ export function JobRecommendationPage() {
       default: return sourceLabel(activeGeneratedBy) || `快速推荐 · 基础模型（${actualCount} 个岗位）`;
     }
   }
-  const isDeepDisplay = activeResult === deepResult && deepReady;
   const isDeepUnavailable = phase === "deep_unavailable";
   const actualCount = jobs.length;
   const headerLabel = getHeaderLabel();
@@ -646,135 +679,187 @@ export function JobRecommendationPage() {
             )}
           </div>
 
-          {/* M4: Analysis Console with capability status */}
+          {/* M4: Analysis Console with capability status — H17-D: 4 clear states */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-3">智能分析</h3>
 
-            {/* Capability status */}
-            <div className="space-y-1.5 mb-4 text-[11px]">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                <span className="text-slate-500">快速推荐：可用</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`w-1.5 h-1.5 rounded-full ${phase === "deep_unavailable" ? "bg-amber-400" : "bg-emerald-400"}`} />
-                <span className="text-slate-500">
-                  深度推荐：{phase === "deep_unavailable" ? "暂不可用" : isDeepDisplay || deepResult ? "可用" : "未检测"}
-                </span>
-              </div>
-            </div>
-
-            {/* Deep unavailable state */}
-            {phase === "deep_unavailable" && (
-              <div className="mb-4 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px]">
-                <p className="font-medium text-amber-700">深度推荐服务暂不可用</p>
-                <p className="text-amber-500 mt-0.5">{deepErrorMessage || "快速推荐仍可使用。"}</p>
-              </div>
+            {/* ── State 1: Fast only (no Deep result, not loading) ── */}
+            {!isDeepDisplay && !deepResult && phase !== "deep_loading" && phase !== "deep_unavailable" && (
+              <>
+                <div className="space-y-1.5 mb-4 text-[11px]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <span className="text-slate-500">快速推荐：可用</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                    <span className="text-slate-500">深度推荐：未生成</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  <span className="text-[13px] font-medium text-slate-700">快速推荐</span>
+                </div>
+              </>
             )}
 
-            {/* Mode indicator */}
-            {phase !== "deep_unavailable" && (
-              <div className="flex items-center gap-2 mb-4">
-                <span className={`w-2 h-2 rounded-full ${isDeepDisplay ? "bg-emerald-500" : "bg-blue-400"}`} />
-                <span className="text-[13px] font-medium text-slate-700">{isDeepDisplay ? "深度推荐" : "快速推荐"}</span>
-                {activeResult && activeGeneratedBy && (
-                  <span className="text-[10px] text-slate-400 ml-auto">{sourceLabel(activeGeneratedBy)}</span>
-                )}
-              </div>
-            )}
-
-            {/* Status (Deep done) */}
-            {phase === "deep_done" && (
-              <div className="space-y-2 mb-4 text-[11px] text-slate-500">
-                <p className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-500" />深度分析已完成</p>
-                {activeResult.agentStatus && agentStatusLabel(activeResult.agentStatus) && (
-                  <p className="text-slate-400 pl-5">{agentStatusLabel(activeResult.agentStatus)}</p>
-                )}
-              </div>
-            )}
-
-            {/* J2: Incomplete Deep history hint — visible even when showing Fast */}
-            {deepHistoryIncomplete && (
-              <div className="mb-4 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px]">
-                <p className="font-medium text-amber-700">深度推荐历史不完整</p>
-                <p className="text-amber-500 mt-0.5">仅 {deepHistoryIncompleteCount} 个岗位，建议重新生成。</p>
-              </div>
-            )}
-
-            {/* Status (loading) */}
+            {/* ── State 2: Deep loading ── */}
             {phase === "deep_loading" && (
-              <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />深度分析进行中…
-              </div>
+              <>
+                <div className="space-y-1.5 mb-4 text-[11px]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                    <span className="text-slate-400">快速推荐：后台可用</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" style={{ animation: "h17c-pulse-dot 1.5s ease-in-out infinite" }} />
+                    <span className="text-slate-700 font-medium">深度推荐：分析中</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  <span className="text-[13px] font-medium text-slate-700">深度推荐智能体</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />深度分析进行中…
+                </div>
+                <button onClick={() => {
+                  if (deepElapsedRef.current) clearInterval(deepElapsedRef.current);
+                  cancelledDeepRunRef.current = deepRunSeqRef.current;
+                  setActiveTier("fast");
+                  setPhase("fast_done");
+                  setDeepErrorMessage("已返回快速推荐结果。深度推荐完成后可手动查看。");
+                }} className="w-full h-9 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-500 text-[12px] rounded-xl hover:bg-slate-50 transition-colors">
+                  返回快速推荐结果
+                </button>
+              </>
             )}
 
-            {/* Status (error) */}
-            {(phase === "deep_error" || phase === "deep_timeout") && (
-              <div className="mb-4 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-700">
-                <p className="font-medium">{phase === "deep_timeout" ? "生成时间较长" : "暂时生成失败"}</p>
-                <p className="text-amber-500 mt-0.5">{deepErrorMessage || "快速推荐结果仍可参考。"}</p>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="space-y-2">
-              {phase === "deep_done" ? (
-                <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 border border-[#0052D9] text-[#0052D9] text-[12px] rounded-xl hover:bg-blue-50 transition-colors font-medium">
+            {/* ── State 3: Deep displayed ── */}
+            {isDeepDisplay && (
+              <>
+                <div className="space-y-1.5 mb-4 text-[11px]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                    <span className="text-slate-400">快速推荐：后台可用</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-slate-500">深度推荐：可用</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-[13px] font-medium text-slate-700">深度推荐</span>
+                  {activeGeneratedBy && (
+                    <span className="text-[10px] text-slate-400 ml-auto">{sourceLabel(activeGeneratedBy)}</span>
+                  )}
+                </div>
+                <div className="space-y-2 mb-4 text-[11px] text-slate-500">
+                  <p className="flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-500" />深度分析已完成</p>
+                  {activeResult.agentStatus && agentStatusLabel(activeResult.agentStatus) && (
+                    <p className="text-slate-400 pl-5">{agentStatusLabel(activeResult.agentStatus)}</p>
+                  )}
+                </div>
+                <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 border border-[#0052D9] text-[#0052D9] text-[12px] rounded-xl hover:bg-blue-50 transition-colors font-medium mb-2">
                   <RefreshCw className="w-3 h-3" />重新生成深度推荐
                 </button>
-              ) : phase === "deep_unavailable" ? (
-                <>
+              </>
+            )}
+
+            {/* ── State 4: Fast displayed but Deep completed in background ── */}
+            {!isDeepDisplay && deepResult && deepReady && phase !== "deep_loading" && phase !== "deep_unavailable" && (
+              <>
+                <div className="space-y-1.5 mb-4 text-[11px]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <span className="text-slate-500">快速推荐：可用</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-slate-500">深度推荐：已完成</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  <span className="text-[13px] font-medium text-slate-700">快速推荐</span>
+                </div>
+                <div className="mb-4 p-2.5 bg-emerald-50 border border-emerald-100 rounded-xl text-[11px]">
+                  <p className="font-medium text-emerald-700">深度推荐已完成</p>
+                  <p className="text-emerald-500 mt-0.5">可查看刚生成的深度推荐结果。</p>
+                </div>
+                <div className="space-y-2">
+                  <button onClick={handleViewDeepBackground} className="w-full h-9 flex items-center justify-center gap-1.5 bg-[#0052D9] text-white text-[12px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium">
+                    <Sparkles className="w-3 h-3" />查看深度推荐
+                  </button>
+                  <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 border border-[#0052D9] text-[#0052D9] text-[12px] rounded-xl hover:bg-blue-50 transition-colors font-medium">
+                    <RefreshCw className="w-3 h-3" />重新生成深度推荐
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ── Deep unavailable ── */}
+            {phase === "deep_unavailable" && (
+              <>
+                <div className="mb-4 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px]">
+                  <p className="font-medium text-amber-700">深度推荐服务暂不可用</p>
+                  <p className="text-amber-500 mt-0.5">{deepErrorMessage || "快速推荐仍可使用。"}</p>
+                </div>
+                <div className="space-y-2">
                   <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-500 text-[12px] rounded-xl hover:bg-slate-50 transition-colors">
                     <RefreshCw className="w-3 h-3" />稍后重试深度推荐
                   </button>
                   <button onClick={() => { if (fastResult) setPhase("fast_done"); }} className="w-full h-9 flex items-center justify-center gap-1.5 bg-[#0052D9] text-white text-[12px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium">
                     查看快速推荐
                   </button>
-                </>
-              ) : phase === "deep_error" || phase === "deep_timeout" ? (
-                <>
+                </div>
+              </>
+            )}
+
+            {/* ── Deep error / timeout ── */}
+            {(phase === "deep_error" || phase === "deep_timeout") && (
+              <>
+                <div className="mb-4 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-700">
+                  <p className="font-medium">{phase === "deep_timeout" ? "生成时间较长" : "暂时生成失败"}</p>
+                  <p className="text-amber-500 mt-0.5">{deepErrorMessage || "快速推荐结果仍可参考。"}</p>
+                </div>
+                <div className="space-y-2">
                   <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 bg-[#0052D9] text-white text-[12px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium">
                     <RefreshCw className="w-3 h-3" />重试深度推荐
                   </button>
                   <button onClick={() => { if (fastResult) setPhase("fast_done"); }} className="w-full h-9 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-500 text-[12px] rounded-xl hover:bg-slate-50 transition-colors">
                     返回快速推荐
                   </button>
-                </>
-              ) : phase === "deep_loading" ? (
-                <button onClick={() => { if (deepElapsedRef.current) clearInterval(deepElapsedRef.current); setPhase("fast_done"); }} className="w-full h-9 flex items-center justify-center gap-1.5 border border-slate-200 text-slate-500 text-[12px] rounded-xl hover:bg-slate-50 transition-colors">
-                  返回快速推荐
-                </button>
-              ) : (
-                <button onClick={handleDeepRecommendation} className="w-full h-9 flex items-center justify-center gap-1.5 bg-[#0052D9] text-white text-[12px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium">
-                  <Sparkles className="w-3 h-3" />生成深度推荐
-                </button>
-              )}
-            </div>
+                </div>
+              </>
+            )}
 
             {/* Footer hint */}
             <p className="text-[10px] text-slate-400 mt-3 text-center leading-relaxed">
               {isDeepDisplay
-                ? "当前结果已完成多阶段 AI 分析，可重新生成获取最新推荐。"
+                ? "当前结果已完成多 Agent 分析，可重新生成获取最新推荐。"
+                : deepReadyInBackground || (deepResult && deepReady)
+                ? "深度推荐已完成，可点击上方按钮查看。"
                 : phase === "deep_unavailable"
-                ? "深度推荐需要大模型服务，当前服务未连接成功。快速推荐仍可使用。"
-                : "深度推荐会调用多阶段 AI 分析链路，通常需要 1-3 分钟。"}
+                ? "深度推荐需要大模型服务，当前服务未连接成功。"
+                : "深度推荐会调用多 Agent 协同分析链路，完成后将自动展示结果。"}
             </p>
           </div>
         </aside>
       </div>
 
-      <AgentStepLoadingOverlay
+      <DeepAgentLoadingOverlay
         open={phase === "deep_loading"}
-        title="深度推荐分析中"
-        description="系统正在基于简历画像和岗位画像进行多阶段分析，请保持页面打开。"
-        steps={deepSteps}
-        backendDone={deepBackendDone}
-        onFinish={() => setPhase("deep_done")}
-        maxDurationMs={900000}
-        estimatedTimeText={DEEP_ESTIMATED_TIME}
         elapsedSeconds={deepElapsedSec}
-        onCancel={() => { if (deepElapsedRef.current) clearInterval(deepElapsedRef.current); setPhase("fast_done"); setDeepErrorMessage("深度分析已取消，当前显示快速推荐结果。"); }}
-        cancelLabel="返回快速推荐结果"
+        onBackToFast={() => {
+          if (deepElapsedRef.current) clearInterval(deepElapsedRef.current);
+          // H17-D: mark current run as cancelled so completion won't force-switch
+          cancelledDeepRunRef.current = deepRunSeqRef.current;
+          setActiveTier("fast");
+          setPhase("fast_done");
+          setDeepErrorMessage("已返回快速推荐结果。深度推荐完成后可手动查看。");
+        }}
       />
     </ContentPageShell>
   );

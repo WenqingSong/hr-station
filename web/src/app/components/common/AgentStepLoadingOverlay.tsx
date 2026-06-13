@@ -7,6 +7,8 @@ export type AgentLoadingStep = {
   key: string;
   label: string;
   description?: string;
+  /** H16B: nested sub-steps (e.g. per-job analysis) — shown as pending children */
+  children?: AgentLoadingStep[];
 };
 
 type StepStatus = "pending" | "active" | "done" | "error";
@@ -30,7 +32,7 @@ export interface AgentStepLoadingOverlayProps {
   successHoldMs?: number;
   /** K13-Stability-A: max total duration before auto-finish (ms). Default 15min for Deep Cascade. */
   maxDurationMs?: number;
-  /** Estimated time text displayed to user */
+  /** Estimated time text displayed to user — H16B: ignored when noAutoAdvance */
   estimatedTimeText?: string;
   /** Error state — shows error icon and text */
   error?: boolean;
@@ -40,6 +42,12 @@ export interface AgentStepLoadingOverlayProps {
   cancelLabel?: string;
   /** L3: externally-supplied elapsed seconds */
   elapsedSeconds?: number;
+  /** H16B: when true, hide the progress bar + percentage; keep only elapsed time */
+  noAutoAdvance?: boolean;
+  /** H16B: elapsed label override (e.g. "已用时") */
+  elapsedLabel?: string;
+  /** H16B: footer hint text shown below steps before completion */
+  footerHint?: string;
 
   // ── @deprecated: kept for backward compat ──
   status?: "loading" | "success" | "error";
@@ -75,6 +83,9 @@ export function AgentStepLoadingOverlay({
   onCancel,
   cancelLabel,
   elapsedSeconds: externalElapsed,
+  noAutoAdvance = false,
+  elapsedLabel,
+  footerHint,
 
   // @deprecated compat
   status: legacyStatus,
@@ -114,6 +125,22 @@ export function AgentStepLoadingOverlay({
     if (!open || !backendDone || finished || backendDoneDoneRef.current) return;
     backendDoneDoneRef.current = true;
 
+    // H16B: noAutoAdvance mode — skip sequential fake finishing, just done
+    if (noAutoAdvance) {
+      const remaining = Math.max(0, minVisibleMs - (Date.now() - startedAtRef.current));
+      const finish = () => {
+        setFinished(true);
+        if (isLegacy && onClose) onClose();
+        if (!isLegacy && onFinish) onFinish();
+      };
+      if (remaining > 0) {
+        timerRef.current = setTimeout(finish, remaining);
+      } else {
+        finish();
+      }
+      return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    }
+
     // Ensure min visible time has elapsed
     const elapsed = Date.now() - startedAtRef.current;
     const remaining = Math.max(0, minVisibleMs - elapsed);
@@ -152,11 +179,11 @@ export function AgentStepLoadingOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [open, backendDone, steps.length, minVisibleMs, finishStepIntervalMs, successHoldMs, finished, isLegacy, onClose, onFinish]);
+  }, [open, backendDone, steps.length, minVisibleMs, finishStepIntervalMs, successHoldMs, finished, isLegacy, onClose, onFinish, noAutoAdvance]);
 
-  // Auto-advance during loading (before backendDone)
+  // Auto-advance during loading (before backendDone) — H16B: skip when noAutoAdvance
   useEffect(() => {
-    if (!open || backendDone || finished) return;
+    if (!open || backendDone || finished || noAutoAdvance) return;
 
     const maxStep = Math.max(0, steps.length - 2); // never auto-complete
     const advance = () => {
@@ -174,7 +201,7 @@ export function AgentStepLoadingOverlay({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [open, backendDone, finished, activeIdx, steps.length, stepIntervalMs]);
+  }, [open, backendDone, finished, activeIdx, steps.length, stepIntervalMs, noAutoAdvance]);
 
   // K13-Stability-A: Safety timeout — if backend never responds, auto-finish after maxDurationMs
   useEffect(() => {
@@ -237,6 +264,11 @@ export function AgentStepLoadingOverlay({
   }
 
   function stepStatus(idx: number): StepStatus {
+    // H16B: noAutoAdvance mode — all steps stay pending until finished
+    if (noAutoAdvance) {
+      if (finished) return "done";
+      return "pending";
+    }
     if (effectiveError && idx === activeIdx) return "error";
     if (idx < activeIdx) return "done";
     if (idx === activeIdx && !finished) return "active";
@@ -273,20 +305,30 @@ export function AgentStepLoadingOverlay({
           )}
         </div>
 
-        {/* L3: Progress bar */}
-        {!finished && !effectiveError && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-              <span className="flex items-center gap-1"><Clock className="w-3 h-3" />已用 {formatTime(displayElapsed)}</span>
-              <span>{displayPct}%</span>
+        {/* H16B: noAutoAdvance mode — elapsed time only, no fake progress bar */}
+        {noAutoAdvance ? (
+          !finished && !effectiveError && (
+            <div className="mb-4 flex items-center gap-2 text-[11px] text-slate-400">
+              <Clock className="w-3 h-3" />
+              <span>{elapsedLabel || "已用时"} {formatTime(displayElapsed)}</span>
             </div>
-            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-[#0052D9] rounded-full transition-all duration-1000 ease-out" style={{ width: `${displayPct}%` }} />
+          )
+        ) : (
+          /* L3: Progress bar (legacy) */
+          !finished && !effectiveError && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" />已用 {formatTime(displayElapsed)}</span>
+                <span>{displayPct}%</span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-[#0052D9] rounded-full transition-all duration-1000 ease-out" style={{ width: `${displayPct}%` }} />
+              </div>
+              {estimatedTimeText && (
+                <p className="text-[10px] text-slate-400 text-center mt-1.5">{estimatedTimeText}</p>
+              )}
             </div>
-            {estimatedTimeText && (
-              <p className="text-[10px] text-slate-400 text-center mt-1.5">{estimatedTimeText}</p>
-            )}
-          </div>
+          )
         )}
 
         {/* Steps */}
@@ -294,22 +336,47 @@ export function AgentStepLoadingOverlay({
           {steps.map((step, idx) => {
             const s = stepStatus(idx);
             const isActive = s === "active";
+            const hasChildren = step.children && step.children.length > 0;
             return (
-              <div key={step.key} className="flex items-start gap-3">
-                <StepIcon s={s} />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium transition-colors ${
-                    s === "done" ? "text-slate-500" :
-                    s === "error" ? "text-red-600" :
-                    isActive ? "text-slate-900" :
-                    "text-slate-400"
-                  }`}>
-                    {step.label}
-                  </p>
-                  {step.description && isActive && (
-                    <p className="text-xs text-slate-400 mt-0.5">{step.description}</p>
-                  )}
+              <div key={step.key}>
+                <div className="flex items-start gap-3">
+                  <StepIcon s={s} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium transition-colors ${
+                      s === "done" ? "text-slate-500" :
+                      s === "error" ? "text-red-600" :
+                      isActive ? "text-slate-900" :
+                      "text-slate-400"
+                    }`}>
+                      {step.label}
+                    </p>
+                    {step.description && (
+                      <p className={`text-xs mt-0.5 ${isActive ? "text-slate-400" : "text-slate-300"}`}>
+                        {step.description}
+                      </p>
+                    )}
+                  </div>
                 </div>
+                {/* H16B: nested child steps — always shown as pending */}
+                {hasChildren && (
+                  <div className="ml-7 mt-1 space-y-1">
+                    {step.children!.map((child) => {
+                      const childStatus = noAutoAdvance ? (finished ? "done" : "pending") : (finished ? "done" : "pending");
+                      return (
+                        <div key={child.key} className="flex items-start gap-3">
+                          <StepIcon s={childStatus} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs transition-colors ${
+                              childStatus === "done" ? "text-slate-400" : "text-slate-300"
+                            }`}>
+                              {child.label}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -322,15 +389,20 @@ export function AgentStepLoadingOverlay({
           </div>
         )}
 
-        {/* Footer: wait hint + progress note + cancel */}
+        {/* Footer: wait hint + hint + cancel */}
         {!finished && !effectiveError && (
           <div className="mt-5 text-center space-y-2">
-            {waitHint && (
+            {!noAutoAdvance && waitHint && (
               <p className="text-[11px] text-amber-600 bg-amber-50/50 rounded-lg px-3 py-1.5">{waitHint}</p>
             )}
-            <p className="text-[10px] text-slate-400">
-              当前为预估进度，最终结果以分析完成后为准
-            </p>
+            {noAutoAdvance && footerHint && (
+              <p className="text-[11px] text-slate-400">{footerHint}</p>
+            )}
+            {!noAutoAdvance && (
+              <p className="text-[10px] text-slate-400">
+                当前为预估进度，最终结果以分析完成后为准
+              </p>
+            )}
             {onCancel && (
               <button
                 onClick={onCancel}
