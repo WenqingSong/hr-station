@@ -700,6 +700,14 @@ export function JobRecommendationPage() {
                   <span className="w-2 h-2 rounded-full bg-blue-400" />
                   <span className="text-[13px] font-medium text-slate-700">快速推荐</span>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleDeepRecommendation}
+                  className="w-full h-9 flex items-center justify-center gap-1.5 bg-[#0052D9] text-white text-[12px] rounded-xl hover:bg-[#0047BD] transition-colors font-medium"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  生成深度推荐
+                </button>
               </>
             )}
 
