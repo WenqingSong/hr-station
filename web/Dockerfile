@@ -25,7 +25,10 @@ RUN npm run build
 # ============================================================
 # 阶段 2: Nginx 运行阶段
 # ============================================================
-FROM nginx:1.27-alpine AS runner
+FROM nginx:1.27-alpine
+
+# 换国内 Alpine 镜像源（加速 apk add）
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 复制 Nginx 配置
 COPY web/nginx.conf /etc/nginx/conf.d/default.conf

@@ -55,5 +55,8 @@ docs/11-*
 # Backups
 backups
 
+# Pre-built binaries (not needed as build context)
+offer-catcher-server
+
 # Resources (not needed at runtime)
 resources

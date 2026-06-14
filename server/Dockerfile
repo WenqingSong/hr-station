@@ -6,10 +6,16 @@
 
 FROM golang:1.24-alpine AS builder
 
+# 换国内 Alpine 镜像源（加速 apk add）
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
 WORKDIR /src/server
 
 # 构建依赖
 RUN apk add --no-cache git ca-certificates tzdata
+
+# 设置 Go 模块代理（加速 go mod download）
+ENV GOPROXY=https://goproxy.cn,direct
 
 # 下载 Go 模块
 COPY server/go.mod server/go.sum ./
@@ -27,7 +33,10 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 # ============================================================
 # 阶段 2: 运行阶段
 # ============================================================
-FROM alpine:3.21 AS runner
+FROM alpine:3.21
+
+# 换国内 Alpine 镜像源（加速 apk add）
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 WORKDIR /app
 
