@@ -1,0 +1,72 @@
+# ============================================================
+# Offer Catcher 数据库完整导出校验文件
+# 导出时间: 2026-06-15 05:10:23 UTC
+# ============================================================
+
+DATABASE_NAME=offer_catcher
+MYSQL_VERSION=8.0.46
+CHARACTER_SET=utf8mb4
+COLLATION=utf8mb4_unicode_ci
+
+# --- File Information ---
+SQL_FILE=offer_catcher_full_dump_20260615_051023.sql
+SQL_FILE_SIZE_BYTES=2754456
+SQL_FILE_SIZE_HUMAN=2.7M
+SQL_LINE_COUNT=928
+
+GZIP_FILE=offer_catcher_full_dump_20260615_051023.sql.gz
+GZIP_FILE_SIZE_BYTES=341776
+GZIP_FILE_SIZE_HUMAN=334K
+
+# --- SHA256 Checksums ---
+SQL_SHA256=7c199edc5a3774aef4212fe58a939622d2613f785dcafc77f05116ef2db1085f
+GZIP_SHA256=585c9e468dfd15d7b96cb1a3dde7a63cc0c493d10e84206d4d49e62cb8b6521f
+
+# --- All Tables (25 total) ---
+# Format: TABLE_NAME | EXACT_ROW_COUNT | AUTO_INCREMENT
+
+users|3|4
+resumes|8|9
+resume_educations|9|10
+resume_internships|10|11
+resume_projects|25|26
+resume_works|25|26
+resume_awards|18|19
+resume_certificates|19|20
+resume_language_exams|8|9
+resume_optimization_results|63|67
+resume_compare_results|0|1
+resume_profiles|16|93
+
+jobs|46|10047
+job_business_groups|194|195
+job_filter_groups|6|7
+job_filter_options|1131|1132
+job_filter_option_relations|1962|N/A
+job_locations|180|181
+job_skills|1402|1403
+job_profiles|46|47
+
+match_analyses|113|114
+recommendation_results|50|51
+semantic_profiles|49|55
+semantic_profile_tags|737|767
+seed_versions|1|N/A
+
+# --- 关键表摘要 ---
+# users: 3
+# resumes: 8
+# jobs: 46 (AUTO_INCREMENT=10047 -> next job ID will be 10047)
+# job_profiles: 46
+# resume_profiles: 16
+# semantic_profiles: 49
+# semantic_profile_tags: 737
+# recommendation_results: 50
+# match_analyses: 113
+# resume_optimization_results: 63
+# resume_compare_results: 0
+
+# --- Verification Commands ---
+# sha256sum offer_catcher_full_dump_20260615_051023.sql
+# sha256sum offer_catcher_full_dump_20260615_051023.sql.gz
+# gunzip -t offer_catcher_full_dump_20260615_051023.sql.gz
