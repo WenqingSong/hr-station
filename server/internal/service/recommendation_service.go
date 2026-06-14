@@ -21,6 +21,21 @@ import (
 // The caller (recommendCore) catches this and falls back to TagEvidenceService.
 var ErrFastRecommendSEPMissing = errors.New("fast recommend sep profile missing")
 
+// safeFallbackCtx returns a context that is NOT derived from the request context.
+// Use this for mock fallback and DB persistence when the original request context
+// has been cancelled (e.g. after DeepCascade timeout). 15s is generous for in-memory
+// mock + single-row DB insert.
+func safeFallbackCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 15*time.Second)
+}
+
+// deepCascadeMissingProfileThreshold is the maximum number of jobs with missing
+// verified SEP profiles that the cascade pipeline will tolerate before skipping
+// cascade entirely and going straight to deep_fallback_agent.
+// Setting this low prevents the cascade from synchronously generating dozens of
+// job SEP profiles during a single user HTTP request.
+const deepCascadeMissingProfileThreshold = 5
+
 // RecommendationRequest represents a request for job recommendations.
 type RecommendationRequest struct {
 	ResumeID uint64 `json:"resume_id"`
@@ -256,7 +271,9 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 			return nil, apperror.New(apperror.CodeInternal, "深度推荐需要大模型服务，当前模型未启用。你仍可使用快速推荐。", 503)
 		}
 		qualityMode := true
-		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
+		safeCtx, safeCancel := safeFallbackCtx()
+		defer safeCancel()
+		return s.recommendWithMock(safeCtx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
 			FallbackReason: model.FallbackReasonLLMDisabled,
 			ErrorCode:      model.ErrorCodeLLMDisabled,
 			ErrorMessage:   "深度推荐需要大模型服务，当前模型未启用。显示基于规则的兜底结果。",
@@ -268,7 +285,9 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 			return nil, apperror.New(apperror.CodeInternal, "深度推荐需要连接大模型服务，当前服务未配置。你仍可使用快速推荐。", 503)
 		}
 		qualityMode := true
-		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
+		safeCtx, safeCancel := safeFallbackCtx()
+		defer safeCancel()
+		return s.recommendWithMock(safeCtx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
 			FallbackReason: model.FallbackReasonLLMClientMissing,
 			ErrorCode:      model.ErrorCodeLLMClientMissing,
 			ErrorMessage:   "深度推荐需要连接大模型服务，当前服务未配置。显示基于规则的兜底结果。",
@@ -278,13 +297,17 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 	if isQuality && s.llmEnabled && runner != nil {
 		// K15-P0-R1: context cancellation guard — if caller disconnected or deadline exceeded,
 		// skip all LLM paths and go directly to mock fallback.
+		// K15-P0-R2: use safe (background-derived) context for fallback — never pass
+		// the cancelled request context to mock or DB persistence.
 		if ctx.Err() != nil {
 			log.Printf("[RecommendationService] context cancelled/deadline exceeded before quality tier: %v, falling back to mock", ctx.Err())
 			if !s.enableMockAgent {
 				return nil, apperror.New(apperror.CodeInternal, "request cancelled and mock agent unavailable", 499)
 			}
 			qualityMode := true
-			return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
+			safeCtx, safeCancel := safeFallbackCtx()
+			defer safeCancel()
+			return s.recommendWithMock(safeCtx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
 				FallbackReason: fmt.Sprintf("context_cancelled_%v", ctx.Err()),
 				ErrorCode:      "CONTEXT_CANCELLED",
 				ErrorMessage:   ctx.Err().Error(),
@@ -292,8 +315,20 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 		}
 
 		// Deep/Quality tier → Cascaded Deep Recommendation Pipeline
-		if s.semanticGate != nil {
-			log.Printf("[RecommendationService] use_deep_cascade tier=%s resume=%d", req.GenerationTier, req.ResumeID)
+		if s.semanticGate != nil && s.semanticRepo != nil {
+			// K15-P0-R2: guard against cascade trying to synchronously generate SEP profiles
+			// for dozens of jobs during a single HTTP request. If too many jobs lack verified
+			// profiles, skip the cascade entirely and fall through to deep_fallback_agent.
+			resumeID := int64(resume.ID)
+			missingCount := s.countMissingJobProfiles(ctx, jobs)
+			log.Printf("[RecommendationService] cascade pre-check: total_jobs=%d missing_profiles=%d threshold=%d", len(jobs), missingCount, deepCascadeMissingProfileThreshold)
+			if missingCount > deepCascadeMissingProfileThreshold {
+				log.Printf("[RecommendationService] deep cascade skipped: too many missing job profiles (%d > %d), using deep_fallback_agent", missingCount, deepCascadeMissingProfileThreshold)
+				// Fall through to final fallback below (will be caught by the exhausted/cancelled check)
+				goto qualityFallback
+			}
+
+			log.Printf("[RecommendationService] use_deep_cascade tier=%s resume=%d", req.GenerationTier, resumeID)
 			resp, err := s.recommendDeepCascade(ctx, userID, resume, jobs, req.Limit, profileType, profileDominant, profileSource)
 			if err == nil {
 				return resp, nil
@@ -327,29 +362,41 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 			if !s.fallbackEnable {
 				return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
 			}
-			return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, true, profileType, profileDominant, profileSource)
+			safeCtx, safeCancel := safeFallbackCtx()
+			defer safeCancel()
+			return s.recommendWithMock(safeCtx, userID, resume, jobs, req.Limit, fallbackErr, true, profileType, profileDominant, profileSource)
 		}
 
+	qualityFallback:
 		// K15-P0-R1: context cancelled during quality fallback chain — final mock fallback
-		log.Printf("[RecommendationService] context cancelled during quality fallback, final mock fallback")
+		// K15-P0-R2: use safe context for fallback, never pass cancelled request context
+		cancelReason := "unknown"
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			cancelReason = fmt.Sprintf("%v", ctxErr)
+		}
+		log.Printf("[RecommendationService] quality fallback: using deep_fallback_agent (reason=%s)", cancelReason)
 		if !s.enableMockAgent {
-			return nil, apperror.New(apperror.CodeInternal, "quality recommendation failed: all paths exhausted and mock agent unavailable; context was cancelled", 503)
+			return nil, apperror.New(apperror.CodeInternal, "quality recommendation failed: all paths exhausted and mock agent unavailable", 503)
 		}
 		qualityMode := true
-		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
-			FallbackReason: fmt.Sprintf("quality_fallback_exhausted_cancelled_%v", ctx.Err()),
-			ErrorCode:      "QUALITY_EXHAUSTED_CANCELLED",
-			ErrorMessage:   "Deep recommendation did not complete in time; showing fallback results.",
+		safeCtx, safeCancel := safeFallbackCtx()
+		defer safeCancel()
+		return s.recommendWithMock(safeCtx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
+			FallbackReason: fmt.Sprintf("quality_fallback_%s", cancelReason),
+			ErrorCode:      "QUALITY_EXHAUSTED",
+			ErrorMessage:   "Deep recommendation could not complete; showing fallback results.",
 		}, qualityMode, profileType, profileDominant, profileSource)
 	}
 
-	// Fallback to mock agent
+	// Fallback to mock agent (fast tier or quality tier with no LLM configured at all)
 	if !s.enableMockAgent {
 		return nil, apperror.New(apperror.CodeInternal, "no generation path available", 500)
 	}
 	log.Printf("[RecommendationService] use_mock_fallback tier=%s", req.GenerationTier)
 	qualityMode := req.GenerationTier == model.GenerationTierQuality
-	return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, nil, qualityMode, profileType, profileDominant, profileSource)
+	safeCtx, safeCancel := safeFallbackCtx()
+	defer safeCancel()
+	return s.recommendWithMock(safeCtx, userID, resume, jobs, req.Limit, nil, qualityMode, profileType, profileDominant, profileSource)
 }
 
 func (s *RecommendationService) fillProfileFields(resp *RecommendationResponse, profileType, dominant, source string) {
@@ -385,6 +432,32 @@ func (s *RecommendationService) getResume(ctx context.Context, userID uint64, re
 }
 
 // ─── Deep Recommendation via Cascaded Pipeline ──────────────────────────
+
+// countMissingJobProfiles returns the number of jobs that lack a verified SEP profile.
+// This is used as a guard before DeepCascade to avoid synchronously generating
+// dozens of SEP profiles during a single user HTTP request.
+// NOTE: Uses FindLatestByTarget (read-only repo query) to avoid triggering
+// synchronous profile generation via EnsureJobProfile.
+func (s *RecommendationService) countMissingJobProfiles(ctx context.Context, jobs []*model.Job) int {
+	if s.semanticRepo == nil {
+		return len(jobs) // all missing if repo unavailable
+	}
+	missing := 0
+	for _, j := range jobs {
+		jid := int64(j.ID)
+		profile, err := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetJob, jid)
+		if err != nil || profile == nil || profile.Status != model.SemanticProfileStatusVerified {
+			missing++
+			continue
+		}
+		// Also check tags count — verified profile must have meaningful tags
+		tagCount, tagErr := s.semanticRepo.CountTagsByProfileID(ctx, profile.ID)
+		if tagErr != nil || tagCount < 3 {
+			missing++
+		}
+	}
+	return missing
+}
 
 // recommendDeepCascade executes the Cascaded Deep Recommendation Pipeline.
 func (s *RecommendationService) recommendDeepCascade(ctx context.Context, userID uint64, resume *model.ResumeVersion, jobs []*model.Job, limit int, profileType, profileDominant, profileSource string) (*RecommendationResponse, error) {
@@ -703,10 +776,15 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 	}
 
 	// K9-1-U-C: Save recommendation result snapshot with full metadata
+	// K15-P0-R2: use safe background-derived context for DB persistence.
+	// The original request context may have been cancelled by this point.
 	if len(recommendedJobs) > 0 {
 		resultJSON, err := json.Marshal(recommendedJobs)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal recommendation result: %w", err)
+			log.Printf("[RecommendationService] failed to marshal recommendation result for fallback: %v", err)
+			// Don't fail the response — the return value is already built.
+			s.fillProfileFields(resp, profileType, profileDominant, profileSource)
+			return resp, nil
 		}
 
 		recSnapshot := &model.RecommendationResult{
@@ -720,8 +798,11 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 			ResultJSON:             resultJSON,
 		}
 
-		if createErr := s.recommendationRepo.Create(ctx, recSnapshot); createErr != nil {
-			_ = createErr
+		saveCtx, saveCancel := safeFallbackCtx()
+		createErr := s.recommendationRepo.Create(saveCtx, recSnapshot)
+		saveCancel()
+		if createErr != nil {
+			log.Printf("[RecommendationService] failed to save fallback result snapshot (non-fatal): %v", createErr)
 		} else {
 			resp.ResultID = recSnapshot.ID
 			resp.GenerationTier = responseTier

@@ -191,6 +191,12 @@ func (s *MatchService) checkFastSEPContext(ctx context.Context, resumeID, jobID 
 	return result
 }
 
+// safeMatchFallbackCtx returns a short-lived background context for mock fallback DB persistence.
+// Uses context.Background to ensure the save succeeds even if the request context is cancelled.
+func safeMatchFallbackCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 10*time.Second)
+}
+
 // Analyze generates a match analysis for the given user and job.
 // H18-C: Fast tier primary path uses SEP only — tag fallback removed.
 func (s *MatchService) Analyze(ctx context.Context, userID uint64, jobID uint64, req MatchRequest) (*MatchResponse, error) {
@@ -400,10 +406,11 @@ func (s *MatchService) analyzeWithMock(
 		Meta:         meta,
 	}
 
-	// Save with full metadata
+	// Save with full metadata (K15-P0-R2: use safe context, request ctx may be cancelled)
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal match result: %w", err)
+		log.Printf("[MatchService] failed to marshal fallback result: %v", err)
+		return resp, nil // return the already-built response, don't fail
 	}
 
 	analysis := &model.MatchAnalysis{
@@ -419,11 +426,13 @@ func (s *MatchService) analyzeWithMock(
 		ResultJSON:             resultJSON,
 	}
 
-	if err := s.matchRepo.Create(ctx, analysis); err != nil {
-		_ = err
+	saveCtx, saveCancel := safeMatchFallbackCtx()
+	if createErr := s.matchRepo.Create(saveCtx, analysis); createErr != nil {
+		log.Printf("[MatchService] failed to save fallback result (non-fatal): %v", createErr)
+	} else {
+		resp.AnalysisID = analysis.ID
 	}
-
-	resp.AnalysisID = analysis.ID
+	saveCancel()
 
 	return resp, nil
 }

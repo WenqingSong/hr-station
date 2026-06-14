@@ -72,6 +72,9 @@ data/tencent-jobs/raw/*.json
 data/tencent-jobs/generated/*.sql
 data/tencent-jobs/generated/*.json
 
+# Production deployment dump artifacts (do NOT commit to git)
+deploy/dumps/
+
 # ============================================================
 # 保留说明
 # 以下文件不应被忽略：
