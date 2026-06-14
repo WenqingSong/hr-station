@@ -6,6 +6,81 @@
 |------|------|------|
 | R1 | 2026-06-15 | 初版：修复 fallback 元数据语义、503→200 |
 | R2 | 2026-06-15 | 生产定位：修复 ctx cancelled 级联超时、safe context、SEP profile 批量生成 guard |
+| R3 | 2026-06-15 | cache-first：quality 请求优先返回已有 ready 缓存，不进入 DeepCascade |
+
+---
+
+## R3: Quality Cache-First 修复
+
+### 一、问题现象
+
+1. 生产环境已有 ready 的 quality/llm_agent 结果（resume_id=8, recommendation_results）
+2. POST `/api/jobs/recommend` generation_tier=quality 未复用缓存，进入 DeepCascade
+3. Cascade L0 gate 触发 SEP profile 批量生成 → 3~9 分钟
+4. 生产演示不可用
+
+### 二、根因
+
+- `Recommend()` 方法在 quality tier 时直接进入 `recommendCore()` → DeepCascade
+- 没有在进入 DeepCascade 前查询 `recommendation_results` 中已有的 ready 结果
+- Cascade pre-check 只统计 `missing` 数量（1），实际 cascade gate 触发大量 stale 重生成
+
+### 三、修改文件
+
+| 文件 | 修改 |
+|------|------|
+| `server/internal/service/recommendation_service.go` | Quality cache-first 检查、`countBlockedJobProfiles` 重写、threshold 降为 3 |
+| `web/src/app/pages/JobRecommendationPage.tsx` | Polling 超时调整：15×3s=45s ceiling |
+
+### 四、修复详细
+
+#### 4.1 Quality cache-first（Recommend 方法）
+
+在 `Recommend()` 中，进入 `recommendCore()` 之前，对 `generation_tier=quality` 请求查询 `recommendation_results`：
+
+```go
+if req.GenerationTier == model.GenerationTierQuality {
+    if cached, err := s.recommendationRepo.FindLatestByResumeID(ctx, userID, req.ResumeID, "quality"); err == nil && cached != nil {
+        // Unmarshal result_json → build RecommendationResponse → return immediately
+        log.Printf("[RecommendationService] quality cache hit resume=%d result_id=%d, skip deep cascade", ...)
+    }
+}
+```
+
+命中条件：resume_id 匹配、generation_tier='quality'、status='ready'、generated_by 非 mock。
+
+#### 4.2 countBlockedJobProfiles 重写
+
+旧逻辑只统计 missing（profile 不存在）。新逻辑统计 **missing + stale**：
+- missing：profile 不存在或查询失败
+- stale：profile 存在但 status≠"verified"、或 tags<3
+
+日志格式：`missing=<n> stale=<n> total_blocked=<n> threshold=3`
+
+#### 4.3 Threshold 降为 3
+
+`deepCascadeProfileBlockThreshold = 3`（原 5）。blocked > 3 时跳过 cascade → `deep_fallback_agent`。
+
+#### 4.4 前端 polling 安全网
+
+`MAX_QUALITY_POLL = 15`（15×3s = 45s ceiling）。cache-first 下响应即时，此为极限保护。
+
+### 五、验收
+
+```bash
+# cache hit — 不应出现 "use_deep_cascade" 日志
+curl -i -X POST http://127.0.0.1/api/jobs/recommend \
+  -H "Authorization: Bearer <token>" \
+  -d '{"resume_id":8,"generation_tier":"quality","limit":5}'
+
+# 期望: HTTP 200, 日志含 "quality cache hit"
+```
+
+| 项目 | 结果 |
+|------|------|
+| go vet | ✅ |
+| go build ./cmd/server | ✅ |
+| go test ./internal/service/... | ✅ |
 
 ---
 

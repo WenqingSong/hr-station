@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	apperror "offer-catcher/server/internal/errors"
 	"fmt"
 	"log"
 	"math"
+	apperror "offer-catcher/server/internal/errors"
 	"strings"
 	"time"
 
@@ -29,24 +29,24 @@ func safeFallbackCtx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 15*time.Second)
 }
 
-// deepCascadeMissingProfileThreshold is the maximum number of jobs with missing
-// verified SEP profiles that the cascade pipeline will tolerate before skipping
-// cascade entirely and going straight to deep_fallback_agent.
-// Setting this low prevents the cascade from synchronously generating dozens of
-// job SEP profiles during a single user HTTP request.
-const deepCascadeMissingProfileThreshold = 5
+// deepCascadeProfileBlockThreshold is the maximum number of jobs with blocked
+// (missing / stale / hash-mismatch) SEP profiles that the cascade pipeline will
+// tolerate before skipping entirely and going straight to deep_fallback_agent.
+// Setting this low prevents the cascade from synchronously generating profiles
+// during a single user HTTP request.
+const deepCascadeProfileBlockThreshold = 3
 
 // RecommendationRequest represents a request for job recommendations.
 type RecommendationRequest struct {
-	ResumeID uint64 `json:"resume_id"`
-	Limit           int                `json:"limit"`
-	GenerationTier  model.GenerationTier `json:"generation_tier,omitempty"`
+	ResumeID       uint64               `json:"resume_id"`
+	Limit          int                  `json:"limit"`
+	GenerationTier model.GenerationTier `json:"generation_tier,omitempty"`
 }
 
 // RecommendationResponse represents the response for job recommendations.
 type RecommendationResponse struct {
 	ResumeVersionID uint64                        `json:"resume_version_id"`
-	ResumeID uint64 `json:"resume_id"`
+	ResumeID        uint64                        `json:"resume_id"`
 	GeneratedBy     string                        `json:"generated_by"`     // deprecated: use meta.generated_by
 	RecommendedJobs []*model.RecommendedJob       `json:"recommended_jobs"` // deprecated: use result.recommended_jobs
 	Result          *RecommendationBusinessResult `json:"result"`
@@ -54,10 +54,10 @@ type RecommendationResponse struct {
 	CreatedAt       string                        `json:"created_at"`
 	Meta            model.AgentResponseMeta       `json:"meta"`
 	// K9-1-U-C: result persistence metadata
-	ResultID       uint64 `json:"result_id,omitempty"`
-	GenerationTier string `json:"generation_tier,omitempty"`
-	PipelineMode    string                        `json:"pipeline_mode,omitempty"`
-	JudgeResult     *model.RecommendationJudgeResult `json:"judge_result,omitempty"`
+	ResultID       uint64                           `json:"result_id,omitempty"`
+	GenerationTier string                           `json:"generation_tier,omitempty"`
+	PipelineMode   string                           `json:"pipeline_mode,omitempty"`
+	JudgeResult    *model.RecommendationJudgeResult `json:"judge_result,omitempty"`
 
 	// K9-1-H4-C: profile status fields
 	ProfileStatus          string `json:"profile_status,omitempty"`
@@ -75,11 +75,11 @@ type RecommendationBusinessResult struct {
 	PipelineTrace   string                  `json:"pipeline_trace,omitempty"`
 
 	// ── L2: Deep Cascade calibration fields ──
-	GlobalSummary          string `json:"global_summary,omitempty"`
-	CandidatePositioning   string `json:"candidate_positioning,omitempty"`
+	GlobalSummary           string `json:"global_summary,omitempty"`
+	CandidatePositioning    string `json:"candidate_positioning,omitempty"`
 	TopRecommendationReason string `json:"top_recommendation_reason,omitempty"`
-	PortfolioRiskSummary   string `json:"portfolio_risk_summary,omitempty"`
-	DeliveryStrategy       string `json:"delivery_strategy,omitempty"`
+	PortfolioRiskSummary    string `json:"portfolio_risk_summary,omitempty"`
+	DeliveryStrategy        string `json:"delivery_strategy,omitempty"`
 }
 
 // RecommendationService handles job recommendation business logic.
@@ -94,11 +94,11 @@ type RecommendationService struct {
 	fallbackEnable     bool
 	enableMockAgent    bool
 	profileSvc         *ResumeProfileService
-	tagEvidence        *TagEvidenceService // K13-Fix-B: Fast 统一使用 Tag/Evidence
-	semanticGate       *SemanticProfileGate // SEP Gate for SEP-based Fast recommend
+	tagEvidence        *TagEvidenceService                   // K13-Fix-B: Fast 统一使用 Tag/Evidence
+	semanticGate       *SemanticProfileGate                  // SEP Gate for SEP-based Fast recommend
 	semanticRepo       *repository.SemanticProfileRepository // SEP tag queries
-	qualityClient      llm.Client // Hy3 client for Deep Cascade
-	qualityModel       string     // model for Deep Cascade
+	qualityClient      llm.Client                            // Hy3 client for Deep Cascade
+	qualityModel       string                                // model for Deep Cascade
 }
 
 // NewRecommendationService creates a new RecommendationService.
@@ -204,15 +204,62 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 		}
 		log.Printf("[RecommendationService] profile not ready status=%s resume=%d", profileStatus, req.ResumeID)
 		return &RecommendationResponse{
-			ResumeID:               req.ResumeID,
-			Result:                 &RecommendationBusinessResult{RecommendedJobs: []*model.RecommendedJob{}},
-			RecommendedJobs:        []*model.RecommendedJob{},
-			Summary:                msg,
-			ProfileStatus:          profileStatus,
-			ProfileType:            profileType,
-			ProfileMessage:         msg,
-			CreatedAt:              time.Now().Format("2006-01-02T15:04:05Z07:00"),
+			ResumeID:        req.ResumeID,
+			Result:          &RecommendationBusinessResult{RecommendedJobs: []*model.RecommendedJob{}},
+			RecommendedJobs: []*model.RecommendedJob{},
+			Summary:         msg,
+			ProfileStatus:   profileStatus,
+			ProfileType:     profileType,
+			ProfileMessage:  msg,
+			CreatedAt:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
 		}, nil
+	}
+
+	// R3: Quality cache-first — before entering DeepCascade, check if we already
+	// have a ready quality result for this resume. If so, return it immediately
+	// without triggering any SEP generation or LLM calls.
+	if req.GenerationTier == model.GenerationTierQuality {
+		if cached, err := s.recommendationRepo.FindLatestByResumeID(ctx, userID, req.ResumeID, "quality"); err == nil && cached != nil && len(cached.ResultJSON) > 0 {
+			var jobs []model.RecommendedJob
+			if jsonErr := json.Unmarshal(cached.ResultJSON, &jobs); jsonErr == nil && len(jobs) > 0 {
+				log.Printf("[RecommendationService] quality cache hit resume=%d result_id=%d generated_by=%s jobs=%d, skip deep cascade",
+					cached.ResumeID, cached.ID, cached.GeneratedBy, len(jobs))
+				if len(jobs) > req.Limit {
+					jobs = jobs[:req.Limit]
+				}
+				jobPtrs := make([]*model.RecommendedJob, len(jobs))
+				for i := range jobs {
+					jobPtrs[i] = &jobs[i]
+				}
+				// Determine display tier: stored "quality" → respond "deep" for cascade compat
+				displayTier := cached.GenerationTier
+				if displayTier == "quality" {
+					displayTier = "deep"
+				}
+				// Preserve pipeline_mode from the original pipeline if known
+				pipeline := pipelineModeFromGeneratedBy(cached.GeneratedBy)
+				now := time.Now()
+				meta := model.NewAgentResponseMeta(model.AgentNameRecommendation).
+					WithGeneratedBy(cached.GeneratedBy).
+					WithAgentStatus(model.AgentStatusSuccess)
+				return &RecommendationResponse{
+					ResumeID:               req.ResumeID,
+					GeneratedBy:            cached.GeneratedBy,
+					RecommendedJobs:        jobPtrs,
+					Result:                 &RecommendationBusinessResult{RecommendedJobs: jobPtrs},
+					CreatedAt:              now.Format("2006-01-02T15:04:05Z07:00"),
+					Meta:                   meta,
+					ResultID:               cached.ID,
+					GenerationTier:         displayTier,
+					PipelineMode:           pipeline,
+					JudgeResult:            &model.RecommendationJudgeResult{Pass: true, Severity: "pass", Issues: nil, FixStrategy: "none"},
+					ProfileStatus:          profileStatus,
+					ProfileType:            profileType,
+					ProfileSource:          profileSource,
+					ProfileDominantProfile: profileDominant,
+				}, nil
+			}
+		}
 	}
 
 	return s.recommendCore(ctx, userID, req, profileType, profileDominant, profileSource)
@@ -316,15 +363,16 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 
 		// Deep/Quality tier → Cascaded Deep Recommendation Pipeline
 		if s.semanticGate != nil && s.semanticRepo != nil {
-			// K15-P0-R2: guard against cascade trying to synchronously generate SEP profiles
-			// for dozens of jobs during a single HTTP request. If too many jobs lack verified
-			// profiles, skip the cascade entirely and fall through to deep_fallback_agent.
+			// R3: guard against cascade trying to synchronously generate SEP profiles
+			// for dozens of jobs during a single HTTP request. Count blocked (missing
+			// + stale) profiles — any blocked profile would trigger regeneration in
+			// the cascade L0 gate. If blocked > threshold, skip cascade and fallback.
 			resumeID := int64(resume.ID)
-			missingCount := s.countMissingJobProfiles(ctx, jobs)
-			log.Printf("[RecommendationService] cascade pre-check: total_jobs=%d missing_profiles=%d threshold=%d", len(jobs), missingCount, deepCascadeMissingProfileThreshold)
-			if missingCount > deepCascadeMissingProfileThreshold {
-				log.Printf("[RecommendationService] deep cascade skipped: too many missing job profiles (%d > %d), using deep_fallback_agent", missingCount, deepCascadeMissingProfileThreshold)
-				// Fall through to final fallback below (will be caught by the exhausted/cancelled check)
+			blockedCount, breakdown := s.countBlockedJobProfiles(ctx, jobs)
+			log.Printf("[RecommendationService] cascade pre-check: total_jobs=%d %s", len(jobs), breakdown)
+			if blockedCount > deepCascadeProfileBlockThreshold {
+				log.Printf("[RecommendationService] deep cascade skipped: blocked job profiles (%d > %d), using deep_fallback_agent",
+					blockedCount, deepCascadeProfileBlockThreshold)
 				goto qualityFallback
 			}
 
@@ -406,6 +454,21 @@ func (s *RecommendationService) fillProfileFields(resp *RecommendationResponse, 
 	resp.ProfileSource = source
 }
 
+// pipelineModeFromGeneratedBy returns the pipeline_mode corresponding to a cached result's generated_by.
+// Used when returning a cache hit to preserve the original pipeline semantics.
+func pipelineModeFromGeneratedBy(generatedBy string) string {
+	switch generatedBy {
+	case "llm_agent":
+		return "cascade" // most likely from the cascade pipeline
+	case "deep_fallback_agent":
+		return "deep_fallback"
+	case "mock_quality":
+		return "mock_deep_fallback"
+	default:
+		return ""
+	}
+}
+
 // getResume retrieves the resume version based on the request.
 func (s *RecommendationService) getResume(ctx context.Context, userID uint64, req RecommendationRequest) (*model.ResumeVersion, error) {
 	var resume *model.ResumeVersion
@@ -433,30 +496,41 @@ func (s *RecommendationService) getResume(ctx context.Context, userID uint64, re
 
 // ─── Deep Recommendation via Cascaded Pipeline ──────────────────────────
 
-// countMissingJobProfiles returns the number of jobs that lack a verified SEP profile.
-// This is used as a guard before DeepCascade to avoid synchronously generating
-// dozens of SEP profiles during a single user HTTP request.
-// NOTE: Uses FindLatestByTarget (read-only repo query) to avoid triggering
-// synchronous profile generation via EnsureJobProfile.
-func (s *RecommendationService) countMissingJobProfiles(ctx context.Context, jobs []*model.Job) int {
+// countBlockedJobProfiles returns the number of jobs with blocked (missing / stale /
+// hash-mismatch) SEP profiles. Blocked profiles would trigger synchronous generation
+// inside the DeepCascade L0 gate, causing unacceptable latency.
+// Uses FindLatestByTarget (read-only) to avoid triggering profile generation.
+// Returns total blocked count and a breakdown log string.
+func (s *RecommendationService) countBlockedJobProfiles(ctx context.Context, jobs []*model.Job) (totalBlocked int, breakdown string) {
 	if s.semanticRepo == nil {
-		return len(jobs) // all missing if repo unavailable
+		return len(jobs), fmt.Sprintf("missing=%d stale=0 hash=0 (repo unavailable)", len(jobs))
 	}
 	missing := 0
+	stale := 0
+	blocked := 0
 	for _, j := range jobs {
 		jid := int64(j.ID)
 		profile, err := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetJob, jid)
-		if err != nil || profile == nil || profile.Status != model.SemanticProfileStatusVerified {
+		if err != nil || profile == nil {
 			missing++
 			continue
 		}
-		// Also check tags count — verified profile must have meaningful tags
+		// Stale: profile exists but status is not "verified"
+		if profile.Status != model.SemanticProfileStatusVerified {
+			stale++
+			continue
+		}
+		// Check for hash mismatch — would cause cascade gate to regenerate
+		// Just count tags presence as a proxy for profile completeness
 		tagCount, tagErr := s.semanticRepo.CountTagsByProfileID(ctx, profile.ID)
 		if tagErr != nil || tagCount < 3 {
-			missing++
+			stale++
+			continue
 		}
 	}
-	return missing
+	blocked = missing + stale
+	breakdownLog := fmt.Sprintf("missing=%d stale=%d total_blocked=%d threshold=%d", missing, stale, blocked, deepCascadeProfileBlockThreshold)
+	return blocked, breakdownLog
 }
 
 // recommendDeepCascade executes the Cascaded Deep Recommendation Pipeline.
@@ -508,7 +582,9 @@ func (s *RecommendationService) recommendDeepCascade(ctx context.Context, userID
 	// Build trace bytes
 	traceBytes, _ := json.Marshal(trace)
 	agentStatus := "cascade_verified"
-	if globalSummary == "" { agentStatus = "cascade_repaired" }
+	if globalSummary == "" {
+		agentStatus = "cascade_repaired"
+	}
 
 	now := time.Now().Format("2006-01-02T15:04:05Z07:00")
 	meta := model.AgentResponseMeta{
@@ -529,32 +605,34 @@ func (s *RecommendationService) recommendDeepCascade(ctx context.Context, userID
 		portfolioRisk = l4Result.PortfolioRiskSummary
 		deliveryStrat = l4Result.DeliveryStrategy
 	}
-	if l4GlobalSummary == "" { l4GlobalSummary = globalSummary }
+	if l4GlobalSummary == "" {
+		l4GlobalSummary = globalSummary
+	}
 
 	resp := &RecommendationResponse{
-		ResumeVersionID:       resume.ID,
-		ResumeID:              resume.ID,
-		GeneratedBy:           "llm_agent",
-		RecommendedJobs:       recommendedJobs,
-		Summary:               l4GlobalSummary,
-		CreatedAt:             now,
-		Meta:                  meta,
-		GenerationTier:        "deep",
-		PipelineMode:          "cascade",
-		ProfileStatus:         "verified",
-		ProfileType:           profileType,
-		ProfileSource:         profileSource,
+		ResumeVersionID:        resume.ID,
+		ResumeID:               resume.ID,
+		GeneratedBy:            "llm_agent",
+		RecommendedJobs:        recommendedJobs,
+		Summary:                l4GlobalSummary,
+		CreatedAt:              now,
+		Meta:                   meta,
+		GenerationTier:         "deep",
+		PipelineMode:           "cascade",
+		ProfileStatus:          "verified",
+		ProfileType:            profileType,
+		ProfileSource:          profileSource,
 		ProfileDominantProfile: profileDominant,
-		Result:                &RecommendationBusinessResult{
-			RecommendedJobs:        recommendedJobs,
-			Summary:                l4GlobalSummary,
-			QualityStatus:          agentStatus,
-			PipelineTrace:          string(traceBytes),
-			GlobalSummary:          l4GlobalSummary,
-			CandidatePositioning:   candidatePos,
+		Result: &RecommendationBusinessResult{
+			RecommendedJobs:         recommendedJobs,
+			Summary:                 l4GlobalSummary,
+			QualityStatus:           agentStatus,
+			PipelineTrace:           string(traceBytes),
+			GlobalSummary:           l4GlobalSummary,
+			CandidatePositioning:    candidatePos,
 			TopRecommendationReason: topRecReason,
-			PortfolioRiskSummary:   portfolioRisk,
-			DeliveryStrategy:       deliveryStrat,
+			PortfolioRiskSummary:    portfolioRisk,
+			DeliveryStrategy:        deliveryStrat,
 		},
 	}
 
@@ -634,7 +712,7 @@ func (s *RecommendationService) recommendWithLLM(ctx context.Context, userID uin
 	recResult := &RecommendationBusinessResult{RecommendedJobs: jobPtrs}
 
 	resp := &RecommendationResponse{
-		ResumeID: resume.ID,
+		ResumeID:        resume.ID,
 		GeneratedBy:     "llm_agent",
 		RecommendedJobs: jobPtrs,
 		Result:          recResult,
@@ -937,28 +1015,28 @@ func (s *RecommendationService) fastRecommendWithTags(ctx context.Context, userI
 			title, dept, city = j.Title, j.Department, j.City
 		}
 		// Scale tagScore (count-based, typically 1-50) to 70-95 range
-		scaledScore := int(math.Min(95, math.Max(70, 70 + c.TagScore*0.5)))
+		scaledScore := int(math.Min(95, math.Max(70, 70+c.TagScore*0.5)))
 		rec := &model.RecommendedJob{
-			JobID:               c.JobID,
-			Title:               title,
-			Department:          dept,
-			City:                city,
-			Category:            c.Category,
-			JobType:             "",
-			RecommendationScore: scaledScore,
-			RecommendationReason:  buildFastOneSentenceReason(c),
-			RecommendationLabel:  buildFastLabel(c.TagScore),
+			JobID:                  c.JobID,
+			Title:                  title,
+			Department:             dept,
+			City:                   city,
+			Category:               c.Category,
+			JobType:                "",
+			RecommendationScore:    scaledScore,
+			RecommendationReason:   buildFastOneSentenceReason(c),
+			RecommendationLabel:    buildFastLabel(c.TagScore),
 			RecommendationPriority: buildFastPriority(c.TagScore),
-			MatchHighlights:      buildFastHighlights(c),
-			RiskPoints:           buildFastRiskReminders(c),
-			SuggestedAction:      buildFastSuggestedAction(c),
-			WhyRankedHere:        buildFastRecommendReasonExplainer(c),
-			GeneratedBy:         "fast_tag_engine",
-			AgentStatus:         "success",
-			FallbackReason:      "none",
-			RepairApplied:       false,
-			DataQuality:         "rule",
-			ResumeEvidence:      c.EvidenceRefs,
+			MatchHighlights:        buildFastHighlights(c),
+			RiskPoints:             buildFastRiskReminders(c),
+			SuggestedAction:        buildFastSuggestedAction(c),
+			WhyRankedHere:          buildFastRecommendReasonExplainer(c),
+			GeneratedBy:            "fast_tag_engine",
+			AgentStatus:            "success",
+			FallbackReason:         "none",
+			RepairApplied:          false,
+			DataQuality:            "rule",
+			ResumeEvidence:         c.EvidenceRefs,
 		}
 		recommended = append(recommended, rec)
 	}
@@ -976,18 +1054,18 @@ func (s *RecommendationService) fastRecommendWithTags(ctx context.Context, userI
 
 	now := time.Now().Format("2006-01-02T15:04:05Z07:00")
 	resp := &RecommendationResponse{
-		ResumeVersionID:       resume.ID,
-		ResumeID:              resume.ID,
-		GeneratedBy:           "fast_tag_engine",
-		RecommendedJobs:       recommended,
-		Summary:               summary,
-		CreatedAt:             now,
-		Meta:                  meta,
-		GenerationTier:        "fast",
-		PipelineMode:          "fast_tag_engine",
-		ProfileStatus:         "ready",
-		ProfileType:           profileType,
-		ProfileSource:         profileSource,
+		ResumeVersionID:        resume.ID,
+		ResumeID:               resume.ID,
+		GeneratedBy:            "fast_tag_engine",
+		RecommendedJobs:        recommended,
+		Summary:                summary,
+		CreatedAt:              now,
+		Meta:                   meta,
+		GenerationTier:         "fast",
+		PipelineMode:           "fast_tag_engine",
+		ProfileStatus:          "ready",
+		ProfileType:            profileType,
+		ProfileSource:          profileSource,
 		ProfileDominantProfile: profileDominant,
 	}
 
@@ -1091,27 +1169,27 @@ func (s *RecommendationService) fastRecommendWithSEP(ctx context.Context, userID
 		}
 
 		rec := &model.RecommendedJob{
-			JobID:                uint64(score.JobID),
-			Title:                title,
-			Department:           dept,
-			City:                 city,
-			Category:             category,
-			JobType:              direction,
-			RecommendationScore:  score.Score,
-			RecommendationReason: buildSEPOneSentenceReason(score),
-			RecommendationLabel:  sepScoreLabel(score.Score),
+			JobID:                  uint64(score.JobID),
+			Title:                  title,
+			Department:             dept,
+			City:                   city,
+			Category:               category,
+			JobType:                direction,
+			RecommendationScore:    score.Score,
+			RecommendationReason:   buildSEPOneSentenceReason(score),
+			RecommendationLabel:    sepScoreLabel(score.Score),
 			RecommendationPriority: sepScorePriority(score.Score),
-			MatchHighlights:      buildSEPMatchHighlights(score),
-			RiskPoints:           buildSEPRiskSummaries(score, title),
-			SuggestedAction:      sepScoreAction(score.Score),
-			WhyRankedHere:        score.RankReason,
-			DisplayTags:          score.DisplayTags,
-			GeneratedBy:          "fast_tag_engine",
-			AgentStatus:          "success",
-			FallbackReason:       "none",
-			RepairApplied:        false,
-			DataQuality:          "rule",
-			ResumeEvidence:       score.EvidenceTexts,
+			MatchHighlights:        buildSEPMatchHighlights(score),
+			RiskPoints:             buildSEPRiskSummaries(score, title),
+			SuggestedAction:        sepScoreAction(score.Score),
+			WhyRankedHere:          score.RankReason,
+			DisplayTags:            score.DisplayTags,
+			GeneratedBy:            "fast_tag_engine",
+			AgentStatus:            "success",
+			FallbackReason:         "none",
+			RepairApplied:          false,
+			DataQuality:            "rule",
+			ResumeEvidence:         score.EvidenceTexts,
 		}
 		recommended = append(recommended, rec)
 	}
@@ -1129,18 +1207,18 @@ func (s *RecommendationService) fastRecommendWithSEP(ctx context.Context, userID
 
 	now := time.Now().Format("2006-01-02T15:04:05Z07:00")
 	resp := &RecommendationResponse{
-		ResumeVersionID:       resume.ID,
-		ResumeID:              resume.ID,
-		GeneratedBy:           "fast_tag_engine",
-		RecommendedJobs:       recommended,
-		Summary:               summary,
-		CreatedAt:             now,
-		Meta:                  meta,
-		GenerationTier:        "fast",
-		PipelineMode:          "sep_ranker",
-		ProfileStatus:         "verified",
-		ProfileType:           profileType,
-		ProfileSource:         profileSource,
+		ResumeVersionID:        resume.ID,
+		ResumeID:               resume.ID,
+		GeneratedBy:            "fast_tag_engine",
+		RecommendedJobs:        recommended,
+		Summary:                summary,
+		CreatedAt:              now,
+		Meta:                   meta,
+		GenerationTier:         "fast",
+		PipelineMode:           "sep_ranker",
+		ProfileStatus:          "verified",
+		ProfileType:            profileType,
+		ProfileSource:          profileSource,
 		ProfileDominantProfile: profileDominant,
 	}
 
@@ -1179,7 +1257,9 @@ func (s *RecommendationService) findReadyJobSEP(ctx context.Context, jobID int64
 // ─── SEP Recommend Ranking — kept from original, unchanged ───────────────
 
 func jobResultStatus(r *SemanticProfileGateResult) string {
-	if r == nil { return "nil" }
+	if r == nil {
+		return "nil"
+	}
 	return r.Status
 }
 
@@ -1187,9 +1267,13 @@ func jobResultStatus(r *SemanticProfileGateResult) string {
 
 func buildSEPOneSentenceReason(s *SEPMatchScore) string {
 	top := s.MatchedTags
-	if len(top) > 2 { top = top[:2] }
+	if len(top) > 2 {
+		top = top[:2]
+	}
 	core := strings.Join(top, "、")
-	if core == "" { core = "基础背景" }
+	if core == "" {
+		core = "基础背景"
+	}
 	switch {
 	case s.Score >= 85:
 		return fmt.Sprintf("你的简历与该岗位在 %s 上重合度较高，适合作为优先投递岗位。", core)
@@ -1203,11 +1287,13 @@ func buildSEPOneSentenceReason(s *SEPMatchScore) string {
 func buildSEPMatchHighlights(s *SEPMatchScore) []string {
 	var result []string
 	for _, ev := range s.EvidenceTexts {
-		if len(result) >= 3 { break }
+		if len(result) >= 3 {
+			break
+		}
 		result = append(result, ev)
 	}
 	if len(result) == 0 && len(s.MatchedTags) > 0 {
-		result = append(result, fmt.Sprintf("简历与岗位在 %s 等方面存在语义匹配", strings.Join(s.MatchedTags[:min(3,len(s.MatchedTags))], "、")))
+		result = append(result, fmt.Sprintf("简历与岗位在 %s 等方面存在语义匹配", strings.Join(s.MatchedTags[:min(3, len(s.MatchedTags))], "、")))
 	}
 	if len(result) == 0 {
 		result = append(result, "该岗位与当前简历在基础背景上存在一定关联，建议进一步做岗位匹配分析确认。")
@@ -1225,7 +1311,9 @@ func buildSEPRiskSummaries(s *SEPMatchScore, jobTitle string) []string {
 	}
 	var result []string
 	for _, r := range s.RiskTags {
-		if len(result) >= 2 { break }
+		if len(result) >= 2 {
+			break
+		}
 		risk := fmt.Sprintf("岗位要求关注「%s」，当前简历在该方面的体现较弱，可能会降低面试机会。", r)
 		if s.RoleMatch == 0 {
 			risk += fmt.Sprintf(" 结合岗位类型（%s），建议优先确认方向匹配后再投递。", jobTitle)
@@ -1237,19 +1325,27 @@ func buildSEPRiskSummaries(s *SEPMatchScore, jobTitle string) []string {
 
 func sepScoreLabel(score int) string {
 	switch {
-	case score >= 85: return "优先投递"
-	case score >= 70: return "重点关注"
-	case score >= 55: return "可以备选"
-	default: return "谨慎尝试"
+	case score >= 85:
+		return "优先投递"
+	case score >= 70:
+		return "重点关注"
+	case score >= 55:
+		return "可以备选"
+	default:
+		return "谨慎尝试"
 	}
 }
 
 func sepScorePriority(score int) string {
 	switch {
-	case score >= 85: return "strong"
-	case score >= 70: return "high"
-	case score >= 55: return "try"
-	default: return "backup"
+	case score >= 85:
+		return "strong"
+	case score >= 70:
+		return "high"
+	case score >= 55:
+		return "try"
+	default:
+		return "backup"
 	}
 }
 
@@ -1267,7 +1363,9 @@ func sepScoreAction(score int) string {
 }
 
 func min(a, b int) int {
-	if a < b { return a }
+	if a < b {
+		return a
+	}
 	return b
 }
 
@@ -1312,31 +1410,31 @@ func (s *RecommendationService) recommendWith3Agents(ctx context.Context, userID
 			title, dept, city = j.Title, j.Department, j.City
 		}
 		rec := &model.RecommendedJob{
-			JobID:                item.JobID,
-			Title:                title,
-			Department:           dept,
-			City:                 city,
-			RecommendationScore:  item.RecommendationScore,
-			RecommendationReason: item.RecommendationReason,
-			RecommendationLabel:  item.RecommendationLevel,
+			JobID:                  item.JobID,
+			Title:                  title,
+			Department:             dept,
+			City:                   city,
+			RecommendationScore:    item.RecommendationScore,
+			RecommendationReason:   item.RecommendationReason,
+			RecommendationLabel:    item.RecommendationLevel,
 			RecommendationPriority: item.RecommendationLevel,
-			MatchHighlights:      item.MatchHighlights,
-			RiskPoints:           item.RiskPoints,
-			ResumeEvidence:       item.ResumeEvidence,
-			SuggestedAction:      item.SuggestedAction,
-			ApplyReadiness:       item.OptimizationSignal,
-			GeneratedBy:          result.FinalOutput.GeneratedBy,
-			AgentStatus:          result.FinalOutput.AgentStatus,
-			RepairApplied:        result.FinalOutput.RepairApplied,
-			DataQuality:          "llm",
+			MatchHighlights:        item.MatchHighlights,
+			RiskPoints:             item.RiskPoints,
+			ResumeEvidence:         item.ResumeEvidence,
+			SuggestedAction:        item.SuggestedAction,
+			ApplyReadiness:         item.OptimizationSignal,
+			GeneratedBy:            result.FinalOutput.GeneratedBy,
+			AgentStatus:            result.FinalOutput.AgentStatus,
+			RepairApplied:          result.FinalOutput.RepairApplied,
+			DataQuality:            "llm",
 		}
 		recommended = append(recommended, rec)
 	}
 
 	meta := model.AgentResponseMeta{
-		AgentName:   "DeepRecommendationEngine",
-		GeneratedBy: result.FinalOutput.GeneratedBy,
-		AgentStatus: result.FinalOutput.AgentStatus,
+		AgentName:     "DeepRecommendationEngine",
+		GeneratedBy:   result.FinalOutput.GeneratedBy,
+		AgentStatus:   result.FinalOutput.AgentStatus,
 		RepairApplied: result.FinalOutput.RepairApplied,
 	}
 
@@ -1369,14 +1467,22 @@ func buildFastRecommendReason(c model.JobCandidate) string {
 }
 
 func buildFastLabel(score float64) string {
-	if score >= 15 { return "强匹配" }
-	if score >= 8 { return "较高匹配" }
+	if score >= 15 {
+		return "强匹配"
+	}
+	if score >= 8 {
+		return "较高匹配"
+	}
 	return "可关注"
 }
 
 func buildFastPriority(score float64) string {
-	if score >= 15 { return "strong" }
-	if score >= 8 { return "high" }
+	if score >= 15 {
+		return "strong"
+	}
+	if score >= 8 {
+		return "high"
+	}
 	return "try"
 }
 

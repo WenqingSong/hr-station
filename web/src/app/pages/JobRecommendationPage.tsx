@@ -111,7 +111,9 @@ export function JobRecommendationPage() {
   const fastAttemptsRef = useRef(0);
   const qualityAttemptsRef = useRef(0);
   const MAX_FAST_POLL = 8;
-  const MAX_QUALITY_POLL = 10;
+  // R3: with cache-first backend, Deep responses are near-instant (<500ms).
+  // 45s ceiling is a safety net for edge cases (SEP profile generation fallback).
+  const MAX_QUALITY_POLL = 15; // 15 × 3s = 45s
 
   useEffect(() => { return () => { if (fastPollRef.current) clearTimeout(fastPollRef.current); if (qualityPollRef.current) clearTimeout(qualityPollRef.current); if (deepElapsedRef.current) clearInterval(deepElapsedRef.current); }; }, []);
 
@@ -305,8 +307,12 @@ export function JobRecommendationPage() {
         if (vm.profileStatus === "pending") { setPhase("deep_profile_pending"); return; }
         if (vm.profileStatus === "failed") { setPhase("deep_error"); setDeepErrorMessage(vm.profileMessage || "深度分析生成失败，已保留当前结果。"); return; }
         qualityAttemptsRef.current++;
-        if (qualityAttemptsRef.current >= MAX_QUALITY_POLL) { setPhase("deep_timeout"); return; }
-        qualityPollRef.current = setTimeout(pollQuality, 2000);
+        if (qualityAttemptsRef.current >= MAX_QUALITY_POLL) {
+          if (deepElapsedRef.current) { clearInterval(deepElapsedRef.current); deepElapsedRef.current = null; }
+          setPhase("deep_timeout"); setDeepErrorMessage("深度推荐生成超时。请返回已有推荐结果，稍后重试。");
+          return;
+        }
+        qualityPollRef.current = setTimeout(pollQuality, 3000);
       } catch (caught: any) {
         if (deepElapsedRef.current) { clearInterval(deepElapsedRef.current); deepElapsedRef.current = null; }
         // H17-D: discard errors from stale requests
