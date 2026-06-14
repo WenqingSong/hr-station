@@ -1,0 +1,28 @@
+# ============================================================
+# Optional bootstrap override for a brand-new empty production database ONLY.
+#
+# ⚠️  DANGER
+#   - server/sql/init.sql contains DROP TABLE IF EXISTS statements.
+#   - Never use this file against an existing production database.
+#   - Never use this file after production data exists.
+#   - Prefer a real migration system in the future.
+#
+# ✅  Safe usage — brand-new empty DB only:
+#   docker compose --project-name wenqing-hr-demo --env-file .env.prod \
+#     -f docker-compose.prod.yml \
+#     -f docker-compose.prod.bootstrap.yml \
+#     config
+#
+#   docker compose --project-name wenqing-hr-demo --env-file .env.prod \
+#     -f docker-compose.prod.yml \
+#     -f docker-compose.prod.bootstrap.yml \
+#     up -d --build
+#
+# ❌  NEVER use if mysql_data volume already contains data.
+# ❌  NEVER use on a running production system.
+# ============================================================
+
+services:
+  mysql:
+    volumes:
+      - ./server/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro

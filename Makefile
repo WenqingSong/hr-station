@@ -18,7 +18,7 @@ DEV_SCRIPT := scripts/dev
         ensure-env \
         up stop down restart restart-soft reset reset-up \
         ps \
-        prod-config prod-check \
+        prod-config prod-check prod-backup \
         infra-up infra-down infra-status infra-logs \
         db-import db-reset db-shell db-check \
         backend-up backend-start backend-stop backend-restart backend-logs backend-status backend-health \
@@ -78,9 +78,10 @@ help: ## 查看所有可用命令
 	@echo "  make db-shell      进入 MySQL shell"
 	@echo "  make db-check      检查核心表是否存在、记录数是否正常"
 	@echo ""
-	@echo "生产部署准备:"
-	@echo "  make prod-config   验证生产 compose 配置（不启动容器）"
-	@echo "  make prod-check    生产部署前安全校验"
+	@echo "生产部署:"
+	@echo "  make prod-config   验证生产 compose 配置（不启动，不打印密钥）"
+	@echo "  make prod-check    生产部署前安全检查（只读，不部署）"
+	@echo "  make prod-backup   生产数据库备份（mysqldump → backups/mysql/）"
 	@echo ""
 	@echo "后端:"
 	@echo "  make backend-up       后台启动 Go 后端"
@@ -341,32 +342,43 @@ db-check: ## 检查核心表
 
 # ============================================================
 # 生产部署准备
+#
+# Production safety:
+# - Never source .env.prod (DB_DSN has shell-special chars)
+# - Always use --env-file .env.prod with docker compose
+# - Never run docker compose down -v in production
+# - Never delete production volumes (mysql_data / redis_data)
 # ============================================================
 
-prod-config: ## 验证生产 compose 配置（不启动容器）
-	@if [ ! -f .env.prod ]; then echo "ERROR: .env.prod missing"; exit 1; fi
+prod-config: ## 验证生产 compose 配置（不启动容器，不打印完整密钥）
+	@if [ ! -f .env.prod ]; then \
+		echo "ERROR: .env.prod missing"; \
+		echo "Create it from .env.prod.example and fill real secrets on the production server:"; \
+		echo "  cp .env.prod.example .env.prod"; \
+		exit 1; \
+	fi
 	@if [ ! -f docker-compose.prod.yml ]; then echo "ERROR: docker-compose.prod.yml missing"; exit 1; fi
-	@docker compose --env-file .env.prod -f docker-compose.prod.yml config
+	@PROJECT_NAME=$$(grep -E '^COMPOSE_PROJECT_NAME=' .env.prod | tail -1 | cut -d= -f2- | sed -E 's/^["\x27]?//; s/["\x27]?$$//' || true); \
+	if [ -z "$$PROJECT_NAME" ]; then PROJECT_NAME=wenqing-hr-demo; fi; \
+	echo "=== prod-config ==="; \
+	echo "  project   : $$PROJECT_NAME"; \
+	echo "  env file  : .env.prod"; \
+	echo "  compose   : docker-compose.prod.yml"; \
+	docker compose --project-name "$$PROJECT_NAME" --env-file .env.prod -f docker-compose.prod.yml config >/tmp/offer-catcher-prod-compose-config.check 2>&1; \
+	if [ $$? -eq 0 ]; then \
+		echo "  compose config: OK"; \
+		echo "  output saved to /tmp/offer-catcher-prod-compose-config.check"; \
+	else \
+		echo "  compose config: FAILED"; \
+		cat /tmp/offer-catcher-prod-compose-config.check; \
+		exit 1; \
+	fi
 
-prod-check: ## 生产部署前安全校验（非零退出=不安全）
-	@echo "=== prod-check ==="
-	@ok=true; \
-	for f in .env.prod docker-compose.prod.yml; do \
-		if [ -f "$$f" ]; then echo "  ✅ $$f"; else echo "  ❌ $$f missing"; ok=false; fi; \
-	done; \
-	for kv in "LLM_PROVIDER=hy3" "LLM_MODEL=hy3-preview" "ENABLE_MOCK_AGENT=false" "LLM_FALLBACK_ENABLE=false"; do \
-		key="$${kv%%=*}"; want="$${kv##*=}"; \
-		actual=$$(grep "^$${key}=" .env.prod | cut -d= -f2- || true); \
-		if [ "$$actual" = "$$want" ]; then echo "  ✅ $${key}=$${actual}"; else echo "  ❌ $${key}=$${actual} (want $$want)"; ok=false; fi; \
-	done; \
-	for key in MYSQL_ROOT_PASSWORD JWT_SECRET; do \
-		if grep -q "^$${key}=.\+" .env.prod; then echo "  ✅ $${key}=EXISTS"; else echo "  ❌ $${key}=MISSING"; ok=false; fi; \
-	done; \
-	has_key=$$(grep -c '^LLM_API_KEY=.\+' .env.prod || true); \
-	has_hy3=$$(grep -c '^LLM_HY3_API_KEY=.\+' .env.prod || true); \
-	if [ "$$has_key" -gt 0 ] || [ "$$has_hy3" -gt 0 ]; then echo "  ✅ LLM_API_KEY or LLM_HY3_API_KEY exists"; else echo "  ❌ No LLM API key found"; ok=false; fi; \
-	if ! docker compose --env-file .env.prod -f docker-compose.prod.yml config >/dev/null 2>&1; then echo "  ❌ prod compose config failed"; ok=false; else echo "  ✅ prod compose config passes"; fi; \
-	if [ "$$ok" = "true" ]; then echo "✅ prod-check PASSED"; else echo "❌ prod-check FAILED"; exit 1; fi
+prod-check: ## 生产部署前安全校验（只读，不部署，非零退出=不安全）
+	@bash scripts/deploy/prod-check.sh
+
+prod-backup: ## 生产数据库备份（mysqldump → backups/mysql/）
+	@bash scripts/deploy/prod-backup.sh
 
 # ============================================================
 # 后端
