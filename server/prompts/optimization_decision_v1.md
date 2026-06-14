@@ -29,6 +29,15 @@
 - 如果 context_quality.has_database_evidence=true，不输出"数据库经验缺失"
 - 所有数组字段不能为 null
 
+### 学历风险决策约束
+risk_points、quick_fix_items、content_fix_items、keyword_fix_items、evidence_fix_items 中不得默认生成学历相关问题。
+
+只有当目标岗位 JD 明确提出更高学历门槛（如"硕士及以上""博士优先""985/211"），且简历明显不满足时，才允许输出学历相关风险。
+
+如果简历已有教育经历，禁止输出"学历缺失""未标注学历层次""学历不明确"等误判性建议。
+
+对于普通后台开发、前端开发等岗位，若 JD 无明确高学历硬门槛，优先围绕项目经历、技术栈、量化指标进行优化。
+
 ### 输出格式
 {
   "optimization_score": 78,

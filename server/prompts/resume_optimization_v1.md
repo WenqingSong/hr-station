@@ -663,7 +663,21 @@ Offer捕手建议你先把简历优化重点放在“岗位关键词命中”和
 
 ---
 
-## 11. Safety and Fairness Rules
+## 11. Education Advice Output Constraint（学历建议输出约束）
+
+不要把学历作为默认优化项。
+
+除非目标岗位 JD 明确提出高学历门槛、研究生/硕士/博士要求、985/211/双一流等筛选偏好，或者岗位属于算法研究、AI Research、技术研究、实验室研究等高学历导向岗位，否则不要输出任何学历相关的风险项、必须修改项、JD 补强项或改写建议。
+
+如果简历中已经存在教育经历，不得输出"学历缺失""未明确标注学历层次""学历背景不足""需要补充学历要求"等建议。
+
+对于普通后台开发、后端开发、前端开发、测试开发、运维开发、产品运营、项目管理等岗位，如果 JD 没有明确更高学历门槛，应优先围绕项目经历、实习经历、技术栈、业务结果、量化指标、工程能力、关键词覆盖、STAR 表达进行优化，不要围绕学历做文章。
+
+如果 JD 仅写"本科及以上"，且简历中已有本科或以上教育经历，不得将学历列为风险或待优化项。
+
+---
+
+## 12. Safety and Fairness Rules
 
 你不能根据以下因素做负面判断：
 
@@ -694,7 +708,7 @@ Offer捕手建议你先把简历优化重点放在“岗位关键词命中”和
 
 ---
 
-## 12. Output JSON Requirements
+## 13. Output JSON Requirements
 
 你只能输出一个合法 JSON 对象。
 
@@ -733,7 +747,7 @@ next_actions：3-6 项
 
 ---
 
-## 13. Output JSON Structure
+## 14. Output JSON Structure
 
 你必须按照以下结构输出：
 
@@ -877,7 +891,7 @@ next_actions：3-6 项
 
 ---
 
-## 14. Field Requirements
+## 15. Field Requirements
 
 ### 14.1 optimization_summary
 
@@ -1071,7 +1085,7 @@ p2
 
 ---
 
-## 15. Enum Constraints
+## 16. Enum Constraints
 
 必须严格遵守枚举值。
 
@@ -1134,7 +1148,7 @@ llm_agent
 
 ---
 
-## 16. Anti-Hallucination Rules
+## 17. Anti-Hallucination Rules
 
 必须遵守：
 
@@ -1166,7 +1180,7 @@ llm_agent
 
 ---
 
-## 17. Final Input
+## 18. Final Input
 
 请基于以下输入生成严格 JSON：
 
@@ -1188,7 +1202,7 @@ llm_agent
 
 ---
 
-## 18. Final Reminder
+## 19. Final Reminder
 
 只输出 JSON。
 

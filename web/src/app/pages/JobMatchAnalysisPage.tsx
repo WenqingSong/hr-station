@@ -227,10 +227,10 @@ export function JobMatchAnalysisPage() {
 
       {/* ── Main Content (Single Column, No Sidebar) ──────────────────── */}
       {activeResult && !activeResult.isProfilePending && (
-        <>
+        <div className="mx-auto w-full max-w-[1120px] space-y-5">
 
           {/* ══════════════════════════════════════════════════════════════
-              1. TOP INFO BAR — at full 1440px width
+              1. TOP INFO BAR — unified page content width
              ══════════════════════════════════════════════════════════════ */}
           <div className="bg-white border border-slate-200 rounded-2xl px-5 py-3.5 flex items-center gap-4 flex-wrap shadow-sm">
             {/* Job info */}
@@ -296,9 +296,9 @@ export function JobMatchAnalysisPage() {
           </div>
 
           {/* ══════════════════════════════════════════════════════════════
-              MAIN CONTENT — inner container: Fast→max-w-[1200px], Deep→space-y-6
+              MAIN CONTENT — inner container, width inherited from page wrapper
              ══════════════════════════════════════════════════════════════ */}
-          <div className={isFast ? "mx-auto max-w-[1120px] space-y-5" : "space-y-6"}>
+          <div className={isFast ? "w-full space-y-5" : "space-y-6"}>
 
           {/* ══════════════════════════════════════════════════════════════
               2. DECISION HERO — the 5-second decision card
@@ -874,8 +874,9 @@ export function JobMatchAnalysisPage() {
             不替代真实经历核实、岗位官方要求和人工判断。
           </AiNotice>
 
-          </div>{/* End inner container (Fast→max-w-[1120px] / Deep→space-y-6) */}
-        </>
+          </div>{/* End inner container */}
+
+        </div>
       )}
     </ContentPageShell>
   );

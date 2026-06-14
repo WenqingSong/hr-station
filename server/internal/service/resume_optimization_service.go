@@ -499,6 +499,7 @@ func (s *ResumeOptimizationService) OptimizeV2(ctx context.Context, userID, resu
 		log.Printf("[OptimizeV2] use_fast_tag_engine tier=%s resume_id=%d", genTier, resumeID)
 		result, err := s.fastOptimizeWithTags(ctx, userID, resumeID, resume, mode, req.TargetDirection, req.JobID, job)
 		if err == nil {
+			filterEducationOptimizationAdvice(result, resume, job)
 			return result, nil
 		}
 		log.Printf("[OptimizeV2] fast tag optimize failed: %v, falling back to mock", err)
@@ -510,6 +511,7 @@ func (s *ResumeOptimizationService) OptimizeV2(ctx context.Context, userID, resu
 			log.Printf("[OptimizeV2] use_deep_3agent tier=%s resume_id=%d", genTier, resumeID)
 			result, err3a := s.optimizeWith3Agents(ctx, userID, resumeID, resume, mode, req.TargetDirection, req.JobID, job, runner)
 			if err3a == nil {
+				filterEducationOptimizationAdvice(result, resume, job)
 				return result, nil
 			}
 			log.Printf("[OptimizeV2] 3-agent optimize failed: %v, falling back to old LLM", err3a)
@@ -521,6 +523,7 @@ func (s *ResumeOptimizationService) OptimizeV2(ctx context.Context, userID, resu
 		llmResult, fbErr := llmAgent.Optimize(ctx, input)
 		if fbErr == nil {
 			result := mapOptimizeV1ToV2(llmResult, resumeID, mode, req.TargetDirection, req.JobID, genTier)
+			filterEducationOptimizationAdvice(result, resume, job)
 			s.saveOptV2Snapshot(ctx, userID, resumeID, req.JobID, mode, genTier, result.GeneratedBy, result.ProfileType, result.ProfileDominantProfile, req.TargetDirection, result)
 			return result, nil
 		}
@@ -540,6 +543,7 @@ func (s *ResumeOptimizationService) OptimizeV2(ctx context.Context, userID, resu
 	if mockErr != nil {
 		return nil, fmt.Errorf("failed to generate optimization: %w", mockErr)
 	}
+	filterEducationOptimizationAdvice(mockResult, resume, job)
 	s.saveOptV2Snapshot(ctx, userID, resumeID, req.JobID, mode, genTier, mockResult.GeneratedBy, mockResult.ProfileType, mockResult.ProfileDominantProfile, req.TargetDirection, mockResult)
 	return mockResult, nil
 }
@@ -598,6 +602,7 @@ func (s *ResumeOptimizationService) fastOptimizeWithTags(ctx context.Context, us
 		KeywordFixItems:       []model.OptimizationFixItem{},
 		EvidenceFixItems:      []model.OptimizationFixItem{},
 	}
+	filterEducationOptimizationAdvice(result, resume, job)
 	s.saveOptV2Snapshot(ctx, userID, resumeID, jobID, mode, "fast", "fast_tag_engine", "fast", rp.DominantProfile, targetDir, result)
 	return result, nil
 }
@@ -635,6 +640,7 @@ func (s *ResumeOptimizationService) optimizeWith3Agents(ctx context.Context, use
 		DeliveryFocus:          "请根据深度优化建议调整简历",
 		LongTermImprovements:   []model.OptimizationLongTermItem{},
 	}
+	filterEducationOptimizationAdvice(result, resume, job)
 	s.saveOptV2Snapshot(ctx, userID, resumeID, jobID, mode, "quality", final.GeneratedBy, "quality", rp.DominantProfile, targetDir, result)
 	return result, nil
 }
@@ -718,6 +724,197 @@ func mapOptimizeV1ToV2(v1 *model.ResumeOptimizationResult, resumeID uint64, mode
 	if mode == "target_direction" { result.TargetDirection = targetDir }
 	if mode == "target_job" { result.JobID = jobID }
 	return result
+}
+
+// ─── Education advice filtering ──────────────────────────────────────
+
+// isEducationAdviceText checks whether the given text contains education-related advice.
+// Only strong education keywords are matched to avoid false positives on tech terms.
+func isEducationAdviceText(text string) bool {
+	lower := strings.ToLower(text)
+	strongKws := []string{
+		"学历", "学位", "硕士", "博士", "研究生",
+		"985", "211", "双一流", "名校",
+		"教育经历", "教育背景", "学历层次",
+		"学历要求", "学历门槛", "学历风险",
+	}
+	for _, kw := range strongKws {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	// "本科" only matches when combined with degree/school context (not tech background)
+	if strings.Contains(lower, "本科") {
+		return strings.Contains(lower, "学历") || strings.Contains(lower, "学位") ||
+			strings.Contains(lower, "本科及以上") || strings.Contains(lower, "本科以上") ||
+			strings.Contains(lower, "本科或以上") || strings.Contains(lower, "本科或以上学历")
+	}
+	if strings.Contains(lower, "学校背景") {
+		return true
+	}
+	return false
+}
+
+// hasResumeEducation checks whether the resume has identifiable education records.
+func hasResumeEducation(resume *model.Resume) bool {
+	if resume == nil {
+		return false
+	}
+	// Check Educations array
+	for _, e := range resume.Educations {
+		if e.School != "" || e.Degree != "" || e.Major != "" {
+			return true
+		}
+	}
+	// Check shim fields
+	if resume.School != "" || resume.Degree != "" || resume.Major != "" {
+		return true
+	}
+	// Check raw_text for education signals
+	rawLower := strings.ToLower(resume.RawText)
+	eduSignals := []string{"本科", "硕士", "博士", "学士", "研究生", "学历", "教育经历", "gpa"}
+	for _, s := range eduSignals {
+		if strings.Contains(rawLower, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldAllowEducationAdvice decides whether education-related advice should be allowed
+// based on the job JD requirements and the resume's education data.
+func shouldAllowEducationAdvice(resume *model.Resume, job *model.Job) bool {
+	if job == nil {
+		return false
+	}
+	// Build JD text from all available fields
+	jdText := strings.ToLower(job.Title + " " + job.Direction + " " + job.Category + " " +
+		job.Description + " " + job.Requirements)
+
+	// Strong triggers: JD explicitly demands higher education
+	strongTriggers := []string{
+		"硕士及以上", "研究生及以上", "博士", "博士优先",
+		"优秀硕士", "硕博", "985", "211", "双一流",
+		"名校", "重点院校", "科研经历", "论文", "顶会",
+		"实验室", "研究背景",
+	}
+	for _, kw := range strongTriggers {
+		if strings.Contains(jdText, kw) {
+			return true
+		}
+	}
+
+	// High-education-oriented job types
+	highEduRoles := []string{
+		"算法研究", "ai research", "技术研究", "研究科学家",
+		"机器学习研究员", "多模态算法", "nlp 算法研究",
+		"计算机视觉研究", "高性能计算研究", "实验室研究",
+	}
+	for _, role := range highEduRoles {
+		if strings.Contains(jdText, role) {
+			return true
+		}
+	}
+
+	// If JD only has generic "本科及以上", still check if resume has NO education at all
+	if strings.Contains(jdText, "本科及以上") || strings.Contains(jdText, "本科以上") ||
+		strings.Contains(jdText, "本科或以上") {
+		// Only allow if resume has zero education evidence
+		if !hasResumeEducation(resume) {
+			return true
+		}
+		return false
+	}
+
+	// No valid trigger found — do not allow education advice
+	return false
+}
+
+// filterEducationOptimizationAdvice removes education-related advice from the
+// optimization result when shouldAllowEducationAdvice returns false.
+func filterEducationOptimizationAdvice(result *model.OptimizationResultV2, resume *model.Resume, job *model.Job) {
+	if result == nil {
+		return
+	}
+	if shouldAllowEducationAdvice(resume, job) {
+		return
+	}
+
+	// Filter RiskPoints
+	result.RiskPoints = filterSliceEdu(result.RiskPoints)
+
+	// Filter fix items
+	result.QuickFixItems = filterFixItemsEdu(result.QuickFixItems)
+	result.StructureFixItems = filterFixItemsEdu(result.StructureFixItems)
+	result.ContentFixItems = filterFixItemsEdu(result.ContentFixItems)
+	result.KeywordFixItems = filterFixItemsEdu(result.KeywordFixItems)
+	result.EvidenceFixItems = filterFixItemsEdu(result.EvidenceFixItems)
+
+	// Filter RewriteExamples
+	result.RewriteExamples = filterRewriteExamplesEdu(result.RewriteExamples)
+
+	// Filter LongTermImprovements
+	result.LongTermImprovements = filterLongTermEdu(result.LongTermImprovements)
+
+	// Filter DeliveryFocus
+	if isEducationAdviceText(result.DeliveryFocus) {
+		result.DeliveryFocus = "优先强化与目标岗位相关的项目经历、实习经历、技术栈关键词和量化成果表达。"
+	}
+}
+
+func filterSliceEdu(items []string) []string {
+	if len(items) == 0 {
+		return items
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if !isEducationAdviceText(item) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func filterFixItemsEdu(items []model.OptimizationFixItem) []model.OptimizationFixItem {
+	if len(items) == 0 {
+		return items
+	}
+	out := make([]model.OptimizationFixItem, 0, len(items))
+	for _, item := range items {
+		combined := item.Section + " " + item.Issue + " " + item.Action
+		if !isEducationAdviceText(combined) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func filterRewriteExamplesEdu(items []model.OptimizationRewriteExample) []model.OptimizationRewriteExample {
+	if len(items) == 0 {
+		return items
+	}
+	out := make([]model.OptimizationRewriteExample, 0, len(items))
+	for _, item := range items {
+		combined := item.Section + " " + item.Before + " " + item.After + " " + item.Reason
+		if !isEducationAdviceText(combined) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func filterLongTermEdu(items []model.OptimizationLongTermItem) []model.OptimizationLongTermItem {
+	if len(items) == 0 {
+		return items
+	}
+	out := make([]model.OptimizationLongTermItem, 0, len(items))
+	for _, item := range items {
+		combined := item.Direction + " " + item.Note
+		if !isEducationAdviceText(combined) {
+			out = append(out, item)
+		}
+	}
+	return out
 }
 
 // GetLatestOptimizationV2 returns the latest ready optimization for user+resume+mode.
