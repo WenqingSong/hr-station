@@ -27,10 +27,12 @@ type RecPhase =
   | "profile_failed";
 
 /** M4: error classification */
-type DeepErrorType = "LLM_UNAVAILABLE" | "GENERATION_FAILED" | "NETWORK_ERROR" | "UNKNOWN";
+type DeepErrorType = "LLM_UNAVAILABLE" | "GENERATION_FAILED" | "NETWORK_ERROR" | "GATEWAY_TIMEOUT" | "UNKNOWN";
 
 function classifyDeepError(err: any): DeepErrorType {
   const msg = JSON.stringify(err).toLowerCase();
+  // K15-P0-D6: handle 504 Gateway Timeout specifically
+  if (/504|gateway timeout|gateway-timeout/i.test(msg)) return "GATEWAY_TIMEOUT";
   if (/503|模型未启用|大模型服务|服务未配置|深度推荐需要|llm unavailable|not available/i.test(msg)) return "LLM_UNAVAILABLE";
   if (/401|unauthorized|token/i.test(msg)) return "UNKNOWN";
   if (/timeout|fetch failed|network/i.test(msg)) return "NETWORK_ERROR";
@@ -311,10 +313,15 @@ export function JobRecommendationPage() {
         console.info("context", { action: "generateDeep", resumeId: selectedOption?.id, tier: "quality" });
         console.groupEnd();
         const errType = classifyDeepError(caught);
+        // K15-P0-D6: distinct handling for gateway timeout vs other errors
         if (errType === "LLM_UNAVAILABLE") {
           setPhase("deep_unavailable"); setDeepErrorMessage("深度推荐需要调用大模型服务，当前服务未连接成功。你仍可使用快速推荐结果。");
+        } else if (errType === "GATEWAY_TIMEOUT") {
+          setPhase("deep_timeout"); setDeepErrorMessage("深度推荐生成时间较长，已超过网关等待，建议稍后重试。已为你保留快速推荐结果。");
+        } else if (errType === "NETWORK_ERROR") {
+          setPhase("deep_error"); setDeepErrorMessage("网络连接异常，深度推荐暂时不可用。已为你保留快速推荐结果，可稍后重试。");
         } else {
-          setPhase("deep_error"); setDeepErrorMessage("深度分析暂时生成失败，当前结果仍可参考。");
+          setPhase("deep_error"); setDeepErrorMessage("深度分析暂时生成失败，已为你保留快速推荐结果，可稍后重试。");
         }
       }
     };

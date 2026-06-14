@@ -257,6 +257,21 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 	}
 
 	if isQuality && s.llmEnabled && runner != nil {
+		// K15-P0-R1: context cancellation guard — if caller disconnected or deadline exceeded,
+		// skip all LLM paths and go directly to mock fallback.
+		if ctx.Err() != nil {
+			log.Printf("[RecommendationService] context cancelled/deadline exceeded before quality tier: %v, falling back to mock", ctx.Err())
+			if !s.enableMockAgent {
+				return nil, apperror.New(apperror.CodeInternal, "request cancelled and mock agent unavailable", 499)
+			}
+			qualityMode := true
+			return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
+				FallbackReason: fmt.Sprintf("context_cancelled_%v", ctx.Err()),
+				ErrorCode:      "CONTEXT_CANCELLED",
+				ErrorMessage:   ctx.Err().Error(),
+			}, qualityMode, profileType, profileDominant, profileSource)
+		}
+
 		// Deep/Quality tier → Cascaded Deep Recommendation Pipeline
 		if s.semanticGate != nil {
 			log.Printf("[RecommendationService] use_deep_cascade tier=%s resume=%d", req.GenerationTier, req.ResumeID)
@@ -265,10 +280,14 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 				return resp, nil
 			}
 			log.Printf("[RecommendationService] deep cascade failed: %v, trying old 3-agent", err)
+			// K15-P0-R1: re-check context before next LLM path
+			if ctx.Err() != nil {
+				log.Printf("[RecommendationService] context cancelled after deep cascade: %v, skipping to mock", ctx.Err())
+			}
 		}
 
-		// Fall back to old 3-agent pipeline
-		if s.tagEvidence != nil {
+		// Fall back to old 3-agent pipeline (only if context still valid)
+		if s.tagEvidence != nil && ctx.Err() == nil {
 			log.Printf("[RecommendationService] use_deep_3agent tier=%s resume=%d", req.GenerationTier, req.ResumeID)
 			resp, err3a := s.recommendWith3Agents(ctx, userID, resume, jobs, req.Limit, runner, profileType, profileDominant, profileSource)
 			if err3a == nil {
@@ -277,18 +296,32 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 			log.Printf("[RecommendationService] 3-agent pipeline failed: %v, falling back to old LLM path", err3a)
 		}
 
-		// Fall back to old single-agent LLM pipeline
-		log.Printf("[RecommendationService] use_deep_llm tier=%s", req.GenerationTier)
-		resp, fallbackErr := s.recommendWithLLM(ctx, userID, resume, jobs, req.Limit, runner)
-		if fallbackErr == nil {
-			s.fillProfileFields(resp, profileType, profileDominant, profileSource)
-			return resp, nil
+		// Fall back to old single-agent LLM pipeline (only if context still valid)
+		if ctx.Err() == nil {
+			log.Printf("[RecommendationService] use_deep_llm tier=%s", req.GenerationTier)
+			resp, fallbackErr := s.recommendWithLLM(ctx, userID, resume, jobs, req.Limit, runner)
+			if fallbackErr == nil {
+				s.fillProfileFields(resp, profileType, profileDominant, profileSource)
+				return resp, nil
+			}
+			log.Printf("[RecommendationService] LLM pipeline fallback: %v", fallbackErr)
+			if !s.fallbackEnable {
+				return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
+			}
+			return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, false, profileType, profileDominant, profileSource)
 		}
-		log.Printf("[RecommendationService] LLM pipeline fallback: %v", fallbackErr)
-		if !s.fallbackEnable {
-			return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
+
+		// K15-P0-R1: context cancelled during quality fallback chain — final mock fallback
+		log.Printf("[RecommendationService] context cancelled during quality fallback, final mock fallback")
+		if !s.enableMockAgent {
+			return nil, apperror.New(apperror.CodeInternal, "quality recommendation failed: all paths exhausted and mock agent unavailable; context was cancelled", 503)
 		}
-		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, false, profileType, profileDominant, profileSource)
+		qualityMode := true
+		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
+			FallbackReason: fmt.Sprintf("quality_fallback_exhausted_cancelled_%v", ctx.Err()),
+			ErrorCode:      "QUALITY_EXHAUSTED_CANCELLED",
+			ErrorMessage:   "Deep recommendation did not complete in time; showing fallback results.",
+		}, qualityMode, profileType, profileDominant, profileSource)
 	}
 
 	// Fallback to mock agent

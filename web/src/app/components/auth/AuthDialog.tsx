@@ -77,8 +77,12 @@ export function AuthDialog({
       onLoginSuccess?.();
       onOpenChange(false);
     } catch (err: unknown) {
+      // K15-P0-R2: 展示后端真实错误消息，而非只展示泛化提示
       const msg = err instanceof Error ? err.message : "登录失败，请稍后重试";
-      setLoginError(msg.includes("401") ? "手机号或密码错误" : "登录失败，请稍后重试");
+      if (msg.includes("401") || msg.includes("unauthorized")) { setLoginError("手机号或密码错误"); }
+      else if (msg.includes("手机号") || msg.includes("密码") || msg.includes("invalid") || msg.includes("格式") || msg.includes("长度")) { setLoginError(msg); }
+      else if (msg.startsWith("HTTP ")) { setLoginError("服务异常，请稍后重试"); }
+      else { setLoginError(msg); }
     } finally {
       setLoginLoading(false);
     }
@@ -120,8 +124,19 @@ export function AuthDialog({
       onLoginSuccess?.();
       onOpenChange(false);
     } catch (err: unknown) {
+      // K15-P0-R2: 展示后端真实错误消息，保留前端已知语义的友好化映射
       const msg = err instanceof Error ? err.message : "注册失败，请稍后重试";
-      setRegError(msg.includes("已被注册") ? "该手机号已被注册，请直接登录" : "注册失败，请稍后重试");
+      if (msg.includes("已被注册") || msg.includes("already registered") || msg.includes("duplicate")) {
+        setRegError("该手机号已被注册，请直接登录");
+      } else if (msg.includes("手机号") || msg.includes("phone") && msg.includes("invalid")) {
+        setRegError(msg); // 展示后端的手机号校验详情
+      } else if (msg.includes("密码") || msg.includes("password") || msg.includes("长度") || msg.includes("length")) {
+        setRegError(msg); // 展示后端的密码校验详情
+      } else if (msg.startsWith("HTTP ")) {
+        setRegError("注册服务异常，请稍后重试");
+      } else {
+        setRegError(msg); // 默认透传后端消息
+      }
     } finally {
       setRegLoading(false);
     }
