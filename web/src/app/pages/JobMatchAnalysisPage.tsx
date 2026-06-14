@@ -100,7 +100,7 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false }: { ti
       <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
         <div className="flex items-center gap-3">
           <span className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">{icon}</span>
-          <span className="text-base font-semibold text-slate-950">{title}</span>
+          <span className="text-[14px] font-semibold text-slate-950">{title}</span>
         </div>
         {open ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
       </button>
@@ -196,6 +196,14 @@ export function JobMatchAnalysisPage() {
   const priority = classifyPriority({ risks, commands });
   const hasPriorityContent = priority.mustFix.length > 0 || priority.suggested.length > 0 || priority.optional.length > 0;
 
+  // ─── Data-aware flags — Fast results lack Deep-exclusive fields ────
+  const hasPassPoints = (activeResult?.screeningPassPoints || []).length > 0;
+  const hasRisks = (activeResult?.screeningEliminationRisks || []).length > 0;
+  const hasCommands = (activeResult?.resumeRewriteCommands || []).length > 0;
+  const hasDecisionReasons = (sd?.decisionReasons || []).length > 0;
+  // Fast: only show card if it has real data (not fallback to summary placeholder)
+  const fastCardCount = (hasPassPoints ? 1 : 0) + (hasRisks ? 1 : 0) + (hasCommands ? 1 : 0);
+
   // ─── Decision label color ───────────────────────────────────────────
   const decisionLabelColor = (sd?.decision || "").includes("direct")
     ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -219,10 +227,10 @@ export function JobMatchAnalysisPage() {
 
       {/* ── Main Content (Single Column, No Sidebar) ──────────────────── */}
       {activeResult && !activeResult.isProfilePending && (
-        <div className="space-y-6">
+        <>
 
           {/* ══════════════════════════════════════════════════════════════
-              1. TOP INFO BAR — replaces former right sidebar
+              1. TOP INFO BAR — at full 1440px width
              ══════════════════════════════════════════════════════════════ */}
           <div className="bg-white border border-slate-200 rounded-2xl px-5 py-3.5 flex items-center gap-4 flex-wrap shadow-sm">
             {/* Job info */}
@@ -231,10 +239,10 @@ export function JobMatchAnalysisPage() {
                 <FileText className="w-3.5 h-3.5 text-blue-500" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-slate-400 leading-none mb-0.5">岗位</p>
-                <p className="text-sm font-semibold text-slate-900 whitespace-normal break-words">{job?.title || "—"}</p>
+                <p className="text-[11px] text-slate-400 leading-none mb-0.5">岗位</p>
+                <p className="text-[13px] font-semibold text-slate-900 whitespace-normal break-words">{job?.title || "—"}</p>
                 {(job?.direction || job?.city) && (
-                  <p className="text-xs text-slate-500 mt-0.5">{job?.direction}{job?.city ? ` · ${job.city}` : ""}{job?.type ? ` · ${job.type}` : ""}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{job?.direction}{job?.city ? ` · ${job.city}` : ""}{job?.type ? ` · ${job.type}` : ""}</p>
                 )}
               </div>
             </div>
@@ -246,13 +254,13 @@ export function JobMatchAnalysisPage() {
                 <Search className="w-3.5 h-3.5 text-slate-500" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-slate-400 leading-none mb-0.5">简历</p>
-                <p className="text-sm font-semibold text-slate-900 whitespace-normal break-words">{selectedOption?.name}</p>
+                <p className="text-[11px] text-slate-400 leading-none mb-0.5">简历</p>
+                <p className="text-[13px] font-semibold text-slate-900 whitespace-normal break-words">{selectedOption?.name}</p>
                 {activeResult?.profileDominantProfile && (
-                  <p className="text-xs text-blue-600 mt-0.5">{humanizeProfile(activeResult.profileDominantProfile)}</p>
+                  <p className="text-[11px] text-blue-600 mt-0.5">{humanizeProfile(activeResult.profileDominantProfile)}</p>
                 )}
                 {formatDateTime(selectedOption?.updatedAt) && (
-                  <p className="text-xs text-slate-400 mt-0.5">更新于 {formatDateTime(selectedOption?.updatedAt)}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">更新于 {formatDateTime(selectedOption?.updatedAt)}</p>
                 )}
               </div>
             </div>
@@ -288,29 +296,34 @@ export function JobMatchAnalysisPage() {
           </div>
 
           {/* ══════════════════════════════════════════════════════════════
+              MAIN CONTENT — inner container: Fast→max-w-[1200px], Deep→space-y-6
+             ══════════════════════════════════════════════════════════════ */}
+          <div className={isFast ? "mx-auto max-w-[1120px] space-y-5" : "space-y-6"}>
+
+          {/* ══════════════════════════════════════════════════════════════
               2. DECISION HERO — the 5-second decision card
              ══════════════════════════════════════════════════════════════ */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
             <div className="flex items-start gap-5">
               {/* Score Circle */}
-              <div className="w-[96px] h-[96px] rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
-                <span className="text-5xl font-semibold text-white tracking-tight">{score}</span>
+              <div className="w-[84px] h-[84px] rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
+                <span className="text-[36px] font-semibold text-white tracking-tight">{score}</span>
               </div>
               {/* Decision Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-xl font-semibold text-slate-950 tracking-tight">{sd?.level ?? activeResult?.matchLevel}</h2>
+                  <h2 className="text-lg font-semibold text-slate-950 tracking-tight">{sd?.level ?? activeResult?.matchLevel}</h2>
                   {activeResult?.decisionLabel && (
                     <StatusBadge tone={(sd?.decision||"").includes("direct")?"emerald":(sd?.decision||"").includes("revise")?"blue":"amber"}>{activeResult.decisionLabel}</StatusBadge>
                   )}
                   {isMock && <StatusBadge tone="amber">演示数据</StatusBadge>}
                   {activeResult?.isDeepLegacyFallback && !isMock && <StatusBadge tone="slate">兼容模式</StatusBadge>}
                 </div>
-                <p className="text-sm leading-7 text-slate-600">{activeResult.summary}</p>
+                <p className="text-[13px] leading-6 text-slate-600">{activeResult.summary}</p>
                 {(sd?.decisionReasons || []).length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {sd!.decisionReasons.slice(0, 3).map((r, i) => (
-                      <span key={i} className="text-xs text-slate-500 bg-slate-50 px-2 py-0.5 rounded">{r}</span>
+                      <span key={i} className="text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded">{r}</span>
                     ))}
                   </div>
                 )}
@@ -321,24 +334,87 @@ export function JobMatchAnalysisPage() {
           </div>
 
           {/* ══════════════════════════════════════════════════════════════
-              3. CORE THREE CARDS (Deep only — quick decision summary)
+              3. CORE THREE CARDS
              ══════════════════════════════════════════════════════════════ */}
-          {!isFast && (
+          {isFast ? (
+            /* ── Fast: adaptive data-aware cards (only show if content exists) ── */
+            fastCardCount > 0 ? (
+              <div className={`grid gap-4 ${fastCardCount === 1 ? "grid-cols-1" : fastCardCount === 2 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-3"}`}>
+                {hasPassPoints && (
+                  <SectionCard title="为什么匹配" icon={<ShieldCheck className="w-4 h-4 text-emerald-600" />} description="简历与岗位的主要匹配点">
+                    <ul className="space-y-2">
+                      {activeResult!.screeningPassPoints.slice(0, 2).map((p, i) => (
+                        <li key={i} className="text-[13px] leading-6 text-slate-700 flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                          <span>{p.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </SectionCard>
+                )}
+                {hasRisks && (
+                  <SectionCard title="最大短板" icon={<AlertCircle className="w-4 h-4 text-amber-600" />} description="需要重点补强的方面">
+                    <ul className="space-y-2">
+                      {activeResult!.screeningEliminationRisks.slice(0, 2).map((r, i) => (
+                        <li key={i} className="text-[13px] leading-6 text-slate-700 flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2 shrink-0" />
+                          <span className="font-medium">{r.riskTitle}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </SectionCard>
+                )}
+                {hasCommands && (
+                  <SectionCard title="现在怎么做" icon={<PenTool className="w-4 h-4 text-blue-600" />} description="优先执行的修改建议">
+                    <ul className="space-y-2">
+                      {activeResult!.resumeRewriteCommands.slice(0, 3).map((c, i) => (
+                        <li key={i} className="text-[13px] leading-6 text-slate-700 flex items-start gap-2">
+                          <span className="text-[11px] font-semibold text-blue-500 bg-blue-50 w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                          <span>{c.targetSection}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </SectionCard>
+                )}
+              </div>
+            ) : (
+              /* ── Fast: no structured detail data → compact summary card ── */
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-start gap-4 flex-wrap md:flex-nowrap">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <span className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Info className="w-4 h-4 text-blue-500" /></span>
+                      <h3 className="text-[14px] font-semibold text-slate-950">匹配分析摘要</h3>
+                    </div>
+                    <p className="text-[13px] leading-6 text-slate-600">{activeResult?.summary || "暂无详细分析结论"}</p>
+                    {hasDecisionReasons && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {sd!.decisionReasons.slice(0, 3).map((r, i) => (
+                          <span key={i} className="text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded">{r}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          ) : (
+            /* ── Deep: detailed decision summary cards ── */
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* Why worth applying */}
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2.5 mb-4">
                   <span className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center"><ShieldCheck className="w-4 h-4 text-emerald-600" /></span>
-                  <h3 className="text-base font-semibold text-slate-950">为什么值得投</h3>
+                  <h3 className="text-[14px] font-semibold text-slate-950">为什么值得投</h3>
                 </div>
                 {(activeResult?.screeningPassPoints || []).length > 0 ? (
                   <ul className="space-y-2.5">
                     {(activeResult!.screeningPassPoints || []).slice(0, 3).map((p, i) => (
-                      <li key={i} className="text-sm leading-6 text-slate-700 pl-3 border-l-2 border-emerald-200">{p.title}</li>
+                      <li key={i} className="text-[13px] leading-6 text-slate-700 pl-3 border-l-2 border-emerald-200">{p.title}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-slate-400">暂无命中信息</p>
+                  <p className="text-[13px] text-slate-400">暂无命中信息</p>
                 )}
               </div>
 
@@ -346,20 +422,20 @@ export function JobMatchAnalysisPage() {
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2.5 mb-4">
                   <span className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center"><AlertCircle className="w-4 h-4 text-amber-600" /></span>
-                  <h3 className="text-base font-semibold text-slate-950">最大初筛风险</h3>
+                  <h3 className="text-[14px] font-semibold text-slate-950">最大初筛风险</h3>
                 </div>
                 {(risks).length > 0 ? (
                   <ul className="space-y-2.5">
                     {risks.slice(0, 2).map((r, i) => (
-                      <li key={i} className="text-sm leading-6 text-slate-700 pl-3 border-l-2 border-amber-300">
+                      <li key={i} className="text-[13px] leading-6 text-slate-700 pl-3 border-l-2 border-amber-300">
                         <span className="font-semibold">{r.riskTitle}</span>
                         <br />
-                        <span className="text-xs text-slate-500">{r.currentResumeProblem}</span>
+                        <span className="text-[12px] text-slate-500">{r.currentResumeProblem}</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-slate-400">未发现显著风险</p>
+                  <p className="text-[13px] text-slate-400">未发现显著风险</p>
                 )}
               </div>
 
@@ -367,22 +443,22 @@ export function JobMatchAnalysisPage() {
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2.5 mb-4">
                   <span className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center"><PenTool className="w-4 h-4 text-blue-600" /></span>
-                  <h3 className="text-base font-semibold text-slate-950">现在先改哪里</h3>
+                  <h3 className="text-[14px] font-semibold text-slate-950">现在先改哪里</h3>
                 </div>
                 {(commands).length > 0 ? (
                   <ul className="space-y-2.5">
                     {commands.slice(0, 3).map((c, i) => (
-                      <li key={i} className="text-sm leading-6 text-slate-700 pl-3 border-l-2 border-blue-300">
+                      <li key={i} className="text-[13px] leading-6 text-slate-700 pl-3 border-l-2 border-blue-300">
                         {c.targetSection}
                         <span className="text-slate-500"> — {c.problem}</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-slate-400">暂未生成修改建议</p>
+                  <p className="text-[13px] text-slate-400">暂未生成修改建议</p>
                 )}
                 {activeResult?.jobStrategy?.recommendedAction && (
-                  <p className="text-sm text-blue-600 mt-3 font-medium leading-6">{activeResult.jobStrategy.recommendedAction}</p>
+                  <p className="text-[13px] text-blue-600 mt-3 font-medium leading-6">{activeResult.jobStrategy.recommendedAction}</p>
                 )}
               </div>
             </div>
@@ -394,57 +470,136 @@ export function JobMatchAnalysisPage() {
           <div className={`border rounded-2xl p-6 shadow-sm ${readiness.cardBg}`}>
             <div className="flex items-center gap-2.5 mb-4">
               <Target className={`w-5 h-5 ${readiness.iconColor}`} />
-              <h3 className="text-base font-semibold text-slate-950">改到什么程度就可以投？</h3>
-              <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${readiness.labelBg}`}>{readiness.label}</span>
+              <h3 className="text-[14px] font-semibold text-slate-950">改到什么程度就可以投？</h3>
+              <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium border ${readiness.labelBg}`}>{readiness.label}</span>
             </div>
-            <p className="text-sm leading-7 text-slate-700 mb-4">{readiness.description}</p>
+            <p className="text-[13px] leading-6 text-slate-700 mb-4">{readiness.description}</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-0.5">投递前事项</p>
-                  <p className="text-sm leading-6 text-slate-800">{readiness.mustComplete}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 mb-0.5">投递前事项</p>
+                  <p className="text-[13px] leading-6 text-slate-800">{readiness.mustComplete}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-0.5">加分项说明</p>
-                  <p className="text-sm leading-6 text-slate-800">{readiness.bonus}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 mb-0.5">加分项说明</p>
+                  <p className="text-[13px] leading-6 text-slate-800">{readiness.bonus}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-0.5">修改边界</p>
-                  <p className="text-sm leading-6 text-slate-800">{readiness.boundary}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 mb-0.5">修改边界</p>
+                  <p className="text-[13px] leading-6 text-slate-800">{readiness.boundary}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* ══════════════════════════════════════════════════════════════
-              5. PRIORITY ACTION PLAN — must fix / suggested / optional
+              5. FAST: Conditional Priority + Evidence + Deep CTA
              ══════════════════════════════════════════════════════════════ */}
-          {hasPriorityContent && (
+          {isFast && (
+            <>
+              {/* Fast Priority: only if real priority content exists */}
+              {hasPriorityContent && (
+                <SectionCard
+                  title="快速修改优先级"
+                  icon={<Target className="w-4 h-4 text-slate-600" />}
+                  description="优先完成以下修改即可准备投递"
+                >
+                  <div className="space-y-3">
+                    {priority.mustFix.slice(0, 2).map((item, i) => (
+                      <div key={`must-${i}`} className="flex items-start gap-3 p-3 bg-red-50/40 border border-red-100 rounded-xl">
+                        <span className="text-[11px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">必须</span>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-slate-800">{item.risk?.riskTitle || item.command?.targetSection || item.title}</p>
+                          {item.description && <p className="text-[12px] text-slate-500 mt-0.5">{item.description}</p>}
+                        </div>
+                      </div>
+                    ))}
+                    {priority.suggested.slice(0, 2).map((item, i) => (
+                      <div key={`sugg-${i}`} className="flex items-start gap-3 p-3 bg-amber-50/40 border border-amber-100 rounded-xl">
+                        <span className="text-[11px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">建议</span>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-slate-800">{item.risk?.riskTitle || item.command?.targetSection || item.title}</p>
+                          {item.description && <p className="text-[12px] text-slate-500 mt-0.5">{item.description}</p>}
+                        </div>
+                      </div>
+                    ))}
+                    {priority.optional.slice(0, 1).map((item, i) => (
+                      <div key={`opt-${i}`} className="flex items-start gap-3 p-3 bg-slate-50/40 border border-slate-100 rounded-xl">
+                        <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0 mt-0.5">可选</span>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-slate-800">{item.risk?.riskTitle || item.command?.targetSection || item.title}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* Fast Evidence: only if real pass points exist */}
+              {hasPassPoints && (
+                <SectionCard
+                  title="匹配依据摘要"
+                  icon={<FileText className="w-4 h-4 text-indigo-500" />}
+                  description="支撑匹配判断的关键依据"
+                >
+                  <div className="space-y-3">
+                    {activeResult!.screeningPassPoints.slice(0, 3).map((p, i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span className="text-[11px] font-semibold text-slate-400 bg-white w-6 h-6 rounded-full flex items-center justify-center border border-slate-200 shrink-0">{i + 1}</span>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-slate-800">{p.title}</p>
+                          {p.whyItHelps && <p className="text-[12px] text-slate-500 mt-0.5">{p.whyItHelps}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* Deep CTA — natural bridge when Fast data is sparse */}
+              {!hasPriorityContent && !hasPassPoints && fastCardCount === 0 && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center gap-4 flex-wrap sm:flex-nowrap">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-slate-800 mb-1">想看更完整的匹配分析？</p>
+                    <p className="text-[12px] text-slate-500">生成深度分析可获取详细的风险诊断、证据链和修改建议。</p>
+                  </div>
+                  <PrimaryButton onClick={handleDeep} icon={<Sparkles className="w-3.5 h-3.5" />}>
+                    生成深度匹配分析
+                  </PrimaryButton>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              5b. PRIORITY ACTION PLAN — Deep mode (must fix / suggested / optional)
+             ══════════════════════════════════════════════════════════════ */}
+          {!isFast && hasPriorityContent && (
             <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-950 mb-1 flex items-center gap-2"><Target className="w-4 h-4 text-slate-600" />修改优先级</h3>
-              <p className="text-sm text-slate-500 leading-6 mb-5">以下按优先级排列，建议优先完成「必须修改」项后再进入投递。</p>
+              <h3 className="text-[14px] font-semibold text-slate-950 mb-1 flex items-center gap-2"><Target className="w-4 h-4 text-slate-600" />修改优先级</h3>
+              <p className="text-[13px] text-slate-500 leading-6 mb-5">以下按优先级排列，建议优先完成「必须修改」项后再进入投递。</p>
               <div className="space-y-5">
                 {/* Must Fix */}
                 {priority.mustFix.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold text-red-600 mb-3 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500" />必须修改（影响是否建议投递）</h4>
+                    <h4 className="text-[13px] font-semibold text-red-600 mb-3 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500" />必须修改（影响是否建议投递）</h4>
                     <div className="space-y-2.5">
                       {priority.mustFix.map((item, i) => (
                         <div key={i} className="border border-red-200 rounded-xl p-4 bg-red-50/30">
-                          <p className="text-sm font-medium text-slate-900 mb-1">{item.risk?.riskTitle || item.command?.targetSection || item.title}</p>
-                          <p className="text-sm leading-6 text-slate-700">{item.risk?.fixDirection || item.risk?.currentResumeProblem || item.command?.problem || item.description}</p>
+                          <p className="text-[13px] font-medium text-slate-900 mb-1">{item.risk?.riskTitle || item.command?.targetSection || item.title}</p>
+                          <p className="text-[13px] leading-6 text-slate-700">{item.risk?.fixDirection || item.risk?.currentResumeProblem || item.command?.problem || item.description}</p>
                           {item.risk?.whyItBlocksScreening && (
-                            <p className="text-xs text-slate-500 mt-1">{item.risk.whyItBlocksScreening}</p>
+                            <p className="text-[11px] text-slate-500 mt-1">{item.risk.whyItBlocksScreening}</p>
                           )}
                           {item.command?.rewriteInstruction && (
-                            <p className="text-xs text-blue-600 mt-1">{item.command.rewriteInstruction}</p>
+                            <p className="text-[11px] text-blue-600 mt-1">{item.command.rewriteInstruction}</p>
                           )}
                         </div>
                       ))}
@@ -455,14 +610,14 @@ export function JobMatchAnalysisPage() {
                 {/* Suggested */}
                 {priority.suggested.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold text-amber-600 mb-3 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500" />建议补强（提高命中率，非投递硬门槛）</h4>
+                    <h4 className="text-[13px] font-semibold text-amber-600 mb-3 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500" />建议补强（提高命中率，非投递硬门槛）</h4>
                     <div className="space-y-2.5">
                       {priority.suggested.map((item, i) => (
                         <div key={i} className="border border-amber-200 rounded-xl p-4 bg-amber-50/30">
-                          <p className="text-sm font-medium text-slate-900 mb-1">{item.risk?.riskTitle || item.command?.targetSection || item.title}</p>
-                          <p className="text-sm leading-6 text-slate-700">{item.risk?.fixDirection || item.risk?.currentResumeProblem || item.command?.problem || item.description}</p>
+                          <p className="text-[13px] font-medium text-slate-900 mb-1">{item.risk?.riskTitle || item.command?.targetSection || item.title}</p>
+                          <p className="text-[13px] leading-6 text-slate-700">{item.risk?.fixDirection || item.risk?.currentResumeProblem || item.command?.problem || item.description}</p>
                           {item.command?.rewriteInstruction && (
-                            <p className="text-xs text-blue-600 mt-1">{item.command.rewriteInstruction}</p>
+                            <p className="text-[11px] text-blue-600 mt-1">{item.command.rewriteInstruction}</p>
                           )}
                         </div>
                       ))}
@@ -473,12 +628,12 @@ export function JobMatchAnalysisPage() {
                 {/* Optional */}
                 {priority.optional.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-500 mb-3 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-slate-400" />可选优化（锦上添花）</h4>
+                    <h4 className="text-[13px] font-semibold text-slate-500 mb-3 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-slate-400" />可选优化（锦上添花）</h4>
                     <div className="space-y-2.5">
                       {priority.optional.map((item, i) => (
                         <div key={i} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                          <p className="text-sm font-medium text-slate-900 mb-1">{item.risk?.riskTitle || item.command?.targetSection || item.title}</p>
-                          <p className="text-sm leading-6 text-slate-700">{item.risk?.fixDirection || item.risk?.currentResumeProblem || item.command?.problem || item.description}</p>
+                          <p className="text-[13px] font-medium text-slate-900 mb-1">{item.risk?.riskTitle || item.command?.targetSection || item.title}</p>
+                          <p className="text-[13px] leading-6 text-slate-700">{item.risk?.fixDirection || item.risk?.currentResumeProblem || item.command?.problem || item.description}</p>
                         </div>
                       ))}
                     </div>
@@ -487,7 +642,7 @@ export function JobMatchAnalysisPage() {
               </div>
 
               {/* If just one category has content, add the boundary note */}
-              <p className="text-xs text-slate-400 mt-5 pt-4 border-t border-slate-100">
+              <p className="text-[11px] text-slate-400 mt-5 pt-4 border-t border-slate-100">
                 完成「必须修改」项后即可准备投递，其余属于加分项，不必追求完美。
               </p>
             </div>
@@ -501,27 +656,27 @@ export function JobMatchAnalysisPage() {
               {/* Job Strategy */}
               {activeResult?.jobStrategy && (
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                  <h3 className="text-base font-semibold text-slate-950 mb-1 flex items-center gap-2"><Compass className="w-4 h-4 text-indigo-500" />下一步怎么投</h3>
-                  <p className="text-sm text-slate-500 leading-6 mb-4">基于当前匹配结果的投递策略建议。</p>
+                  <h3 className="text-[14px] font-semibold text-slate-950 mb-1 flex items-center gap-2"><Compass className="w-4 h-4 text-indigo-500" />下一步怎么投</h3>
+                  <p className="text-[13px] text-slate-500 leading-6 mb-4">基于当前匹配结果的投递策略建议。</p>
                   <div className="flex items-center gap-2 mb-4">
-                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${activeResult.jobStrategy.positioning.includes("主投") ? "bg-emerald-50 text-emerald-700" : activeResult.jobStrategy.positioning.includes("备选") ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"}`}>
+                    <span className={`text-[11px] px-3 py-1 rounded-full font-medium ${activeResult.jobStrategy.positioning.includes("主投") ? "bg-emerald-50 text-emerald-700" : activeResult.jobStrategy.positioning.includes("备选") ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"}`}>
                       {activeResult.jobStrategy.positioning}
                     </span>
                   </div>
-                  <p className="text-sm leading-7 text-slate-700 mb-3 whitespace-pre-wrap break-words">{activeResult.jobStrategy.recommendedAction}</p>
+                  <p className="text-[13px] leading-6 text-slate-700 mb-3 whitespace-pre-wrap break-words">{activeResult.jobStrategy.recommendedAction}</p>
                   {activeResult.jobStrategy.ifApplyNow && (
-                    <p className="text-sm text-slate-500 leading-6 mb-3">如果现在直接投：{activeResult.jobStrategy.ifApplyNow}</p>
+                    <p className="text-[13px] text-slate-500 leading-6 mb-3">如果现在直接投：{activeResult.jobStrategy.ifApplyNow}</p>
                   )}
                   {activeResult.jobStrategy.betterFitDirections.length > 0 && (
                     <div className="mb-2">
-                      <span className="text-xs font-medium text-slate-500">更适合方向：</span>
-                      <div className="flex flex-wrap gap-1 mt-1">{activeResult.jobStrategy.betterFitDirections.map((d, i) => <span key={i} className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{d}</span>)}</div>
+                      <span className="text-[11px] font-medium text-slate-500">更适合方向：</span>
+                      <div className="flex flex-wrap gap-1 mt-1">{activeResult.jobStrategy.betterFitDirections.map((d, i) => <span key={i} className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{d}</span>)}</div>
                     </div>
                   )}
                   {activeResult.jobStrategy.avoidDirections.length > 0 && (
                     <div>
-                      <span className="text-xs font-medium text-slate-500">不建议优先投：</span>
-                      <div className="flex flex-wrap gap-1 mt-1">{activeResult.jobStrategy.avoidDirections.map((d, i) => <span key={i} className="text-xs px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full">{d}</span>)}</div>
+                      <span className="text-[11px] font-medium text-slate-500">不建议优先投：</span>
+                      <div className="flex flex-wrap gap-1 mt-1">{activeResult.jobStrategy.avoidDirections.map((d, i) => <span key={i} className="text-[11px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full">{d}</span>)}</div>
                     </div>
                   )}
                 </div>
@@ -529,51 +684,51 @@ export function JobMatchAnalysisPage() {
 
               {/* Pass Points — Top 3 only in main view */}
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <h3 className="text-base font-semibold text-slate-950 mb-1 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500" />匹配优势（Top 3）</h3>
-                <p className="text-sm text-slate-500 leading-6 mb-4">简历中能支撑该岗位初筛的核心证据。</p>
+                <h3 className="text-[14px] font-semibold text-slate-950 mb-1 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500" />匹配优势（Top 3）</h3>
+                <p className="text-[13px] text-slate-500 leading-6 mb-4">简历中能支撑该岗位初筛的核心证据。</p>
                 {(activeResult?.screeningPassPoints || []).length > 0 ? (
                   <div className="space-y-4">
                     {(activeResult!.screeningPassPoints || []).slice(0, 3).map((p, i) => (
                       <div key={i} className="border border-emerald-100 rounded-xl p-4 bg-emerald-50/30">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">命中 {i + 1}</span>
-                          <span className="text-sm font-medium text-slate-800">{p.title}</span>
+                          <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">命中 {i + 1}</span>
+                          <span className="text-[13px] font-medium text-slate-800">{p.title}</span>
                         </div>
-                        <p className="text-sm leading-7 text-slate-600 whitespace-pre-wrap break-words mb-2">{p.whyItHelps}</p>
+                        <p className="text-[13px] leading-6 text-slate-600 whitespace-pre-wrap break-words mb-2">{p.whyItHelps}</p>
                         {p.resumeEvidence && (
-                          <div className="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 font-mono leading-relaxed whitespace-pre-wrap break-words">{p.resumeEvidence}</div>
+                          <div className="text-[12px] text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 font-mono leading-relaxed whitespace-pre-wrap break-words">{p.resumeEvidence}</div>
                         )}
-                        <p className="text-xs text-emerald-600 mt-2">{p.screeningValue}</p>
+                        <p className="text-[11px] text-emerald-600 mt-2">{p.screeningValue}</p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-400">当前简历缺少能支撑该岗位初筛的明确证据。</p>
+                  <p className="text-[13px] text-slate-400">当前简历缺少能支撑该岗位初筛的明确证据。</p>
                 )}
               </div>
 
               {/* Elimination Risks — Top 3 only in main view */}
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <h3 className="text-base font-semibold text-slate-950 mb-1 flex items-center gap-2"><ShieldX className="w-4 h-4 text-red-500" />主要风险（Top 3）</h3>
-                <p className="text-sm text-slate-500 leading-6 mb-4">投递前最该补强的表达，按风险等级排列。</p>
+                <h3 className="text-[14px] font-semibold text-slate-950 mb-1 flex items-center gap-2"><ShieldX className="w-4 h-4 text-red-500" />主要风险（Top 3）</h3>
+                <p className="text-[13px] text-slate-500 leading-6 mb-4">投递前最该补强的表达，按风险等级排列。</p>
                 {risks.length > 0 ? (
                   <div className="space-y-4">
                     {risks.slice(0, 3).map((r, i) => (
                       <div key={i} className="border rounded-xl p-4" style={{ borderColor: r.severity === "high" ? "#fca5a5" : r.severity === "medium" ? "#fdba74" : "#e2e8f0" }}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.severity === "high" ? "bg-red-50 text-red-600" : r.severity === "medium" ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-500"}`}>
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.severity === "high" ? "bg-red-50 text-red-600" : r.severity === "medium" ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-500"}`}>
                             {r.severity === "high" ? "高风险" : r.severity === "medium" ? "中风险" : "低风险"}
                           </span>
-                          <span className="text-sm font-medium text-slate-800">{r.riskTitle}</span>
+                          <span className="text-[13px] font-medium text-slate-800">{r.riskTitle}</span>
                         </div>
-                        <p className="text-sm leading-7 text-slate-600 whitespace-pre-wrap break-words mb-1">{r.whyItBlocksScreening}</p>
-                        {r.currentResumeProblem && <p className="text-sm leading-6 text-slate-500 mb-1">当前问题：{r.currentResumeProblem}</p>}
-                        {r.fixDirection && <p className="text-sm leading-6 text-blue-600">修复方向：{r.fixDirection}</p>}
+                        <p className="text-[13px] leading-6 text-slate-600 whitespace-pre-wrap break-words mb-1">{r.whyItBlocksScreening}</p>
+                        {r.currentResumeProblem && <p className="text-[13px] leading-6 text-slate-500 mb-1">当前问题：{r.currentResumeProblem}</p>}
+                        {r.fixDirection && <p className="text-[13px] leading-6 text-blue-600">修复方向：{r.fixDirection}</p>}
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-400">未发现明显的初筛淘汰风险。</p>
+                  <p className="text-[13px] text-slate-400">未发现明显的初筛淘汰风险。</p>
                 )}
               </div>
             </div>
@@ -587,17 +742,17 @@ export function JobMatchAnalysisPage() {
               {/* Full Pass Points — all evidence, collapsible */}
               {(activeResult?.screeningPassPoints || []).length > 3 && (
                 <CollapsibleSection title="完整命中证据" icon={<ShieldCheck className="w-4 h-4 text-emerald-500" />} defaultOpen={false}>
-                  <p className="text-sm text-slate-500 leading-6 mb-4">所有匹配优势的完整证据列表（含 Top 3 之外的项目）。</p>
+                  <p className="text-[13px] text-slate-500 leading-6 mb-4">所有匹配优势的完整证据列表（含 Top 3 之外的项目）。</p>
                   <div className="space-y-4">
                     {(activeResult!.screeningPassPoints || []).slice(3).map((p, i) => (
                       <div key={i} className="border border-emerald-100 rounded-xl p-4 bg-emerald-50/30">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">命中 {i + 4}</span>
-                          <span className="text-sm font-medium text-slate-800">{p.title}</span>
+                          <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">命中 {i + 4}</span>
+                          <span className="text-[13px] font-medium text-slate-800">{p.title}</span>
                         </div>
-                        <p className="text-sm leading-7 text-slate-600 whitespace-pre-wrap break-words mb-2">{p.whyItHelps}</p>
+                        <p className="text-[13px] leading-6 text-slate-600 whitespace-pre-wrap break-words mb-2">{p.whyItHelps}</p>
                         {p.resumeEvidence && (
-                          <div className="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 font-mono leading-relaxed whitespace-pre-wrap break-words">{p.resumeEvidence}</div>
+                          <div className="text-[12px] text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 font-mono leading-relaxed whitespace-pre-wrap break-words">{p.resumeEvidence}</div>
                         )}
                       </div>
                     ))}
@@ -608,19 +763,19 @@ export function JobMatchAnalysisPage() {
               {/* Full Risks — beyond Top 3 */}
               {risks.length > 3 && (
                 <CollapsibleSection title="全部风险详情" icon={<ShieldX className="w-4 h-4 text-red-400" />} defaultOpen={false}>
-                  <p className="text-sm text-slate-500 leading-6 mb-4">超过 Top 3 的风险详情。</p>
+                  <p className="text-[13px] text-slate-500 leading-6 mb-4">超过 Top 3 的风险详情。</p>
                   <div className="space-y-4">
                     {risks.slice(3).map((r, i) => (
                       <div key={i} className="border rounded-xl p-4" style={{ borderColor: r.severity === "high" ? "#fca5a5" : r.severity === "medium" ? "#fdba74" : "#e2e8f0" }}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.severity === "high" ? "bg-red-50 text-red-600" : r.severity === "medium" ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-500"}`}>
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.severity === "high" ? "bg-red-50 text-red-600" : r.severity === "medium" ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-500"}`}>
                             {r.severity === "high" ? "高风险" : r.severity === "medium" ? "中风险" : "低风险"}
                           </span>
-                          <span className="text-sm font-medium text-slate-800">{r.riskTitle}</span>
+                          <span className="text-[13px] font-medium text-slate-800">{r.riskTitle}</span>
                         </div>
-                        <p className="text-sm leading-7 text-slate-600 whitespace-pre-wrap break-words mb-1">{r.whyItBlocksScreening}</p>
-                        {r.currentResumeProblem && <p className="text-sm leading-6 text-slate-500 mb-1">当前问题：{r.currentResumeProblem}</p>}
-                        {r.fixDirection && <p className="text-sm leading-6 text-blue-600">修复方向：{r.fixDirection}</p>}
+                        <p className="text-[13px] leading-6 text-slate-600 whitespace-pre-wrap break-words mb-1">{r.whyItBlocksScreening}</p>
+                        {r.currentResumeProblem && <p className="text-[13px] leading-6 text-slate-500 mb-1">当前问题：{r.currentResumeProblem}</p>}
+                        {r.fixDirection && <p className="text-[13px] leading-6 text-blue-600">修复方向：{r.fixDirection}</p>}
                       </div>
                     ))}
                   </div>
@@ -630,27 +785,27 @@ export function JobMatchAnalysisPage() {
               {/* Rewrite Commands (collapsible — long content) */}
               {commands.length > 0 && (
                 <CollapsibleSection title="简历具体怎么改" icon={<PenTool className="w-4 h-4 text-[#0052D9]" />} defaultOpen={false}>
-                  <p className="text-sm text-slate-500 leading-6 mb-4">把普通经历改成更容易通过初筛的表达。每条都有修改前/修改后对照。</p>
+                  <p className="text-[13px] text-slate-500 leading-6 mb-4">把普通经历改成更容易通过初筛的表达。每条都有修改前/修改后对照。</p>
                   <div className="space-y-5">
                     {commands.map((c, i) => (
                       <div key={i} className="border border-blue-100 rounded-2xl p-4 bg-blue-50/20">
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="text-xs font-semibold text-white bg-[#0052D9] w-6 h-6 rounded-full flex items-center justify-center">{i + 1}</span>
-                          <span className="text-sm font-medium text-slate-800">{c.targetSection}</span>
+                          <span className="text-[11px] font-semibold text-white bg-[#0052D9] w-6 h-6 rounded-full flex items-center justify-center">{i + 1}</span>
+                          <span className="text-[13px] font-medium text-slate-800">{c.targetSection}</span>
                         </div>
-                        <p className="text-sm leading-7 text-slate-700 mb-2 whitespace-pre-wrap break-words"><strong>问题：</strong>{c.problem}</p>
-                        <p className="text-sm leading-7 text-slate-700 mb-3 whitespace-pre-wrap break-words"><strong>改写方向：</strong>{c.rewriteInstruction}</p>
+                        <p className="text-[13px] leading-6 text-slate-700 mb-2 whitespace-pre-wrap break-words"><strong>问题：</strong>{c.problem}</p>
+                        <p className="text-[13px] leading-6 text-slate-700 mb-3 whitespace-pre-wrap break-words"><strong>改写方向：</strong>{c.rewriteInstruction}</p>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
                           <div className="bg-red-50/50 border border-red-100 rounded-lg p-3">
-                            <p className="text-xs text-red-500 font-medium mb-0.5">修改前</p>
-                            <p className="text-sm leading-6 text-slate-600 whitespace-pre-wrap break-words">{c.beforeExample || "—"}</p>
+                            <p className="text-[11px] text-red-500 font-medium mb-0.5">修改前</p>
+                            <p className="text-[13px] leading-6 text-slate-600 whitespace-pre-wrap break-words">{c.beforeExample || "—"}</p>
                           </div>
                           <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-3">
-                            <p className="text-xs text-emerald-600 font-medium mb-0.5">修改后</p>
-                            <p className="text-sm leading-6 text-slate-700 whitespace-pre-wrap break-words">{c.afterExample || "—"}</p>
+                            <p className="text-[11px] text-emerald-600 font-medium mb-0.5">修改后</p>
+                            <p className="text-[13px] leading-6 text-slate-700 whitespace-pre-wrap break-words">{c.afterExample || "—"}</p>
                           </div>
                         </div>
-                        <p className="text-sm leading-6 text-blue-700 bg-blue-50 px-3 py-2 rounded-lg whitespace-pre-wrap break-words">💡 {c.whyItImprovesScreening}</p>
+                        <p className="text-[13px] leading-6 text-blue-700 bg-blue-50 px-3 py-2 rounded-lg whitespace-pre-wrap break-words">💡 {c.whyItImprovesScreening}</p>
                       </div>
                     ))}
                   </div>
@@ -659,7 +814,7 @@ export function JobMatchAnalysisPage() {
 
               {/* Interview Prep Reference — placeholder for future */}
               <CollapsibleSection title="面试准备参考" icon={<MessageSquare className="w-4 h-4 text-slate-400" />} defaultOpen={false}>
-                <p className="text-sm text-slate-500 leading-6">
+                <p className="text-[13px] text-slate-500 leading-6">
                   此区域仅作提示：若该岗位进入面试阶段，建议基于上述风险与匹配优势提前准备回答方向。
                   具体面试准备建议将在后续版本中提供。
                 </p>
@@ -667,24 +822,24 @@ export function JobMatchAnalysisPage() {
 
               {/* Tech Debug Info (collapsible, default closed) */}
               <CollapsibleSection title="技术详情与调试信息" icon={<Bug className="w-4 h-4 text-slate-400" />} defaultOpen={false}>
-                <div className="space-y-3 text-sm text-slate-600">
+                <div className="space-y-3 text-[13px] text-slate-600">
                   {activeGenBy && (
                     <div className="flex gap-3">
-                      <span className="text-xs font-medium text-slate-400 shrink-0">生成来源</span>
-                      <span className="font-mono text-xs text-slate-600">{activeGenBy}</span>
+                      <span className="text-[11px] font-medium text-slate-400 shrink-0">生成来源</span>
+                      <span className="font-mono text-[11px] text-slate-600">{activeGenBy}</span>
                     </div>
                   )}
                   {activeResult?.reportVersion && (
                     <div className="flex gap-3">
-                      <span className="text-xs font-medium text-slate-400 shrink-0">报告版本</span>
-                      <span className="font-mono text-xs text-slate-600">{activeResult.reportVersion}</span>
+                      <span className="text-[11px] font-medium text-slate-400 shrink-0">报告版本</span>
+                      <span className="font-mono text-[11px] text-slate-600">{activeResult.reportVersion}</span>
                     </div>
                   )}
                   <div className="flex gap-3">
-                    <span className="text-xs font-medium text-slate-400 shrink-0">分析层级</span>
-                    <span className="text-xs text-slate-600">{isFast ? "Fast 快速初筛" : "Deep 深度分析"}</span>
+                    <span className="text-[11px] font-medium text-slate-400 shrink-0">分析层级</span>
+                    <span className="text-[11px] text-slate-600">{isFast ? "Fast 快速初筛" : "Deep 深度分析"}</span>
                   </div>
-                  <p className="text-xs text-slate-400 leading-6">此区域仅供技术与调试参考，正常使用时不需要关注。</p>
+                  <p className="text-[11px] text-slate-400 leading-6">此区域仅供技术与调试参考，正常使用时不需要关注。</p>
                 </div>
               </CollapsibleSection>
 
@@ -693,8 +848,8 @@ export function JobMatchAnalysisPage() {
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-amber-800 mb-1">演示数据提示</p>
-                    <p className="text-sm leading-6 text-amber-700">当前分析结果基于模拟数据生成，非真实 AI 判断，仅供参考页面效果。</p>
+                    <p className="text-[13px] font-medium text-amber-800 mb-1">演示数据提示</p>
+                    <p className="text-[13px] leading-6 text-amber-700">当前分析结果基于模拟数据生成，非真实 AI 判断，仅供参考页面效果。</p>
                   </div>
                 </div>
               )}
@@ -702,8 +857,8 @@ export function JobMatchAnalysisPage() {
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-start gap-3">
                   <Info className="w-5 h-5 text-slate-500 mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-1">兼容模式提示</p>
-                    <p className="text-sm leading-6 text-slate-600">当前分析使用兼容模式生成，分析深度和准确性可能低于最新版本。</p>
+                    <p className="text-[13px] font-medium text-slate-700 mb-1">兼容模式提示</p>
+                    <p className="text-[13px] leading-6 text-slate-600">当前分析使用兼容模式生成，分析深度和准确性可能低于最新版本。</p>
                   </div>
                 </div>
               )}
@@ -719,7 +874,8 @@ export function JobMatchAnalysisPage() {
             不替代真实经历核实、岗位官方要求和人工判断。
           </AiNotice>
 
-        </div>
+          </div>{/* End inner container (Fast→max-w-[1120px] / Deep→space-y-6) */}
+        </>
       )}
     </ContentPageShell>
   );
