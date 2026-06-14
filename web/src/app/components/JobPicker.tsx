@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Search, Briefcase, MapPin, Building2, Tag, RefreshCw } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Search, Briefcase, MapPin, Building2, Tag, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import type { JobApiItem } from "../../api/jobs";
 import { getJobs } from "../../api/jobs";
 
@@ -11,14 +11,29 @@ export interface JobPickerProps {
   emptyMessage?: string;
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 10;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getJobMeta(job: JobApiItem): string {
-  const parts: string[] = [];
-  if (job.city) parts.push(job.city);
-  if (job.direction) parts.push(job.direction);
-  if (job.recruit_type) parts.push(job.recruit_type);
-  return parts.join(" · ");
+/** Generate pagination page numbers with ellipsis, same logic as JobPagination. */
+function generatePages(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const pages: (number | "...")[] = [];
+  if (current <= 4) {
+    for (let i = 1; i <= 6; i++) pages.push(i);
+    pages.push("...", total);
+  } else if (current >= total - 3) {
+    pages.push(1, "...");
+    for (let i = total - 5; i <= total; i++) pages.push(i);
+  } else {
+    pages.push(1, "...");
+    for (let i = current - 2; i <= current + 2; i++) pages.push(i);
+    pages.push("...", total);
+  }
+  return pages;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -29,36 +44,54 @@ export function JobPicker({
   emptyMessage = "没有找到匹配的岗位",
 }: JobPickerProps) {
   const [jobs, setJobs] = useState<JobApiItem[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // ── Load jobs on mount ──
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // ── Reusable loader (server-side) ──
+  const loadJobs = useCallback(
+    (params: { keyword?: string; page?: number; page_size?: number }) => {
+      setLoading(true);
+      setError(null);
+      getJobs(params)
+        .then((res) => {
+          setJobs(res.items || []);
+          setTotal(res.total || 0);
+        })
+        .catch(() => setError("岗位列表加载失败"))
+        .finally(() => setLoading(false));
+    },
+    [],
+  );
+
+  // ── Initial load ──
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    getJobs()
-      .then((res) => {
-        setJobs(res.items || []);
-      })
-      .catch(() => setError("岗位列表加载失败"))
-      .finally(() => setLoading(false));
-  }, []);
+    loadJobs({ page: 1, page_size: PAGE_SIZE });
+  }, [loadJobs]);
 
-  // ── Client-side filter (debounce by not searching, just filter) ──
-  const filtered = useMemo(() => {
-    if (!query.trim()) return jobs;
-    const q = query.trim().toLowerCase();
-    return jobs.filter(
-      (j) =>
-        j.title.toLowerCase().includes(q) ||
-        (j.direction || "").toLowerCase().includes(q) ||
-        (j.city || "").toLowerCase().includes(q) ||
-        (j.department || "").toLowerCase().includes(q) ||
-        (j.category || "").toLowerCase().includes(q) ||
-        (j.department || "").toLowerCase().includes(q),
-    );
-  }, [jobs, query]);
+  // ── Debounced server-side keyword search ──
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setPage(1);
+      loadJobs({ keyword: keyword.trim() || undefined, page: 1, page_size: PAGE_SIZE });
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [keyword, loadJobs]);
+
+  // ── Page change ──
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+    loadJobs({ keyword: keyword.trim() || undefined, page: newPage, page_size: PAGE_SIZE });
+  };
 
   // ── States ──
   if (loading) {
@@ -75,7 +108,7 @@ export function JobPicker({
       <div className="py-6 text-center">
         <p className="text-[13px] text-slate-500 mb-1">{error}</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => loadJobs({ page: 1, page_size: PAGE_SIZE })}
           className="text-[13px] text-[#0052D9] hover:underline"
         >
           重试
@@ -84,7 +117,7 @@ export function JobPicker({
     );
   }
 
-  if (jobs.length === 0) {
+  if (total === 0 && !loading) {
     return (
       <div className="py-6 text-center">
         <p className="text-[13px] text-slate-500 mb-1">暂无可用岗位</p>
@@ -102,21 +135,21 @@ export function JobPicker({
           <input
             type="text"
             placeholder="搜索岗位名称、方向、城市、部门…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-[13px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 placeholder:text-slate-400"
           />
         </div>
       </div>
 
       {/* ── List ── */}
-      <div className="min-h-0 overflow-y-auto space-y-1.5">
-        {filtered.length === 0 ? (
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5">
+        {jobs.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-[13px] text-slate-500 mb-1">{emptyMessage}</p>
-            {query.trim() && (
+            {keyword.trim() && (
               <button
-                onClick={() => setQuery("")}
+                onClick={() => setKeyword("")}
                 className="text-[12px] text-[#0052D9] hover:underline"
               >
                 清空搜索
@@ -124,7 +157,7 @@ export function JobPicker({
             )}
           </div>
         ) : (
-          filtered.map((job) => {
+          jobs.map((job) => {
             const isSelected = selectedJobId === job.id;
             return (
               <div
@@ -191,6 +224,73 @@ export function JobPicker({
           })
         )}
       </div>
+
+      {/* ── Pagination ── */}
+      {totalPages > 1 && (
+        <div className="shrink-0 pt-3">
+          <div className="flex items-center justify-between text-[12px] text-slate-400">
+            <span>共 {total} 个岗位</span>
+            <div className="inline-flex items-center gap-0.5">
+              {/* Prev */}
+              <button
+                disabled={page <= 1}
+                onClick={() => handlePageChange(page - 1)}
+                className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+                  page <= 1
+                    ? "text-slate-300 cursor-not-allowed"
+                    : "text-slate-500 hover:bg-slate-100"
+                }`}
+                aria-label="上一页"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Page numbers */}
+              {generatePages(page, totalPages).map((item, idx) => {
+                if (item === "...") {
+                  return (
+                    <span
+                      key={`ellipsis-${idx}`}
+                      className="flex items-center justify-center w-6 h-6 text-slate-400 select-none"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+                const isActive = item === page;
+                return (
+                  <button
+                    key={item}
+                    onClick={() => handlePageChange(item)}
+                    className={`flex items-center justify-center w-6 h-6 text-[12px] rounded transition-colors ${
+                      isActive
+                        ? "bg-[#0052D9] text-white"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+
+              {/* Next */}
+              <button
+                disabled={page >= totalPages}
+                onClick={() => handlePageChange(page + 1)}
+                className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+                  page >= totalPages
+                    ? "text-slate-300 cursor-not-allowed"
+                    : "text-slate-500 hover:bg-slate-100"
+                }`}
+                aria-label="下一页"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
