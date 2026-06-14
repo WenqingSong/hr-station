@@ -148,6 +148,7 @@ function getSource(generatedBy?: string): RecommendationSource {
   if (generatedBy === "fast_tag_engine") return "fast_tag";
   if (generatedBy === "mock_agent") return "mock";
   if (generatedBy === "mock_quality") return "mock";
+  if (generatedBy === "deep_fallback_agent") return "fallback";
   if (generatedBy === "llm_agent") return "deep_llm";
   if (generatedBy.includes("fallback")) return "fallback";
   return "unknown";
@@ -158,6 +159,7 @@ function getSourceLabel(source: RecommendationSource, generatedBy?: string, isQu
   if (generatedBy === "fast_tag_engine") return "快速推荐 · 标签匹配";
   if (generatedBy === "mock_agent") return "快速推荐 · 基础模型";
   if (generatedBy === "mock_quality") return "深度推荐 · 基础模型";
+  if (generatedBy === "deep_fallback_agent") return "深度推荐 · 基础模型";
   if (generatedBy === "llm_agent" || generatedBy?.startsWith("llm")) return "深度推荐 · AI 生成";
   if (generatedBy?.includes("fallback")) return "推荐生成失败 · 已保留当前结果";
   switch (source) {
@@ -178,9 +180,9 @@ function toRecommendedJobViewModel(
   rank: number,
 ): RecommendedJobViewModel {
   const score = typeof job.recommendation_score === "number" ? job.recommendation_score : 0;
-  const source = getSource(job.generated_by);
-  const isQuality = job.generated_by === "mock_quality" || job.generated_by === "llm_agent";
-  const generatedBy = job.generated_by ?? "";
+	const source = getSource(job.generated_by);
+	const isQuality = job.generated_by === "mock_quality" || job.generated_by === "llm_agent" || job.generated_by === "deep_fallback_agent";
+	const generatedBy = job.generated_by ?? "";
   // K9-1-I: priority-based labels
   const priority = job.recommendation_priority || defaultPriority(score);
   const label = job.recommendation_label || defaultLabel(priority);
@@ -305,10 +307,10 @@ export function toRecommendationPageViewModel(
 ): RecommendationPageViewModel {
   const jobs = Array.isArray(result.recommended_jobs) ? result.recommended_jobs : [];
   const recommendedJobs = jobs.map((job, i) => toRecommendedJobViewModel(job, i + 1));
-  const firstSource = recommendedJobs[0]?.source ?? "unknown";
-  const firstJob = jobs[0];
-  const isQuality = firstJob?.generated_by === "mock_quality" || firstJob?.generated_by === "llm_agent";
-  const mode: "fast" | "deep" = isQuality ? "deep" : "fast";
+	const firstSource = recommendedJobs[0]?.source ?? "unknown";
+	const firstJob = jobs[0];
+	const isQuality = firstJob?.generated_by === "mock_quality" || firstJob?.generated_by === "llm_agent" || firstJob?.generated_by === "deep_fallback_agent";
+	const mode: "fast" | "deep" = isQuality ? "deep" : "fast";
 
   // Deep Cascade: extract global_summary, agent_status, quality_status, candidate_positioning
   const globalSummary = (result as any).result?.global_summary

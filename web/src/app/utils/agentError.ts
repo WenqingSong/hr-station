@@ -55,7 +55,16 @@ export function isMockGeneratedBy(
   generatedBy: string | undefined | null,
 ): boolean {
   if (!generatedBy) return false;
+  // K15-P0: deep_fallback_agent is allowed as a valid Deep fallback, not an error
   return generatedBy === "mock_agent" || generatedBy === "mock_quality";
+}
+
+/** Check whether a generated_by value represents a Deep-tier result (LLM or fallback). */
+export function isDeepTierGeneratedBy(
+  generatedBy: string | undefined | null,
+): boolean {
+  if (!generatedBy) return false;
+  return generatedBy === "llm_agent" || generatedBy === "mock_quality" || generatedBy === "deep_fallback_agent";
 }
 
 /**
@@ -104,10 +113,10 @@ export function assertRealAgentResult<
     });
   }
 
-  if (opts?.isDeep && response.generated_by !== "llm_agent") {
+  if (opts?.isDeep && response.generated_by !== "llm_agent" && response.generated_by !== "deep_fallback_agent" && response.generated_by !== "mock_quality") {
     throw new RealAgentError(
       feature,
-      `深度分析期望 llm_agent，实际为 ${response.generated_by || "unknown"}`,
+      `深度分析期望 llm_agent / deep_fallback_agent，实际为 ${response.generated_by || "unknown"}`,
       {
         generatedBy: response.generated_by,
         agentStatus: response.agent_status,

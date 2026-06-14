@@ -249,11 +249,30 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 	runner := s.selectRunner(req.GenerationTier)
 	isQuality := req.GenerationTier == model.GenerationTierQuality
 
+	// K15-P0: LLM unavailable Deep gate → fallback to Mock Agent, NOT 503
 	if isQuality && !s.llmEnabled {
-		return nil, apperror.New(apperror.CodeInternal, "深度推荐需要大模型服务，当前模型未启用。你仍可使用快速推荐。", 503)
+		log.Printf("[RecommendationService] deep tier blocked: llm disabled, falling back to mock")
+		if !s.enableMockAgent {
+			return nil, apperror.New(apperror.CodeInternal, "深度推荐需要大模型服务，当前模型未启用。你仍可使用快速推荐。", 503)
+		}
+		qualityMode := true
+		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
+			FallbackReason: model.FallbackReasonLLMDisabled,
+			ErrorCode:      model.ErrorCodeLLMDisabled,
+			ErrorMessage:   "深度推荐需要大模型服务，当前模型未启用。显示基于规则的兜底结果。",
+		}, qualityMode, profileType, profileDominant, profileSource)
 	}
 	if isQuality && s.qualityClient == nil {
-		return nil, apperror.New(apperror.CodeInternal, "深度推荐需要连接大模型服务，当前服务未配置。你仍可使用快速推荐。", 503)
+		log.Printf("[RecommendationService] deep tier blocked: LLM client missing, falling back to mock")
+		if !s.enableMockAgent {
+			return nil, apperror.New(apperror.CodeInternal, "深度推荐需要连接大模型服务，当前服务未配置。你仍可使用快速推荐。", 503)
+		}
+		qualityMode := true
+		return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, &agent.RecFallbackError{
+			FallbackReason: model.FallbackReasonLLMClientMissing,
+			ErrorCode:      model.ErrorCodeLLMClientMissing,
+			ErrorMessage:   "深度推荐需要连接大模型服务，当前服务未配置。显示基于规则的兜底结果。",
+		}, qualityMode, profileType, profileDominant, profileSource)
 	}
 
 	if isQuality && s.llmEnabled && runner != nil {
@@ -308,7 +327,7 @@ func (s *RecommendationService) recommendCore(ctx context.Context, userID uint64
 			if !s.fallbackEnable {
 				return nil, apperror.New(apperror.CodeInternal, fmt.Sprintf("LLM failed and fallback disabled: %s", fallbackErr.FallbackReason), 500)
 			}
-			return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, false, profileType, profileDominant, profileSource)
+			return s.recommendWithMock(ctx, userID, resume, jobs, req.Limit, fallbackErr, true, profileType, profileDominant, profileSource)
 		}
 
 		// K15-P0-R1: context cancelled during quality fallback chain — final mock fallback
@@ -605,16 +624,33 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 		recommendedJobs = recommendedJobs[:limit]
 	}
 
-	generatedBy := "mock_agent"
+	// K15-P0: Deep fallback semantics — preserve Deep tier metadata even on Mock fallback
+	generatedBy := model.GeneratedByMockAgent
+	pipelineMode := "fast_rule"
+	responseTier := "fast"
+	dbTier := "fast"
+
 	if qualityMode {
-		generatedBy = "mock_quality"
+		if fbErr != nil {
+			// Deep request that fell back → dedicated deep_fallback_agent metadata
+			generatedBy = model.GeneratedByDeepFallbackAgent
+			pipelineMode = "deep_fallback"
+			responseTier = "deep"
+			dbTier = "quality"
+		} else {
+			// Quality mock without explicit error (direct mock, no LLM attempted)
+			generatedBy = model.GeneratedByMockQuality
+			pipelineMode = "mock_deep_fallback"
+			responseTier = "deep"
+			dbTier = "quality"
+		}
 	}
 
 	var meta model.AgentResponseMeta
 	for i := range recommendedJobs {
 		recommendedJobs[i].GeneratedBy = generatedBy
 		if fbErr != nil {
-			recommendedJobs[i].AgentStatus = "fallback"
+			recommendedJobs[i].AgentStatus = model.AgentStatusFallback
 			recommendedJobs[i].FallbackReason = fbErr.FallbackReason
 			recommendedJobs[i].ErrorCode = fbErr.ErrorCode
 			recommendedJobs[i].RepairApplied = false
@@ -623,18 +659,23 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 		}
 	}
 
-	// Build meta from first job or fallback info
+	// Build meta from first job or fallback info — K15-P0: use deep_fallback_agent for quality+fallback
 	if fbErr != nil {
-		meta = model.DeriveMetaFromResult(
-			model.AgentNameRecommendation,
-			"mock_agent",
-			"fallback",
-			fbErr.FallbackReason,
-			fbErr.ErrorCode,
-			false,
-		)
+		if qualityMode {
+			meta = model.NewAgentResponseMeta(model.AgentNameRecommendation).
+				WithDeepFallback(fbErr.FallbackReason, fbErr.ErrorCode)
+		} else {
+			meta = model.NewAgentResponseMeta(model.AgentNameRecommendation).
+				WithFallback(fbErr.FallbackReason, fbErr.ErrorCode)
+		}
 	} else {
-		meta = model.NewAgentResponseMeta(model.AgentNameRecommendation)
+		if qualityMode {
+			meta = model.NewAgentResponseMeta(model.AgentNameRecommendation).
+				WithGeneratedBy(model.GeneratedByMockQuality).
+				WithAgentStatus(model.AgentStatusMockSuccess)
+		} else {
+			meta = model.NewAgentResponseMeta(model.AgentNameRecommendation)
+		}
 	}
 
 	// Convert to pointer slice for response
@@ -648,18 +689,15 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 
 	recResult := &RecommendationBusinessResult{RecommendedJobs: jobPtrs}
 
-	pipelineMode := "fast_rule"
-	if qualityMode {
-		pipelineMode = "quality_pipeline"
-	}
 	resp := &RecommendationResponse{
 		ResumeID:        resume.ID,
-		GeneratedBy:     "mock_agent",
+		GeneratedBy:     generatedBy,
 		RecommendedJobs: jobPtrs,
 		Result:          recResult,
 		Summary:         summary,
 		CreatedAt:       now.Format("2006-01-02T15:04:05Z07:00"),
 		Meta:            meta,
+		GenerationTier:  responseTier,
 		PipelineMode:    pipelineMode,
 		JudgeResult:     &model.RecommendationJudgeResult{Pass: true, Severity: "pass", Issues: nil, FixStrategy: "none"},
 	}
@@ -671,14 +709,10 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 			return nil, fmt.Errorf("failed to marshal recommendation result: %w", err)
 		}
 
-		tier := "fast"
-		if qualityMode {
-			tier = "quality"
-		}
 		recSnapshot := &model.RecommendationResult{
 			UserID:                 userID,
 			ResumeID:               resume.ID,
-			GenerationTier:         tier,
+			GenerationTier:         dbTier,
 			GeneratedBy:            generatedBy,
 			Status:                 "ready",
 			ProfileType:            profileType,
@@ -690,7 +724,7 @@ func (s *RecommendationService) recommendWithMock(ctx context.Context, userID ui
 			_ = createErr
 		} else {
 			resp.ResultID = recSnapshot.ID
-			resp.GenerationTier = tier
+			resp.GenerationTier = responseTier
 		}
 	}
 

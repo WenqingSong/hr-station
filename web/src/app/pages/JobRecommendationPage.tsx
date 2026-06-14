@@ -44,6 +44,8 @@ function sourceLabel(genBy?: string, agentStatus?: string): string {
   if (!genBy) return "";
   if (genBy === "fast_tag_engine") return "快速推荐引擎";
   if (genBy === "llm_agent") return "深度推荐智能体";
+  if (genBy === "deep_fallback_agent") return agentStatus === "fallback" ? "深度推荐（兜底）" : "深度推荐基础模型";
+  if (genBy === "mock_quality") return "深度推荐基础模型";
   if (genBy.includes("mock")) return ""; // never show mock
   return genBy;
 }
@@ -279,8 +281,9 @@ export function JobRecommendationPage() {
           const metaRaw = vm.meta as any;
           const genBy = metaRaw?.generated_by ?? "";
           setActiveGeneratedBy(genBy);
-          // Dev-Reboot-Fix-C: if backend returned mock, show error state
-          if (isMockGeneratedBy(genBy) || metaRaw?.fallback) {
+          // K15-P0: deep_fallback_agent is a valid Deep result — do NOT treat as error
+          // Only pure fast-tier mock_agent in a Deep context is an error
+          if (genBy === "mock_agent") {
             setPhase("deep_error"); setDeepErrorMessage("AI 模型连接失败，当前显示的不是 AI 生成结果。");
             return;
           }
