@@ -26,6 +26,7 @@ DEV_SCRIPT := scripts/dev
         frontend-start frontend-logs db-logs nginx-logs \
         agent-env agent-check agent-test \
         llm-help llm-check llm-smoke \
+        sep-backfill sep-backfill-dry-run \
         logs logs-backend logs-web logs-mysql logs-agent \
         lint test build ci \
         clean clean-logs clean-pids clean-volume \
@@ -457,6 +458,15 @@ llm-check: ensure-env ## 检查本地 LLM 配置，不请求外部模型
 
 llm-smoke: ensure-env ## 执行 LLM smoke test（需要 RUN_REAL_LLM_SMOKE=1）
 	@$(DEV_SCRIPT)/llm_smoke.sh smoke
+
+sep-backfill-dry-run: ensure-env ## SEP dry-run: 扫描缺失的语义画像（不生成）
+	cd server && go run ./cmd/sep-backfill --target=all --dry-run
+
+sep-backfill: ensure-env ## SEP backfill: 生成缺失的语义画像
+	cd server && go run ./cmd/sep-backfill --target=all --concurrency=1
+
+sep-backfill-resume4: ensure-env ## SEP backfill: only resume 4
+	cd server && go run ./cmd/sep-backfill --target=resume --target-id=4 --concurrency=1
 
 # ============================================================
 # 日志

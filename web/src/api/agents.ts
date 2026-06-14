@@ -123,8 +123,8 @@ export interface MatchLatestResponse {
 
 export type MatchAnalysisAgentResponse = AgentResponseEnvelope<MatchAnalysisResult>;
 
-export async function getLatestMatchAnalysis(jobId: string, resumeId: number): Promise<MatchLatestResponse> {
-  return get<MatchLatestResponse>(`/jobs/${encodeURIComponent(jobId)}/match/latest?resume_id=${resumeId}`);
+export async function getLatestMatchAnalysis(jobId: string, resumeId: number, tier = "fast"): Promise<MatchLatestResponse> {
+  return get<MatchLatestResponse>(`/jobs/${encodeURIComponent(jobId)}/match/latest?resume_id=${resumeId}&tier=${tier}`);
 }
 
 // ─── 简历优化（旧版，保留向后兼容） ─────────────────────────────────────────────

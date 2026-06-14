@@ -335,6 +335,8 @@ func (s *MatchService) analyzeWithLLM(ctx context.Context, resume *model.ResumeV
 			UserID:                 resume.UserID,
 			ResumeID:               resume.ID,
 			JobID:                  job.ID,
+			GenerationTier:         "fast",
+			GeneratedBy:            "fast_sep_match_engine",
 			ProfileType:            result.ProfileType,
 			ProfileDominantProfile: result.ProfileDominantProfile,
 			Score:                  result.MatchScore,
@@ -427,13 +429,21 @@ func (s *MatchService) analyzeWithMock(
 }
 
 // GetLatestMatchAnalysis returns the latest ready match analysis for the given user+resume+job.
-func (s *MatchService) GetLatestMatchAnalysis(ctx context.Context, userID, resumeID, jobID uint64) (*model.MatchLatestResult, error) {
+// If generationTier is empty, defaults to "fast".
+func (s *MatchService) GetLatestMatchAnalysis(ctx context.Context, userID, resumeID, jobID uint64, generationTier string) (*model.MatchLatestResult, error) {
 	if resumeID <= 0 {
 		return nil, apperror.ErrInvalidParam
 	}
 	if jobID <= 0 {
 		return nil, apperror.ErrInvalidParam
 	}
+
+	// Normalise tier
+	tier, err := normalizeMatchGenerationTier(generationTier)
+	if err != nil {
+		return nil, apperror.New(apperror.CodeInvalidParam, err.Error(), 400)
+	}
+
 	// Verify resume belongs to user
 	resume, err := s.resumeRepo.FindByUserIDAndID(ctx, userID, resumeID)
 	if err != nil {
@@ -447,7 +457,7 @@ func (s *MatchService) GetLatestMatchAnalysis(ctx context.Context, userID, resum
 		return nil, apperror.ErrJobNotFound
 	}
 
-	latest, err := s.matchRepo.FindLatestByResumeAndJob(ctx, userID, resumeID, jobID)
+	latest, err := s.matchRepo.FindLatestByResumeAndJobAndTier(ctx, userID, resumeID, jobID, tier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest match analysis: %w", err)
 	}
@@ -476,6 +486,19 @@ func (s *MatchService) GetLatestMatchAnalysis(ctx context.Context, userID, resum
 		CreatedAt:             latest.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Result:                resultData,
 	}, nil
+}
+
+// normalizeMatchGenerationTier normalises the tier for match latest queries.
+// Empty → "fast", "fast" → "fast", "quality"/"deep" → "quality", other → error.
+func normalizeMatchGenerationTier(input string) (string, error) {
+	switch input {
+	case "", "fast":
+		return "fast", nil
+	case "quality", "deep":
+		return "quality", nil
+	default:
+		return "", fmt.Errorf("invalid generation_tier: %q (expected fast or quality)", input)
+	}
 }
 
 // ─── H18-C: Fast Match via SEP Profile ────────────────────────────────────

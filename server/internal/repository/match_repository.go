@@ -65,6 +65,7 @@ func (r *MatchRepository) GetLatestByUserIDAndJobID(ctx context.Context, userID 
 }
 
 // FindLatestByResumeAndJob returns the latest ready match analysis for a specific resume+job pair.
+// NOTE: does NOT filter by generation_tier — use FindLatestByResumeAndJobAndTier for tier-isolated queries.
 func (r *MatchRepository) FindLatestByResumeAndJob(ctx context.Context, userID, resumeID, jobID uint64) (*model.MatchAnalysis, error) {
 	var a model.MatchAnalysis
 	var resultJSON sql.NullString
@@ -89,6 +90,48 @@ func (r *MatchRepository) FindLatestByResumeAndJob(ctx context.Context, userID, 
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to find latest match analysis: %w", err)
+	}
+
+	a.ResultJSON = fromNullJSON(resultJSON)
+	if profileType.Valid {
+		a.ProfileType = profileType.String
+	}
+	if profileDominant.Valid {
+		a.ProfileDominantProfile = profileDominant.String
+	}
+	if updatedAt.Valid {
+		a.UpdatedAt = updatedAt.Time
+	}
+	return &a, nil
+}
+
+// FindLatestByResumeAndJobAndTier returns the latest ready match analysis
+// filtered by generation_tier (fast / quality). This is the primary read path
+// for tier-isolated match result retrieval.
+func (r *MatchRepository) FindLatestByResumeAndJobAndTier(ctx context.Context, userID, resumeID, jobID uint64, generationTier string) (*model.MatchAnalysis, error) {
+	var a model.MatchAnalysis
+	var resultJSON sql.NullString
+	var profileType, profileDominant sql.NullString
+	var updatedAt sql.NullTime
+
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, user_id, resume_id, job_id, generation_tier, generated_by, status,
+		        profile_type, profile_dominant_profile, score, result_json, created_at, updated_at
+		 FROM match_analyses
+		 WHERE user_id = ? AND resume_id = ? AND job_id = ? AND generation_tier = ? AND status = 'ready'
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT 1`,
+		userID, resumeID, jobID, generationTier,
+	).Scan(&a.ID, &a.UserID, &a.ResumeID, &a.JobID,
+		&a.GenerationTier, &a.GeneratedBy, &a.Status,
+		&profileType, &profileDominant, &a.Score,
+		&resultJSON, &a.CreatedAt, &updatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to find latest match analysis by tier: %w", err)
 	}
 
 	a.ResultJSON = fromNullJSON(resultJSON)

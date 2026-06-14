@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
+	"time"
 
 	"offer-catcher/server/internal/model"
 )
@@ -31,6 +33,14 @@ type SemanticProfileGate struct {
 	service        *SemanticProfileService
 	profiler       *SemanticProfileProfiler
 	enableProfiler bool // if false, gate only checks existence (read-only mode)
+
+	// async fields — in-flight dedup for background profile generation
+	asyncMu       sync.Mutex
+	asyncInFlight map[string]struct{}
+}
+
+func asyncKey(targetType string, targetID int64) string {
+	return fmt.Sprintf("%s:%d", targetType, targetID)
 }
 
 // NewSemanticProfileGate creates a new gate.
@@ -39,6 +49,7 @@ func NewSemanticProfileGate(service *SemanticProfileService, profiler *SemanticP
 		service:        service,
 		profiler:       profiler,
 		enableProfiler: true,
+		asyncInFlight:  make(map[string]struct{}),
 	}
 }
 
@@ -79,6 +90,64 @@ func (g *SemanticProfileGate) EnsureProfilesForRecommendation(ctx context.Contex
 	}
 
 	return results, nil
+}
+
+// ─── Async Background Generation (Non-blocking) ──────────────────────────
+
+// EnsureResumeProfileAsync schedules a background resume SEP profile generation.
+// It never blocks the calling goroutine. If an in-flight generation for the same
+// resume already exists, the call is silently dropped (dedup).
+func (g *SemanticProfileGate) EnsureResumeProfileAsync(resumeID int64) {
+	key := asyncKey(model.SemanticTargetResume, resumeID)
+	g.scheduleAsync(key, func(ctx context.Context) (*SemanticProfileGateResult, error) {
+		return g.EnsureResumeProfile(ctx, resumeID)
+	})
+}
+
+// EnsureJobProfileAsync schedules a background job SEP profile generation.
+// It never blocks the calling goroutine. If an in-flight generation for the same
+// job already exists, the call is silently dropped (dedup).
+func (g *SemanticProfileGate) EnsureJobProfileAsync(jobID int64) {
+	key := asyncKey(model.SemanticTargetJob, jobID)
+	g.scheduleAsync(key, func(ctx context.Context) (*SemanticProfileGateResult, error) {
+		return g.EnsureJobProfile(ctx, jobID)
+	})
+}
+
+// scheduleAsync is the shared async dispatch with in-flight deduplication.
+func (g *SemanticProfileGate) scheduleAsync(key string, fn func(ctx context.Context) (*SemanticProfileGateResult, error)) {
+	g.asyncMu.Lock()
+	if _, inFlight := g.asyncInFlight[key]; inFlight {
+		g.asyncMu.Unlock()
+		return // already running, skip duplicate
+	}
+	g.asyncInFlight[key] = struct{}{}
+	g.asyncMu.Unlock()
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[SEP-Gate-Async] %s: panic recovered: %v", key, r)
+			}
+			g.asyncMu.Lock()
+			delete(g.asyncInFlight, key)
+			g.asyncMu.Unlock()
+		}()
+
+		bgCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		start := time.Now()
+		result, err := fn(bgCtx)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			log.Printf("[SEP-Gate-Async] %s: generation failed after %v: %v", key, elapsed, err)
+		} else if result != nil {
+			log.Printf("[SEP-Gate-Async] %s: generation done in %v (status=%s tags=%d reused=%v)",
+				key, elapsed, result.Status, result.TagsCount, result.Reused)
+		}
+	}()
 }
 
 // ─── Internal ──────────────────────────────────────────────────────────────

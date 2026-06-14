@@ -375,8 +375,8 @@ export interface LatestMatchViewModel {
 import { getLatestMatchAnalysis } from './agents';
 import type { MatchLatestResponse } from './agents';
 
-export async function loadLatestMatchViewModel(jobId: string, resumeId: number): Promise<LatestMatchViewModel> {
-  const raw: MatchLatestResponse = await getLatestMatchAnalysis(jobId, resumeId);
+export async function loadLatestMatchViewModel(jobId: string, resumeId: number, tier = "fast"): Promise<LatestMatchViewModel> {
+  const raw: MatchLatestResponse = await getLatestMatchAnalysis(jobId, resumeId, tier);
   if (!raw.has_result) {
     return { hasResult: false };
   }

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	apperror "offer-catcher/server/internal/errors"
 	"fmt"
 	"log"
@@ -15,6 +16,10 @@ import (
 	"offer-catcher/server/internal/model"
 	"offer-catcher/server/internal/repository"
 )
+
+// ErrFastRecommendSEPMissing is returned when the current resume SEP profile is not ready.
+// The caller (recommendCore) catches this and falls back to TagEvidenceService.
+var ErrFastRecommendSEPMissing = errors.New("fast recommend sep profile missing")
 
 // RecommendationRequest represents a request for job recommendations.
 type RecommendationRequest struct {
@@ -845,7 +850,9 @@ func (s *RecommendationService) fastRecommendWithTags(ctx context.Context, userI
 // ─── Fast Recommendation via SEP ────────────────────────────────────────
 
 // fastRecommendWithSEP generates Fast-tier recommendations using SEP semantic profiles.
-// No LLM call in recommendation — SEP profiles are pre-generated via Hy3.
+// This function is strictly read-only with respect to SEP generation:
+// it reads ready verified SEP profiles only and falls back quickly when SEP is missing.
+// Missing profiles trigger async background generation, but the current request never waits for LLM.
 func (s *RecommendationService) fastRecommendWithSEP(ctx context.Context, userID uint64, resume *model.ResumeVersion, allJobs []*model.Job, limit int, profileType, profileDominant, profileSource string) (*RecommendationResponse, error) {
 	if s.semanticGate == nil || s.semanticRepo == nil {
 		return nil, fmt.Errorf("SEP services not available")
@@ -853,46 +860,53 @@ func (s *RecommendationService) fastRecommendWithSEP(ctx context.Context, userID
 
 	resumeID := int64(resume.ID)
 
-	// 1. Ensure resume SEP
-	resumeResult, err := s.semanticGate.EnsureResumeProfile(ctx, resumeID)
-	if err != nil || resumeResult == nil || resumeResult.Status != "verified" {
-		if resumeResult != nil && resumeResult.Status == "failed" {
-			return nil, fmt.Errorf("SEP resume profile failed: %s", resumeResult.ErrorMessage)
-		}
-		return nil, fmt.Errorf("SEP resume profile not available: %w", err)
+	// 1. Read resume SEP (read-only — no generation)
+	resumeProfile, err := s.findReadyResumeSEP(ctx, resumeID)
+	if err != nil {
+		return nil, fmt.Errorf("SEP resume profile lookup: %w", err)
+	}
+	if resumeProfile == nil {
+		// Schedule async background generation, then fall back immediately
+		log.Printf("[SEP-Fast] resume %d: SEP not ready, scheduling async generation", resumeID)
+		s.semanticGate.EnsureResumeProfileAsync(resumeID)
+		return nil, ErrFastRecommendSEPMissing
 	}
 
 	// 2. Read resume SEP tags
-	resumeTags, err := s.semanticRepo.ListTagsByProfileID(ctx, resumeResult.ProfileID)
+	resumeTags, err := s.semanticRepo.ListTagsByProfileID(ctx, resumeProfile.ID)
 	if err != nil {
 		return nil, fmt.Errorf("SEP read resume tags: %w", err)
 	}
 	if len(resumeTags) < 3 {
-		return nil, fmt.Errorf("SEP resume tags insufficient (%d)", len(resumeTags))
+		log.Printf("[SEP-Fast] resume %d: SEP profile %d has only %d tags (<3), triggering async regeneration",
+			resumeID, resumeProfile.ID, len(resumeTags))
+		s.semanticGate.EnsureResumeProfileAsync(resumeID)
+		return nil, ErrFastRecommendSEPMissing
 	}
 
-	// 3. Ensure job SEP + build candidates
-	// Collect job IDs
-	jobIDs := make([]int64, len(allJobs))
+	// 3. Read job SEP (read-only — no generation)
 	jobMap := make(map[int64]*model.Job)
-	for i, j := range allJobs {
-		jobIDs[i] = int64(j.ID)
+	for _, j := range allJobs {
 		jobMap[int64(j.ID)] = j
 	}
 
-	// Gate ensures job profiles (this may trigger Hy3 calls for first-time jobs)
-	// Skip jobs that have no SEP and can't be generated
 	var candidates []*SEPRecommendCandidate
 	skipped := 0
 	for _, j := range allJobs {
 		jid := int64(j.ID)
-		jobResult, err := s.semanticGate.EnsureJobProfile(ctx, jid)
-		if err != nil || jobResult == nil || jobResult.Status != "verified" {
-			log.Printf("[SEP-Fast] skip job %d: SEP not ready (status=%s err=%v)", jid, jobResultStatus(jobResult), err)
+		jobProfile, err := s.findReadyJobSEP(ctx, jid)
+		if err != nil {
+			log.Printf("[SEP-Fast] skip job %d: SEP lookup error: %v", jid, err)
 			skipped++
 			continue
 		}
-		jobTags, err := s.semanticRepo.ListTagsByProfileID(ctx, jobResult.ProfileID)
+		if jobProfile == nil {
+			log.Printf("[SEP-Fast] job %d: SEP not ready, scheduling async generation", jid)
+			s.semanticGate.EnsureJobProfileAsync(jid)
+			skipped++
+			continue
+		}
+		jobTags, err := s.semanticRepo.ListTagsByProfileID(ctx, jobProfile.ID)
 		if err != nil || len(jobTags) < 3 {
 			log.Printf("[SEP-Fast] skip job %d: tags insufficient (%d, err=%v)", jid, len(jobTags), err)
 			skipped++
@@ -985,6 +999,36 @@ func (s *RecommendationService) fastRecommendWithSEP(ctx context.Context, userID
 	s.fillProfileFields(resp, profileType, profileDominant, profileSource)
 	return resp, nil
 }
+
+// ─── SEP Read-only Helpers ───────────────────────────────────────────────
+
+// findReadyResumeSEP returns a verified resume SEP profile, or nil if not ready.
+// This is a read-only lookup — it never triggers profile generation.
+func (s *RecommendationService) findReadyResumeSEP(ctx context.Context, resumeID int64) (*model.SemanticProfile, error) {
+	p, err := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetResume, resumeID)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil || p.Status != model.SemanticProfileStatusVerified {
+		return nil, nil
+	}
+	return p, nil
+}
+
+// findReadyJobSEP returns a verified job SEP profile, or nil if not ready.
+// This is a read-only lookup — it never triggers profile generation.
+func (s *RecommendationService) findReadyJobSEP(ctx context.Context, jobID int64) (*model.SemanticProfile, error) {
+	p, err := s.semanticRepo.FindLatestByTarget(ctx, model.SemanticTargetJob, jobID)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil || p.Status != model.SemanticProfileStatusVerified {
+		return nil, nil
+	}
+	return p, nil
+}
+
+// ─── SEP Recommend Ranking — kept from original, unchanged ───────────────
 
 func jobResultStatus(r *SemanticProfileGateResult) string {
 	if r == nil { return "nil" }

@@ -216,7 +216,16 @@ func (p *SemanticProfileProfiler) callLLMForProfile(ctx context.Context, targetT
 	// Sanitize
 	output.SanitizeLLMOutput()
 
-	// Validate
+	// Repair — fix minor LLM output issues before validation
+	droppedCount, repairWarnings := repairSemanticProfileTags(&output)
+	if len(repairWarnings) > 0 {
+		log.Printf("[SEP-Repair] %s %d: repair warnings: %s", targetType, targetID, strings.Join(repairWarnings, "; "))
+	}
+	if droppedCount > 0 {
+		log.Printf("[SEP-Repair] %s %d: dropped %d tag(s) with empty evidence_text", targetType, targetID, droppedCount)
+	}
+
+	// Validate (after repair)
 	if err := ValidateSemanticProfileOutput(&output, targetType); err != nil {
 		return nil, fmt.Errorf("hy3 profiler: %s %d: validation failed: %w", targetType, targetID, err)
 	}
@@ -289,6 +298,45 @@ func (p *SemanticProfileProfiler) saveFailedProfile(ctx context.Context, targetT
 	}
 	_ = p.semanticService.semanticRepo.CreateProfile(ctx, profile)
 	log.Printf("[SEP-Profiler] %s %d: failed profile saved, error=%s", targetType, targetID, errMsg)
+}
+
+// ─── Repair ─────────────────────────────────────────────────────────────────
+
+// repairSemanticProfileTags removes tags with empty evidence_text that cannot
+// be repaired, and attempts to repair repairable tags by copying Explanation
+// to EvidenceText when it contains meaningful content.
+//
+// Returns the count of dropped tags and any repair warnings.
+// A single bad tag never causes the entire profile to fail — invalid tags are
+// dropped, and validation proceeds on the remaining tags.
+func repairSemanticProfileTags(output *model.SemanticProfileLLMOutput) (dropped int, warnings []string) {
+	if output == nil {
+		return 0, nil
+	}
+
+	valid := make([]model.SemanticProfileLLMTag, 0, len(output.Tags))
+	for i, t := range output.Tags {
+		if strings.TrimSpace(t.EvidenceText) != "" {
+			valid = append(valid, t)
+			continue
+		}
+
+		// evidence_text empty — try to repair from Explanation
+		explanation := strings.TrimSpace(t.Explanation)
+		if len(explanation) >= 30 {
+			// Use Explanation as evidence_text fallback
+			t.EvidenceText = explanation
+			valid = append(valid, t)
+			warnings = append(warnings, fmt.Sprintf("tags[%d] %q: evidence_text empty, repaired from explanation", i, t.TagCode))
+		} else {
+			// Cannot repair — drop tag
+			dropped++
+			warnings = append(warnings, fmt.Sprintf("tags[%d] %q: evidence_text empty, no repairable explanation, tag dropped", i, t.TagCode))
+		}
+	}
+
+	output.Tags = valid
+	return dropped, warnings
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

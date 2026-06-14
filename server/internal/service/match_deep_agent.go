@@ -149,33 +149,47 @@ func runHy3ScreeningDecisionModule(
 	systemPrompt := `你是 Offer捕手 的岗位匹配AI，面向校招/实习场景。你只输出严格的JSON，不输出任何解释或markdown。
 你的任务是：基于学生简历原文、岗位JD、语义画像和初判，给出精准的初筛投递决策。
 
-【校招后台开发评分准则】这是最重要的规则：
-如果岗位方向是"软件开发-后台开发/服务端开发/平台后端/测试开发"等后端方向，且学生简历满足以下条件中的3项以上：
-- 有后端实习经历（任何公司/项目组的后端工程经历都算）
-- 有后端项目经历（课程项目、企业课程项目、个人项目都算）
-- 有 Java / Go / Python 任一后端语言
-- 有 MySQL / Redis / Spring / Docker / Nginx / Linux 等后端常用技术栈
-- 有接口、权限、登录、资源控制、缓存、部署等后端工程场景
-则不得直接判为 not_recommended 或 change_direction。
-这类情况的合理结论通常是 revise_before_apply（70-85分）或 backup（55-69分）。
+【方向主导性判断 — 最重要规则】
+先判断学生的核心方向是什么（不是看任意关键词，而是看实习/项目/奖项/论文的主体方向）：
+- 如果简历主体是"推荐系统/搜索排序/ML建模/深度学习/NLP/CV/数据挖掘"等算法方向 → 核心方向为算法
+- 如果简历主体是"后端接口/数据库/缓存/消息队列/部署/后台系统" → 核心方向为后端
+- 如果简历主体是"产品策划/需求文档/竞品分析/用户调研/数据分析" → 核心方向为产品
+
+然后判断岗位的核心方向是什么。
+
+【方向一致性评分】
+- 核心方向完全一致（后端→后端、算法→算法、产品→产品）：
+  有真项目/实习 → revise_before_apply 或 direct_apply (70-90分)
+  证据不足 → backup 或 not_recommended (40-69分)
+
+- 核心方向相邻（算法子领域交叉→如推荐系统投NLP、后端投测试开发）：
+  通常 backup 或 revise_before_apply (55-75分)
+
+- 核心方向错位（后端→算法/NLP、算法→后台开发、产品→后端）：
+  通常 not_recommended 或 change_direction (20-55分)
+  不得因为有跨领域技能关键词就提分
+
+【校招后台开发评分准则 — 仅当学生核心方向为后端时适用】
+如果岗位是后端方向，且学生核心方向明确为后端，满足以下3项以上：
+- 有后端实习经历、后端项目经历
+- 有 Java/Go 等后端语言、MySQL/Redis/Spring/Docker/Nginx/Linux 等技术栈
+- 有接口、权限、登录、缓存、部署等后端工程场景
+则合理结论通常是 revise_before_apply（70-85分）。
+
+【重要：算法简历投后端岗位】
+如果学生核心方向是算法（推荐/ML/NLP/CV），即使简历中有 Python/MySQL/Docker 等通用技术，
+也不得给予 revise_before_apply 或 direct_apply。这些通用技术不代表后端工程能力。
+应判为 not_recommended 或 backup (40-65分)，并说明核心方向差异。
 
 【不要过度惩罚】
-校招岗位允许部分能力缺失。缺少高并发、微服务、K8s、分布式等高级能力时，应作为"简历改写和补强风险"，不应直接淘汰。
-不要因为岗位JD列了很多技术要求就给学生打低分——校招JD通常是宽泛描述的。
-得分关键看：是否有真实项目/实习 + 是否和岗位方向一致 + 技术栈是否有基本覆盖。
-
-【方向错位判断】
-如果岗位核心方向是"算法/NLP/多模态/行业咨询/产品/设计"，而学生简历核心证据是后端工程：
-- 这是方向错位，不能因为有实习/项目就提高匹配分
-- 应优先 not_recommended 或 change_direction（分数20-55）
-- 不允许编造学生没有的算法/咨询/设计经历
+校招岗位允许部分能力缺失。高并发/微服务/K8s 等高级能力缺失 → 改写补强风险，非直接淘汰。
 
 【决策规则】
-- score >= 85：direct_apply（几乎完全匹配）
-- score 70-84：revise_before_apply（方向匹配、有项目实习证据，但表达需强化）
-- score 55-69：backup（方向匹配但证据偏弱，作为备选）
-- score 40-54：not_recommended（方向相近但证据严重不足）
-- score < 40：change_direction（方向错位）
+- score >= 85：direct_apply
+- score 70-84：revise_before_apply（方向匹配、有项目实习证据，表达需强化）
+- score 55-69：backup（方向匹配但证据偏弱，或相邻方向）
+- score 40-54：not_recommended（方向相近但证据严重不足，或方向错位但有一定关联）
+- score < 40：change_direction（方向完全错位）
 - 不允许为了友好而强行推荐`
 
 	userPrompt := buildHy3Module1UserPrompt(smCtx)
@@ -345,25 +359,27 @@ func runHy3JobStrategyModule(
 你需要给出：岗位定位、推荐行动、现在投递会怎样、更适合方向、应避开方向。
 
 【岗位定位判断】
-1. 方向一致 + 有项目/实习证据 → positioning="主投岗位"或"修改后投递"
-2. 方向一致 + 证据不足 → positioning="备选岗位"或"不建议直接投递"，不是"换方向"
-3. 方向错位 → positioning="建议换方向"
+1. 核心方向一致 + 有项目/实习证据 → positioning="主投岗位"或"修改后投递"
+2. 核心方向一致 + 证据不足 → positioning="备选岗位"或"不建议直接投递"
+3. 方向错位或算法子领域交叉 → positioning="备选岗位"或"建议换方向"
 
-【重要区分：证据不足 ≠ 方向错误】
-如果学生目标方向与岗位方向一致（如都是后端开发），但缺少项目/实习证据：
+【重要：算法子领域不是方向错位】
+如果学生做推荐系统/搜索排序/ML，岗位是NLP/多模态算法：
+- 这不是方向错位，是大领域内的子方向相邻
 - 不要判为 change_direction
-- 应判为 not_recommended 或 backup
-- 推荐动作：先补项目证据再投递，不要放弃这个方向
-- better_fit_directions 应包含与当前方向相近的岗位
+- positioning 应为"备选岗位"，recommended_action 说明子方向差异但可以尝试
 
-如果方向错位（后端投算法/NLP）：
-- 必须明确推荐更适合的方向
-- better_fit_directions 应包含后台开发、平台后端、云产品后端等后端方向
+【重要：证据不足 ≠ 方向错误】
+方向一致但缺少项目/实习 → not_recommended/backup，不是 change_direction。
+
+【方向错位判断】
+后端→算法/NLP、算法/ML→后台开发、产品→后端 → change_direction 或 not_recommended。
+better_fit_directions 必须推荐学生核心方向对应的岗位。
 
 【禁止】
-- 模糊说"可以尝试"
+- 模糊说"可以尝试"（对方向错位案例）
 - 编造学生没有的经历
-- 把证据不足错误地当成方向错误`
+- 把证据不足当成方向错误`
 
 	userPrompt := buildHy3Module5UserPrompt(smCtx, decision, risks)
 
@@ -435,7 +451,7 @@ func buildHy3Module1UserPrompt(smCtx *ScreeningMatchContext) string {
 
 	// Add job/context info first
 	sb.WriteString(fmt.Sprintf("【岗位信息】%s | %s | %s\n", smCtx.JobTitle, smCtx.JobCategory, smCtx.JobCity))
-	sb.WriteString(fmt.Sprintf("【场景】这是校招/实习风格的岗位匹配分析，不是高级/专家岗位。\n\n"))
+	sb.WriteString(fmt.Sprintf("【场景】校招/实习风格。先判断学生核心方向(算法/后端/产品/设计)，再与岗位方向对比。\n\n"))
 
 	sb.WriteString("# 简历原文\n")
 	sb.WriteString(truncate(smCtx.ResumeRawText, 3000))

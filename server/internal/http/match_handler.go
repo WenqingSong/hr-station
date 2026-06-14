@@ -74,7 +74,8 @@ func (h *MatchHandler) Analyze(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, resp)
 }
 
-// Latest handles GET /api/jobs/{id}/match/latest?resume_id=X
+// Latest handles GET /api/jobs/{id}/match/latest?resume_id=X&tier=fast
+// Defaults to tier=fast when tier is not specified.
 func (h *MatchHandler) Latest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		response.Error(w, apperror.ErrMethodNotAllowed.HTTPStatus, apperror.ErrMethodNotAllowed.Code, apperror.ErrMethodNotAllowed.Message)
@@ -104,7 +105,16 @@ func (h *MatchHandler) Latest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	latest, err := h.matchService.GetLatestMatchAnalysis(r.Context(), userID, resumeID, jobID)
+	tier := r.URL.Query().Get("tier")
+	if tier == "" {
+		tier = r.URL.Query().Get("generation_tier")
+	}
+	if tier == "" {
+		tier = r.URL.Query().Get("quality") // legacy compat
+	}
+	// Default to "fast" when no tier specified
+
+	latest, err := h.matchService.GetLatestMatchAnalysis(r.Context(), userID, resumeID, jobID, tier)
 	if err != nil {
 		if ae := apperror.AsAppError(err); ae != nil {
 			response.Error(w, ae.HTTPStatus, ae.Code, ae.Message)
