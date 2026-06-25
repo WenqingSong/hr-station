@@ -161,9 +161,23 @@ func (s *AuthService) Me(ctx context.Context, userID uint64) (*AuthUser, error) 
 	}, nil
 }
 
-// Logout removes the session from Redis.
+// Logout removes the session from Redis and conditionally clears the current pointer.
 func (s *AuthService) Logout(ctx context.Context, userID uint64, sessionID string) error {
-	return s.sessionMgr.DestroySession(ctx, userID, sessionID)
+	// Delete current session
+	if err := s.sessionMgr.DestroySession(ctx, userID, sessionID); err != nil {
+		return err
+	}
+
+	// Only clear current pointer if it matches this session (prevent old device
+	// logout from deleting the new device's current pointer)
+	current, err := s.sessionMgr.GetCurrentSessionID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if current == sessionID {
+		return s.sessionMgr.ClearCurrentSession(ctx, userID)
+	}
+	return nil
 }
 
 // ParseToken parses a JWT token and returns user_id + session_id.
@@ -186,16 +200,18 @@ func (s *AuthService) ParseToken(tokenString string) (uint64, string, error) {
 	return claims.UserID, claims.SessionID, nil
 }
 
-// ValidateSession checks if the session is active in Redis.
+// ValidateSession validates the session with current-session check.
+// Returns apperror.ErrSessionReplaced if the token's session was replaced by a newer login.
 func (s *AuthService) ValidateSession(ctx context.Context, userID uint64, sessionID string) error {
-	return s.sessionMgr.ValidateSession(ctx, userID, sessionID)
+	return s.sessionMgr.ValidateSessionWithCurrent(ctx, userID, sessionID)
 }
 
-// createSessionAndToken creates a Redis session and generates a JWT with session_id.
+// createSessionAndToken replaces old session, creates a new one, and generates a JWT.
 func (s *AuthService) createSessionAndToken(ctx context.Context, user *model.User) (*AuthResponse, error) {
 	sessionID := uuid.NewString()
-	if err := s.sessionMgr.CreateSession(ctx, user.ID, sessionID); err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+	// Replace old session — deletes old session, creates new one, updates current pointer
+	if err := s.sessionMgr.ReplaceUserSession(ctx, user.ID, sessionID); err != nil {
+		return nil, fmt.Errorf("failed to replace session: %w", err)
 	}
 
 	token, err := s.generateToken(user.ID, user.Phone, sessionID)

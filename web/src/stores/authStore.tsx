@@ -138,6 +138,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("offerr-auth-expired", handleAuthExpired);
   }, [clearAuth]);
 
+  // ── 监听全局 auth-replaced 事件（client.ts 401+41005 触发） ──
+  useEffect(() => {
+    let fired = false;
+    function handleAuthReplaced() {
+      clearAuth();
+      // 防重复弹窗：同一页面生命周期只弹一次
+      if (fired) return;
+      fired = true;
+      if (typeof window !== "undefined") {
+        alert("账号已在其他设备登录，当前设备已退出。如需继续使用，请重新登录。");
+      }
+    }
+    window.addEventListener("offerr-auth-replaced", handleAuthReplaced);
+    return () => window.removeEventListener("offerr-auth-replaced", handleAuthReplaced);
+  }, [clearAuth]);
+
   const value: AuthContextValue = {
     ...state,
     setAuthenticated,

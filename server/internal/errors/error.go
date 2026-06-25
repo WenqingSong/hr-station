@@ -73,6 +73,7 @@ const (
 	CodeInvalidCreds    = 41002
 	CodeDuplicatePhone  = 41003
 	CodeSessionInvalid  = 41004
+	CodeSessionReplaced = 41005
 )
 
 // Resume module codes (420xx)
@@ -103,8 +104,9 @@ var (
 
 // Auth errors
 var (
-	ErrDuplicatePhone = New(CodeDuplicatePhone, "phone already registered", http.StatusConflict)
-	ErrInvalidCreds   = New(CodeInvalidCreds, "invalid phone or password", http.StatusUnauthorized)
+	ErrDuplicatePhone   = New(CodeDuplicatePhone, "phone already registered", http.StatusConflict)
+	ErrInvalidCreds     = New(CodeInvalidCreds, "invalid phone or password", http.StatusUnauthorized)
+	ErrSessionReplaced  = New(CodeSessionReplaced, "账号已在其他设备登录，请重新登录", http.StatusUnauthorized)
 )
 
 // Resume errors

@@ -38,9 +38,10 @@ const deepCascadeProfileBlockThreshold = 3
 
 // RecommendationRequest represents a request for job recommendations.
 type RecommendationRequest struct {
-	ResumeID       uint64               `json:"resume_id"`
-	Limit          int                  `json:"limit"`
-	GenerationTier model.GenerationTier `json:"generation_tier,omitempty"`
+	ResumeID        uint64               `json:"resume_id"`
+	Limit           int                  `json:"limit"`
+	GenerationTier  model.GenerationTier `json:"generation_tier,omitempty"`
+	ForceRegenerate bool                 `json:"force_regenerate,omitempty"`
 }
 
 // RecommendationResponse represents the response for job recommendations.
@@ -218,7 +219,8 @@ func (s *RecommendationService) Recommend(ctx context.Context, userID uint64, re
 	// R3: Quality cache-first — before entering DeepCascade, check if we already
 	// have a ready quality result for this resume. If so, return it immediately
 	// without triggering any SEP generation or LLM calls.
-	if req.GenerationTier == model.GenerationTierQuality {
+	// Skip cache when caller explicitly requests regeneration (e.g. "重新生成完整深度推荐").
+	if req.GenerationTier == model.GenerationTierQuality && !req.ForceRegenerate {
 		if cached, err := s.recommendationRepo.FindLatestByResumeID(ctx, userID, req.ResumeID, "quality"); err == nil && cached != nil && len(cached.ResultJSON) > 0 {
 			var jobs []model.RecommendedJob
 			if jsonErr := json.Unmarshal(cached.ResultJSON, &jobs); jsonErr == nil && len(jobs) > 0 {

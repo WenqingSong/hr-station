@@ -270,7 +270,7 @@ export function JobRecommendationPage() {
 
     const pollQuality = async () => {
       try {
-        const vm = await loadRecommendationViewModel({ resume_id: selectedOption.id, limit: 5, generation_tier: "quality" as any });
+        const vm = await loadRecommendationViewModel({ resume_id: selectedOption.id, limit: 5, generation_tier: "quality" as any, force_regenerate: true });
         // H17-D: discard stale request results
         if (runId !== deepRunSeqRef.current) return;
 

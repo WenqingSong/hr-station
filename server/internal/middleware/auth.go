@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	apperror "offer-catcher/server/internal/errors"
 	"offer-catcher/server/internal/response"
 	"offer-catcher/server/internal/service"
+	"offer-catcher/server/internal/session"
 )
 
 type contextKey string
@@ -42,8 +44,13 @@ func Auth(authService *service.AuthService) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Validate Redis session
+			// Validate Redis session with current-session check
 			if err := authService.ValidateSession(r.Context(), userID, sessionID); err != nil {
+				if errors.Is(err, session.ErrSessionReplaced) {
+					log.Printf("[auth] session replaced: user=%d", userID)
+					response.Error(w, apperror.ErrSessionReplaced.HTTPStatus, apperror.ErrSessionReplaced.Code, apperror.ErrSessionReplaced.Message)
+					return
+				}
 				log.Printf("[auth] session invalid: %v", err)
 				response.Error(w, apperror.ErrUnauthorized.HTTPStatus, apperror.ErrUnauthorized.Code, apperror.ErrUnauthorized.Message)
 				return

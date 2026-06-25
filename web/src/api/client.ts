@@ -110,6 +110,31 @@ export async function requestRaw<TData, TBody = unknown>(
   }
 
   if (!response.ok) {
+    // 尝试解析业务 code，区分 session-replaced (41005) 和普通 token 过期
+    let bizCode: number | undefined;
+    let bizMessage: string | undefined;
+    try {
+      const errorBody = await parseJsonResponse(response);
+      if (typeof (errorBody as any)?.code === "number") {
+        bizCode = (errorBody as any).code;
+        bizMessage = (errorBody as any).message;
+      }
+    } catch {
+      // 无法解析 body 时不阻塞
+    }
+
+    if (response.status === 401 && bizCode === 41005) {
+      // 账号在其他设备登录 → 清 token + 派发专用事件
+      clearAuthToken();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("offerr-auth-replaced"));
+      }
+      throw new ApiClientError(
+        bizMessage || "账号已在其他设备登录，请重新登录",
+        { status: response.status, code: bizCode },
+      );
+    }
+
     // 401 统一清 token + 通知 React 组件刷新登录态（K8-5-36-C）
     if (response.status === 401) {
       clearAuthToken();

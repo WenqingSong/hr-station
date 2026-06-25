@@ -14,6 +14,7 @@ export interface RecommendationRequest {
   resume_id?: number;
   limit?: number;
   generation_tier?: "fast" | "quality";
+  force_regenerate?: boolean;
 }
 
 export interface MatchAnalysisRequest {
