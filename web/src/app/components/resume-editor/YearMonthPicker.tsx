@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../ui/utils";
@@ -12,6 +12,9 @@ type YearMonthPickerProps = {
 };
 
 const MONTHS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+const PANEL_WIDTH = 256;
+const ESTIMATED_PANEL_HEIGHT = 320;
+const VIEWPORT_PADDING = 8;
 
 function parseYearMonth(value?: string) {
   if (!value) return { year: new Date().getFullYear(), month: 0 };
@@ -36,32 +39,60 @@ export function YearMonthPicker({
   const [viewYear, setViewYear] = useState(parsed.year);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
 
-  // Close on outside click
+  // Calculate panel position relative to viewport (for position:fixed)
+  const calcPanelPos = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+
+    // fixed 定位：使用 viewport 坐标，不要加 scrollX/scrollY
+    let left = rect.left;
+    let top = rect.bottom + 4;
+
+    // 右侧边界保护
+    left = Math.min(Math.max(VIEWPORT_PADDING, left), window.innerWidth - PANEL_WIDTH - VIEWPORT_PADDING);
+
+    // 下方空间不足时向上翻转
+    if (top + ESTIMATED_PANEL_HEIGHT > window.innerHeight - VIEWPORT_PADDING) {
+      top = Math.max(VIEWPORT_PADDING, rect.top - ESTIMATED_PANEL_HEIGHT - 4);
+    }
+
+    setPanelPos({ left, top });
+  }, []);
+
+  // 打开时用 useLayoutEffect 计算位置，避免面板先出现在 (0,0) 再跳动
+  useLayoutEffect(() => {
+    if (!open) return;
+    calcPanelPos();
+  }, [open, calcPanelPos]);
+
+  // 打开期间监听 scroll / resize 实时重定位
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener("scroll", calcPanelPos, true);
+    window.addEventListener("resize", calcPanelPos);
+    return () => {
+      window.removeEventListener("scroll", calcPanelPos, true);
+      window.removeEventListener("resize", calcPanelPos);
+    };
+  }, [open, calcPanelPos]);
+
+  // 外部点击关闭 — 同时排除 trigger 容器和 portal 面板内部点击
   useEffect(() => {
     if (!open) return;
     function handler(e: MouseEvent) {
       const target = e.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target)) {
-        // Also check that the click is not inside the portal panel
+      const insideTrigger = containerRef.current?.contains(target) ?? false;
+      const insidePanel = panelRef.current?.contains(target) ?? false;
+      if (!insideTrigger && !insidePanel) {
         setOpen(false);
       }
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  // Calculate panel position on open
-  useEffect(() => {
-    if (!open) return;
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    setPanelPos({
-      left: rect.left + window.scrollX,
-      top: rect.bottom + window.scrollY + 4,
-    });
   }, [open]);
 
   // Sync viewYear when value changes
@@ -94,7 +125,7 @@ export function YearMonthPicker({
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen(!open)}
+        onClick={() => !disabled && setOpen((prev) => !prev)}
         className={cn(
           "flex h-10 w-[136px] items-center rounded-xl border border-slate-200 bg-white px-3 text-sm text-left transition-all duration-200",
           "focus:outline-none focus:ring-4 focus:ring-[#0052D9]/10",
@@ -113,6 +144,7 @@ export function YearMonthPicker({
       {open &&
         createPortal(
           <div
+            ref={panelRef}
             className="fixed w-[256px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl"
             style={{ left: panelPos.left, top: panelPos.top, zIndex: 99999 }}
           >
