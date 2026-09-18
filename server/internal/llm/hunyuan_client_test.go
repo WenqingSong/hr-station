@@ -474,8 +474,8 @@ func TestHunyuanClient_Chat_401AuthFailed(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for 401")
 	}
-	if !IsErrorCode(err, ErrLLMAPIKeyMissing) {
-		t.Errorf("error code = %q, want %q", err.(*LLMError).Code, ErrLLMAPIKeyMissing)
+	if !IsErrorCode(err, ErrLLMAuthFailed) {
+		t.Errorf("error code = %q, want %q", err.(*LLMError).Code, ErrLLMAuthFailed)
 	}
 	// Error message should not contain the API key.
 	errStr := err.Error()

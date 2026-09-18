@@ -152,7 +152,7 @@ func (c *Hy3Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, e
 func errorFromHTTPStatus(code int) ErrorCode {
 	switch {
 	case code == 429: return ErrLLMRateLimit
-	case code == 401 || code == 403: return ErrLLMAPIKeyMissing
+	case code == 401 || code == 403: return ErrLLMAuthFailed
 	case code >= 500: return ErrLLMHTTPError
 	default: return ErrLLMHTTPError
 	}

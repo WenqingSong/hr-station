@@ -135,6 +135,7 @@ const (
 	ErrLLMDisabled               = "LLM_DISABLED"
 	ErrLLMConfigMissing          = "LLM_CONFIG_MISSING"
 	ErrLLMAPIKeyMissing          = "LLM_API_KEY_MISSING"
+	ErrLLMAuthFailed             = "LLM_AUTH_FAILED"
 	ErrLLMTimeout                = "LLM_TIMEOUT"
 	ErrLLMHTTPError              = "LLM_HTTP_ERROR"
 	ErrLLMRateLimit              = "LLM_RATE_LIMIT"
@@ -159,6 +160,7 @@ const (
 	FallbackLLMDisabled            = "llm_disabled"
 	FallbackLLMConfigMissing       = "llm_config_missing"
 	FallbackLLMAPIKeyMissing       = "llm_api_key_missing"
+	FallbackLLMAuthFailed          = "llm_auth_failed"
 	FallbackJSONParseFailed        = "json_parse_failed"
 	FallbackSchemaValidationFailed = "schema_validation_failed"
 	FallbackJSONRepairFailed       = "json_repair_failed"
@@ -179,6 +181,8 @@ func mapLLMErrorCodeToPipeline(code string) string {
 		return ErrLLMConfigMissing
 	case "LLM_API_KEY_MISSING":
 		return ErrLLMAPIKeyMissing
+	case "LLM_AUTH_FAILED":
+		return ErrLLMAuthFailed
 	case "LLM_TIMEOUT":
 		return ErrLLMTimeout
 	case "LLM_HTTP_ERROR":
@@ -203,6 +207,8 @@ func mapLLMErrorCodeToFallbackReason(code string) string {
 		return FallbackLLMConfigMissing
 	case "LLM_API_KEY_MISSING":
 		return FallbackLLMAPIKeyMissing
+	case "LLM_AUTH_FAILED":
+		return FallbackLLMAuthFailed
 	case "LLM_TIMEOUT", "LLM_HTTP_ERROR", "LLM_RATE_LIMIT":
 		return FallbackLLMCallFailed
 	case "LLM_EMPTY_RESPONSE":

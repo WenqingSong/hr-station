@@ -149,6 +149,7 @@ func TestIsDirectMockFallback(t *testing.T) {
 		{ErrLLMDisabled, true},
 		{ErrLLMConfigMissing, true},
 		{ErrLLMAPIKeyMissing, true},
+		{ErrLLMAuthFailed, true},
 		{ErrLLMTimeout, true},
 		{ErrLLMHTTPError, true},
 		{ErrLLMRateLimit, true},

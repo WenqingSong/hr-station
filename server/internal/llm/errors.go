@@ -18,6 +18,13 @@ const (
 	ErrLLMConfigMissing ErrorCode = "LLM_CONFIG_MISSING"
 	// ErrLLMAPIKeyMissing is returned when the API key is empty.
 	ErrLLMAPIKeyMissing ErrorCode = "LLM_API_KEY_MISSING"
+	// ErrLLMAuthFailed is returned when the provider rejects the request
+	// with HTTP 401/403. Unlike ErrLLMAPIKeyMissing (empty/missing key),
+	// this means the key was supplied but is invalid, expired, or does not
+	// match the configured endpoint platform (e.g. a TokenHub key sent to
+	// LKEAP). Distinguishing the two prevents misreading "auth failed" as
+	// "key missing" in logs and alerts.
+	ErrLLMAuthFailed ErrorCode = "LLM_AUTH_FAILED"
 	// ErrLLMTimeout is returned when the LLM request exceeds the
 	// configured timeout.
 	ErrLLMTimeout ErrorCode = "LLM_TIMEOUT"
@@ -100,7 +107,7 @@ func IsDirectMockFallback(err error) bool {
 	}
 	switch llmErr.Code {
 	case ErrLLMDisabled, ErrLLMConfigMissing, ErrLLMAPIKeyMissing,
-		ErrLLMTimeout, ErrLLMHTTPError, ErrLLMRateLimit,
+		ErrLLMAuthFailed, ErrLLMTimeout, ErrLLMHTTPError, ErrLLMRateLimit,
 		ErrLLMEmptyResponse, ErrUnknown:
 		return true
 	default:

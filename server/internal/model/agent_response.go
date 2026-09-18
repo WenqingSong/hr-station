@@ -54,6 +54,7 @@ const (
 	FallbackReasonUnknown          = "unknown"
 	// K15-P0: Deep-specific fallback reasons
 	FallbackReasonLLMAPIKeyMissing    = "llm_api_key_missing"
+	FallbackReasonLLMAuthFailed       = "llm_auth_failed"
 	FallbackReasonLLMClientMissing    = "llm_client_missing"
 	FallbackReasonDeepCascadeFailed   = "deep_cascade_failed"
 	FallbackReasonQualityExhausted    = "quality_exhausted"
@@ -77,6 +78,7 @@ const (
 	ErrorCodeUnknownError     = "UNKNOWN_ERROR"
 	// K15-P0: Deep-specific error codes
 	ErrorCodeLLMAPIKeyMissing  = "LLM_API_KEY_MISSING"
+	ErrorCodeLLMAuthFailed     = "LLM_AUTH_FAILED"
 	ErrorCodeLLMClientMissing  = "LLM_CLIENT_MISSING"
 	ErrorCodeDeepCascadeFailed = "DEEP_CASCADE_FAILED"
 	ErrorCodeQualityExhausted  = "QUALITY_EXHAUSTED"

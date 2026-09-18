@@ -132,7 +132,7 @@ func (c *HunyuanClient) Chat(ctx context.Context, req ChatRequest) (*ChatRespons
 		return nil, NewLLMError(ErrLLMRateLimit, fmt.Sprintf("rate limited (HTTP %d)", httpResp.StatusCode))
 	}
 	if httpResp.StatusCode == http.StatusUnauthorized || httpResp.StatusCode == http.StatusForbidden {
-		return nil, NewLLMError(ErrLLMAPIKeyMissing, "authentication failed")
+		return nil, NewLLMError(ErrLLMAuthFailed, "authentication failed")
 	}
 	if httpResp.StatusCode >= 500 {
 		return nil, NewLLMError(ErrLLMHTTPError, fmt.Sprintf("server error (HTTP %d)", httpResp.StatusCode))
