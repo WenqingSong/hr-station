@@ -1,0 +1,29 @@
+# ============================================================
+# Offer Catcher - Agents 服务配置（GoFrame）
+# 由 GoFrame 在启动时自动加载。
+#
+# 说明：本文件仅包含非敏感静态默认值，不包含任何数据库连接信息或密码。
+# 数据库连接信息由 main.go 从环境变量读取并程序化注入（gdb.SetConfig）。
+# ============================================================
+
+server:
+  address: ":18080"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+  # 优雅退出：收到 SIGINT/SIGTERM 后停止接收新请求，
+  # 等待进行中的请求处理完成（最多 gracefulTimeout 秒）再退出。
+  graceful: true
+  gracefulTimeout: 10
+
+logger:
+  path: "logs"
+  file: "agents-{Ymd}.log"
+  level: "all"
+  stdout: true
+  rotateSize: "100M"
+  rotateExpire: "7d"
+  rotateBackupLimit: 10
+
+app:
+  name: "offer-catcher-agents"
+  env: "local"
