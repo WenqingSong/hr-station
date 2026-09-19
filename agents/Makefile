@@ -5,9 +5,15 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
+# ---- 环境变量加载 ----
+# 优先加载本地 .env（若存在）；不存在时使用下方默认值。
+# 优先级：shell 环境 > .env > 默认值。
+-include .env
+
+# ---- 变量 ----
 APP_NAME := offer-catcher-agents
 BIN      := bin/agents
-PORT     ?= 18080
+PORT     := $(or $(AGENTS_PORT),18080)
 PID_FILE := .run/agents.pid
 LOG_FILE := logs/agents.log
 
@@ -15,7 +21,10 @@ DB_HOST     ?= 127.0.0.1
 DB_PORT     ?= 3306
 DB_USER     ?= root
 DB_PASSWORD ?= password
-DB_NAME     ?= offer_catcher_re
+DB_NAME     := $(or $(AGENTS_DB_NAME),offer_catcher_re)
+
+# 导出给子进程（nohup bin / curl / mysql）
+export AGENTS_PORT AGENTS_DB_NAME DB_HOST DB_PORT DB_USER DB_PASSWORD
 
 .PHONY: help doctor build run start stop restart health status logs test db-init clean
 
@@ -91,9 +100,19 @@ restart: ## 重启服务
 	@sleep 1
 	@$(MAKE) --no-print-directory start
 
-health: ## 健康检查
+health: ## 健康检查（失败返回非零退出码）
 	@echo "[health] GET http://localhost:$(PORT)/healthz"
-	@curl -s -w "\nHTTP %{http_code}\n" http://localhost:$(PORT)/healthz || { echo "[error] 健康检查失败"; exit 1; }
+	@resp=$$(curl -s -w "\n%{http_code}" http://localhost:$(PORT)/healthz 2>/dev/null); \
+	code=$$(echo "$$resp" | tail -1); \
+	body=$$(echo "$$resp" | head -n -1); \
+	if [ "$$code" = "200" ]; then \
+		echo "[ok] 健康检查通过 (HTTP 200)"; \
+		echo "  $$body"; \
+	else \
+		echo "[error] 健康检查失败 (HTTP $$code)"; \
+		echo "  $$body"; \
+		exit 1; \
+	fi
 
 status: ## 查看进程状态
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
