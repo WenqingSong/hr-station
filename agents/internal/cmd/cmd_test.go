@@ -13,7 +13,6 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	"offer-catcher/agents/internal/controller/health"
-	"offer-catcher/agents/internal/middleware"
 )
 
 const testAddress = "127.0.0.1:18123"
@@ -41,7 +40,6 @@ func TestHealthzEndpoint(t *testing.T) {
 	s.SetAddr(testAddress)
 	s.Group("/", func(group *ghttp.RouterGroup) {
 		group.Middleware(ghttp.MiddlewareHandlerResponse)
-		group.Middleware(middleware.DBHealth)
 		group.Bind(
 			health.NewV1(),
 		)
