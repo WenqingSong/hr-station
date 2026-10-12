@@ -39,38 +39,46 @@ function RootLayout() {
   );
 }
 
-export const router = createBrowserRouter([
+export const router = createBrowserRouter(
+  [
+    {
+      path: "/",
+      Component: RootLayout,
+      children: [
+        { index: true, Component: JobListPage },
+        { path: "jobs", Component: JobListPage },
+        // ── P0 核心路由（5-3.2 已规范统一） ──
+        { path: "jobs/:id", Component: JobDetailPage },
+        // ── P0 AI 模块（K8-5-16-D：RequireAuth 保护 + K13 ErrorBoundary） ──
+        { path: "recommend", element: <RequireAuth><CorePageWrapper><JobRecommendationPage /></CorePageWrapper></RequireAuth> },
+        { path: "match", element: <RequireAuth><CorePageWrapper><JobMatchAnalysisPage /></CorePageWrapper></RequireAuth> },
+        { path: "resume-optimization", element: <RequireAuth><CorePageWrapper><ResumeOptimizationPage /></CorePageWrapper></RequireAuth> },
+        // ── P1 简历模块（K8-5-16-C：RequireAuth 保护 + K13 ErrorBoundary） ──
+        { path: "resumes", element: <RequireAuth><ResumeManagementPage /></RequireAuth> },
+        { path: "resumes/edit", element: <RequireAuth><MyResumesPage /></RequireAuth> },
+        { path: "resumes/new", element: <RequireAuth><MyResumesPage /></RequireAuth> },
+        { path: "resumes/compare", element: <RequireAuth><CorePageWrapper><ResumeComparisonPage /></CorePageWrapper></RequireAuth> },
+        { path: "resumes/detail/:id", element: <RequireAuth><ResumeDetailPage /></RequireAuth> },
+        // ── Auth 页面（8-2 新增） ──
+        { path: "login", Component: LoginPage },
+        { path: "register", Component: RegisterPage },
+        // ── 旧路径兼容重定向（5-3.2/5-3.2-R 保留，后续清理阶段可移除） ──
+        { path: "job/:id", Component: JobDetailPage },
+        { path: "recommendations", element: <Navigate to="/recommend" replace /> },
+        { path: "match-analysis", element: <Navigate to="/match" replace /> },
+        { path: "my-resumes", element: <Navigate to="/resumes" replace /> },
+        { path: "my-resumes/edit", element: <Navigate to="/resumes/edit" replace /> },
+        { path: "my-resumes/new", element: <Navigate to="/resumes/new" replace /> },
+        { path: "my-resumes/compare", element: <Navigate to="/resumes/compare" replace /> },
+        { path: "resume-comparison", element: <Navigate to="/resumes/compare" replace /> },
+        { path: "*", Component: NotFoundPage },
+      ],
+    },
+  ],
   {
-    path: "/",
-    Component: RootLayout,
-    children: [
-      { index: true, Component: JobListPage },
-      { path: "jobs", Component: JobListPage },
-      // ── P0 核心路由（5-3.2 已规范统一） ──
-      { path: "jobs/:id", Component: JobDetailPage },
-      // ── P0 AI 模块（K8-5-16-D：RequireAuth 保护 + K13 ErrorBoundary） ──
-      { path: "recommend", element: <RequireAuth><CorePageWrapper><JobRecommendationPage /></CorePageWrapper></RequireAuth> },
-      { path: "match", element: <RequireAuth><CorePageWrapper><JobMatchAnalysisPage /></CorePageWrapper></RequireAuth> },
-      { path: "resume-optimization", element: <RequireAuth><CorePageWrapper><ResumeOptimizationPage /></CorePageWrapper></RequireAuth> },
-      // ── P1 简历模块（K8-5-16-C：RequireAuth 保护 + K13 ErrorBoundary） ──
-      { path: "resumes", element: <RequireAuth><ResumeManagementPage /></RequireAuth> },
-      { path: "resumes/edit", element: <RequireAuth><MyResumesPage /></RequireAuth> },
-      { path: "resumes/new", element: <RequireAuth><MyResumesPage /></RequireAuth> },
-      { path: "resumes/compare", element: <RequireAuth><CorePageWrapper><ResumeComparisonPage /></CorePageWrapper></RequireAuth> },
-      { path: "resumes/detail/:id", element: <RequireAuth><ResumeDetailPage /></RequireAuth> },
-      // ── Auth 页面（8-2 新增） ──
-      { path: "login", Component: LoginPage },
-      { path: "register", Component: RegisterPage },
-      // ── 旧路径兼容重定向（5-3.2/5-3.2-R 保留，后续清理阶段可移除） ──
-      { path: "job/:id", Component: JobDetailPage },
-      { path: "recommendations", element: <Navigate to="/recommend" replace /> },
-      { path: "match-analysis", element: <Navigate to="/match" replace /> },
-      { path: "my-resumes", element: <Navigate to="/resumes" replace /> },
-      { path: "my-resumes/edit", element: <Navigate to="/resumes/edit" replace /> },
-      { path: "my-resumes/new", element: <Navigate to="/resumes/new" replace /> },
-      { path: "my-resumes/compare", element: <Navigate to="/resumes/compare" replace /> },
-      { path: "resume-comparison", element: <Navigate to="/resumes/compare" replace /> },
-      { path: "*", Component: NotFoundPage },
-    ],
+    // Offer Web 对外运行在 /offer/ 子路径下，使用 basename 让所有内部路由
+    // 自动挂载到 /offer/ 前缀。组件内部的路由路径（Link/Navigate/navigate）
+    // 保持内部相对路径，不手工加前缀。
+    basename: "/offer/",
   },
-]);
+);

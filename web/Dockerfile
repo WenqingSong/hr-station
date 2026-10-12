@@ -42,6 +42,6 @@ RUN apk add --no-cache curl
 EXPOSE 80
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=5s \
-    CMD curl -f http://127.0.0.1:80/ || exit 1
+    CMD curl -f http://127.0.0.1:80/healthz || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

@@ -17,6 +17,10 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
+  // Offer Web 对外运行在 /offer/ 子路径下，生产构建的静态资源统一使用 /offer/ 基路径。
+  // 注意：这会同时影响 Vite Dev Server 的访问入口（http://localhost:5173/offer/）。
+  base: '/offer/',
+
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { X, Sparkles, ArrowRight, ChevronRight, FileText, Briefcase } from "lucide-react";
 import { loadResumeOptionViewModelsFromApi } from "../../api";
 import type { ResumeOptionViewModel } from "../../adapters";
@@ -28,6 +28,7 @@ export function OptimizationEntryModal({
   initialJobId = null,
 }: OptimizationEntryModalProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const overlayRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -92,7 +93,7 @@ export function OptimizationEntryModal({
         }
       })
       .catch((err) => {
-        const authRedirect = getAuthRedirectIf401(err, window.location.pathname, window.location.search);
+        const authRedirect = getAuthRedirectIf401(err, location.pathname, location.search);
         if (authRedirect) navigate(authRedirect, { replace: true });
       })
       .finally(() => setLoadingResumes(false));
