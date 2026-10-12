@@ -55,8 +55,27 @@ docs/11-*
 # Backups
 backups
 
+# Separate Go module (agents) — not part of server/web images
+agents
+
+# Working notes / deployment orchestration — not image content
+working
+deploy
+nginx
+scripts
+
+# Production compose files — deployment orchestration, not image content
+docker-compose.prod.yml
+docker-compose.prod.bootstrap.yml
+
 # Pre-built binaries (not needed as build context)
 offer-catcher-server
 
 # Resources (not needed at runtime)
 resources
+
+# Repo metadata — not needed inside images
+.cnb.yml
+Makefile
+README.md
+error-cases.md

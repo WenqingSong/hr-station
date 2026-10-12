@@ -42,6 +42,10 @@ main:
           script: make test
 
   push:
+    # main 分支 Push 后：检查 -> 测试 -> 构建前后端镜像 -> 推送 CNB Docker 制品库。
+    # 镜像命名空间使用 CNB 内置变量 CNB_REPO_SLUG_LOWERCASE，fork 后自动指向 fork 者
+    # 自己的制品库，不会污染原仓库，fork 用户的 CI 也不会访问私有密钥仓库。
+    # 同一服务一次构建、打 SHA 与 latest 两个 Tag；SHA 为可追踪版本，latest 仅 main 更新。
     - name: main-ci
       services:
         - docker
@@ -59,13 +63,45 @@ main:
         - name: test
           script: make test
 
-        - name: build
+        - name: frontend-build-check
+          image: node:22
           script: |
-            mkdir -p bin
-            go build -trimpath -o bin/my-shop .
+            set -euo pipefail
+            cd web
+            npm ci
+            npm run build
+
+        - name: docker-login
+          script: |
+            set -euo pipefail
+            echo "${CNB_TOKEN}" | docker login "${CNB_DOCKER_REGISTRY}" \
+              -u "${CNB_TOKEN_USER_NAME}" --password-stdin
+
+        - name: build-and-push-server
+          script: |
+            set -euo pipefail
+            IMAGE="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}/server"
+            docker build -f server/Dockerfile \
+              -t "${IMAGE}:${CNB_COMMIT_SHORT}" \
+              -t "${IMAGE}:latest" \
+              .
+            docker push "${IMAGE}:${CNB_COMMIT_SHORT}"
+            docker push "${IMAGE}:latest"
+
+        - name: build-and-push-web
+          script: |
+            set -euo pipefail
+            IMAGE="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}/web"
+            docker build -f web/Dockerfile \
+              --build-arg VITE_API_BASE_URL=/api \
+              -t "${IMAGE}:${CNB_COMMIT_SHORT}" \
+              -t "${IMAGE}:latest" \
+              .
+            docker push "${IMAGE}:${CNB_COMMIT_SHORT}"
+            docker push "${IMAGE}:latest"
 
         - name: sync-to-github-mirror
-          # 只有原仓库（framework-station/my-shop）才执行 GitHub 镜像同步。
+          # 只有原仓库（framework-station/hr-station）才执行 GitHub 镜像同步。
           # fork 后 CNB_REPO_SLUG 会变成 fork 者的组织/仓库名，此步骤会自动跳过，
           # 也就不会去访问私有的密钥仓库，fork 用户的 CI 不受影响。
           if: |
