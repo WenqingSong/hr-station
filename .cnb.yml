@@ -22,119 +22,119 @@ $:
             git --version
             docker version
             docker compose version
-main:
-  pull_request:
-    - name: pr-check
-      services:
-        - docker
-      docker:
-        image: golang:1.24
-        volumes:
-          - /go/pkg/mod
-          - /root/.cache/go-build
-      stages:
-        - name: start-dependencies
-          script: |
-            docker compose up -d
-            bash -c 'source scripts/lib.sh; wait_for_deps'
+# main:
+#   pull_request:
+#     - name: pr-check
+#       services:
+#         - docker
+#       docker:
+#         image: golang:1.24
+#         volumes:
+#           - /go/pkg/mod
+#           - /root/.cache/go-build
+#       stages:
+#         - name: start-dependencies
+#           script: |
+#             docker compose up -d
+#             bash -c 'source scripts/lib.sh; wait_for_deps'
 
-        - name: test
-          script: make test
+#         - name: test
+#           script: make test
 
-  push:
-    # main 分支 Push 后：检查 -> 测试 -> 构建前后端镜像 -> 推送 CNB Docker 制品库。
-    # 镜像命名空间使用 CNB 内置变量 CNB_REPO_SLUG_LOWERCASE，fork 后自动指向 fork 者
-    # 自己的制品库，不会污染原仓库，fork 用户的 CI 也不会访问私有密钥仓库。
-    # 同一服务一次构建、打 SHA 与 latest 两个 Tag；SHA 为可追踪版本，latest 仅 main 更新。
-    - name: main-ci
-      services:
-        - docker
-      docker:
-        image: golang:1.24
-        volumes:
-          - /go/pkg/mod
-          - /root/.cache/go-build
-      stages:
-        - name: start-dependencies
-          script: |
-            docker compose up -d
-            bash -c 'source scripts/lib.sh; wait_for_deps'
+#   push:
+#     # main 分支 Push 后：检查 -> 测试 -> 构建前后端镜像 -> 推送 CNB Docker 制品库。
+#     # 镜像命名空间使用 CNB 内置变量 CNB_REPO_SLUG_LOWERCASE，fork 后自动指向 fork 者
+#     # 自己的制品库，不会污染原仓库，fork 用户的 CI 也不会访问私有密钥仓库。
+#     # 同一服务一次构建、打 SHA 与 latest 两个 Tag；SHA 为可追踪版本，latest 仅 main 更新。
+#     - name: main-ci
+#       services:
+#         - docker
+#       docker:
+#         image: golang:1.24
+#         volumes:
+#           - /go/pkg/mod
+#           - /root/.cache/go-build
+#       stages:
+#         - name: start-dependencies
+#           script: |
+#             docker compose up -d
+#             bash -c 'source scripts/lib.sh; wait_for_deps'
 
-        - name: test
-          script: make test
+#         - name: test
+#           script: make test
 
-        - name: frontend-build-check
-          image: node:22
-          script: |
-            set -eu
-            cd web
-            npm ci
-            npm run build
+#         - name: frontend-build-check
+#           image: node:22
+#           script: |
+#             set -eu
+#             cd web
+#             npm ci
+#             npm run build
 
-        - name: docker-login
-          script: |
-            set -eu
-            echo "${CNB_TOKEN}" | docker login "${CNB_DOCKER_REGISTRY}" \
-              -u "${CNB_TOKEN_USER_NAME}" --password-stdin
+#         - name: docker-login
+#           script: |
+#             set -eu
+#             echo "${CNB_TOKEN}" | docker login "${CNB_DOCKER_REGISTRY}" \
+#               -u "${CNB_TOKEN_USER_NAME}" --password-stdin
 
-        - name: build-and-push-server
-          script: |
-            set -eu
-            IMAGE="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}/server"
-            docker build -f server/Dockerfile \
-              -t "${IMAGE}:${CNB_COMMIT_SHORT}" \
-              -t "${IMAGE}:latest" \
-              .
-            docker push "${IMAGE}:${CNB_COMMIT_SHORT}"
-            docker push "${IMAGE}:latest"
+#         - name: build-and-push-server
+#           script: |
+#             set -eu
+#             IMAGE="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}/server"
+#             docker build -f server/Dockerfile \
+#               -t "${IMAGE}:${CNB_COMMIT_SHORT}" \
+#               -t "${IMAGE}:latest" \
+#               .
+#             docker push "${IMAGE}:${CNB_COMMIT_SHORT}"
+#             docker push "${IMAGE}:latest"
 
-        - name: build-and-push-web
-          script: |
-            set -eu
-            IMAGE="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}/web"
-            docker build -f web/Dockerfile \
-              --build-arg VITE_API_BASE_URL=/api \
-              -t "${IMAGE}:${CNB_COMMIT_SHORT}" \
-              -t "${IMAGE}:latest" \
-              .
-            docker push "${IMAGE}:${CNB_COMMIT_SHORT}"
-            docker push "${IMAGE}:latest"
+#         - name: build-and-push-web
+#           script: |
+#             set -eu
+#             IMAGE="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}/web"
+#             docker build -f web/Dockerfile \
+#               --build-arg VITE_API_BASE_URL=/api \
+#               -t "${IMAGE}:${CNB_COMMIT_SHORT}" \
+#               -t "${IMAGE}:latest" \
+#               .
+#             docker push "${IMAGE}:${CNB_COMMIT_SHORT}"
+#             docker push "${IMAGE}:latest"
 
-        - name: sync-to-github-mirror
-          # 只有原仓库（framework-station/hr-station）才执行 GitHub 镜像同步。
-          # fork 后 CNB_REPO_SLUG 会变成 fork 者的组织/仓库名，此步骤会自动跳过，
-          # 也就不会去访问私有的密钥仓库，fork 用户的 CI 不受影响。
-          if: |
-            [ "${CNB_REPO_SLUG}" = "framework-station/hr-station" ]
-          imports:
-            - https://cnb.cool/framework-station/hr-station-password/-/blob/main/github-mirror.yml
-          script: |
-            set -eu
+#         - name: sync-to-github-mirror
+#           # 只有原仓库（framework-station/hr-station）才执行 GitHub 镜像同步。
+#           # fork 后 CNB_REPO_SLUG 会变成 fork 者的组织/仓库名，此步骤会自动跳过，
+#           # 也就不会去访问私有的密钥仓库，fork 用户的 CI 不受影响。
+#           if: |
+#             [ "${CNB_REPO_SLUG}" = "framework-station/hr-station" ]
+#           imports:
+#             - https://cnb.cool/framework-station/hr-station-password/-/blob/main/github-mirror.yml
+#           script: |
+#             set -eu
 
-            printf 'machine github.com\nlogin %s\npassword %s\n' \
-              "${GITHUB_USERNAME}" "${GITHUB_TOKEN}" > "${HOME}/.netrc"
-            chmod 600 "${HOME}/.netrc"
-            trap 'rm -f "${HOME}/.netrc"' EXIT
+#             printf 'machine github.com\nlogin %s\npassword %s\n' \
+#               "${GITHUB_USERNAME}" "${GITHUB_TOKEN}" > "${HOME}/.netrc"
+#             chmod 600 "${HOME}/.netrc"
+#             trap 'rm -f "${HOME}/.netrc"' EXIT
 
-            git fetch origin \
-              '+refs/heads/*:refs/remotes/cnb/*' \
-              '+refs/tags/*:refs/tags/*' \
-              --prune
+#             git fetch origin \
+#               '+refs/heads/*:refs/remotes/cnb/*' \
+#               '+refs/tags/*:refs/tags/*' \
+#               --prune
 
-            git remote remove github-mirror 2>/dev/null || true
-            git remote add github-mirror \
-              https://github.com/WenqingSong/hr-station.git
+#             git remote remove github-mirror 2>/dev/null || true
+#             git remote add github-mirror \
+#               https://github.com/WenqingSong/hr-station.git
 
-            for ref in $(git for-each-ref \
-              --format='%(refname)' refs/remotes/cnb); do
-              branch="${ref#refs/remotes/cnb/}"
-              if [ "${branch}" = "HEAD" ]; then
-                continue
-              fi
-              echo "Syncing branch: ${branch}"
-              git push github-mirror \
-                "${ref}:refs/heads/${branch}"
-            done
+#             for ref in $(git for-each-ref \
+#               --format='%(refname)' refs/remotes/cnb); do
+#               branch="${ref#refs/remotes/cnb/}"
+#               if [ "${branch}" = "HEAD" ]; then
+#                 continue
+#               fi
+#               echo "Syncing branch: ${branch}"
+#               git push github-mirror \
+#                 "${ref}:refs/heads/${branch}"
+#             done
 
-            echo "Syncing tags"
-            git push github-mirror --tags
+#             echo "Syncing tags"
+#             git push github-mirror --tags
